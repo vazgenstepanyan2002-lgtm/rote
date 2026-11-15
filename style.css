@@ -120,3 +120,37 @@ body{padding-bottom:96px}
 #sg>div{color:#34d399;font-size:14px;font-weight:700;margin:0 0 2px!important}
 
 ol#l:not(:empty){margin:14px 0 0;padding:14px;border-radius:20px;background:rgba(18,25,36,.6);border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+
+.fab.fab-l{right:auto;left:16px}
+#bnMdl .bn-b{display:flex;flex-direction:column;max-height:90vh;padding:14px;overflow:hidden;touch-action:auto}
+#bnMdl .mdl-h{flex-shrink:0}
+#bnList{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:10px}
+#bnMdl input{height:40px;padding:0 10px;border-radius:10px;border:1px solid rgba(255,255,255,.25);background:rgba(15,23,34,.82);color:#fff;font-size:16px;outline:none;min-width:0}
+#bnMdl input:focus{border-color:#10b981}
+#bnMdl button{width:auto;margin:0;padding:0 12px;height:40px;font-size:15px;border-radius:10px;flex-shrink:0}
+#bnMdl .mdl-x{width:32px;height:32px;padding:0}
+.bn-c{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.16);border-left:4px solid #fc0;border-radius:14px;padding:10px}
+.bn-ch,.bn-sh,.bn-add,.bn-newc{display:flex;align-items:center;gap:8px}
+#bnMdl .bn-cn{flex:1;font-weight:700;color:#fc0;background:transparent;border-color:transparent;padding:0 4px}
+.bn-cs{color:#34d399;font-weight:700;font-size:14px;white-space:nowrap}
+#bnMdl .bn-ic{width:36px;padding:0;background:rgba(255,255,255,.08)}
+#bnMdl .bn-del{color:#ff6b6b;background:rgba(239,68,68,.18);border-color:rgba(239,68,68,.4)}
+.bn-s{margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,255,255,.14)}
+#bnMdl .bn-sn{flex:1}
+.bn-sr{display:flex;align-items:center;gap:6px;margin-top:6px}
+#bnMdl .bn-pm{min-width:40px;padding:0 12px;font-size:20px;font-weight:700;background:rgba(16,185,129,.18);color:#34d399;border:1.5px solid #10b981}
+#bnMdl .bn-pm.bn-m{background:rgba(239,68,68,.18);color:#ff8585;border-color:#ef4444}
+#bnMdl .bn-q{width:58px;text-align:center;font-weight:700}
+#bnMdl .bn-p{flex:1;width:0;text-align:right}
+.bn-x{color:#94a3b8}
+.bn-ss{margin-top:4px;text-align:right;color:#34d399;font-weight:700;font-size:14px}
+.bn-add{margin-top:10px}
+#bnMdl .bn-add input,#bnMdl .bn-newc input{flex:1}
+.bn-newc{margin-top:10px;flex-shrink:0}
+#bnMdl .bn-newc .bn-pm{font-size:14px;white-space:nowrap}
+.bn-ft{flex-shrink:0;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.16)}
+.bn-tr{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.bn-tr b#bnTot{font-size:22px;color:#fc0}
+.bn-sm{margin-top:8px;font-size:13px;color:#94a3b8}
+#bnMdl .bn-sm button{height:34px;font-size:12px;background:rgba(255,255,255,.08);color:#cbd5e1;border:1px solid rgba(255,255,255,.2)}
+.bn-empty{color:#94a3b8;font-size:14px;text-align:center;padding:18px 8px;line-height:1.5}

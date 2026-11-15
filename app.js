@@ -138,7 +138,7 @@ try{const sv=JSON.parse(localStorage.getItem('R_SAVE')||'null');if(sv&&sv.curOrd
    const v=(await r.json()).v,old=localStorage.getItem(K);
    if(!old){localStorage.setItem(K,v);return}
    if(old===v)return;
-   const busy=(g('a')&&g('a').value.trim())||(g('ptMdl')&&g('ptMdl').classList.contains('open'))||(g('pn')&&g('pn').value.trim())||(g('cm')&&g('cm').classList.contains('open'))||(g('mapM')&&g('mapM').classList.contains('open'));
+   const busy=(g('a')&&g('a').value.trim())||(g('ptMdl')&&g('ptMdl').classList.contains('open'))||(g('pn')&&g('pn').value.trim())||(g('cm')&&g('cm').classList.contains('open'))||(g('mapM')&&g('mapM').classList.contains('open'))||(g('bnMdl')&&g('bnMdl').classList.contains('open'));
    if(busy)return;
    localStorage.setItem(K,v);location.reload();
   }catch(e){}
