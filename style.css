@@ -156,3 +156,6 @@ ol#l:not(:empty){margin:14px 0 0;padding:14px;border-radius:20px;background:rgba
 .bn-empty{color:#94a3b8;font-size:14px;text-align:center;padding:18px 8px;line-height:1.5}
 
 .bn-sr+.bn-sr{margin-top:6px}
+
+.bn-lb{margin-top:8px;font-size:12px;font-weight:700;color:#fc0;letter-spacing:.3px}
+.bn-lb+.bn-sr{margin-top:4px}

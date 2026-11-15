@@ -26,12 +26,12 @@
   g('bnQty').textContent=fm(q);
  }
 
- const row=(a,s,k)=>'<div class="bn-sr">'
+ const row=(a,s,k)=>'<div class="bn-lb">'+(k?'Район':'Город')+'</div><div class="bn-sr">'
   +'<button class="bn-pm bn-m" data-act="dec" data-k="'+k+'" '+a+'>−</button>'
   +'<input class="bn-q" data-k="'+k+'" '+a+' inputmode="decimal" value="'+num(s['qty'+k])+'">'
   +'<button class="bn-pm" data-act="inc" data-k="'+k+'" '+a+'>+</button>'
   +'<span class="bn-x">×</span>'
-  +'<input class="bn-p" data-k="'+k+'" '+a+' inputmode="decimal" placeholder="Цена '+(k?2:1)+'" value="'+(num(s['price'+k])||'')+'">'
+  +'<input class="bn-p" data-k="'+k+'" '+a+' inputmode="decimal" placeholder="Цена" value="'+(num(s['price'+k])||'')+'">'
   +'</div>';
  function render(){
   const l=g('bnList'),st=l.scrollTop;
