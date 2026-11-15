@@ -11,13 +11,14 @@ const YKEY='a197b5c2-1e4f-480d-abab-9ab7bd63b447';
 async function yan(q){
  try{
   const r=await fetch('https://geocode-maps.yandex.ru/1.x/?format=json&results=5&lang=ru_RU&rspn=1&bbox=43.4,38.8~46.7,41.3&apikey='+YKEY+'&geocode='+encodeURIComponent(q));
+  if(!r.ok){const a=new Array();a.err=(r.status===403||r.status===429)?'limit':'srv';return a}
   const j=await r.json();
   return j.response.GeoObjectCollection.featureMember.map(m=>{
    const g=m.GeoObject,md=g.metaDataProperty.GeocoderMetaData;
    const p=g.Point.pos.split(' ');
    return{name:md.text.replace(/^Армения, /,'')+(md.precision==='exact'?'':' 📍'),lat:+p[1],lon:+p[0],exact:md.precision==='exact'};
   });
- }catch(e){return[]}
+ }catch(e){const a=new Array();a.err=navigator.onLine===false?'off':'net';return a}
 }
 function showList(list,msg){
  let b=document.getElementById('sg');
@@ -32,7 +33,7 @@ function showList(list,msg){
  });
 }
 function choose(it){
- saveAdrCache(it);
+ saveAdrCache(it);window.toast&&toast('Адрес добавлен');
  P.push({name:it.name,lat:it.lat,lon:it.lon});
  document.getElementById('a').value='';
  showList([]);
@@ -45,7 +46,7 @@ window.add=async function(){
  if(!q)return;
  s.textContent='Ищу адрес в Яндексе...';
  const l=await yan(q);
- if(!l.length){s.textContent='Адрес не найден. Попробуйте написать иначе или добавьте город';return}
+ if(!l.length){const E=l.err,m=E==='off'?'Нет интернета. Проверьте сеть и повторите':E==='net'?'Не удалось связаться с Яндексом. Проверьте сеть':E==='limit'?'Яндекс отклонил запрос (лимит или ключ API)':E==='srv'?'Яндекс временно не отвечает. Попробуйте позже':'Адрес не найден. Попробуйте написать иначе или добавьте город';s.textContent=m;window.toast&&toast(m,'err');return}
  if(l.length===1&&l[0].exact){choose(l[0]);return}
  s.textContent='';
  showList(l,'Выберите нужный вариант:');
