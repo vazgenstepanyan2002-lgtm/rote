@@ -94,3 +94,16 @@ body{padding-bottom:96px}
 .mapm-b{display:flex;align-items:center;gap:8px}
 .mapm-b .mdl-x{width:auto;height:36px;padding:0 10px;font-size:13px;white-space:nowrap;display:flex;align-items:center;justify-content:center}
 .mapm-b .mapm-c{width:36px;padding:0}
+
+.grp{margin-top:24px;padding:14px;border-radius:20px;background:rgba(18,25,36,.6);border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.grp .ret-box{margin-top:0;padding:12px 14px;gap:12px;border-radius:14px;position:relative;transition:.2s}
+.grp .ret-box input{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
+.ret-sw{flex-shrink:0;width:48px;height:28px;border-radius:20px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);position:relative;transition:.2s}
+.ret-sw::after{content:"";position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:#cbd5e1;box-shadow:0 2px 6px rgba(0,0,0,.4);transition:.2s}
+.ret-box input:checked+.ret-sw{background:rgba(16,185,129,.35);border-color:#10b981}
+.ret-box input:checked+.ret-sw::after{transform:translateX(20px);background:#34d399}
+.ret-t{display:flex;flex-direction:column;font-size:15px;font-weight:600;color:#f8fafc}
+.ret-t small{font-size:12px;font-weight:400;color:#94a3b8;margin-top:2px}
+.ret-box:has(input:checked){border-color:#10b981;background:rgba(16,185,129,.12)}
+.ret-box:has(input:checked) .ret-t small{color:#a7f3d0}
+.grp button[onclick="go()"]{margin-top:12px}
