@@ -75,7 +75,7 @@ html.lock,body.lock{overflow:hidden!important}.mdl{overscroll-behavior:contain;t
 <button onclick="askC('Очистить список адресов?','Очистить').then(y=>{if(y){P.length=0;save()}})">Очистить</button>
 <ol id="l"></ol>
 <label class="ret-box"><input type="checkbox" id="ret"> <span>Вернуться на базу</span></label><button onclick="go()">Найти лучший порядок</button>
-<button onclick="$('o').innerHTML='';$('s').textContent='';localStorage.removeItem('R_SAVE')">Очистить</button>
+<button onclick="askC('Очистить построенный маршрут?','Очистить').then(y=>{if(y){$('o').innerHTML='';$('s').textContent='';localStorage.removeItem('R_SAVE');window.CUR=null}})">Очистить</button>
 <div id="s"></div><div id="o"></div>
 <script>
 const $=id=>document.getElementById(id);
