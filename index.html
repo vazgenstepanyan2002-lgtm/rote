@@ -57,13 +57,22 @@ a.pt-i{display:flex;align-items:center;justify-content:space-between;background:
 .pt-r{display:flex;gap:8px;align-items:center;margin-bottom:8px}.pt-r a.pt-i{flex:1;margin-bottom:0}.pt-r a.x{width:38px;height:38px}
 html.lock,body.lock{overflow:hidden!important}.mdl{overscroll-behavior:contain;touch-action:none}.mdl-b{overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch}
 .eta{display:block;color:#fc0;font-size:13px;font-weight:700;margin-bottom:2px}.eta:empty{display:none}.dep{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px;color:#cbd5e1}.dep input{height:38px;padding:0 8px;border-radius:10px;border:1px solid rgba(255,255,255,.25);background:rgba(15,23,34,.82);color:#fff;font-size:15px}.dep button{width:auto;margin:0;padding:8px 12px;font-size:13px}
+.cm{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:20px;touch-action:none;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.cm.open{display:flex}
+.cm-b{width:100%;max-width:360px;background:#121924;border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:22px 20px 18px;box-shadow:0 14px 40px rgba(0,0,0,.65);text-align:center;animation:cmIn .16s ease-out}
+@keyframes cmIn{from{transform:scale(.92);opacity:0}}
+.cm-i{font-size:34px;margin-bottom:8px}
+.cm-t{font-size:17px;font-weight:600;line-height:1.35;margin-bottom:18px;color:#f8fafc;word-break:break-word}
+.cm-r{display:flex;gap:10px}
+.cm-r button{margin:0;flex:1}
+.cm-r button.cm-ok{background:rgba(239,68,68,.22);color:#ff8585;border:1.5px solid #ef4444}
 </style>
 </head><body>
 <div id="instBar" class="inst-bar"><span id="instTxt">📲 Установите приложение на экран</span><div style="display:flex;align-items:center;gap:6px"><button id="instBtn" class="inst-btn" style="display:none" onclick="runInstall()">Установить</button><span class="inst-x" onclick="$('instBar').style.display='none';localStorage.setItem('INST_HIDE','1')">✕</span></div></div>
 <h2><span>Доставка EuroBaza</span><span class="badge">🚚 <b id="cnt">0</b></span></h2>
 <div class="inp-w"><input id="a" placeholder="Например: Абовяна 10, Ереван"><span id="mic" class="inp-mic" onclick="voice()">🎤</span><span class="inp-x" onclick="$('a').value='';if($('sg'))$('sg').innerHTML='';$('s').textContent='';$('a').focus()">✕</span></div>
 <button onclick="add()">Добавить адрес</button>
-<button onclick="if(confirm('Очистить список адресов?')){P.length=0;save()}">Очистить</button>
+<button onclick="askC('Очистить список адресов?','Очистить').then(y=>{if(y){P.length=0;save()}})">Очистить</button>
 <ol id="l"></ol>
 <label class="ret-box"><input type="checkbox" id="ret"> <span>Вернуться на базу</span></label><button onclick="go()">Найти лучший порядок</button>
 <button onclick="$('o').innerHTML='';$('s').textContent='';localStorage.removeItem('R_SAVE')">Очистить</button>
@@ -115,8 +124,9 @@ function drawSpec(me,dists,durs){
   return '<div class="pt-r"><a class="pt-i" href="yandexnavi://build_route_on_map?lat_to='+p.lat+'&lon_to='+p.lon+'"><span>'+esc(p.name)+info+'</span><span style="color:#fc0">🧭 Поехали</span></a><a class="x" href="#" onclick="delSpec('+i+');return false">✕</a></div>';
  }).join('');
 }
-function delSpec(i){
- if(!SPEC_PTS[i]||!confirm('Удалить точку «'+SPEC_PTS[i].name+'»?'))return;
+async function delSpec(i){
+ if(!SPEC_PTS[i])return;
+ if(!await askC('Удалить точку «'+SPEC_PTS[i].name+'»?','Удалить'))return;
  SPEC_PTS.splice(i,1);saveSpec();openPts();
 }
 async function addSpec(){
@@ -214,7 +224,7 @@ try{const sv=JSON.parse(localStorage.getItem('R_SAVE')||'null');if(sv&&sv.curOrd
    const v=(await r.json()).v,old=localStorage.getItem(K);
    if(!old){localStorage.setItem(K,v);return}
    if(old===v)return;
-   const busy=(g('a')&&g('a').value.trim())||(g('ptMdl')&&g('ptMdl').classList.contains('open'))||(g('pn')&&g('pn').value.trim());
+   const busy=(g('a')&&g('a').value.trim())||(g('ptMdl')&&g('ptMdl').classList.contains('open'))||(g('pn')&&g('pn').value.trim())||(g('cm')&&g('cm').classList.contains('open'));
    if(busy)return;
    localStorage.setItem(K,v);location.reload();
   }catch(e){}
@@ -231,5 +241,14 @@ try{const sv=JSON.parse(localStorage.getItem('R_SAVE')||'null');if(sv&&sv.curOrd
  new MutationObserver(upd).observe(m,{attributes:true,attributeFilter:['class']});
  upd();
 })();
+</script>
+<div id="cm" class="cm"><div class="cm-b"><div class="cm-i">🗑️</div><div class="cm-t" id="cmT"></div><div class="cm-r"><button id="cmNo">Отмена</button><button id="cmOk" class="cm-ok">OK</button></div></div></div>
+<script>
+function askC(text,ok){return new Promise(res=>{
+ const g=id=>document.getElementById(id),m=g('cm'),y=g('cmOk'),n=g('cmNo');
+ g('cmT').textContent=text;y.textContent=ok||'OK';m.classList.add('open');
+ const done=v=>{m.classList.remove('open');y.onclick=n.onclick=m.onclick=null;res(v)};
+ y.onclick=()=>done(true);n.onclick=()=>done(false);m.onclick=e=>{if(e.target===m)done(false)};
+})}
 </script>
 </body></html>
