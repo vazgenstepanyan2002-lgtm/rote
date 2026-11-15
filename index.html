@@ -110,7 +110,11 @@ const DEF_PTS=[
  {name:'Артак',lat:40.163019,lon:44.388218},
  {name:'Геворг Спайка',lat:40.127240,lon:44.490112}
 ];
-let SPEC_PTS=JSON.parse(localStorage.getItem('SPEC_PTS')||'null')||DEF_PTS;
+let SPEC_PTS=DEF_PTS;
+try{
+ const saved=JSON.parse(localStorage.getItem('SPEC_PTS')||'null');
+ if(Array.isArray(saved))SPEC_PTS=saved.filter(x=>x&&typeof x.lat==='number'&&typeof x.lon==='number');
+}catch(e){}
 function saveSpec(){localStorage.setItem('SPEC_PTS',JSON.stringify(SPEC_PTS))}
 function delSpecPt(i){SPEC_PTS.splice(i,1);saveSpec();openPts()}
 async function fillMyPos(){
@@ -120,10 +124,10 @@ async function fillMyPos(){
 }
 function addSpecPt(){
  const nm=$('ptName').value.trim();
- const c=$('ptCoord').value.trim().split(/[\s,;]+/).map(Number);
+ const nums=($('ptCoord').value.match(/-?\d+\.\d+/g)||[]).map(Number);
  if(!nm){$('ptMsg').textContent='Введите название точки';return}
- if(c.length<2||isNaN(c)||isNaN(c)){$('ptMsg').textContent='Укажите координаты (широта, долгота)';return}
- SPEC_PTS.push({name:nm,lat:c,lon:c});
+ if(nums.length<2){$('ptMsg').textContent='Укажите координаты (широта, долгота)';return}
+ SPEC_PTS.push({name:nm,lat:nums.at(0),lon:nums.at(1)});
  saveSpec();
  $('ptName').value='';$('ptCoord').value='';$('ptMsg').textContent='';
  openPts();
