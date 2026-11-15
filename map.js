@@ -4,7 +4,7 @@
  const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
  const LF_CSS='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css';
  const LF_JS='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js';
- let _lp=null,_map=null,_tok=0;
+ let _lp=null,_map=null,_tok=0,_fit=null;
  function lock(on){document.documentElement.classList.toggle('lock',on);document.body.classList.toggle('lock',on)}
  function loadLeaflet(){
   if(window.L&&L.map)return Promise.resolve();
@@ -21,13 +21,13 @@
  function ensureModal(){
   let m=g('mapM');if(m)return m;
   m=document.createElement('div');m.id='mapM';m.className='mapm';
-  m.innerHTML='<div class="mapm-h"><span>🗺 Маршрут на карте</span><button class="mdl-x" id="mapX">✕</button></div><div id="mapBox"></div><div id="mapInfo"></div>';
+  m.innerHTML='<div class="mapm-h"><span>🗺 Маршрут на карте</span><span><button class="mdl-x" id="mapFit" style="width:auto;padding:0 10px;margin-right:8px;font-size:13px">⤢ Весь маршрут</button><button class="mdl-x" id="mapX">✕</button></span></div><div id="mapBox"></div><div id="mapInfo"></div>';
   document.body.appendChild(m);
-  g('mapX').onclick=closeMap;
+  g('mapX').onclick=closeMap;g('mapFit').onclick=()=>{if(_fit)_fit()};g('mapInfo').style.maxHeight='22vh';
   return m;
  }
  function closeMap(){
-  _tok++;
+  _tok++;_fit=null;
   if(_map){try{_map.remove()}catch(e){}_map=null}
   const m=g('mapM');if(m)m.classList.remove('open');
   lock(false);
@@ -53,7 +53,7 @@
  function draw(cur,start,sv,tok){
   if(_map){try{_map.remove()}catch(e){}_map=null}
   const box=g('mapBox');box.innerHTML='';
-  const map=L.map(box,{zoomControl:true});_map=map;
+  box.style.touchAction='none';const map=L.map(box,{zoomControl:true,dragging:true,touchZoom:true,doubleClickZoom:true,scrollWheelZoom:true,tap:true,inertia:true});_map=map;
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   const etas=document.querySelectorAll('#o ol li .eta');
   const ll=[];let bad=0;
@@ -73,7 +73,7 @@
    L.marker([it.lat,it.lon],{icon:icon(base?'base':inex?'bad':'ok',base?'🏁':String(k+1))}).addTo(map).bindPopup(h);
   });
   const straight=L.polyline(ll,{color:'#0ea5e9',weight:4,opacity:.8,dashArray:'8 8'}).addTo(map);
-  map.fitBounds(L.latLngBounds(ll),{padding:[30,30],maxZoom:16});
+  _fit=()=>map.fitBounds(L.latLngBounds(ll),{padding:[30,30],maxZoom:16});_fit();
   setTimeout(()=>{if(_map===map){map.invalidateSize();map.fitBounds(L.latLngBounds(ll),{padding:[30,30],maxZoom:16})}},150);
 
   let note='Линия по прямой (загружаю дороги...)';
