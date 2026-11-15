@@ -1,13 +1,13 @@
 <!doctype html><html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>EuroBaza</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-192.png"><script>if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js")</script>
-<link rel="stylesheet" href="style.css?v=1794770981">
+<link rel="stylesheet" href="style.css?v=1794771204">
 </head><body>
 <div id="instBar" class="inst-bar"><span id="instTxt">📲 Установите приложение на экран</span><div style="display:flex;align-items:center;gap:6px"><button id="instBtn" class="inst-btn" style="display:none" onclick="runInstall()">Установить</button><span class="inst-x" onclick="$('instBar').style.display='none';localStorage.setItem('INST_HIDE','1')">✕</span></div></div>
 <h2><span>Доставка EuroBaza</span><span class="badge">🚚 <b id="cnt">0</b></span></h2>
-<div class="inp-w"><input id="a" placeholder="Например: Абовяна 10, Ереван"><span id="mic" class="inp-mic" onclick="voice()">🎤</span><span class="inp-x" onclick="$('a').value='';if($('sg'))$('sg').innerHTML='';$('s').textContent='';$('a').focus()">✕</span></div>
+<div class="grp top"><div class="inp-w"><input id="a" placeholder="Например: Абовяна 10, Ереван"><span id="mic" class="inp-mic" onclick="voice()">🎤</span><span class="inp-x" onclick="$('a').value='';if($('sg'))$('sg').innerHTML='';$('s').textContent='';$('a').focus()">✕</span></div>
 <button onclick="add()">Добавить адрес</button>
-<button onclick="askC('Очистить список адресов?','Очистить').then(y=>{if(y){P.length=0;save();window.toast&&toast('Список очищен')}})">Очистить</button>
+<button onclick="askC('Очистить список адресов?','Очистить').then(y=>{if(y){P.length=0;save();window.toast&&toast('Список очищен')}})">Очистить</button></div>
 <ol id="l"></ol>
 <div class="grp"><label class="ret-box"><input type="checkbox" id="ret"><span class="ret-sw"></span><span class="ret-t">🏁 Вернуться на базу<small>Маршрут закончится на базе</small></span></label><button onclick="go()">Найти лучший порядок</button>
 <button onclick="askC('Очистить построенный маршрут?','Очистить').then(y=>{if(y){$('o').innerHTML='';$('s').textContent='';localStorage.removeItem('R_SAVE');window.CUR=null;window.toast&&toast('Маршрут очищен')}})">Очистить</button></div>

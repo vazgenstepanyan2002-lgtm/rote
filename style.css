@@ -107,3 +107,11 @@ body{padding-bottom:96px}
 .ret-box:has(input:checked){border-color:#10b981;background:rgba(16,185,129,.12)}
 .ret-box:has(input:checked) .ret-t small{color:#a7f3d0}
 .grp button[onclick="go()"]{margin-top:12px}
+
+.grp.top{margin-top:0}
+.grp.top .inp-w{margin-bottom:0}
+.grp.top button[onclick="add()"]{margin-top:10px}
+#sg{margin-top:10px!important;padding:10px;border-radius:14px;background:rgba(15,23,34,.55);border:1px solid rgba(16,185,129,.45);gap:6px!important}
+#sg>div{color:#34d399;font-size:13px;font-weight:600;margin:0 0 4px!important}
+#sg button{display:flex!important;align-items:center;gap:10px;background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.14)!important;border-radius:10px!important;padding:10px 12px!important;font-size:14px!important;font-weight:500!important;color:#f8fafc!important;text-shadow:none!important;box-shadow:none!important;margin-top:0!important}
+#sg button::before{content:"+";background:#10b981;color:#fff;font-weight:700;font-size:15px;min-width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
