@@ -26,33 +26,6 @@ function updHint(){
 }
 (function(){const d=window.draw;if(typeof d==='function'){window.draw=function(){d.apply(this,arguments);updHint()}}updHint()})();
 
-function exportData(){
- const d={app:'EuroBaza',t:Date.now()};
- ['P','SPEC','ADR_CACHE'].forEach(k=>{try{d[k]=JSON.parse(localStorage.getItem(k)||'null')}catch(e){}});
- const x=new Date(),p=n=>String(n).padStart(2,'0');
- const name='eurobaza_'+x.getFullYear()+p(x.getMonth()+1)+p(x.getDate())+'_'+p(x.getHours())+p(x.getMinutes())+'.json';
- const a=document.createElement('a');
- a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'}));
- a.download=name;document.body.appendChild(a);a.click();
- setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);
- toast('Файл сохранён в «Загрузки»');
-}
-function _okPt(p){return p&&typeof p.name==='string'&&typeof p.lat==='number'&&typeof p.lon==='number'&&isFinite(p.lat)&&isFinite(p.lon)}
-async function importData(file){
- try{
-  const d=JSON.parse(await file.text());
-  if(!d||d.app!=='EuroBaza')throw 0;
-  const a=Array.isArray(d.P)?d.P.filter(_okPt):null,b=Array.isArray(d.SPEC)?d.SPEC.filter(_okPt):null,c=Array.isArray(d.ADR_CACHE)?d.ADR_CACHE.filter(_okPt):null;
-  if(!a&&!b&&!c)throw 0;
-  const ok=await askC('Заменить данные на сохранённые в файле? Адресов: '+(a?a.length:'—')+', точек без адреса: '+(b?b.length:'—'),'Заменить','⬆');
-  if(!ok)return;
-  if(a)localStorage.setItem('P',JSON.stringify(a));
-  if(b)localStorage.setItem('SPEC',JSON.stringify(b));
-  if(c)localStorage.setItem('ADR_CACHE',JSON.stringify(c));
-  localStorage.removeItem('R_SAVE');
-  toast('Данные загружены');setTimeout(()=>location.reload(),600);
- }catch(e){toast('Файл не подходит','err')}
-}
 function showVer(){
  const e=document.getElementById('ver');if(!e)return;
  const f=v=>/^\d{14}$/.test(v||'')?'версия от '+v.slice(6,8)+'.'+v.slice(4,6)+'.'+v.slice(0,4)+' '+v.slice(8,10)+':'+v.slice(10,12):'версия: нет данных';
@@ -62,11 +35,8 @@ function showVer(){
 }
 (function(){
  const f=document.createElement('div');f.id='ft';
- f.innerHTML='<button id="exB">⬇ Экспорт</button><button id="imB">⬆ Импорт</button><input type="file" id="impF" accept=".json,application/json" hidden><span id="ver"></span>';
+ f.innerHTML='<span id="ver"></span>';
  const o=document.getElementById('o');if(o)o.after(f);else document.body.appendChild(f);
- document.getElementById('exB').onclick=exportData;
- document.getElementById('imB').onclick=()=>document.getElementById('impF').click();
- document.getElementById('impF').onchange=e=>{const x=e.target.files[0];e.target.value='';if(x)importData(x)};
  showVer();
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)showVer()});
 })();
