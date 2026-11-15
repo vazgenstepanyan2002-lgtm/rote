@@ -54,6 +54,7 @@ a.pt-i{display:flex;align-items:center;justify-content:space-between;background:
 .inst-bar{display:none;align-items:center;justify-content:space-between;gap:10px;background:rgba(16,185,129,.22);border:1.5px solid #10b981;border-radius:14px;padding:11px 14px;margin-bottom:12px;font-size:13px;color:#ecfdf5}
 .inst-btn{width:auto!important;margin:0!important;padding:8px 14px!important;background:#10b981!important;color:#000!important;border:none!important;border-radius:10px!important;font-size:13px!important;font-weight:700!important;white-space:nowrap}
 .inst-x{color:#94a3b8;font-size:16px;padding:4px 6px;cursor:pointer}
+.pt-r{display:flex;gap:8px;align-items:center;margin-bottom:8px}.pt-r a.pt-i{flex:1;margin-bottom:0}.pt-r a.x{width:38px;height:38px}
 </style>
 </head><body>
 <div id="instBar" class="inst-bar"><span id="instTxt">📲 Установите приложение на экран</span><div style="display:flex;align-items:center;gap:6px"><button id="instBtn" class="inst-btn" style="display:none" onclick="runInstall()">Установить</button><span class="inst-x" onclick="$('instBar').style.display='none';localStorage.setItem('INST_HIDE','1')">✕</span></div></div>
@@ -89,44 +90,69 @@ function voice(){
  r.start();
 }
 </script><script src="yandex.js?v=21"></script><button class="fab" onclick="openPts()">📍 Точки</button>
-<div id="ptMdl" class="mdl" onclick="if(event.target===this)this.classList.remove('open')"><div class="mdl-b"><div class="mdl-h"><span>Точки без адреса</span><button class="mdl-x" onclick="$('ptMdl').classList.remove('open')">✕</button></div><div id="ptList"></div></div></div>
+<div id="ptMdl" class="mdl" onclick="if(event.target===this)this.classList.remove('open')"><div class="mdl-b"><div class="mdl-h"><span>Точки без адреса</span><button class="mdl-x" onclick="$('ptMdl').classList.remove('open')">✕</button></div><div id="ptList"></div><div style="margin-top:12px;border-top:1px solid rgba(255,255,255,.16);padding-top:12px"><div class="inp-w"><input id="pn" placeholder="Название точки"></div><div class="inp-w"><input id="pc" placeholder="Координаты: 40.1630, 44.3882 (или пусто)"></div><button onclick="addSpec()">➕ Добавить точку</button><div id="ptMsg" style="color:#ffd166;font-size:13px;text-align:center;margin-top:8px"></div></div></div></div>
 <script>
-const SPEC_PTS=new Array(
- {name:'Артак',lat:40.163019,lon:44.388218},
- {name:'Геворг Спайка',lat:40.127240,lon:44.490112}
-);
+let SPEC_PTS=(()=>{try{const v=JSON.parse(localStorage.getItem('SPEC')||'null');if(Array.isArray(v))return v}catch(e){}return[{name:'Артак',lat:40.163019,lon:44.388218},{name:'Геворг Спайка',lat:40.127240,lon:44.490112}]})();
+let _spTok=0;
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function saveSpec(){localStorage.setItem('SPEC',JSON.stringify(SPEC_PTS))}
 function drawSpec(me,dists,durs){
+ if(!SPEC_PTS.length){$('ptList').innerHTML='<div style="color:#94a3b8;font-size:14px;padding:6px 2px">Список пуст. Добавьте точку ниже.</div>';return}
  $('ptList').innerHTML=SPEC_PTS.map((p,i)=>{
   let info='';
-  if(durs&&durs.at(i)!=null){
-   const d=dists&&dists.at(i),km=d?' • '+(d<10000?(d/1000).toFixed(1):Math.round(d/1000))+' км':'';
-   info=`<span class="t-tag" style="color:#34d399">⏱ ~${fmtT(durs.at(i))}${km}</span>`;
+  if(durs&&durs[i]!=null){
+   const d=dists&&dists[i],km=d?' • '+(d<10000?(d/1000).toFixed(1):Math.round(d/1000))+' км':'';
+   info='<span class="t-tag" style="color:#34d399">⏱ ~'+fmtT(durs[i])+km+'</span>';
   }else if(me){
    const d=Math.hypot((me.lat-p.lat)*111000,(me.lon-p.lon)*85000)*1.35,t=d/11;
    const km=' • '+(d<10000?(d/1000).toFixed(1):Math.round(d/1000))+' км';
-   info=`<span class="t-tag" style="color:#34d399">⏱ ~${fmtT(t)}${km}</span>`;
+   info='<span class="t-tag" style="color:#34d399">⏱ ~'+fmtT(t)+km+'</span>';
   }else{
-   info=`<span class="t-tag" style="color:#94a3b8">Определяю геопозицию...</span>`;
+   info='<span class="t-tag" style="color:#94a3b8">Определяю геопозицию...</span>';
   }
-  return `<a class="pt-i" href="yandexnavi://build_route_on_map?lat_to=${p.lat}&lon_to=${p.lon}"><span>${p.name}${info}</span><span style="color:#fc0">🧭 Поехали</span></a>`;
+  return '<div class="pt-r"><a class="pt-i" href="yandexnavi://build_route_on_map?lat_to='+p.lat+'&lon_to='+p.lon+'"><span>'+esc(p.name)+info+'</span><span style="color:#fc0">🧭 Поехали</span></a><a class="x" href="#" onclick="delSpec('+i+');return false">✕</a></div>';
  }).join('');
 }
+function delSpec(i){
+ if(!SPEC_PTS[i]||!confirm('Удалить точку «'+SPEC_PTS[i].name+'»?'))return;
+ SPEC_PTS.splice(i,1);saveSpec();openPts();
+}
+async function addSpec(){
+ const n=$('pn').value.trim(),c=$('pc').value.trim(),m=$('ptMsg');
+ if(!n){m.textContent='Введите название точки';return}
+ let lat,lon;
+ if(c){
+  const nums=c.match(/-?\d+(?:[.,]\d+)?/g);
+  if(!nums||nums.length!==2){m.textContent='Нужно два числа: 40.1630, 44.3882';return}
+  lat=parseFloat(nums[0].replace(',','.'));lon=parseFloat(nums[1].replace(',','.'));
+  if(lat>43&&lon<43){const t=lat;lat=lon;lon=t}
+  if(!(lat>38.8&&lat<41.3&&lon>43.4&&lon<46.7)){m.textContent='Координаты вне Армении, проверьте';return}
+ }else{
+  m.textContent='Определяю вашу геопозицию...';
+  try{const me=await pos();lat=me.lat;lon=me.lon}catch(e){m.textContent='Нет доступа к геолокации. Введите координаты вручную';return}
+ }
+ SPEC_PTS.push({name:n,lat:+lat.toFixed(6),lon:+lon.toFixed(6)});saveSpec();
+ $('pn').value='';$('pc').value='';m.textContent='';openPts();
+}
 async function openPts(){
+ const tok=++_spTok;
  $('ptMdl').classList.add('open');
  drawSpec(null,null,null);
+ if(!SPEC_PTS.length)return;
  let me;
  try{me=await pos()}catch(e){
-  $('ptList').innerHTML=SPEC_PTS.map(p=>`<a class="pt-i" href="yandexnavi://build_route_on_map?lat_to=${p.lat}&lon_to=${p.lon}"><span>${p.name}<span class="t-tag" style="color:#fbbf24">Включите геолокацию для расчёта времени</span></span><span style="color:#fc0">🧭 Поехали</span></a>`).join('');
+  if(tok!==_spTok)return;
+  $('ptList').querySelectorAll('.t-tag').forEach(t=>{t.textContent='Включите геолокацию для расчёта времени';t.style.color='#fbbf24'});
   return;
  }
+ if(tok!==_spTok)return;
  drawSpec(me,null,null);
  try{
-  const allPts=new Array(me).concat(SPEC_PTS);
-  const url='https://router.project-osrm.org/table/v1/driving/'+allPts.map(p=>p.lon+','+p.lat).join(';')+'?sources=0&annotations=duration,distance';
-  const r=await fT(url),j=await r.json();
-  if(j.durations&&j.durations.at(0)){
-   drawSpec(me,j.distances.at(0).slice(1),j.durations.at(0).slice(1));
-  }
+  const all=[me].concat(SPEC_PTS);
+  const r=await fT('https://router.project-osrm.org/table/v1/driving/'+all.map(p=>p.lon+','+p.lat).join(';')+'?sources=0&annotations=duration,distance');
+  const j=await r.json();
+  if(tok!==_spTok)return;
+  if(j.durations&&j.durations[0])drawSpec(me,j.distances[0].slice(1),j.durations[0].slice(1));
  }catch(e){}
 }
 </script>
