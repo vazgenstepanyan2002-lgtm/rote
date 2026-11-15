@@ -161,3 +161,17 @@ function askC(text,ok,icon){return new Promise(res=>{
  const done=v=>{m.classList.remove('open');y.onclick=n.onclick=m.onclick=null;res(v)};
  y.onclick=()=>done(true);n.onclick=()=>done(false);m.onclick=e=>{if(e.target===m)done(false)};
 })}
+
+;
+(function ptBack(){
+ const m=document.getElementById('ptMdl');if(!m)return;
+ let was=m.classList.contains('open');
+ new MutationObserver(()=>{
+  const now=m.classList.contains('open');
+  if(now===was)return;
+  was=now;
+  if(now){try{history.pushState({pt:1},'')}catch(e){}}
+  else{try{if(history.state&&history.state.pt)setTimeout(()=>history.back(),0)}catch(e){}}
+ }).observe(m,{attributes:true,attributeFilter:['class']});
+ window.addEventListener('popstate',()=>{if(m.classList.contains('open'))m.classList.remove('open')});
+})();
