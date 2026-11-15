@@ -4,7 +4,7 @@ function toast(msg,type){
  if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t)}
  t.textContent=msg;t.className='show '+(type||'ok');
  clearTimeout(toast._t);toast._t=setTimeout(()=>{t.className=''},2600);
- vib(type==='err'?[60,40,60]:30);
+ if(type==='err')vib([60,40,60]);
 }
 let _busyN=0;
 function busy(on){
@@ -56,3 +56,9 @@ document.addEventListener('click',e=>{
   if(await askC('Яндекс Навигатор не открылся. Открыть маршрут в Google Maps?','Открыть','🧭'))window.open(gmapsUrl(h),'_blank');
  },2500);
 });
+
+// TAPVIB: лёгкая вибрация при нажатии на кнопки
+document.addEventListener('click',e=>{
+ const t=e.target&&e.target.closest&&e.target.closest('button,a,.inp-x,.inp-mic,.inst-x,.ret-box');
+ if(t)vib(12);
+},true);
