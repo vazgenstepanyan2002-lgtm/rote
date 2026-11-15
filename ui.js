@@ -60,5 +60,5 @@ document.addEventListener('click',e=>{
 // TAPVIB: лёгкая вибрация при нажатии на кнопки
 document.addEventListener('click',e=>{
  const t=e.target&&e.target.closest&&e.target.closest('button,a,.inp-x,.inp-mic,.inst-x,.ret-box');
- if(t)vib(12);
+ if(t)vib(40);
 },true);
