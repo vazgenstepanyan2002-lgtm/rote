@@ -16,7 +16,7 @@
   B.forEach((c,ci)=>{
    let cs=0;
    c.subs.forEach((s,si)=>{
-    const v=num(s.qty)*num(s.price);cs+=v;q+=num(s.qty);
+    const v=num(s.qty)*num(s.price)+num(s.qty2)*num(s.price2);cs+=v;q+=num(s.qty)+num(s.qty2);
     const e=g('bs'+ci+'_'+si);if(e)e.textContent='= '+fm(v)+' '+CUR;
    });
    t+=cs;
@@ -26,6 +26,13 @@
   g('bnQty').textContent=fm(q);
  }
 
+ const row=(a,s,k)=>'<div class="bn-sr">'
+  +'<button class="bn-pm bn-m" data-act="dec" data-k="'+k+'" '+a+'>−</button>'
+  +'<input class="bn-q" data-k="'+k+'" '+a+' inputmode="decimal" value="'+num(s['qty'+k])+'">'
+  +'<button class="bn-pm" data-act="inc" data-k="'+k+'" '+a+'>+</button>'
+  +'<span class="bn-x">×</span>'
+  +'<input class="bn-p" data-k="'+k+'" '+a+' inputmode="decimal" placeholder="Цена '+(k?2:1)+'" value="'+(num(s['price'+k])||'')+'">'
+  +'</div>';
  function render(){
   const l=g('bnList'),st=l.scrollTop;
   if(!B.length){
@@ -44,13 +51,7 @@
      return '<div class="bn-s"><div class="bn-sh">'
       +'<input class="bn-sn" '+a+' value="'+esc(s.name)+'" placeholder="Название">'
       +'<button class="bn-ic bn-del" data-act="dels" '+a+'>✕</button></div>'
-      +'<div class="bn-sr">'
-      +'<button class="bn-pm bn-m" data-act="dec" '+a+'>−</button>'
-      +'<input class="bn-q" '+a+' inputmode="decimal" value="'+num(s.qty)+'">'
-      +'<button class="bn-pm" data-act="inc" '+a+'>+</button>'
-      +'<span class="bn-x">×</span>'
-      +'<input class="bn-p" '+a+' inputmode="decimal" placeholder="Цена" value="'+(num(s.price)||'')+'">'
-      +'</div><div class="bn-ss" id="bs'+ci+'_'+si+'"></div></div>';
+      +row(a,s,'')+row(a,s,'2')+'<div class="bn-ss" id="bs'+ci+'_'+si+'"></div></div>';
     }).join('');
     h+='<div class="bn-add"><input class="bn-an" data-c="'+ci+'" placeholder="Новая подкатегория"><button class="bn-pm" data-act="addsub" data-c="'+ci+'">＋</button></div>';
    }
@@ -65,8 +66,8 @@
   if(!c)return;
   if(t.classList.contains('bn-cn'))c.name=t.value;
   else if(t.classList.contains('bn-sn')&&s)s.name=t.value;
-  else if(t.classList.contains('bn-q')&&s)s.qty=num(t.value);
-  else if(t.classList.contains('bn-p')&&s)s.price=num(t.value);
+  else if(t.classList.contains('bn-q')&&s)s['qty'+(t.dataset.k||'')]=num(t.value);
+  else if(t.classList.contains('bn-p')&&s)s['price'+(t.dataset.k||'')]=num(t.value);
   else return;
   save();upd();
  }
@@ -77,8 +78,8 @@
   if(!c)return;
   if(a==='inc'||a==='dec'){
    if(!s)return;
-   s.qty=Math.max(0,r3(num(s.qty)+(a==='inc'?1:-1)));
-   const q=b.parentNode.querySelector('.bn-q');if(q)q.value=s.qty;
+   const kk='qty'+(b.dataset.k||'');s[kk]=Math.max(0,r3(num(s[kk])+(a==='inc'?1:-1)));
+   const q=b.parentNode.querySelector('.bn-q');if(q)q.value=s[kk];
    save();upd();
   }else if(a==='col'){
    c.col=!c.col;save();render();
@@ -92,7 +93,7 @@
   }else if(a==='addsub'){
    const inp=b.parentNode.querySelector('.bn-an'),n=inp.value.trim();
    if(!n){tst('Введите название подкатегории','err');return}
-   c.subs.push({name:n,qty:0,price:0});save();render();tst('Подкатегория добавлена');
+   c.subs.push({name:n,qty:0,price:0,qty2:0,price2:0});save();render();tst('Подкатегория добавлена');
   }
  }
 
@@ -107,7 +108,7 @@
  async function resetQty(){
   if(!B.length)return;
   if(!await askC('Обнулить все количества? Цены и названия останутся.','Обнулить','🔄'))return;
-  B.forEach(c=>c.subs.forEach(s=>{s.qty=0}));save();render();tst('Количества обнулены');
+  B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));save();render();tst('Количества обнулены');
  }
 
  function ensure(){
