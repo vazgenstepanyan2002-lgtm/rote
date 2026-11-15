@@ -90,7 +90,7 @@ function voice(){
  r.start();
 }
 </script><script src="yandex.js?v=21"></script><button class="fab" onclick="openPts()">📍 Точки</button>
-<div id="ptMdl" class="mdl" onclick="if(event.target===this)this.classList.remove('open')"><div class="mdl-b"><div class="mdl-h"><span>Точки без адреса</span><button class="mdl-x" onclick="$('ptMdl').classList.remove('open')">✕</button></div><div id="ptList"></div><div style="margin-top:12px;border-top:1px solid rgba(255,255,255,.16);padding-top:12px"><div class="inp-w"><input id="pn" placeholder="Название точки"></div><div class="inp-w"><input id="pc" placeholder="Координаты: 40.1630, 44.3882 (или пусто)"></div><button onclick="addSpec()">➕ Добавить точку</button><div id="ptMsg" style="color:#ffd166;font-size:13px;text-align:center;margin-top:8px"></div></div></div></div>
+<div id="ptMdl" class="mdl" onclick="if(event.target===this)this.classList.remove('open')"><div class="mdl-b"><div class="mdl-h"><span>Точки без адреса</span><button class="mdl-x" onclick="$('ptMdl').classList.remove('open')">✕</button></div><div id="ptList"></div><div style="margin-top:12px;border-top:1px solid rgba(255,255,255,.16);padding-top:12px"><div class="inp-w"><input id="pn" placeholder="Название точки"></div><div class="inp-w"><input id="pc" placeholder="Координаты или нажмите 📍"><span class="inp-x" style="font-size:20px" onclick="fillPos()">📍</span></div><button onclick="addSpec()">➕ Добавить точку</button><div id="ptMsg" style="color:#ffd166;font-size:13px;text-align:center;margin-top:8px"></div></div></div></div>
 <script>
 let SPEC_PTS=(()=>{try{const v=JSON.parse(localStorage.getItem('SPEC')||'null');if(Array.isArray(v))return v}catch(e){}return[{name:'Артак',lat:40.163019,lon:44.388218},{name:'Геворг Спайка',lat:40.127240,lon:44.490112}]})();
 let _spTok=0;
@@ -133,6 +133,12 @@ async function addSpec(){
  }
  SPEC_PTS.push({name:n,lat:+lat.toFixed(6),lon:+lon.toFixed(6)});saveSpec();
  $('pn').value='';$('pc').value='';m.textContent='';openPts();
+}
+async function fillPos(){
+ const m=$('ptMsg');
+ m.textContent='Определяю вашу геопозицию...';
+ try{const me=await pos();$('pc').value=me.lat.toFixed(6)+', '+me.lon.toFixed(6);m.textContent='Координаты подставлены. Введите название и нажмите «Добавить точку»'}
+ catch(e){m.textContent='Нет доступа к геолокации. Разрешите её для Chrome'}
 }
 async function openPts(){
  const tok=++_spTok;
