@@ -43,6 +43,11 @@ li.pin{border-color:rgba(255,204,0,.6)!important}
 #o ol li{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:10px 12px;margin-bottom:6px;font-size:14px}
 #o ol li::before{counter-increment:ord;content:counter(ord);background:#10b981;color:#fff;font-weight:700;font-size:12px;min-width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 #o ol li.drag{background:rgba(16,185,129,.28);border-color:#10b981}
+#o ol li.done{opacity:.48;border-color:rgba(255,255,255,.08)}
+#o ol li.done .pt-txt{text-decoration:line-through;color:#94a3b8}
+.chk{background:rgba(16,185,129,.16);border:1px solid rgba(16,185,129,.45);color:#34d399;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;cursor:pointer;flex-shrink:0;margin-left:auto;user-select:none}
+#o ol li.done .chk{background:#10b981;color:#000}
+.dh{margin-left:4px!important}
 .t-tag{display:block;color:#34d399;font-size:12px;font-weight:600;margin-top:4px;white-space:nowrap}
 .dh{margin-left:auto;color:#94a3b8;font-size:18px;padding:4px 8px;cursor:grab;touch-action:none;user-select:none}
 .fab{position:fixed;right:16px;bottom:18px;z-index:90;width:auto;padding:12px 16px;border-radius:50px;background:#fc0;color:#000;border:none;font-weight:700;font-size:15px;box-shadow:0 6px 20px rgba(0,0,0,.55);margin:0}
@@ -144,7 +149,56 @@ function solve(D,n,bIdx){const skipPen=(a,b,used)=>{let pen=0;for(let j=1;j<=n;j
 function fmtT(s){const m=Math.round(s/60);return m<60?m+' мин':Math.floor(m/60)+' ч '+(m%60)+' мин'}
 function buildNav(arr){const to=arr.at(-1),via=arr.slice(0,-1);let u='yandexnavi://build_route_on_map?lat_to='+to.lat+'&lon_to='+to.lon;via.forEach((p,i)=>u+='&lat_via_'+i+'='+p.lat+'&lon_via_'+i+'='+p.lon);return u}
 function renderNavBtns(arr){if(arr.length<=10)return`<a class="nav" href="${buildNav(arr)}">Открыть в Яндекс Навигаторе</a>`;let out='';for(let i=0;i<arr.length;i+=10){const ch=arr.slice(i,i+10);out+=`<a class="nav" href="${buildNav(ch)}">Навигатор: точки ${i+1}–${i+ch.length}</a>`}return out}
-async function go(){if(!P.length)return;const back=$('ret').checked;$('o').innerHTML='';$('s').textContent='Определяю местоположение...';let me;try{me=await pos()}catch(e){$('s').textContent='Разрешите доступ к геолокации для Chrome';return}const pts=back?[me,...P,BASE]:[me,...P],bIdx=back?pts.length-1:0;$('s').textContent='Считаю лучший порядок...';let D;try{const r=await fetch('https://project-osrm.org'+pts.map(p=>p.lon+','+p.lat).join(';')+'?annotations=duration');D=(await r.json()).durations;if(!D)throw 0}catch(e){D=pts.map(a=>pts.map(b=>Math.hypot((a.lat-b.lat)*111,(a.lon-b.lon)*85)*90))}let Dist=pts.map(a=>pts.map(b=>Math.hypot((a.lat-b.lat)*111000,(a.lon-b.lon)*85000)*1.35));const idx=solve(D,P.length,bIdx);if(back)idx.push(bIdx);try{const rPts=[pts.at(0),...idx.map(i=>pts.at(i))],rr=await fetch('https://project-osrm.org'+rPts.map(p=>p.lon+','+p.lat).join(';')+'?overview=false'),legs=(await rr.json()).routes.at(0).legs;if(legs)legs.forEach((leg,k)=>{const a=k===0?0:idx.at(k-1),b=idx.at(k);D[a][b]=leg.duration;Dist[a][b]=leg.distance})}catch(e){}let prev=0,totT=0,totD=0;let curOrder=idx.map(i=>{const sT=600+D.at(prev).at(i),sD=Dist.at(prev).at(i);totT+=sT;totD+=sD;prev=i;const sKm=sD?' • '+(sD<10000?(sD/1000).toFixed(1):Math.round(sD/1000))+' км':'';return{name:pts.at(i).name,lat:pts.at(i).lat,lon:pts.at(i).lon,sub:'+'+fmtT(sT)+sKm}});const startPt=pts.at(0);$('s').textContent='';const km=totD?' • '+Math.round(totD/1000)+' км':'',liHtml=curOrder.map(it=>`<li><span style="flex:1">${it.name}<span class="t-tag">(${it.sub})</span></span><span class="dh">☰</span></li>`).join('');renderOut(curOrder,startPt,totT,totD)}
-function renderOut(curOrder,startPt,totT,totD){localStorage.setItem('R_SAVE',JSON.stringify({curOrder:curOrder,startPt:startPt,totT:totT,totD:totD}));const km=totD?' • '+Math.round(totD/1000)+' км':'',liHtml=curOrder.map(it=>`<li><span style="flex:1">${it.name}<span class="t-tag">(${it.sub})</span></span><span class="dh">☰</span></li>`).join('');$('o').innerHTML=`<h3>Порядок (потяните ☰):</h3><div class="stat">⏱ Весь путь: ~${fmtT(totT)}${km}</div><ol>${liHtml}</ol><div id="navBtns">${renderNavBtns(curOrder)}</div>`;const ol=$('o').querySelector('ol');let dragEl=null;ol.addEventListener('touchstart',ev=>{const h=ev.target.closest('.dh');if(!h)return;dragEl=h.closest('li');dragEl.classList.add('drag')},{passive:true});ol.addEventListener('touchmove',ev=>{if(!dragEl)return;ev.preventDefault();const over=document.elementFromPoint(ev.touches.item(0).clientX,ev.touches.item(0).clientY),target=over&&over.closest('#o ol li');if(target&&target!==dragEl){const items=Array.from(ol.children),fromI=items.indexOf(dragEl),toI=items.indexOf(target);if(fromI<toI)target.after(dragEl);else target.before(dragEl);curOrder.splice(toI,0,curOrder.splice(fromI,1).at(0))}},{passive:false});ol.addEventListener('touchend',async()=>{if(!dragEl)return;dragEl.classList.remove('drag');dragEl=null;const navBox=document.getElementById('navBtns');if(navBox)navBox.innerHTML=renderNavBtns(curOrder);let tT=totT,tD=totD;try{const rPts=new Array(startPt).concat(curOrder),rr=await fetch('https://project-osrm.org'+rPts.map(p=>p.lon+','+p.lat).join(';')+'?overview=false'),legs=(await rr.json()).routes.at(0).legs;if(legs){tT=0;tD=0;const lis=ol.querySelectorAll('li');legs.forEach((leg,k)=>{const sT=600+leg.duration,sD=leg.distance;tT+=sT;tD+=sD;const sKm=sD?' • '+(sD<10000?(sD/1000).toFixed(1):Math.round(sD/1000))+' км':'',sub='+'+fmtT(sT)+sKm;curOrder.at(k).sub=sub;const tag=lis.item(k)&&lis.item(k).querySelector('.t-tag');if(tag)tag.textContent='('+sub+')'});const st=document.querySelector('#o .stat');if(st)st.textContent='⏱ Весь путь: ~'+fmtT(tT)+(tD?' • '+Math.round(tD/1000)+' км':'')}}catch(e){}localStorage.setItem('R_SAVE',JSON.stringify({curOrder:curOrder,startPt:startPt,totT:tT,totD:tD}))})}
+async function go(){if(!P.length)return;const back=$('ret').checked;$('o').innerHTML='';$('s').textContent='Определяю местоположение...';let me;try{me=await pos()}catch(e){$('s').textContent='Разрешите доступ к геолокации для Chrome';return}const pts=back?[me,...P,BASE]:[me,...P],bIdx=back?pts.length-1:0;$('s').textContent='Считаю лучший порядок...';let D;try{const r=await fetch('https://project-osrm.org'+pts.map(p=>p.lon+','+p.lat).join(';')+'?annotations=duration');D=(await r.json()).durations;if(!D)throw 0}catch(e){D=pts.map(a=>pts.map(b=>Math.hypot((a.lat-b.lat)*111,(a.lon-b.lon)*85)*90))}let Dist=pts.map(a=>pts.map(b=>Math.hypot((a.lat-b.lat)*111000,(a.lon-b.lon)*85000)*1.35));const idx=solve(D,P.length,bIdx);if(back)idx.push(bIdx);try{const rPts=[pts.at(0),...idx.map(i=>pts.at(i))],rr=await fetch('https://project-osrm.org'+rPts.map(p=>p.lon+','+p.lat).join(';')+'?overview=false'),legs=(await rr.json()).routes.at(0).legs;if(legs)legs.forEach((leg,k)=>{const a=k===0?0:idx.at(k-1),b=idx.at(k);D[a][b]=leg.duration;Dist[a][b]=leg.distance})}catch(e){}let prev=0,totT=0,totD=0;let curOrder=idx.map(i=>{const sT=600+D.at(prev).at(i),sD=Dist.at(prev).at(i);totT+=sT;totD+=sD;prev=i;const sKm=sD?' • '+(sD<10000?(sD/1000).toFixed(1):Math.round(sD/1000))+' км':'';return{name:pts.at(i).name,lat:pts.at(i).lat,lon:pts.at(i).lon,sub:'+'+fmtT(sT)+sKm,sT:sT,sD:sD,done:false}});const startPt=pts.at(0);$('s').textContent='';const km=totD?' • '+Math.round(totD/1000)+' км':'',liHtml=curOrder.map(it=>`<li><span style="flex:1">${it.name}<span class="t-tag">(${it.sub})</span></span><span class="dh">☰</span></li>`).join('');renderOut(curOrder,startPt,totT,totD)}
+function renderOut(curOrder,startPt,totT,totD){
+ const updStat=()=>{
+  const rem=curOrder.filter(x=>!x.done);
+  const rT=rem.reduce((a,b)=>a+(b.sT||0),0),rD=rem.reduce((a,b)=>a+(b.sD||0),0);
+  const st=document.querySelector('#o .stat');
+  if(st){
+   if(!rem.length)st.textContent='✅ Все точки доставлены!';
+   else{
+    const km=(rD||totD)?' • '+Math.round((rD||totD)/1000)+' км':'';
+    st.textContent=(rem.length<curOrder.length?'⏱ Осталось: ~':'⏱ Весь путь: ~')+fmtT(rT||totT)+km;
+   }
+  }
+  const navBox=document.getElementById('navBtns');
+  if(navBox)navBox.innerHTML=rem.length?renderNavBtns(rem):'';
+  localStorage.setItem('R_SAVE',JSON.stringify({curOrder:curOrder,startPt:startPt,totT:totT,totD:totD}));
+ };
+ const liHtml=curOrder.map(it=>`<li class="${it.done?'done':''}"><span class="pt-txt" style="flex:1">${it.name}<span class="t-tag">(${it.sub})</span></span><span class="chk" title="Доставлено">✓</span><span class="dh">☰</span></li>`).join('');
+ $('o').innerHTML=`<h3>Порядок (✓ сдано • ☰ порядок):</h3><div class="stat"></div><ol>${liHtml}</ol><div id="navBtns"></div>`;
+ updStat();
+ const ol=$('o').querySelector('ol');
+ ol.addEventListener('click',ev=>{
+  const c=ev.target.closest('.chk');if(!c)return;
+  const li=c.closest('li'),idx=Array.from(ol.children).indexOf(li);
+  curOrder.at(idx).done=!curOrder.at(idx).done;
+  li.classList.toggle('done',curOrder.at(idx).done);
+  updStat();
+ });
+ let dragEl=null;
+ ol.addEventListener('touchstart',ev=>{const h=ev.target.closest('.dh');if(!h)return;dragEl=h.closest('li');dragEl.classList.add('drag')},{passive:true});
+ ol.addEventListener('touchmove',ev=>{if(!dragEl)return;ev.preventDefault();const over=document.elementFromPoint(ev.touches.item(0).clientX,ev.touches.item(0).clientY),target=over&&over.closest('#o ol li');if(target&&target!==dragEl){const items=Array.from(ol.children),fromI=items.indexOf(dragEl),toI=items.indexOf(target);if(fromI<toI)target.after(dragEl);else target.before(dragEl);curOrder.splice(toI,0,curOrder.splice(fromI,1).at(0))}},{passive:false});
+ ol.addEventListener('touchend',async()=>{
+  if(!dragEl)return;
+  dragEl.classList.remove('drag');dragEl=null;
+  updStat();
+  let tT=totT,tD=totD;
+  try{
+   const rPts=new Array(startPt).concat(curOrder),rr=await fetch('https://project-osrm.org(p=>p.lon+','+p.lat).join(';')+'?overview=false'),legs=(await rr.json()).routes.at(0).legs;
+   if(legs){
+    tT=0;tD=0;const lis=ol.querySelectorAll('li');
+    legs.forEach((leg,k)=>{
+     const sT=600+leg.duration,sD=leg.distance;tT+=sT;tD+=sD;
+     const sKm=sD?' • '+(sD<10000?(sD/1000).toFixed(1):Math.round(sD/1000))+' км':'',sub='+'+fmtT(sT)+sKm;
+     curOrder.at(k).sub=sub;curOrder.at(k).sT=sT;curOrder.at(k).sD=sD;
+     const tag=lis.item(k)&&lis.item(k).querySelector('.t-tag');if(tag)tag.textContent='('+sub+')';
+    });
+   }
+  }catch(e){}
+  totT=tT;totD=tD;updStat();
+ });
+}
 try{const sv=JSON.parse(localStorage.getItem('R_SAVE')||'null');if(sv&&sv.curOrder&&sv.curOrder.length)renderOut(sv.curOrder,sv.startPt,sv.totT,sv.totD)}catch(e){}
 </script>

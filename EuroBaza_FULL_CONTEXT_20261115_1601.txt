@@ -1,0 +1,307 @@
+====================================================================
+ИНСТРУКЦИЯ-КОНТЕКСТ ДЛЯ ИИ (ПРОЕКТ: ДОСТАВКА EUROBAZA - 20261115_1601)
+====================================================================
+ПРАВИЛА РАБОТЫ С ПРОЕКТОМ:
+1. Папка проекта: ~/storage/downloads/route (или ~/storage/shared/Download/route).
+2. АВТОДЕПЛОЙ НАСТРОЕН: репозиторий GitHub vazgenstepanyan2002-lgtm/rote (ветка main) привязан через git в Termux. НЕ нужно просить пользователя загружать файлы вручную через браузер! В конце каждой команды Termux обязательно делать: git add . && git commit -m 'upd' && git push
+3. В конце каждой команды также обновлять бэкапы (удаляя старые route_backup_* и EuroBaza_FULL_CONTEXT_*).
+4. Все изменения в index.html делать аккуратно через python3 с проверкой assert.
+5. Каждую команду Termux оборачивать в блок ( set -e ... ) && echo -e "\033[1;32m...\033[0m" || echo -e "\033[1;31m...\033[0m" с понятными комментариями через #, чтобы при любой ошибке сразу выводился красный отчёт.
+
+
+====================================================================
+ФАЙЛ: index.html
+====================================================================
+<!doctype html><html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EuroBaza</title><link rel="manifest" href="manifest.json"><script>if("serviceWorker"in navigator){let rld=0;navigator.serviceWorker.addEventListener("controllerchange",()=>{if(!rld){rld=1;location.reload()}});navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{})}</script>
+<style>
+html{scroll-behavior:smooth;-webkit-overflow-scrolling:touch}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+body{min-height:100vh;background:#0f1722;color:#f8fafc;padding:16px;max-width:540px;margin:0 auto 30px;touch-action:manipulation}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(0,0,0,.48),rgba(0,0,0,.65)),url(bg.jpg?v=4) center/cover no-repeat;transform:translateZ(0);will-change:transform}
+h2{background:rgba(18,25,36,.75);border:1px solid rgba(255,255,255,.16);border-radius:16px;padding:14px 16px;font-size:19px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.badge{background:#fc0;color:#000;font-size:14px;padding:4px 10px;border-radius:20px;font-weight:700;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.inp-w{position:relative;margin-bottom:8px}
+.inp-w input{width:100%;height:48px;padding:0 72px 0 14px;font-size:16px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(15,23,34,.82);color:#fff;outline:none}
+.inp-w input:focus{border-color:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.18)}
+.inp-x{position:absolute;right:6px;top:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;color:#94a3b8;font-size:16px}
+.inp-mic{position:absolute;right:38px;top:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;font-size:17px;border-radius:8px;transition:.2s}
+.inp-mic.rec{background:rgba(239,68,68,.25);box-shadow:0 0 0 2px #ef4444;animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.5}}
+button{width:100%;padding:13px;font-size:15px;font-weight:600;border:none;border-radius:12px;margin-top:8px;cursor:pointer;background:rgba(28,38,52,.85);color:#fff;border:1px solid rgba(255,255,255,.18);box-shadow:0 4px 12px rgba(0,0,0,.25)}
+button[onclick="add()"]{background:rgba(16,185,129,.18);color:#34d399;border:1.5px solid #10b981;box-shadow:0 4px 12px rgba(16,185,129,.15)}
+button[onclick="go()"]{background:rgba(16,185,129,.18);color:#34d399;border:1.5px solid #10b981;box-shadow:0 4px 12px rgba(16,185,129,.15);margin-top:22px;position:relative}
+button[onclick="go()"]{background:rgba(16,185,129,.18);color:#34d399;border:1.5px solid #10b981;box-shadow:0 4px 12px rgba(16,185,129,.15);margin-top:22px;position:relative}
+button[onclick*="'o'"],button[onclick*="P.length=0"]{background:rgba(239,68,68,.18);color:#ff8585;border:1.5px solid #ef4444;box-shadow:0 4px 12px rgba(239,68,68,.15)}
+#sg{display:flex;flex-direction:column;gap:6px;margin-top:8px}#sg:empty{display:none}
+#sg button{background:rgba(255,255,255,.06)!important;color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.9)!important;border:1px solid rgba(255,255,255,.22)!important;border-radius:10px!important;margin-top:0!important;text-align:left!important;font-weight:500!important;padding:11px 14px!important}
+#sg button::before{content:"+ ";color:#34d399;font-weight:800;font-size:16px}
+ol#l{list-style:none;margin:14px 0;display:flex;flex-direction:column;gap:8px;counter-reset:pt}ol#l:empty{margin:0}
+ol#l li{content-visibility:auto;contain-intrinsic-size:52px;background:rgba(15,23,34,.92);border:1px solid rgba(255,255,255,.16);border-left:4px solid #10b981;border-radius:14px;padding:12px 14px 12px 12px;font-size:14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+ol#l li::before{counter-increment:pt;content:counter(pt);background:#10b981;color:#fff;font-weight:700;font-size:12px;min-width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+a.x{background:rgba(239,68,68,.22);border:1px solid rgba(239,68,68,.4);color:#ff6b6b;text-decoration:none;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
+#s{color:#ffd166;font-size:14px;font-weight:500;margin-top:10px;text-align:center}
+#o:not(:empty){background:rgba(18,25,36,.8);border:1px solid rgba(16,185,129,.45);border-radius:16px;padding:16px;margin-top:14px}
+#o h3{color:#34d399;margin-bottom:10px;font-size:16px}
+#o ol{padding-left:20px;margin-bottom:12px;font-size:14px;line-height:1.5}
+a.nav{display:block;background:#fc0;color:#000;text-align:center;padding:14px;margin-top:12px;font-weight:700;text-decoration:none;border-radius:12px;font-size:16px}
+.cbtns{display:flex;align-items:center;gap:6px;flex-shrink:0}
+a.st{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#94a3b8;text-decoration:none;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px}
+a.st.on{background:rgba(255,204,0,.22);border-color:#fc0;color:#fc0}
+li.pin{border-color:rgba(255,204,0,.6)!important}
+.ret-box{display:flex;align-items:center;gap:10px;background:rgba(18,25,36,.72);border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:11px 14px;margin-top:14px;font-size:14px;cursor:pointer}
+.ret-box input{width:18px;height:18px;margin:0;accent-color:#10b981}
+.stat{background:rgba(16,185,129,.18);border:1px solid rgba(16,185,129,.4);border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:13px;color:#a7f3d0;font-weight:600}
+#o ol{list-style:none;padding:0;counter-reset:ord;margin-bottom:12px}
+#o ol li{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:10px 12px;margin-bottom:6px;font-size:14px}
+#o ol li::before{counter-increment:ord;content:counter(ord);background:#10b981;color:#fff;font-weight:700;font-size:12px;min-width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#o ol li.drag{background:rgba(16,185,129,.28);border-color:#10b981}
+#o ol li.done{opacity:.48;border-color:rgba(255,255,255,.08)}
+#o ol li.done .pt-txt{text-decoration:line-through;color:#94a3b8}
+.chk{background:rgba(16,185,129,.16);border:1px solid rgba(16,185,129,.45);color:#34d399;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;cursor:pointer;flex-shrink:0;margin-left:auto;user-select:none}
+#o ol li.done .chk{background:#10b981;color:#000}
+.dh{margin-left:4px!important}
+.t-tag{display:block;color:#34d399;font-size:12px;font-weight:600;margin-top:4px;white-space:nowrap}
+.dh{margin-left:auto;color:#94a3b8;font-size:18px;padding:4px 8px;cursor:grab;touch-action:none;user-select:none}
+.fab{position:fixed;right:16px;bottom:18px;z-index:90;width:auto;padding:12px 16px;border-radius:50px;background:#fc0;color:#000;border:none;font-weight:700;font-size:15px;box-shadow:0 6px 20px rgba(0,0,0,.55);margin:0}
+.mdl{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.72);display:none;align-items:flex-end;justify-content:center;padding:16px}
+.mdl.open{display:flex}
+.mdl-b{width:100%;max-width:500px;background:#121924;border:1px solid rgba(255,255,255,.2);border-radius:18px;padding:16px;max-height:75vh;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+.mdl-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:17px;font-weight:700;color:#fc0}
+.mdl-x{background:rgba(255,255,255,.1);border:none;color:#fff;width:32px;height:32px;border-radius:8px;padding:0;margin:0;font-size:16px}
+a.pt-i{display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-left:4px solid #fc0;border-radius:12px;padding:13px 14px;margin-bottom:8px;color:#fff;text-decoration:none;font-size:15px;font-weight:600}
+</style>
+</head><body>
+<h2><span>Доставка EuroBaza</span><span class="badge">🚚 <b id="cnt">0</b></span></h2>
+<div class="inp-w"><input id="a" placeholder="Например: Абовяна 10, Ереван"><span id="mic" class="inp-mic" onclick="voice()">🎤</span><span class="inp-x" onclick="$('a').value='';if($('sg'))$('sg').innerHTML='';$('s').textContent='';$('a').focus()">✕</span></div>
+<button onclick="add()">Добавить адрес</button>
+<button onclick="P.length=0;save()">Очистить</button>
+<ol id="l"></ol>
+<label class="ret-box"><input type="checkbox" id="ret"> <span>Вернуться на базу</span></label><button onclick="go()">Найти лучший порядок</button>
+<button onclick="$('o').innerHTML='';$('s').textContent='';localStorage.removeItem('R_SAVE')">Очистить</button>
+<div id="s"></div><div id="o"></div>
+<script>
+const $=id=>document.getElementById(id);
+let P=JSON.parse(localStorage.getItem('P')||'[]');
+function save(){localStorage.setItem('P',JSON.stringify(P));draw()}
+function draw(){if($('cnt'))$('cnt').textContent=P.length;$('l').innerHTML=P.map((p,i)=>`<li class="${p.pin?'pin':''}"><span style="flex:1">${p.name}</span><div class="cbtns"><a class="st ${p.pin?'on':''}" href="#" onclick="pin(${i});return false">${p.pin?'⭐':'☆'}</a><a class="x" href="#" onclick="del(${i});return false">✕</a></div></li>`).join('')}
+function del(i){P.splice(i,1);save()}
+function pin(i){const v=!P[i].pin;P.forEach(x=>x.pin=false);P[i].pin=v;save()}
+async function add(){
+ const v=$('a').value.trim();if(!v)return;
+ $('s').textContent='Ищу адрес...';
+ try{
+  const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=am&accept-language=ru&q='+encodeURIComponent(v));
+  const j=await r.json();
+  if(!j.length){$('s').textContent='Адрес не найден, попробуйте написать иначе';return}
+  P.push({name:j[0].display_name.split(',').slice(0,3).join(','),lat:+j[0].lat,lon:+j[0].lon});
+  $('a').value='';$('s').textContent='';save();
+ }catch(e){$('s').textContent='Ошибка сети'}
+}
+function pos(){return new Promise((ok,no)=>navigator.geolocation.getCurrentPosition(p=>ok({lat:p.coords.latitude,lon:p.coords.longitude}),no,{enableHighAccuracy:true,timeout:15000,maximumAge:20000}))}
+$('a').onkeydown=ev=>{if(ev.key==='Enter')add()};
+draw();
+
+function voice(){
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){$('s').textContent='Голосовой ввод не поддерживается в этом браузере';return}
+ const r=new SR(),m=$('mic');
+ r.lang='ru-RU';r.interimResults=false;
+ r.onstart=()=>{m.classList.add('rec');$('s').textContent='Говорите адрес...'};
+ r.onend=()=>{m.classList.remove('rec')};
+ r.onerror=()=>{m.classList.remove('rec');$('s').textContent='Не удалось распознать голос'};
+ r.onresult=e=>{const t=e.results.item(0).item(0).transcript;$('a').value=t;$('s').textContent='';add()};
+ r.start();
+}
+</script><script src="yandex.js?v=20"></script><button class="fab" onclick="openPts()">📍 Точки</button>
+<div id="ptMdl" class="mdl" onclick="if(event.target===this)this.classList.remove('open')"><div class="mdl-b"><div class="mdl-h"><span>Точки без адреса</span><button class="mdl-x" onclick="$('ptMdl').classList.remove('open')">✕</button></div><div id="ptList"></div></div></div>
+<script>
+const SPEC_PTS=new Array(
+ {name:'Артак',lat:40.163019,lon:44.388218},
+ {name:'Геворг Спайка',lat:40.127240,lon:44.490112}
+);
+function drawSpec(me,dists,durs){
+ $('ptList').innerHTML=SPEC_PTS.map((p,i)=>{
+  let info='';
+  if(durs&&durs.at(i)!=null){
+   const d=dists&&dists.at(i),km=d?' • '+(d<10000?(d/1000).toFixed(1):Math.round(d/1000))+' км':'';
+   info=`<span class="t-tag" style="color:#34d399">⏱ ~${fmtT(durs.at(i))}${km}</span>`;
+  }else if(me){
+   const d=Math.hypot((me.lat-p.lat)*111000,(me.lon-p.lon)*85000)*1.35,t=d/11;
+   const km=' • '+(d<10000?(d/1000).toFixed(1):Math.round(d/1000))+' км';
+   info=`<span class="t-tag" style="color:#34d399">⏱ ~${fmtT(t)}${km}</span>`;
+  }else{
+   info=`<span class="t-tag" style="color:#94a3b8">Определяю геопозицию...</span>`;
+  }
+  return `<a class="pt-i" href="yandexnavi://build_route_on_map?lat_to=${p.lat}&lon_to=${p.lon}"><span>${p.name}${info}</span><span style="color:#fc0">🧭 Поехали</span></a>`;
+ }).join('');
+}
+async function openPts(){
+ $('ptMdl').classList.add('open');
+ drawSpec(null,null,null);
+ let me;
+ try{me=await pos()}catch(e){
+  $('ptList').innerHTML=SPEC_PTS.map(p=>`<a class="pt-i" href="yandexnavi://build_route_on_map?lat_to=${p.lat}&lon_to=${p.lon}"><span>${p.name}<span class="t-tag" style="color:#fbbf24">Включите геолокацию для расчёта времени</span></span><span style="color:#fc0">🧭 Поехали</span></a>`).join('');
+  return;
+ }
+ drawSpec(me,null,null);
+ try{
+  const allPts=new Array(me).concat(SPEC_PTS);
+  const url='https://project-osrm.org'+allPts.map(p=>p.lon+','+p.lat).join(';')+'?sources=0&annotations=duration,distance';
+  const r=await fetch(url),j=await r.json();
+  if(j.durations&&j.durations.at(0)){
+   drawSpec(me,j.distances.at(0).slice(1),j.durations.at(0).slice(1));
+  }
+ }catch(e){}
+}
+</script>
+</body></html>
+<script>
+const BASE={name:'🏁 Возврат на базу (Арин Берд 7)',lat:40.1328,lon:44.5046};
+function solve(D,n,bIdx){const skipPen=(a,b,used)=>{let pen=0;for(let j=1;j<=n;j++)if(!used.at(j)&&j!==b){const det=D.at(a).at(j)+D.at(j).at(b)-D.at(a).at(b);if(det<900)pen+=3600}return pen};let best=new Array(),bc=Infinity;if(n<=8){const rec=(path,used,c)=>{if(c>=bc)return;if(path.length==n){const l=path.at(-1),t=c+(bIdx?D.at(l).at(bIdx):0);if(t<bc){bc=t;best=path.slice()}return}const last=path.length?path.at(-1):0;for(let i=1;i<=n;i++)if(!used.at(i)){const pen=skipPen(last,i,used);used[i]=1;path.push(i);rec(path,used,c+D.at(last).at(i)+pen);path.pop();used[i]=0}};const pI=P.findIndex(x=>x.pin)+1;if(pI>0){const u=new Array();u[pI]=1;rec(new Array(pI),u,D.at(0).at(pI))}else rec(new Array(),new Array(),0)}else{const used=new Array();let cur=0;const pI=P.findIndex(x=>x.pin)+1;if(pI>0){used[pI]=1;best.push(pI);cur=pI}for(let k=best.length;k<n;k++){let b=-1,bv=Infinity;for(let i=1;i<=n;i++)if(!used.at(i)){const v=D.at(cur).at(i)+skipPen(cur,i,used);if(v<bv){bv=v;b=i}}used[b]=1;best.push(b);cur=b}}return best}
+function fmtT(s){const m=Math.round(s/60);return m<60?m+' мин':Math.floor(m/60)+' ч '+(m%60)+' мин'}
+function buildNav(arr){const to=arr.at(-1),via=arr.slice(0,-1);let u='yandexnavi://build_route_on_map?lat_to='+to.lat+'&lon_to='+to.lon;via.forEach((p,i)=>u+='&lat_via_'+i+'='+p.lat+'&lon_via_'+i+'='+p.lon);return u}
+function renderNavBtns(arr){if(arr.length<=10)return`<a class="nav" href="${buildNav(arr)}">Открыть в Яндекс Навигаторе</a>`;let out='';for(let i=0;i<arr.length;i+=10){const ch=arr.slice(i,i+10);out+=`<a class="nav" href="${buildNav(ch)}">Навигатор: точки ${i+1}–${i+ch.length}</a>`}return out}
+async function go(){if(!P.length)return;const back=$('ret').checked;$('o').innerHTML='';$('s').textContent='Определяю местоположение...';let me;try{me=await pos()}catch(e){$('s').textContent='Разрешите доступ к геолокации для Chrome';return}const pts=back?[me,...P,BASE]:[me,...P],bIdx=back?pts.length-1:0;$('s').textContent='Считаю лучший порядок...';let D;try{const r=await fetch('https://project-osrm.org'+pts.map(p=>p.lon+','+p.lat).join(';')+'?annotations=duration');D=(await r.json()).durations;if(!D)throw 0}catch(e){D=pts.map(a=>pts.map(b=>Math.hypot((a.lat-b.lat)*111,(a.lon-b.lon)*85)*90))}let Dist=pts.map(a=>pts.map(b=>Math.hypot((a.lat-b.lat)*111000,(a.lon-b.lon)*85000)*1.35));const idx=solve(D,P.length,bIdx);if(back)idx.push(bIdx);try{const rPts=[pts.at(0),...idx.map(i=>pts.at(i))],rr=await fetch('https://project-osrm.org'+rPts.map(p=>p.lon+','+p.lat).join(';')+'?overview=false'),legs=(await rr.json()).routes.at(0).legs;if(legs)legs.forEach((leg,k)=>{const a=k===0?0:idx.at(k-1),b=idx.at(k);D[a][b]=leg.duration;Dist[a][b]=leg.distance})}catch(e){}let prev=0,totT=0,totD=0;let curOrder=idx.map(i=>{const sT=600+D.at(prev).at(i),sD=Dist.at(prev).at(i);totT+=sT;totD+=sD;prev=i;const sKm=sD?' • '+(sD<10000?(sD/1000).toFixed(1):Math.round(sD/1000))+' км':'';return{name:pts.at(i).name,lat:pts.at(i).lat,lon:pts.at(i).lon,sub:'+'+fmtT(sT)+sKm,sT:sT,sD:sD,done:false}});const startPt=pts.at(0);$('s').textContent='';const km=totD?' • '+Math.round(totD/1000)+' км':'',liHtml=curOrder.map(it=>`<li><span style="flex:1">${it.name}<span class="t-tag">(${it.sub})</span></span><span class="dh">☰</span></li>`).join('');renderOut(curOrder,startPt,totT,totD)}
+function renderOut(curOrder,startPt,totT,totD){
+ const updStat=()=>{
+  const rem=curOrder.filter(x=>!x.done);
+  const rT=rem.reduce((a,b)=>a+(b.sT||0),0),rD=rem.reduce((a,b)=>a+(b.sD||0),0);
+  const st=document.querySelector('#o .stat');
+  if(st){
+   if(!rem.length)st.textContent='✅ Все точки доставлены!';
+   else{
+    const km=(rD||totD)?' • '+Math.round((rD||totD)/1000)+' км':'';
+    st.textContent=(rem.length<curOrder.length?'⏱ Осталось: ~':'⏱ Весь путь: ~')+fmtT(rT||totT)+km;
+   }
+  }
+  const navBox=document.getElementById('navBtns');
+  if(navBox)navBox.innerHTML=rem.length?renderNavBtns(rem):'';
+  localStorage.setItem('R_SAVE',JSON.stringify({curOrder:curOrder,startPt:startPt,totT:totT,totD:totD}));
+ };
+ const liHtml=curOrder.map(it=>`<li class="${it.done?'done':''}"><span class="pt-txt" style="flex:1">${it.name}<span class="t-tag">(${it.sub})</span></span><span class="chk" title="Доставлено">✓</span><span class="dh">☰</span></li>`).join('');
+ $('o').innerHTML=`<h3>Порядок (✓ сдано • ☰ порядок):</h3><div class="stat"></div><ol>${liHtml}</ol><div id="navBtns"></div>`;
+ updStat();
+ const ol=$('o').querySelector('ol');
+ ol.addEventListener('click',ev=>{
+  const c=ev.target.closest('.chk');if(!c)return;
+  const li=c.closest('li'),idx=Array.from(ol.children).indexOf(li);
+  curOrder.at(idx).done=!curOrder.at(idx).done;
+  li.classList.toggle('done',curOrder.at(idx).done);
+  updStat();
+ });
+ let dragEl=null;
+ ol.addEventListener('touchstart',ev=>{const h=ev.target.closest('.dh');if(!h)return;dragEl=h.closest('li');dragEl.classList.add('drag')},{passive:true});
+ ol.addEventListener('touchmove',ev=>{if(!dragEl)return;ev.preventDefault();const over=document.elementFromPoint(ev.touches.item(0).clientX,ev.touches.item(0).clientY),target=over&&over.closest('#o ol li');if(target&&target!==dragEl){const items=Array.from(ol.children),fromI=items.indexOf(dragEl),toI=items.indexOf(target);if(fromI<toI)target.after(dragEl);else target.before(dragEl);curOrder.splice(toI,0,curOrder.splice(fromI,1).at(0))}},{passive:false});
+ ol.addEventListener('touchend',async()=>{
+  if(!dragEl)return;
+  dragEl.classList.remove('drag');dragEl=null;
+  updStat();
+  let tT=totT,tD=totD;
+  try{
+   const rPts=new Array(startPt).concat(curOrder),rr=await fetch('https://project-osrm.org(p=>p.lon+','+p.lat).join(';')+'?overview=false'),legs=(await rr.json()).routes.at(0).legs;
+   if(legs){
+    tT=0;tD=0;const lis=ol.querySelectorAll('li');
+    legs.forEach((leg,k)=>{
+     const sT=600+leg.duration,sD=leg.distance;tT+=sT;tD+=sD;
+     const sKm=sD?' • '+(sD<10000?(sD/1000).toFixed(1):Math.round(sD/1000))+' км':'',sub='+'+fmtT(sT)+sKm;
+     curOrder.at(k).sub=sub;curOrder.at(k).sT=sT;curOrder.at(k).sD=sD;
+     const tag=lis.item(k)&&lis.item(k).querySelector('.t-tag');if(tag)tag.textContent='('+sub+')';
+    });
+   }
+  }catch(e){}
+  totT=tT;totD=tD;updStat();
+ });
+}
+try{const sv=JSON.parse(localStorage.getItem('R_SAVE')||'null');if(sv&&sv.curOrder&&sv.curOrder.length)renderOut(sv.curOrder,sv.startPt,sv.totT,sv.totD)}catch(e){}
+</script>
+
+====================================================================
+ФАЙЛ: yandex.js
+====================================================================
+let ADR_CACHE = JSON.parse(localStorage.getItem("ADR_CACHE") || "null") || new Array();
+function saveAdrCache(it){
+ if(!it || !it.name) return;
+ const idx = ADR_CACHE.findIndex(x => x.name === it.name);
+ if(idx >= 0) ADR_CACHE.splice(idx, 1);
+ ADR_CACHE.unshift({name: it.name, lat: it.lat, lon: it.lon});
+ if(ADR_CACHE.length > 500) ADR_CACHE.pop();
+ localStorage.setItem("ADR_CACHE", JSON.stringify(ADR_CACHE));
+}
+const YKEY='a197b5c2-1e4f-480d-abab-9ab7bd63b447';
+async function yan(q){
+ try{
+  const r=await fetch('https://geocode-maps.yandex.ru/1.x/?format=json&results=5&lang=ru_RU&rspn=1&bbox=43.4,38.8~46.7,41.3&apikey='+YKEY+'&geocode='+encodeURIComponent(q));
+  const j=await r.json();
+  return j.response.GeoObjectCollection.featureMember.map(m=>{
+   const g=m.GeoObject,md=g.metaDataProperty.GeocoderMetaData;
+   const p=g.Point.pos.split(' ');
+   return{name:md.text.replace(/^Армения, /,'')+(md.precision==='exact'?'':' 📍'),lat:+p[1],lon:+p[0],exact:md.precision==='exact'};
+  });
+ }catch(e){return[]}
+}
+function showList(list,msg){
+ let b=document.getElementById('sg');
+ if(!b){b=document.createElement('div');b.id='sg';document.getElementById('a').after(b)}
+ b.innerHTML=list.length&&msg?'<div style="margin-top:8px;font-size:13px">'+msg+'</div>':'';
+ list.forEach(it=>{
+  const x=document.createElement('button');
+  x.textContent=it.name;
+  x.style.cssText='margin-top:4px;padding:10px;font-size:14px;text-align:left;background:#fc0;color:#000';
+  x.onclick=()=>choose(it);
+  b.appendChild(x);
+ });
+}
+function choose(it){
+ saveAdrCache(it);
+ P.push({name:it.name,lat:it.lat,lon:it.lon});
+ document.getElementById('a').value='';
+ showList([]);
+ document.getElementById('s').textContent='';
+ save();
+}
+window.add=async function(){
+ const s=document.getElementById('s');
+ const q=document.getElementById('a').value.trim();
+ if(!q)return;
+ s.textContent='Ищу адрес в Яндексе...';
+ const l=await yan(q);
+ if(!l.length){s.textContent='Адрес не найден. Попробуйте написать иначе или добавьте город';return}
+ if(l.length===1&&l[0].exact){choose(l[0]);return}
+ s.textContent='';
+ showList(l,'Выберите нужный вариант:');
+};
+
+let _liveSearch;
+document.getElementById("a").addEventListener("input", function(){
+ clearTimeout(_liveSearch);
+ const q = this.value.trim();
+ if(q.length < 2){ showList(new Array()); return; }
+ _liveSearch = setTimeout(async function(){
+  const ql = q.toLowerCase();
+  const cached = ADR_CACHE.filter(x => x.name.toLowerCase().includes(ql));
+  if(cached.length > 0 && document.getElementById("a").value.trim() === q){
+   showList(cached.slice(0, 5), "Из сохранённых адресов:");
+  }
+  if(cached.length >= 3) return;
+  const l = await yan(q);
+  const merged = cached.concat(l.filter(x => !cached.some(c => c.name === x.name))).slice(0, 5);
+  if(document.getElementById("a").value.trim() === q){
+   showList(merged, merged.length ? "Выберите нужный вариант:" : "");
+  }
+ }, 400);
+});
+
+====================================================================
+ФАЙЛ: sw.js
+====================================================================
+const CACHE="eb-v5";
+self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(["./","index.html","yandex.js?v=20","manifest.json","bg.jpg?v=4","icon-192.png","icon-512.png"])))});
+self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+self.addEventListener("fetch",e=>{if(e.request.method!=="GET"||!e.request.url.startsWith(self.location.origin))return;e.respondWith(caches.match(e.request).then(cached=>{const net=fetch(e.request).then(r=>{const cl=r.clone();caches.open(CACHE).then(c=>c.put(e.request,cl));return r}).catch(()=>cached);return e.request.destination==="image"&&cached?cached:net}))});
+
+====================================================================
+ФАЙЛ: manifest.json
+====================================================================
+{"name":"Доставка EuroBaza","short_name":"EuroBaza","start_url":"./","scope":"./","display":"standalone","background_color":"#1e2a38","theme_color":"#1e2a38","icons":[{"src":"icon-192.png","sizes":"192x192","type":"image/png"},{"src":"icon-512.png","sizes":"512x512","type":"image/png"}]}
