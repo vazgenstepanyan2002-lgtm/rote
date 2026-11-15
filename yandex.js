@@ -22,7 +22,7 @@ async function yan(q){
 }
 function showList(list,msg){
  let b=document.getElementById('sg');
- if(!b){b=document.createElement('div');b.id='sg';const gp=document.querySelector('.grp.top');if(gp)gp.after(b);else document.getElementById('a').after(b)}
+ if(!b){b=document.createElement('div');b.id='sg';const ia=document.getElementById('a'),w=ia.closest('.inp-w');(w||ia).after(b)}
  b.innerHTML=list.length&&msg?'<div style="margin-top:8px;font-size:13px">'+msg+'</div>':'';
  list.forEach(it=>{
   const x=document.createElement('button');
