@@ -4,6 +4,7 @@
  const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
  const LF_CSS='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css';
  const LF_JS='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js';
+ const RT_JS='https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js';
  let _lp=null,_map=null,_tok=0,_fit=null;
  function lock(on){document.documentElement.classList.toggle('lock',on);document.body.classList.toggle('lock',on)}
  function loadLeaflet(){
@@ -12,7 +13,7 @@
   _lp=new Promise((res,rej)=>{
    const c=document.createElement('link');c.rel='stylesheet';c.href=LF_CSS;document.head.appendChild(c);
    const s=document.createElement('script');s.src=LF_JS;
-   s.onload=()=>res();
+   s.onload=()=>{const p=document.createElement('script');p.src=RT_JS;p.onload=p.onerror=()=>res();document.head.appendChild(p)};
    s.onerror=()=>{_lp=null;s.remove();c.remove();rej(new Error('leaflet'))};
    document.head.appendChild(s);
   });
@@ -21,9 +22,9 @@
  function ensureModal(){
   let m=g('mapM');if(m)return m;
   m=document.createElement('div');m.id='mapM';m.className='mapm';
-  m.innerHTML='<div class="mapm-h"><span>🗺 Маршрут на карте</span><span><button class="mdl-x" id="mapFit" style="width:auto;padding:0 10px;margin-right:8px;font-size:13px">⤢ Весь маршрут</button><button class="mdl-x" id="mapX">✕</button></span></div><div id="mapBox"></div><div id="mapInfo"></div>';
+  m.innerHTML='<div class="mapm-h"><span>🗺 Маршрут на карте</span><span><button class="mdl-x" id="mapN" style="width:auto;padding:0 10px;margin-right:8px;font-size:13px">🧭 Север</button><button class="mdl-x" id="mapFit" style="width:auto;padding:0 10px;margin-right:8px;font-size:13px">⤢ Весь маршрут</button><button class="mdl-x" id="mapX">✕</button></span></div><div id="mapBox"></div><div id="mapInfo"></div>';
   document.body.appendChild(m);
-  g('mapX').onclick=closeMap;g('mapFit').onclick=()=>{if(_fit)_fit()};g('mapInfo').style.maxHeight='22vh';
+  g('mapX').onclick=closeMap;g('mapFit').onclick=()=>{if(_fit)_fit()};g('mapN').onclick=()=>{if(_map&&_map.setBearing)_map.setBearing(0)};g('mapInfo').style.maxHeight='22vh';
   return m;
  }
  function closeMap(){
@@ -53,7 +54,7 @@
  function draw(cur,start,sv,tok){
   if(_map){try{_map.remove()}catch(e){}_map=null}
   const box=g('mapBox');box.innerHTML='';
-  box.style.touchAction='none';const map=L.map(box,{zoomControl:true,dragging:true,touchZoom:true,doubleClickZoom:true,scrollWheelZoom:true,tap:true,inertia:true});_map=map;
+  box.style.touchAction='none';const map=L.map(box,{zoomControl:true,dragging:true,touchZoom:true,doubleClickZoom:true,scrollWheelZoom:true,tap:true,inertia:true,rotate:true,touchRotate:true,bearing:0,rotateControl:{closeOnZeroBearing:false}});_map=map;
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   const etas=document.querySelectorAll('#o ol li .eta');
   const ll=[];let bad=0;
