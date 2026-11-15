@@ -22,13 +22,13 @@
  function ensureModal(){
   let m=g('mapM');if(m)return m;
   m=document.createElement('div');m.id='mapM';m.className='mapm';
-  m.innerHTML='<div class="mapm-h"><span>🗺 Маршрут на карте</span><span><button class="mdl-x" id="mapN" style="width:auto;padding:0 10px;margin-right:8px;font-size:13px">🧭 Север</button><button class="mdl-x" id="mapFit" style="width:auto;padding:0 10px;margin-right:8px;font-size:13px">⤢ Весь маршрут</button><button class="mdl-x" id="mapX">✕</button></span></div><div id="mapBox"></div><div id="mapInfo"></div>';
+  m.innerHTML='<div class="mapm-h"><span class="mapm-t">🗺 Карта</span><span class="mapm-b"><button class="mdl-x" id="mapN">🧭 Север</button><button class="mdl-x" id="mapFit">⤢ Весь маршрут</button><button class="mdl-x mapm-c" id="mapX" aria-label="Закрыть"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg></button></span></div><div id="mapBox"></div><div id="mapInfo"></div>';
   document.body.appendChild(m);
-  g('mapX').onclick=closeMap;g('mapFit').onclick=()=>{if(_fit)_fit()};g('mapN').onclick=()=>{if(_map&&_map.setBearing)_map.setBearing(0)};g('mapInfo').style.maxHeight='22vh';
+  g('mapX').onclick=()=>closeMap();g('mapFit').onclick=()=>{if(_fit)_fit()};g('mapN').onclick=()=>{if(_map&&_map.setBearing)_map.setBearing(0)};g('mapInfo').style.maxHeight='22vh';
   return m;
  }
- function closeMap(){
-  _tok++;_fit=null;
+ function closeMap(src){
+  _tok++;_fit=null;if(src!=='pop'){try{if(history.state&&history.state.map)setTimeout(()=>history.back(),0)}catch(e){}}
   if(_map){try{_map.remove()}catch(e){}_map=null}
   const m=g('mapM');if(m)m.classList.remove('open');
   lock(false);
@@ -42,7 +42,7 @@
   let sv={};try{sv=JSON.parse(localStorage.getItem('R_SAVE')||'{}')||{}}catch(e){}
   const start=sv.startPt&&isFinite(sv.startPt.lat)&&isFinite(sv.startPt.lon)?sv.startPt:null;
   const m=ensureModal(),tok=++_tok;
-  m.classList.add('open');lock(true);
+  m.classList.add('open');lock(true);try{history.pushState({map:1},'')}catch(e){}
   g('mapInfo').textContent='Загружаю карту...';
   try{await loadLeaflet()}catch(e){
    if(tok!==_tok)return;
@@ -109,6 +109,7 @@
    });
  }
  window.openMap=openMap;window.closeMap=closeMap;
+ window.addEventListener('popstate',()=>{const x=g('mapM');if(x&&x.classList.contains('open'))closeMap('pop')});
 
  function inject(){
   const o=g('o');if(!o)return;
