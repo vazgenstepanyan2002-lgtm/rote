@@ -55,6 +55,7 @@ a.pt-i{display:flex;align-items:center;justify-content:space-between;background:
 .inst-btn{width:auto!important;margin:0!important;padding:8px 14px!important;background:#10b981!important;color:#000!important;border:none!important;border-radius:10px!important;font-size:13px!important;font-weight:700!important;white-space:nowrap}
 .inst-x{color:#94a3b8;font-size:16px;padding:4px 6px;cursor:pointer}
 .pt-r{display:flex;gap:8px;align-items:center;margin-bottom:8px}.pt-r a.pt-i{flex:1;margin-bottom:0}.pt-r a.x{width:38px;height:38px}
+html.lock,body.lock{overflow:hidden!important}.mdl{overscroll-behavior:contain;touch-action:none}.mdl-b{overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch}
 </style>
 </head><body>
 <div id="instBar" class="inst-bar"><span id="instTxt">📲 Установите приложение на экран</span><div style="display:flex;align-items:center;gap:6px"><button id="instBtn" class="inst-btn" style="display:none" onclick="runInstall()">Установить</button><span class="inst-x" onclick="$('instBar').style.display='none';localStorage.setItem('INST_HIDE','1')">✕</span></div></div>
@@ -216,6 +217,14 @@ try{const sv=JSON.parse(localStorage.getItem('R_SAVE')||'null');if(sv&&sv.curOrd
  chk();
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)chk()});
  setInterval(chk,60000);
+})();
+</script>
+<script>
+(function lockScroll(){
+ const m=document.getElementById('ptMdl');if(!m)return;
+ const upd=()=>{const o=m.classList.contains('open');document.documentElement.classList.toggle('lock',o);document.body.classList.toggle('lock',o)};
+ new MutationObserver(upd).observe(m,{attributes:true,attributeFilter:['class']});
+ upd();
 })();
 </script>
 </body></html>
