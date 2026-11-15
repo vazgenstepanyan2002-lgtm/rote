@@ -169,7 +169,7 @@ window.addEventListener('appinstalled',()=>{$('instBar').style.display='none'});
 </script>
 </body></html>
 <script>
-const BASE={name:'🏁 Возврат на базу (Арин Берд 7)',lat:40.1328,lon:44.5046};
+const BASE={name:'🏁 Возврат на базу (Арин Берд 7)',lat:40.120847,lon:44.514271};
 function solve(D,n,bIdx){const skipPen=(a,b,used)=>{let pen=0;for(let j=1;j<=n;j++)if(!used[j]&&j!==b){const det=D[a][j]+D[j][b]-D[a][b];if(det<900)pen+=3600}return pen};let best=[],bc=Infinity;const pI=P.findIndex(x=>x&&x.pin)+1;if(n<=8){const rec=(path,used,c)=>{if(c>=bc)return;if(path.length===n){const l=path[path.length-1],t=c+(bIdx?D[l][bIdx]:0);if(t<bc){bc=t;best=path.slice()}return}const last=path.length?path[path.length-1]:0;for(let i=1;i<=n;i++)if(!used[i]){const pen=skipPen(last,i,used);used[i]=1;path.push(i);rec(path,used,c+D[last][i]+pen);path.pop();used[i]=0}};if(pI>0){const u=Array(n+2).fill(0);u[pI]=1;rec([pI],u,D[0][pI])}else rec([],Array(n+2).fill(0),0)}else{const used=Array(n+2).fill(0);let cur=0;if(pI>0){used[pI]=1;best.push(pI);cur=pI}for(let k=best.length;k<n;k++){let b=-1,bv=Infinity;for(let i=1;i<=n;i++)if(!used[i]){const v=D[cur][i]+skipPen(cur,i,used);if(v<bv){bv=v;b=i}}used[b]=1;best.push(b);cur=b}}return best}
 function fmtT(s){const m=Math.round(s/60);return m<60?m+' мин':Math.floor(m/60)+' ч '+(m%60)+' мин'}
 function buildNav(arr){const to=arr.at(-1),via=arr.slice(0,-1);let u='yandexnavi://build_route_on_map?lat_to='+to.lat+'&lon_to='+to.lon;via.forEach((p,i)=>u+='&lat_via_'+i+'='+p.lat+'&lon_via_'+i+'='+p.lon);return u}
