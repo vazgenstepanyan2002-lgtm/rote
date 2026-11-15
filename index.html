@@ -1,6 +1,6 @@
 <!doctype html><html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>EuroBaza</title><link rel="manifest" href="manifest.json"><script>if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js")</script>
+<title>EuroBaza</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-192.png"><script>if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js")</script>
 <style>
 html{scroll-behavior:smooth;-webkit-overflow-scrolling:touch}
 *{-webkit-tap-highlight-color:transparent;box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
@@ -52,8 +52,12 @@ li.pin{border-color:rgba(255,204,0,.6)!important}
 .mdl-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:17px;font-weight:700;color:#fc0}
 .mdl-x{background:rgba(255,255,255,.1);border:none;color:#fff;width:32px;height:32px;border-radius:8px;padding:0;margin:0;font-size:16px}
 a.pt-i{display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-left:4px solid #fc0;border-radius:12px;padding:13px 14px;margin-bottom:8px;color:#fff;text-decoration:none;font-size:15px;font-weight:600}
+.inst-bar{display:none;align-items:center;justify-content:space-between;gap:10px;background:rgba(16,185,129,.22);border:1.5px solid #10b981;border-radius:14px;padding:11px 14px;margin-bottom:12px;font-size:13px;color:#ecfdf5}
+.inst-btn{width:auto!important;margin:0!important;padding:8px 14px!important;background:#10b981!important;color:#000!important;border:none!important;border-radius:10px!important;font-size:13px!important;font-weight:700!important;white-space:nowrap}
+.inst-x{color:#94a3b8;font-size:16px;padding:4px 6px;cursor:pointer}
 </style>
 </head><body>
+<div id="instBar" class="inst-bar"><span id="instTxt">📲 Установите приложение на экран</span><div style="display:flex;align-items:center;gap:6px"><button id="instBtn" class="inst-btn" style="display:none" onclick="runInstall()">Установить</button><span class="inst-x" onclick="$('instBar').style.display='none';localStorage.setItem('INST_HIDE','1')">✕</span></div></div>
 <h2><span>Доставка EuroBaza</span><span class="badge">🚚 <b id="cnt">0</b></span></h2>
 <div class="inp-w"><input id="a" placeholder="Например: Абовяна 10, Ереван"><span id="mic" class="inp-mic" onclick="voice()">🎤</span><span class="inp-x" onclick="$('a').value='';if($('sg'))$('sg').innerHTML='';$('s').textContent='';$('a').focus()">✕</span></div>
 <button onclick="add()">Добавить адрес</button>
@@ -136,6 +140,32 @@ async function openPts(){
   }
  }catch(e){}
 }
+</script>
+<script>
+let _defPrompt=null;
+const isStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+if(!isStandalone&&!localStorage.getItem('INST_HIDE')){
+ window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  _defPrompt=e;
+  $('instTxt').textContent='📲 Установить EuroBaza на главный экран';
+  $('instBtn').style.display='block';
+  $('instBar').style.display='flex';
+ });
+ const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+ if(isIOS){
+  $('instTxt').innerHTML='📲 Чтобы установить на iPhone: нажмите <b>Поделиться</b> (квадрат со стрелкой) → <b>На экран «Домой»</b>';
+  $('instBar').style.display='flex';
+ }
+}
+async function runInstall(){
+ if(!_defPrompt)return;
+ _defPrompt.prompt();
+ const res=await _defPrompt.userChoice;
+ if(res.outcome==='accepted')$('instBar').style.display='none';
+ _defPrompt=null;
+}
+window.addEventListener('appinstalled',()=>{$('instBar').style.display='none'});
 </script>
 </body></html>
 <script>
