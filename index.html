@@ -51,15 +51,7 @@ li.pin{border-color:rgba(255,204,0,.6)!important}
 .mdl-b{width:100%;max-width:500px;background:#121924;border:1px solid rgba(255,255,255,.2);border-radius:18px;padding:16px;max-height:75vh;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,.6)}
 .mdl-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:17px;font-weight:700;color:#fc0}
 .mdl-x{background:rgba(255,255,255,.1);border:none;color:#fff;width:32px;height:32px;border-radius:8px;padding:0;margin:0;font-size:16px}
-.pt-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-a.pt-i{flex:1;display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-left:4px solid #fc0;border-radius:12px;padding:13px 14px;color:#fff;text-decoration:none;font-size:15px;font-weight:600}
-.pt-del{width:44px;height:52px;margin:0;padding:0;background:rgba(239,68,68,.18);border:1px solid rgba(239,68,68,.4);color:#ff6b6b;border-radius:12px;font-size:16px;flex-shrink:0}
-.pt-add{margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.14);display:flex;flex-direction:column;gap:8px}
-.pt-add input{width:100%;height:42px;padding:0 12px;font-size:14px;border-radius:10px;border:1px solid rgba(255,255,255,.22);background:rgba(15,23,34,.9);color:#fff;outline:none}
-.pt-add-btns{display:flex;gap:8px}
-.pt-add-btns button{margin:0;padding:10px;font-size:13px}
-.pt-btn-gps{background:rgba(255,204,0,.15)!important;color:#fc0!important;border-color:#fc0!important}
-.pt-btn-ok{background:rgba(16,185,129,.2)!important;color:#34d399!important;border-color:#10b981!important}
+a.pt-i{display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-left:4px solid #fc0;border-radius:12px;padding:13px 14px;margin-bottom:8px;color:#fff;text-decoration:none;font-size:15px;font-weight:600}
 </style>
 </head><body>
 <h2><span>Доставка EuroBaza</span><span class="badge">🚚 <b id="cnt">0</b></span></h2>
@@ -104,36 +96,13 @@ function voice(){
  r.start();
 }
 </script><script src="yandex.js?v=20"></script><button class="fab" onclick="openPts()">📍 Точки</button>
-<div id="ptMdl" class="mdl" onclick="if(event.target===this)this.classList.remove('open')"><div class="mdl-b"><div class="mdl-h"><span>Точки без адреса</span><button class="mdl-x" onclick="$('ptMdl').classList.remove('open')">✕</button></div><div id="ptList"></div><div class="pt-add"><input id="ptName" placeholder="Название новой точки"><input id="ptCoord" placeholder="Координаты: 40.163019, 44.388218"><div class="pt-add-btns"><button type="button" class="pt-btn-gps" onclick="fillMyPos()">📍 Моя геопозиция</button><button type="button" class="pt-btn-ok" onclick="addSpecPt()">+ Добавить</button></div><div id="ptMsg" style="font-size:12px;color:#ffd166;text-align:center"></div></div></div></div>
+<div id="ptMdl" class="mdl" onclick="if(event.target===this)this.classList.remove('open')"><div class="mdl-b"><div class="mdl-h"><span>Точки без адреса</span><button class="mdl-x" onclick="$('ptMdl').classList.remove('open')">✕</button></div><div id="ptList"></div></div></div>
 <script>
-const DEF_PTS=[
+const SPEC_PTS=new Array(
  {name:'Артак',lat:40.163019,lon:44.388218},
  {name:'Геворг Спайка',lat:40.127240,lon:44.490112}
-];
-let SPEC_PTS=DEF_PTS;
-try{
- const saved=JSON.parse(localStorage.getItem('SPEC_PTS')||'null');
- if(Array.isArray(saved))SPEC_PTS=saved.filter(x=>x&&typeof x.lat==='number'&&typeof x.lon==='number');
-}catch(e){}
-function saveSpec(){localStorage.setItem('SPEC_PTS',JSON.stringify(SPEC_PTS))}
-function delSpecPt(i){SPEC_PTS.splice(i,1);saveSpec();openPts()}
-async function fillMyPos(){
- $('ptMsg').textContent='Определяю текущие координаты...';
- try{const m=await pos();$('ptCoord').value=m.lat.toFixed(6)+', '+m.lon.toFixed(6);$('ptMsg').textContent=''}
- catch(e){$('ptMsg').textContent='Не удалось получить GPS'}
-}
-function addSpecPt(){
- const nm=$('ptName').value.trim();
- const nums=($('ptCoord').value.match(/-?\d+\.\d+/g)||[]).map(Number);
- if(!nm){$('ptMsg').textContent='Введите название точки';return}
- if(nums.length<2){$('ptMsg').textContent='Укажите координаты (широта, долгота)';return}
- SPEC_PTS.push({name:nm,lat:nums.at(0),lon:nums.at(1)});
- saveSpec();
- $('ptName').value='';$('ptCoord').value='';$('ptMsg').textContent='';
- openPts();
-}
+);
 function drawSpec(me,dists,durs){
- if(!SPEC_PTS.length){$('ptList').innerHTML='<div style="text-align:center;color:#94a3b8;font-size:14px;padding:12px 0">Список точек пуст</div>';return}
  $('ptList').innerHTML=SPEC_PTS.map((p,i)=>{
   let info='';
   if(durs&&durs.at(i)!=null){
@@ -146,22 +115,21 @@ function drawSpec(me,dists,durs){
   }else{
    info=`<span class="t-tag" style="color:#94a3b8">Определяю геопозицию...</span>`;
   }
-  return `<div class="pt-row"><a class="pt-i" href="yandexnavi://build_route_on_map?lat_to=${p.lat}&lon_to=${p.lon}"><span>${p.name}${info}</span><span style="color:#fc0">🧭 Поехали</span></a><button type="button" class="pt-del" onclick="delSpecPt(${i})">✕</button></div>`;
+  return `<a class="pt-i" href="yandexnavi://build_route_on_map?lat_to=${p.lat}&lon_to=${p.lon}"><span>${p.name}${info}</span><span style="color:#fc0">🧭 Поехали</span></a>`;
  }).join('');
 }
 async function openPts(){
  $('ptMdl').classList.add('open');
  drawSpec(null,null,null);
- if(!SPEC_PTS.length)return;
  let me;
  try{me=await pos()}catch(e){
-  $('ptList').innerHTML=SPEC_PTS.map((p,i)=>`<div class="pt-row"><a class="pt-i" href="yandexnavi://build_route_on_map?lat_to=${p.lat}&lon_to=${p.lon}"><span>${p.name}<span class="t-tag" style="color:#fbbf24">Включите геолокацию для расчёта времени</span></span><span style="color:#fc0">🧭 Поехали</span></a><button type="button" class="pt-del" onclick="delSpecPt(${i})">✕</button></div>`).join('');
+  $('ptList').innerHTML=SPEC_PTS.map(p=>`<a class="pt-i" href="yandexnavi://build_route_on_map?lat_to=${p.lat}&lon_to=${p.lon}"><span>${p.name}<span class="t-tag" style="color:#fbbf24">Включите геолокацию для расчёта времени</span></span><span style="color:#fc0">🧭 Поехали</span></a>`).join('');
   return;
  }
  drawSpec(me,null,null);
  try{
   const allPts=new Array(me).concat(SPEC_PTS);
-  const url='https://project-osrm.org(p=>p.lon+','+p.lat).join(';')+'?sources=0&annotations=duration,distance';
+  const url='https://project-osrm.org'+allPts.map(p=>p.lon+','+p.lat).join(';')+'?sources=0&annotations=duration,distance';
   const r=await fetch(url),j=await r.json();
   if(j.durations&&j.durations.at(0)){
    drawSpec(me,j.distances.at(0).slice(1),j.durations.at(0).slice(1));
