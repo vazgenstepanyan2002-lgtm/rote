@@ -15,11 +15,6 @@
 <button class="fab" onclick="openPts()">📍 Точки</button>
 <div id="ptMdl" class="mdl" onclick="if(event.target===this)this.classList.remove('open')"><div class="mdl-b"><div class="mdl-h"><span>Точки без адреса</span><button class="mdl-x" onclick="$('ptMdl').classList.remove('open')">✕</button></div><div id="ptList"></div><div style="margin-top:12px;border-top:1px solid rgba(255,255,255,.16);padding-top:12px"><div class="inp-w"><input id="pn" placeholder="Название точки"></div><div class="inp-w"><input id="pc" placeholder="Координаты или нажмите 📍"><span class="inp-x" style="font-size:20px" onclick="fillPos()">📍</span></div><button onclick="addSpec()">➕ Добавить точку</button><div id="ptMsg" style="color:#ffd166;font-size:13px;text-align:center;margin-top:8px"></div></div></div></div>
 
-
-
-
-
-
 <div id="cm" class="cm"><div class="cm-b"><div class="cm-i" id="cmI">🗑️</div><div class="cm-t" id="cmT"></div><div class="cm-r"><button id="cmNo">Отмена</button><button id="cmOk" class="cm-ok">OK</button></div></div></div>
 
 <script src="app.js?v=20261116212401"></script>
