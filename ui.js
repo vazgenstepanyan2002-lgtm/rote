@@ -62,3 +62,30 @@ document.addEventListener('click',e=>{
  const t=e.target&&e.target.closest&&e.target.closest('button,a,.inp-x,.inp-mic,.inst-x,.ret-box');
  if(t)vib(40);
 },true);
+
+// NAVSYS: открывать навигатор по умолчанию вместо Яндекса
+function navMode(){try{return localStorage.getItem('NAV')==='ya'?'ya':'sys'}catch(e){return 'sys'}}
+function sysUrl(h){
+ const q=new URLSearchParams(h.split('?')[1]||'');
+ if(q.has('lat_via_0'))return gmapsUrl(h);
+ const la=q.get('lat_to'),lo=q.get('lon_to');
+ return 'geo:'+la+','+lo+'?q='+la+','+lo;
+}
+document.addEventListener('click',e=>{
+ if(navMode()!=='sys')return;
+ const a=e.target.closest&&e.target.closest('a[href^="yandexnavi://"]');if(!a)return;
+ e.preventDefault();e.stopPropagation();
+ const url=sysUrl(a.getAttribute('href'));
+ if(url.indexOf('geo:')===0){const t=document.createElement('a');t.href=url;document.body.appendChild(t);t.click();t.remove()}
+ else window.open(url,'_blank');
+},true);
+(function(){
+ const f=document.getElementById('ft');if(!f)return;
+ const b=document.createElement('button');b.id='navBtn';
+ const lab=()=>{b.textContent='🧭 Навигатор: '+(navMode()==='ya'?'Яндекс':'по умолчанию')};
+ b.onclick=()=>{
+  try{localStorage.setItem('NAV',navMode()==='ya'?'sys':'ya')}catch(e){}
+  lab();window.toast&&toast(navMode()==='ya'?'Откроется Яндекс Навигатор':'Откроется навигатор по умолчанию');
+ };
+ lab();f.appendChild(b);
+})();
