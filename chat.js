@@ -148,7 +148,9 @@
     div.className = 'chat-msg';
     div.id = 'msg_' + key;
     const time = new Date(msg.t).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-    div.innerHTML = `<div class="chat-meta"><span class="chat-author">${esc(msg.name || 'Курьер')}</span><span class="chat-time">${time}</span></div><div class="chat-text">${esc(msg.text)}</div>`;
+    const isMe = (msg.name === userName);
+    if (isMe) div.classList.add('my-msg');
+    div.innerHTML = `<div class="chat-meta"><span class="chat-author">${esc(msg.name || 'Курьер')}</span> <span class="chat-time">${time}</span></div><div class="chat-text">${esc(msg.text)}</div>`;
     list.appendChild(div);
     const isBottom = list.scrollHeight - list.scrollTop <= list.clientHeight + 50;
     if (isBottom) list.scrollTop = list.scrollHeight;
@@ -164,7 +166,7 @@
     if (!db) { if (window.toast) toast('Нет соединения с сервером','err'); return; }
     if (window.vib) vib(40);
     chatPush.push({ name: userName, text: text, t: Date.now() })
-      .then(() => { inp.value = ''; inp.focus(); })
+      .then(() => { inp.value = ''; })
       .catch(err => { if (window.toast) toast('Ошибка: ' + err.message, 'err'); });
   }
 
