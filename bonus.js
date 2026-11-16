@@ -61,7 +61,7 @@
   const out=[];
   PRE.forEach(p=>{
    const oc=B.find(c=>c.pk===p.pk)||{};
-   out.push({pk:p.pk,lock:1,name:p.name,col:!!oc.col,subs:p.subs.map(s=>{
+   out.push({pk:p.pk,lock:1,name:p.name,col:oc.col===undefined?true:!!oc.col,subs:p.subs.map(s=>{
     const os=(oc.subs||[]).find(x=>x.sk===s.sk)||{};
     return {sk:s.sk,lock:1,one:s.one?1:0,name:s.name,qty:num(os.qty),price:s.price,qty2:s.one?0:num(os.qty2),price2:s.one?0:s.price2};
    })});
@@ -70,6 +70,7 @@
   B=out;save();
  }
  sync();
+ try{if(!localStorage.getItem('BON_INIT')){B.forEach(c=>{c.col=true});save();localStorage.setItem('BON_INIT','1')}}catch(e){}
 
  function upd(){
   let t=0,q=0;
