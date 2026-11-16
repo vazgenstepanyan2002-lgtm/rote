@@ -246,3 +246,8 @@ ol#l:not(:empty){margin:14px 0 0;padding:14px;border-radius:20px;background:rgba
 .bn-sp{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:#cbd5e1}
 .bn-sp b{color:#fc0;white-space:nowrap}
 .bn-tr b#bnSmTot{font-size:22px;color:#fc0}
+
+/* lg-r: окно выбора языка */
+.lg-r{display:flex;flex-direction:column;gap:8px}
+.lg-r button{margin:0;padding:13px;font-size:16px}
+.lg-r button.on{background:rgba(16,185,129,.22);color:#34d399;border:1.5px solid #10b981}

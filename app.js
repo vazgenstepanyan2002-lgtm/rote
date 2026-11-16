@@ -13,7 +13,7 @@ function voice(){
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
  if(!SR){$('s').textContent='Голосовой ввод не поддерживается в этом браузере';return}
  const r=new SR(),m=$('mic');
- r.lang='ru-RU';r.interimResults=false;
+ r.lang=window.LANG_SR||'ru-RU';r.interimResults=false;
  r.onstart=()=>{m.classList.add('rec');$('s').textContent='Говорите адрес...'};
  r.onend=()=>{m.classList.remove('rec')};
  r.onerror=()=>{m.classList.remove('rec');$('s').textContent='Не удалось распознать голос'};

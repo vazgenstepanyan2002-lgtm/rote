@@ -193,7 +193,7 @@
    });
   });
   s+='\nВсего штук: '+fm(q)+'\nОбщая сумма: '+fm(t)+' '+CUR;
-  try{navigator.clipboard.writeText(s).then(()=>tst('Скопировано')).catch(()=>tst('Не удалось скопировать','err'))}catch(e){tst('Не удалось скопировать','err')}
+  try{navigator.clipboard.writeText(window.i18nCopy?i18nCopy(s):s).then(()=>tst('Скопировано')).catch(()=>tst('Не удалось скопировать','err'))}catch(e){tst('Не удалось скопировать','err')}
  }
 
  function ensure(){
