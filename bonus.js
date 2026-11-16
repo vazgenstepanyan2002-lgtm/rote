@@ -104,8 +104,8 @@
     h+=c.subs.map((s,si)=>{
      const a='data-c="'+ci+'" data-s="'+si+'"';
      return '<div class="bn-s bn-k"><div class="bn-sh2"><span class="bn-nm">'+esc(s.name)+'</span><span class="bn-ss" id="bs'+ci+'_'+si+'"></span></div>'
-      +row(a,s,'',s.one?'':'Город')
-      +(s.one?'':row(a,s,'2','Район'))
+      +row(a,s,'',s.one?'&nbsp;':'Город')
+      +(s.one?'<div class="bn-sr bn-ph"></div>':row(a,s,'2','Район'))
       +'</div>';
     }).join('');
    }

@@ -188,3 +188,7 @@ ol#l:not(:empty){margin:14px 0 0;padding:14px;border-radius:20px;background:rgba
 #bnMdl .bn-k input{height:34px;font-size:15px}
 #bnMdl .bn-k .bn-q{width:48px}
 .bn-pv{flex:1;text-align:right;color:#fc0;font-weight:700;font-size:14px}
+
+/* bn-equal: одинаковый размер плашек и белые подписи */
+.bn-rl{color:#f8fafc;font-weight:600}
+.bn-ph{height:34px;visibility:hidden}
