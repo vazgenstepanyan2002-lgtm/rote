@@ -1,7 +1,26 @@
-const C='eb-cache-20261116211535';
+
+const C='eb-cache-20261116211943';
 const PRE=['./','./index.html','./style.css','./app.js','./yandex.js','./ui.js','./map.js','./bonus.js','./i18n.js','./online.js','./chat.js','./manifest.json','./icon-192.png','./icon-512.png','./bg.jpg'];
-self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>Promise.all(PRE.map(u=>c.add(u).catch(()=>{})))))});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
+
+self.addEventListener('install',e=>{
+  self.skipWaiting();
+  e.waitUntil(caches.open(C).then(c=>Promise.all(PRE.map(u=>c.add(u).catch(()=>{})))));
+});
+
+self.addEventListener('activate',e=>{
+  e.waitUntil(
+    caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))))
+    .then(()=>self.clients.claim())
+  );
+});
+
+// Команда от app.js на немедленное обновление
+self.addEventListener('message',e=>{
+  if(e.data && e.data.type === 'SKIP_WAITING'){
+    self.skipWaiting();
+  }
+});
+
 const STATIC=/\.(?:css|js|png|jpe?g|svg|woff2?|ico|json|map)$/i;
 const isNav=r=>r.mode==='navigate'||(r.method==='GET'&&(r.headers.get('accept')||'').includes('text/html'));
 self.addEventListener('fetch',e=>{

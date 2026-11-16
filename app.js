@@ -132,6 +132,14 @@ try{const sv=JSON.parse(localStorage.getItem('R_SAVE')||'null');if(sv&&sv.curOrd
 ;
 (function(){
  const K='APP_V',g=id=>document.getElementById(id);
+ 
+ // 1. Слушаем обновление Service Worker'а
+ if ('serviceWorker' in navigator) {
+   navigator.serviceWorker.addEventListener('controllerchange', () => {
+     window.location.reload();
+   });
+ }
+
  async function chk(){
   try{
    const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});
@@ -140,7 +148,21 @@ try{const sv=JSON.parse(localStorage.getItem('R_SAVE')||'null');if(sv&&sv.curOrd
    if(old===v)return;
    const busy=(g('a')&&g('a').value.trim())||(g('ptMdl')&&g('ptMdl').classList.contains('open'))||(g('pn')&&g('pn').value.trim())||(g('cm')&&g('cm').classList.contains('open'))||(g('mapM')&&g('mapM').classList.contains('open'))||(g('bnMdl')&&g('bnMdl').classList.contains('open'));
    if(busy)return;
-   localStorage.setItem(K,v);location.reload();
+   localStorage.setItem(K,v);
+   
+   // 2. Если есть новый SW, говорим ему примениться (это вызовет controllerchange -> reload)
+   if ('serviceWorker' in navigator) {
+     navigator.serviceWorker.getRegistration().then(reg => {
+       if (reg && reg.waiting) {
+         reg.waiting.postMessage({type: 'SKIP_WAITING'});
+       } else {
+         // Если SW еще не готов, просто перезагружаем
+         window.location.reload();
+       }
+     }).catch(() => window.location.reload());
+   } else {
+     window.location.reload();
+   }
   }catch(e){}
  }
  chk();
