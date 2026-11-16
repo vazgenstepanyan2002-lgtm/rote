@@ -6,7 +6,7 @@
     databaseURL: "https://eurobaza-c5aa5-default-rtdb.europe-west1.firebasedatabase.app"
   };
 
-  let db = null, chatRef = null;
+  let db = null, chatRef = null, chatPush = null;
   let chatOpen = false;
   let userName = localStorage.getItem('CHAT_NAME') || 'Курьер';
 
@@ -90,7 +90,8 @@
     if (!window.firebase) return;
     try { firebase.initializeApp(FIREBASE_CONFIG); } catch(e){}
     db = firebase.database();
-    chatRef = db.ref('chat').limitToLast(50); // Загружаем только последние 50
+    chatRef = db.ref('chat').limitToLast(50);
+    chatPush = db.ref('chat');
     
     // Слушаем изменения
     chatRef.on('child_added', snap => {
@@ -137,7 +138,7 @@
       return;
     }
 
-    chatRef.push({
+    chatPush.push({
       name: userName,
       text: text,
       t: Date.now()
@@ -145,8 +146,8 @@
       inp.value = '';
       inp.focus();
     }).catch(err => {
-      alert('Ошибка Firebase: ' + err.message);
-      if (window.toast) toast('Ошибка отправки: ' + err.message, 'err');
+      console.error('Ошибка Firebase:', err);
+      if (window.toast) toast('Ошибка: ' + err.message, 'err');
     });
   }
 
