@@ -1,8 +1,5 @@
 (function(){
- const LANGS={ru:'Русский',hy:'Հայերեն',en:'English', 'Общий чат':['Ընդհանուր չատ','General chat'],
-  'Сохранить':['Պահպանել','Save'],
-  'Нет интернета':['Ինտերնետ չկա','No internet'],
-};
+ const LANGS={ru:'Русский',hy:'Հայերեն',en:'English'};
  const SR={ru:'ru-RU',hy:'hy-AM',en:'en-US'};
  let L='ru';try{const v=localStorage.getItem('LANG');if(LANGS[v])L=v}catch(e){}
  // Ключ — русский текст, значение — [армянский, английский]
@@ -214,10 +211,10 @@
   m.classList.add('open');
  }
  const f=document.getElementById('ft');
- btn=document.createElement('button');btn.id='langBtn';btn.onclick=openDlg;
+ btn=document.createElement('button');btn.id='lgBtn';btn.onclick=openDlg;
  if(f)f.appendChild(btn);else document.body.appendChild(btn);
  document.documentElement.lang=L;window.LANG_SR=SR[L];
  lab();
  if(L!=='ru')walk(document.body);
-window.openLang = openLang;
+window.openLang = openDlg;
 })();
