@@ -115,6 +115,18 @@
     
     setTimeout(() => { const l = g('chatMsgList'); if (l) l.scrollTop = l.scrollHeight; }, 100);
     const inp = g('chatInp'); if (inp && userName) inp.focus();
+
+    // При открытии клавиатуры (изменении размера окна) скроллим вниз
+    if (!window._chatResizeListener) {
+      window._chatResizeListener = true;
+      window.addEventListener('resize', () => {
+        const m = g('chatMdl');
+        if (m && m.classList.contains('open')) {
+          const l = g('chatMsgList');
+          if (l) l.scrollTop = l.scrollHeight;
+        }
+      });
+    }
   }
 
   function closeChat(src){
@@ -159,7 +171,8 @@
     // ТУТ ПРОБЕЛ МЕЖДУ ИМЕНЕМ И ВРЕМЕНЕМ
     div.innerHTML = `<div class="chat-meta"><span class="chat-author">${esc(msg.name || 'Курьер')}</span> <span class="chat-time">${time}</span></div><div class="chat-text">${esc(msg.text)}</div>`;
     list.appendChild(div);
-    const isBottom = list.scrollHeight - list.scrollTop <= list.clientHeight + 50;
+    // Скролл вниз, если мы были у нижнего края (погрешность 150px для клавиатуры)
+    const isBottom = list.scrollHeight - list.scrollTop <= list.clientHeight + 150;
     if (isBottom) list.scrollTop = list.scrollHeight;
   }
 
@@ -175,7 +188,12 @@
     
     // УБРАЛИ inp.focus() ОТСЮДА, ЧТОБЫ КЛАВИАТУРА НЕ ВЫСКАКИВАЛА
     chatPush.push({ name: userName, text: text, t: Date.now() })
-      .then(() => { inp.value = ''; })
+      .then(() => { 
+        inp.value = ''; 
+        // Принудительный скролл вниз, так как мы точно отправили
+        const list = g('chatMsgList');
+        if (list) setTimeout(() => { list.scrollTop = list.scrollHeight; }, 50);
+      })
       .catch(err => { if (window.toast) toast('Ошибка: ' + err.message, 'err'); });
   }
 
