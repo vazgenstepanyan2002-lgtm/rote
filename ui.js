@@ -108,3 +108,37 @@ document.addEventListener('click',e=>{
  window.addEventListener('offline',()=>{updNet();window.toast&&toast('Нет интернета. Работаю в офлайн-режиме','err')});
  updNet();
 })();
+
+// ONLINE: счётчик активных пользователей через Firebase
+(function(){
+ const DB='https://firebasedatabase.app';
+ let uid=sessionStorage.getItem('EB_UID');
+ if(!uid){uid='u_'+Math.random().toString(36).slice(2,10);sessionStorage.setItem('EB_UID',uid)}
+ let b=document.getElementById('onlB');
+ if(!b){
+  b=document.createElement('span');b.id='onlB';b.className='onl-b';b.title='Онлайн сейчас';b.textContent='🟢 1';
+  const ref=document.getElementById('netIco')||document.querySelector('h2 .badge');
+  if(ref)ref.before(b);
+ }
+ async function beat(){
+  if(!navigator.onLine)return;
+  const now=Date.now();
+  try{
+   await fetch(DB+'/online/'+uid+'.json',{method:'PUT',body:JSON.stringify(now)});
+   const r=await fetch(DB+'/online.json');
+   const data=await r.json();
+   if(data&&typeof data==='object'){
+    let cnt=0;
+    for(const k in data){
+     if(typeof data[k]==='number'&&now-data[k]<65000)cnt++;
+     else if(typeof data[k]==='number'&&now-data[k]>180000)fetch(DB+'/online/'+k+'.json',{method:'DELETE'}).catch(()=>{});
+    }
+    b.textContent='🟢 '+Math.max(1,cnt);
+   }
+  }catch(e){}
+ }
+ beat();
+ setInterval(()=>{if(!document.hidden)beat()},25000);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)beat()});
+ window.addEventListener('pagehide',()=>{try{fetch(DB+'/online/'+uid+'.json',{method:'DELETE',keepalive:true})}catch(e){}});
+})();
