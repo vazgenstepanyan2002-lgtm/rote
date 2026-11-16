@@ -9,16 +9,20 @@ function saveAdrCache(it){
 }
 const YKEY='a197b5c2-1e4f-480d-abab-9ab7bd63b447';
 async function yan(q){
- try{
-  const r=await fetch('https://geocode-maps.yandex.ru/1.x/?format=json&results=5&lang=ru_RU&rspn=1&bbox=43.4,38.8~46.7,41.3&apikey='+YKEY+'&geocode='+encodeURIComponent(q));
-  if(!r.ok){const a=new Array();a.err=(r.status===403||r.status===429)?'limit':'srv';return a}
-  const j=await r.json();
-  return j.response.GeoObjectCollection.featureMember.map(m=>{
-   const g=m.GeoObject,md=g.metaDataProperty.GeocoderMetaData;
-   const p=g.Point.pos.split(' ');
-   return{name:md.text.replace(/^Армения, /,'')+(md.precision==='exact'?'':' 📍'),lat:+p[1],lon:+p[0],exact:md.precision==='exact'};
-  });
- }catch(e){const a=new Array();a.err=navigator.onLine===false?'off':'net';return a}
+ let last;
+ for(let i=0;i<2;i++){
+  try{
+   const r=await fetch('https://geocode-maps.yandex.ru/1.x/?format=json&results=5&lang=ru_RU&rspn=1&bbox=43.4,38.8~46.7,41.3&apikey='+YKEY+'&geocode='+encodeURIComponent(q),{signal:AbortSignal.timeout(9000)});
+   if(!r.ok){const a=new Array();a.err=(r.status===403||r.status===429)?'limit':'srv';return a}
+   const j=await r.json();
+   return j.response.GeoObjectCollection.featureMember.map(m=>{
+    const g=m.GeoObject,md=g.metaDataProperty.GeocoderMetaData;
+    const p=g.Point.pos.split(' ');
+    return{name:md.text.replace(/^Армения, /,'')+(md.precision==='exact'?'':' 📍'),lat:+p[1],lon:+p[0],exact:md.precision==='exact'};
+   });
+  }catch(e){last=e;if(navigator.onLine===false)break;await new Promise(r=>setTimeout(r,400*(i+1)))}
+ }
+ const a=new Array();a.err=navigator.onLine===false?'off':'net';return a
 }
 function showList(list,msg){
  let b=document.getElementById('sg');

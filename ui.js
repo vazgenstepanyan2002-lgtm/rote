@@ -89,3 +89,22 @@ document.addEventListener('click',e=>{
  };
  lab();f.appendChild(b);
 })();
+
+// NET: индикатор онлайн/офлайн
+(function(){
+ const updNet=()=>{
+  const on=navigator.onLine;
+  let b=document.getElementById('netIco');
+  if(!b){
+   b=document.createElement('span');b.id='netIco';b.className='net-ico';
+   const h=document.querySelector('h2 .badge');if(!h)return;
+   h.after(b);
+  }
+  b.textContent=on?'📶':'📵';
+  b.title=on?'Интернет есть':'Нет интернета';
+  b.classList.toggle('off',!on);
+ };
+ window.addEventListener('online',()=>{updNet();window.toast&&toast('Интернет восстановлен','ok')});
+ window.addEventListener('offline',()=>{updNet();window.toast&&toast('Нет интернета. Работаю в офлайн-режиме','err')});
+ updNet();
+})();

@@ -1,18 +1,26 @@
-const C='eb-cache';
-self.addEventListener('install',()=>self.skipWaiting());
-self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+const C='eb-cache-v1';
+const PRE=['./','./index.html','./style.css','./app.js','./yandex.js','./ui.js','./map.js','./bonus.js','./i18n.js','./manifest.json','./icon-192.png','./icon-512.png','./bg.jpg'];
+self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>Promise.all(PRE.map(u=>c.add(u).catch(()=>{})))))});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
+const STATIC=/\.(?:css|js|png|jpe?g|svg|woff2?|ico|json|map)$/i;
+const isNav=r=>r.mode==='navigate'||(r.method==='GET'&&(r.headers.get('accept')||'').includes('text/html'));
 self.addEventListener('fetch',e=>{
  const r=e.request,u=new URL(r.url);
- if(r.method!=='GET'||u.origin!==location.origin||u.pathname.endsWith('/version.json'))return;
- const nav=r.mode==='navigate',key=nav?r.url:r;
- e.respondWith((async()=>{
-  try{
-   const res=await fetch(key,{cache:'no-store'});
-   if(res.status===200){try{const c=await caches.open(C);await c.put(key,res.clone())}catch(_){}}
-   return res;
-  }catch(err){
-   const c=await caches.open(C);
-   return (await c.match(key,{ignoreSearch:true}))||(nav?((await c.match(new URL('./',location).href))||(await c.match(new URL('index.html',location).href))):undefined)||Response.error();
-  }
- })());
+ if(r.method!=='GET')return;
+ if(u.pathname.endsWith('/version.json')){
+  e.respondWith(fetch(r,{cache:'no-store'}).then(res=>{const cl=res.clone();caches.open(C).then(c=>c.put(r,cl));return res}).catch(()=>caches.match(r,{ignoreSearch:true})));
+  return;
+ }
+ if(u.origin!==location.origin){
+  e.respondWith(fetch(r).then(res=>{if(res.ok&&res.status===200){const cl=res.clone();caches.open(C).then(c=>c.put(r,cl))}return res}).catch(()=>caches.match(r,{ignoreSearch:true})));
+  return;
+ }
+ if(STATIC.test(u.pathname)){
+  e.respondWith(caches.match(r,{ignoreSearch:true}).then(cached=>cached||fetch(r).then(res=>{if(res.ok){const cl=res.clone();caches.open(C).then(c=>c.put(r,cl))}return res}).catch(()=>cached)));
+  return;
+ }
+ if(isNav(r)){
+  e.respondWith(fetch(r).then(res=>{const cl=res.clone();caches.open(C).then(c=>c.put('./index.html',cl));return res}).catch(()=>caches.match('./index.html',{ignoreSearch:true})));
+  return;
+ }
 });

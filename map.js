@@ -11,11 +11,15 @@
   if(window.L&&L.map)return Promise.resolve();
   if(_lp)return _lp;
   _lp=new Promise((res,rej)=>{
-   const c=document.createElement('link');c.rel='stylesheet';c.href=LF_CSS;document.head.appendChild(c);
-   const s=document.createElement('script');s.src=LF_JS;
-   s.onload=()=>{const p=document.createElement('script');p.src=RT_JS;p.onload=p.onerror=()=>res();document.head.appendChild(p)};
-   s.onerror=()=>{_lp=null;s.remove();c.remove();rej(new Error('leaflet'))};
-   document.head.appendChild(s);
+   let tries=0;
+   const go=()=>{
+    const c=document.createElement('link');c.rel='stylesheet';c.href=LF_CSS;document.head.appendChild(c);
+    const s=document.createElement('script');s.src=LF_JS;
+    s.onload=()=>{const p=document.createElement('script');p.src=RT_JS;p.onload=p.onerror=()=>res();document.head.appendChild(p)};
+    s.onerror=()=>{tries++;if(tries<3){setTimeout(go,700*tries)}else{_lp=null;s.remove();c.remove();rej(new Error('leaflet'))}};
+    document.head.appendChild(s);
+   };
+   go();
   });
   return _lp;
  }
