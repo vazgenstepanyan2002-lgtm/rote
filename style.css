@@ -171,3 +171,20 @@ ol#l:not(:empty){margin:14px 0 0;padding:14px;border-radius:20px;background:rgba
 .bn-s{margin-top:10px;padding:10px;border:1px solid rgba(255,255,255,.2);border-left:4px solid #10b981;border-radius:12px;background:rgba(15,23,34,.7)}
 .bn-s .bn-sn{font-weight:700;font-size:15px}
 .bn-ss{margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,.12);font-size:15px}
+
+/* bn-compact: компактные подкатегории */
+#bnList{gap:8px}
+.bn-c{padding:8px}
+.bn-ch{cursor:pointer;display:flex;align-items:center;gap:8px;min-height:30px}
+.bn-ar{color:#fc0;width:18px;text-align:center;font-size:15px}
+.bn-cname{flex:1;font-weight:700;color:#fc0;font-size:15px}
+.bn-s.bn-k{margin-top:6px;padding:6px 8px;border-radius:10px}
+.bn-sh2{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
+.bn-nm{flex:1;font-weight:700;font-size:14px;color:#f8fafc}
+.bn-k .bn-ss{margin:0;padding:0;border:0;font-size:14px}
+.bn-k .bn-sr{margin-top:4px;gap:5px}
+.bn-rl{width:44px;font-size:12px;font-weight:700;color:#fc0;flex-shrink:0}
+#bnMdl .bn-k .bn-pm{min-width:34px;width:34px;height:34px;padding:0;font-size:18px}
+#bnMdl .bn-k input{height:34px;font-size:15px}
+#bnMdl .bn-k .bn-q{width:48px}
+.bn-pv{flex:1;text-align:right;color:#fc0;font-weight:700;font-size:14px}
