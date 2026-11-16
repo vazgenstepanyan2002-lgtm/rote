@@ -1,4 +1,4 @@
-/* CHAT v3: принудительный ввод имени при первом входе */
+/* CHAT v5: Финальная версия */
 (function(){
   const g = id => document.getElementById(id);
   const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -9,7 +9,9 @@
   const LIMIT = 50;
   let db = null, chatRef = null, chatPush = null;
   let userName = localStorage.getItem('CHAT_NAME') || '';
-  if (userName === 'Курьер' || userName === '' || userName === 'null' || userName === 'undefined') { try { localStorage.removeItem('CHAT_NAME'); } catch(e){} userName = ''; }
+
+  // Сброс застрявших имен
+  if (userName === 'Курьер' || userName === 'null') { try { localStorage.removeItem('CHAT_NAME'); } catch(e){} userName = ''; }
 
   function loadSDK(){
     return new Promise((res, rej) => {
@@ -72,7 +74,6 @@
     });
   }
 
-  // Окно ввода имени
   function askName(){
     if (g('chatNameM') && g('chatNameM').classList.contains('open')) return;
     const m = document.createElement('div');
@@ -105,12 +106,13 @@
 
   function openChat(){
     ensureUI();
-    // ГЛАВНОЕ: если имени нет, принудительно спрашиваем перед открытием
     g('chatMdl').classList.add('open');
-    if (!userName) { setTimeout(askName, 100); }
     document.documentElement.classList.add('lock');
     document.body.classList.add('lock');
     if (window.vib) vib(40);
+    
+    if (!userName) { setTimeout(askName, 100); }
+    
     setTimeout(() => { const l = g('chatMsgList'); if (l) l.scrollTop = l.scrollHeight; }, 100);
     const inp = g('chatInp'); if (inp && userName) inp.focus();
   }
@@ -147,9 +149,14 @@
     const div = document.createElement('div');
     div.className = 'chat-msg';
     div.id = 'msg_' + key;
-    const time = new Date(msg.t).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    
+    // Проверка на "моё" сообщение для стилизации
     const isMe = (msg.name === userName);
     if (isMe) div.classList.add('my-msg');
+
+    const time = new Date(msg.t).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    
+    // ТУТ ПРОБЕЛ МЕЖДУ ИМЕНЕМ И ВРЕМЕНЕМ
     div.innerHTML = `<div class="chat-meta"><span class="chat-author">${esc(msg.name || 'Курьер')}</span> <span class="chat-time">${time}</span></div><div class="chat-text">${esc(msg.text)}</div>`;
     list.appendChild(div);
     const isBottom = list.scrollHeight - list.scrollTop <= list.clientHeight + 50;
@@ -165,6 +172,8 @@
     if (navigator.onLine === false) { if (window.toast) toast('Нет интернета','err'); return; }
     if (!db) { if (window.toast) toast('Нет соединения с сервером','err'); return; }
     if (window.vib) vib(40);
+    
+    // УБРАЛИ inp.focus() ОТСЮДА, ЧТОБЫ КЛАВИАТУРА НЕ ВЫСКАКИВАЛА
     chatPush.push({ name: userName, text: text, t: Date.now() })
       .then(() => { inp.value = ''; })
       .catch(err => { if (window.toast) toast('Ошибка: ' + err.message, 'err'); });
