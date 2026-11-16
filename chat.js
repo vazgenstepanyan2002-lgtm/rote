@@ -9,6 +9,7 @@
   const LIMIT = 50;
   let db = null, chatRef = null, chatPush = null;
   let userName = localStorage.getItem('CHAT_NAME') || '';
+  if (userName === 'Курьер' || userName === '' || userName === 'null' || userName === 'undefined') { try { localStorage.removeItem('CHAT_NAME'); } catch(e){} userName = ''; }
 
   function loadSDK(){
     return new Promise((res, rej) => {
@@ -73,7 +74,7 @@
 
   // Окно ввода имени
   function askName(){
-    if (g('chatNameM')) { g('chatNameM').classList.add('open'); return; }
+    if (g('chatNameM') && g('chatNameM').classList.contains('open')) return;
     const m = document.createElement('div');
     m.id = 'chatNameM'; m.className = 'cm';
     m.innerHTML = `<div class="cm-b">
@@ -105,8 +106,8 @@
   function openChat(){
     ensureUI();
     // ГЛАВНОЕ: если имени нет, принудительно спрашиваем перед открытием
-    if (!userName) { askName(); }
     g('chatMdl').classList.add('open');
+    if (!userName) { setTimeout(askName, 100); }
     document.documentElement.classList.add('lock');
     document.body.classList.add('lock');
     if (window.vib) vib(40);
