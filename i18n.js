@@ -1,5 +1,5 @@
 (function(){
- const LANGS={ru:'Русский',hy:'Հայերեն',en:'English'  'Общий чат':['Ընդհանուր չատ','General chat'],
+ const LANGS={ru:'Русский',hy:'Հայերեն',en:'English', 'Общий чат':['Ընդհանուր չատ','General chat'],
   'Сохранить':['Պահպանել','Save'],
   'Нет интернета':['Ինտերնետ չկա','No internet'],
 };
@@ -219,61 +219,5 @@
  document.documentElement.lang=L;window.LANG_SR=SR[L];
  lab();
  if(L!=='ru')walk(document.body);
+window.openLang = openLang;
 })();
-
-// ====================== ВОССТАНОВЛЕННЫЙ ХВОСТ i18n.js ======================
-// (смена языка: кнопка 🌐 в футере + окно выбора)
-
-let btn = null;
-const lab = () => { if(btn) btn.textContent = '🌐 ' + LANGS[L]; };
-
-function dlg(){
- let m = document.getElementById('lgM');
- if(m) return m;
- m = document.createElement('div');
- m.id = 'lgM'; m.className = 'cm';
- m.innerHTML = '<div class="cm-b">'
-  + '<div class="cm-i">🌐</div>'
-  + '<div class="cm-t">Язык / Լեզու / Language</div>'
-  + '<div class="lg-r">'
-  + Object.keys(LANGS).map(k =>
-      '<button data-l="' + k + '">' + LANGS[k] + '</button>'
-    ).join('')
-  + '</div></div>';
- document.body.appendChild(m);
- m.onclick = e => {
-  if(e.target === m){ m.classList.remove('open'); return; }
-  const b = e.target.closest('button[data-l]');
-  if(!b) return;
-  setLang(b.dataset.l);
-  m.classList.remove('open');
- };
- return m;
-}
-
-function openLang(){
- const m = dlg();
- m.querySelectorAll('button[data-l]').forEach(b => {
-  b.classList.toggle('on', b.dataset.l === L);
- });
- m.classList.add('open');
-}
-
-(function(){
- const f = document.getElementById('ft');
- if(f){
-  btn = document.createElement('button');
-  btn.id = 'lgBtn';
-  btn.textContent = '🌐 ' + LANGS[L];
-  btn.onclick = openLang;
-  f.appendChild(btn);
-  lab();
- }
-})();
-
-// применяем язык при старте
-document.documentElement.lang = L;
-window.LANG_SR = SR[L];
-if(L !== 'ru') walk(document.body);
-
-// ============================== КОНЕЦ ХВОСТА ==============================
