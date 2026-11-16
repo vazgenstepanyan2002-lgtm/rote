@@ -1,5 +1,5 @@
-const C='eb-cache-1794845645';
-const PRE=['./','./index.html','./style.css','./app.js','./yandex.js','./ui.js','./map.js','./bonus.js','./i18n.js','./online.js','./manifest.json','./icon-192.png','./icon-512.png','./bg.jpg'];
+const C='eb-cache-1794846656';
+const PRE=['./','./index.html','./style.css','./app.js','./yandex.js','./ui.js','./map.js','./bonus.js','./i18n.js','./online.js','./chat.js','./manifest.json','./icon-192.png','./icon-512.png','./bg.jpg'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>Promise.all(PRE.map(u=>c.add(u).catch(()=>{})))))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 const STATIC=/\.(?:css|js|png|jpe?g|svg|woff2?|ico|json|map)$/i;
