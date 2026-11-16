@@ -161,3 +161,8 @@ ol#l:not(:empty){margin:14px 0 0;padding:14px;border-radius:20px;background:rgba
 .bn-lb+.bn-sr{margin-top:4px}
 
 .grp.top #sg{margin:10px 0 0!important;padding:10px!important;border-radius:14px!important;box-shadow:none!important}
+
+/* bn-lock: заблокированные поля */
+#bnMdl input[readonly]{cursor:default}
+#bnMdl .bn-p[readonly]{background:transparent;border-color:rgba(255,255,255,.12);color:#fc0;font-weight:700}
+#bnMdl .bn-sn[readonly]{background:transparent;border-color:transparent;font-weight:600;padding-left:4px}
