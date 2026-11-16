@@ -53,6 +53,7 @@
    S('e','6 դուռ',2500,3250)]}
  ];
 
+ const ICO={other:'📦',sofas:'🛋️',recep:'🗄️',kitchen:'🍳',living:'📺',bedroom:'🛏️',wardrobe:'🚪'};
  let B=[];
  try{const v=JSON.parse(localStorage.getItem('BON')||'[]');if(Array.isArray(v))B=v.filter(c=>c&&Array.isArray(c.subs))}catch(e){}
  const save=()=>{try{localStorage.setItem('BON',JSON.stringify(B))}catch(e){}};
@@ -74,12 +75,12 @@
  function upd(){
   let t=0,q=0;
   B.forEach((c,ci)=>{
-   let cs=0;
+   let cs=0,cq=0;
    c.subs.forEach((s,si)=>{
-    const v=num(s.qty)*num(s.price)+num(s.qty2)*num(s.price2);cs+=v;q+=num(s.qty)+num(s.qty2);
+    const v=num(s.qty)*num(s.price)+num(s.qty2)*num(s.price2);const dq=num(s.qty)+num(s.qty2);cs+=v;q+=dq;cq+=dq;
     const e=g('bs'+ci+'_'+si);if(e)e.textContent=fm(v)+' '+CUR;
    });
-   t+=cs;
+   t+=cs;{const e2=g('bq'+ci);if(e2){e2.textContent=cq?('Выбрано: '+fm(cq)+' шт'):(c.subs.length+' поз.');e2.classList.toggle('on',cq>0)}}
    const e=g('bc'+ci);if(e)e.textContent=fm(cs)+' '+CUR;
   });
   g('bnTot').textContent=fm(t)+' '+CUR;
@@ -96,10 +97,11 @@
  function render(){
   const l=g('bnList'),st=l.scrollTop;
   l.innerHTML=B.map((c,ci)=>{
-   let h='<div class="bn-c"><div class="bn-ch" data-act="col" data-c="'+ci+'">'
-    +'<span class="bn-ar">'+(c.col?'▸':'▾')+'</span>'
-    +'<span class="bn-cname">'+esc(c.name)+'</span>'
-    +'<span class="bn-cs" id="bc'+ci+'"></span></div>';
+   let h='<div class="bn-c'+(c.col?'':' open')+'" data-pk="'+c.pk+'"><div class="bn-ch" data-act="col" data-c="'+ci+'">'
+    +'<span class="bn-ic2">'+(ICO[c.pk]||'📦')+'</span>'
+    +'<span class="bn-ct"><span class="bn-cname">'+esc(c.name)+'</span><span class="bn-sub" id="bq'+ci+'"></span></span>'
+    +'<span class="bn-cs" id="bc'+ci+'"></span>'
+    +'<span class="bn-ar">'+(c.col?'▸':'▾')+'</span></div>';
    if(!c.col){
     h+=c.subs.map((s,si)=>{
      const a='data-c="'+ci+'" data-s="'+si+'"';
