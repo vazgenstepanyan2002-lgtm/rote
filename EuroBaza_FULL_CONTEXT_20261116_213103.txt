@@ -1,0 +1,1717 @@
+ИНСТРУКЦИЯ-КОНТЕКСТ ДЛЯ ИИ (ПРОЕКТ: ДОСТАВКА EUROBAZA - 20261116_213103)
+1. Папка проекта: ~/storage/downloads/route
+2. АВТОДЕПЛОЙ: репозиторий vazgenstepanyan2002-lgtm/rote (main). В конце каждой команды ОБЯЗАТЕЛЬНО: echo '{"v":"'$(date +%Y%m%d%H%M%S)'"}' > version.json && git add . && git commit -m 'upd' && git push
+3. В конце каждой команды обновлять бэкапы (удалять старые route_backup_* и EuroBaza_FULL_CONTEXT_*).
+4. Изменения делать через python3 с assert. Скрипты писать в ~ (в /tmp нет прав). Новые файлы можно создавать через cat с кавычками у метки heredoc.
+5. Вместо confirm()/alert() использовать askC(текст, подпись_кнопки, иконка). Для сообщений использовать toast(текст,'ok'|'err').
+6. Структура: index.html, style.css, app.js, yandex.js, ui.js, map.js, bonus.js, i18n.js, online.js, chat.js, sw.js. Экспорт/импорт удалены.
+7. Окна закрываются системной кнопкой «Назад» через history.pushState/popstate. Кнопки вибрируют. Навигатор: geo:, переключатель внизу.
+8. Новые тексты интерфейса нужно добавлять в словарь D в i18n.js (русский ключ -> армянский, английский).
+
+====== ФАЙЛ: index.html ======
+<!doctype html><html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EuroBaza</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-192.png"><script>if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js")</script>
+<link rel="stylesheet" href="style.css?v=20261116212401">
+</head><body>
+<div id="instBar" class="inst-bar"><span id="instTxt">📲 Установите приложение на экран</span><div style="display:flex;align-items:center;gap:6px"><button id="instBtn" class="inst-btn" style="display:none" onclick="runInstall()">Установить</button><span class="inst-x" onclick="$('instBar').style.display='none';localStorage.setItem('INST_HIDE','1')">✕</span></div></div>
+<h2><span>Доставка EuroBaza</span><span class="badge">🚚 <b id="cnt">0</b></span></h2>
+<div class="grp top"><div class="inp-w"><input id="a" placeholder="Например: Абовяна 10, Ереван"><span id="mic" class="inp-mic" onclick="voice()">🎤</span><span class="inp-x" onclick="$('a').value='';if($('sg'))$('sg').innerHTML='';$('s').textContent='';$('a').focus()">✕</span></div>
+<button onclick="add()">Добавить адрес</button>
+<button onclick="askC('Очистить список адресов?','Очистить').then(y=>{if(y){P.length=0;save();window.toast&&toast('Список очищен')}})">Очистить</button></div>
+<ol id="l"></ol>
+<div class="grp"><label class="ret-box"><input type="checkbox" id="ret"><span class="ret-sw"></span><span class="ret-t">🏁 Вернуться на базу<small>Маршрут закончится на базе</small></span></label><button onclick="go()">Найти лучший порядок</button>
+<button onclick="askC('Очистить построенный маршрут?','Очистить').then(y=>{if(y){$('o').innerHTML='';$('s').textContent='';localStorage.removeItem('R_SAVE');window.CUR=null;window.toast&&toast('Маршрут очищен')}})">Очистить</button></div>
+<div id="s"></div><div id="o"></div>
+<button class="fab" onclick="openPts()">📍 Точки</button>
+<div id="ptMdl" class="mdl" onclick="if(event.target===this)this.classList.remove('open')"><div class="mdl-b"><div class="mdl-h"><span>Точки без адреса</span><button class="mdl-x" onclick="$('ptMdl').classList.remove('open')">✕</button></div><div id="ptList"></div><div style="margin-top:12px;border-top:1px solid rgba(255,255,255,.16);padding-top:12px"><div class="inp-w"><input id="pn" placeholder="Название точки"></div><div class="inp-w"><input id="pc" placeholder="Координаты или нажмите 📍"><span class="inp-x" style="font-size:20px" onclick="fillPos()">📍</span></div><button onclick="addSpec()">➕ Добавить точку</button><div id="ptMsg" style="color:#ffd166;font-size:13px;text-align:center;margin-top:8px"></div></div></div></div>
+
+
+
+
+
+
+<div id="cm" class="cm"><div class="cm-b"><div class="cm-i" id="cmI">🗑️</div><div class="cm-t" id="cmT"></div><div class="cm-r"><button id="cmNo">Отмена</button><button id="cmOk" class="cm-ok">OK</button></div></div></div>
+
+<script src="app.js?v=20261116212401"></script>
+<script src="yandex.js?v=1794774887"></script>
+<script src="ui.js?v=1794841901"></script>
+<script src="map.js?v=1794771603"></script>
+<script src="bonus.js?v=1794815873"></script>
+<script src="i18n.js?v=1794841901"></script>
+<script src="online.js?v=1"></script>
+<script src="chat.js?v=20261116212703"></script>
+</body></html>
+
+
+====== ФАЙЛ: style.css ======
+html{scroll-behavior:smooth;-webkit-overflow-scrolling:touch}
+*{-webkit-tap-highlight-color:transparent;box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+body{min-height:100vh;background:#0f1722;color:#f8fafc;padding:16px;max-width:540px;margin:0 auto 30px;touch-action:manipulation}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(0,0,0,.48),rgba(0,0,0,.65)),url(bg.jpg?v=4) center/cover no-repeat;transform:translateZ(0);will-change:transform}
+h2{background:rgba(18,25,36,.75);border:1px solid rgba(255,255,255,.16);border-radius:16px;padding:14px 16px;font-size:19px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.badge{background:#fc0;color:#000;font-size:14px;padding:4px 10px;border-radius:20px;font-weight:700;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.inp-w{position:relative;margin-bottom:8px}
+.inp-w input{width:100%;height:48px;padding:0 72px 0 14px;font-size:16px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(15,23,34,.82);color:#fff;outline:none}
+.inp-w input:focus{border-color:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.18)}
+.inp-x{position:absolute;right:6px;top:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;color:#94a3b8;font-size:16px}
+.inp-mic{position:absolute;right:38px;top:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;font-size:17px;border-radius:8px;transition:.2s}
+.inp-mic.rec{background:rgba(239,68,68,.25);box-shadow:0 0 0 2px #ef4444;animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.5}}
+button{width:100%;padding:13px;font-size:15px;font-weight:600;border:none;border-radius:12px;margin-top:8px;cursor:pointer;background:rgba(28,38,52,.85);color:#fff;border:1px solid rgba(255,255,255,.18);box-shadow:0 4px 12px rgba(0,0,0,.25)}
+button[onclick="add()"]{background:rgba(16,185,129,.18);color:#34d399;border:1.5px solid #10b981;box-shadow:0 4px 12px rgba(16,185,129,.15)}
+button[onclick="go()"]{background:rgba(16,185,129,.18);color:#34d399;border:1.5px solid #10b981;box-shadow:0 4px 12px rgba(16,185,129,.15);margin-top:22px;position:relative}
+button[onclick*="'o'"],button[onclick*="P.length=0"]{background:rgba(239,68,68,.18);color:#ff8585;border:1.5px solid #ef4444;box-shadow:0 4px 12px rgba(239,68,68,.15)}
+#sg{display:flex;flex-direction:column;gap:6px;margin-top:8px}#sg:empty{display:none}
+#sg button{background:rgba(255,255,255,.06)!important;color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.9)!important;border:1px solid rgba(255,255,255,.22)!important;border-radius:10px!important;margin-top:0!important;text-align:left!important;font-weight:500!important;padding:11px 14px!important}
+#sg button::before{content:"+ ";color:#34d399;font-weight:800;font-size:16px}
+ol#l{list-style:none;margin:14px 0;display:flex;flex-direction:column;gap:8px;counter-reset:pt}ol#l:empty{margin:0}
+ol#l li{background:rgba(15,23,34,.92);border:1px solid rgba(255,255,255,.16);border-left:4px solid #10b981;border-radius:14px;padding:12px 14px 12px 12px;font-size:14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+ol#l li::before{counter-increment:pt;content:counter(pt);background:#10b981;color:#fff;font-weight:700;font-size:12px;min-width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+a.x{background:rgba(239,68,68,.22);border:1px solid rgba(239,68,68,.4);color:#ff6b6b;text-decoration:none;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
+#s{color:#ffd166;font-size:14px;font-weight:500;margin-top:10px;text-align:center}
+#o:not(:empty){background:rgba(18,25,36,.8);border:1px solid rgba(16,185,129,.45);border-radius:16px;padding:16px;margin-top:14px}
+#o h3{color:#34d399;margin-bottom:10px;font-size:16px}
+#o ol{padding-left:20px;margin-bottom:12px;font-size:14px;line-height:1.5}
+a.nav{display:block;background:#fc0;color:#000;text-align:center;padding:14px;margin-top:12px;font-weight:700;text-decoration:none;border-radius:12px;font-size:16px}
+.cbtns{display:flex;align-items:center;gap:6px;flex-shrink:0}
+a.st{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#94a3b8;text-decoration:none;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px}
+a.st.on{background:rgba(255,204,0,.22);border-color:#fc0;color:#fc0}
+li.pin{border-color:rgba(255,204,0,.6)!important}
+.ret-box{display:flex;align-items:center;gap:10px;background:rgba(18,25,36,.72);border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:11px 14px;margin-top:14px;font-size:14px;cursor:pointer}
+.ret-box input{width:18px;height:18px;margin:0;accent-color:#10b981}
+.stat{background:rgba(16,185,129,.18);border:1px solid rgba(16,185,129,.4);border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:13px;color:#a7f3d0;font-weight:600}
+#o ol{list-style:none;padding:0;counter-reset:ord;margin-bottom:12px}
+#o ol li{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:10px 12px;margin-bottom:6px;font-size:14px}
+#o ol li::before{counter-increment:ord;content:counter(ord);background:#10b981;color:#fff;font-weight:700;font-size:12px;min-width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#o ol li.drag{background:rgba(16,185,129,.28);border-color:#10b981}
+.t-tag{display:block;color:#34d399;font-size:12px;font-weight:600;margin-top:4px;white-space:nowrap}
+.dh{margin-left:auto;color:#94a3b8;font-size:18px;padding:4px 8px;cursor:grab;touch-action:none;user-select:none}
+.fab{position:fixed;right:16px;bottom:18px;z-index:90;width:auto;padding:12px 16px;border-radius:50px;background:#fc0;color:#000;border:none;font-weight:700;font-size:15px;box-shadow:0 6px 20px rgba(0,0,0,.55);margin:0}
+.mdl{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.72);display:none;align-items:flex-end;justify-content:center;padding:16px}
+.mdl.open{display:flex}
+.mdl-b{width:100%;max-width:500px;background:#121924;border:1px solid rgba(255,255,255,.2);border-radius:18px;padding:16px;max-height:75vh;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+.mdl-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:17px;font-weight:700;color:#fc0}
+.mdl-x{background:rgba(255,255,255,.1);border:none;color:#fff;width:32px;height:32px;border-radius:8px;padding:0;margin:0;font-size:16px}
+a.pt-i{display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-left:4px solid #fc0;border-radius:12px;padding:13px 14px;margin-bottom:8px;color:#fff;text-decoration:none;font-size:15px;font-weight:600}
+.inst-bar{display:none;align-items:center;justify-content:space-between;gap:10px;background:rgba(16,185,129,.22);border:1.5px solid #10b981;border-radius:14px;padding:11px 14px;margin-bottom:12px;font-size:13px;color:#ecfdf5}
+.inst-btn{width:auto!important;margin:0!important;padding:8px 14px!important;background:#10b981!important;color:#000!important;border:none!important;border-radius:10px!important;font-size:13px!important;font-weight:700!important;white-space:nowrap}
+.inst-x{color:#94a3b8;font-size:16px;padding:4px 6px;cursor:pointer}
+.pt-r{display:flex;gap:8px;align-items:center;margin-bottom:8px}.pt-r a.pt-i{flex:1;margin-bottom:0}.pt-r a.x{width:38px;height:38px}
+html.lock,body.lock{overflow:hidden!important}.mdl{overscroll-behavior:contain;touch-action:none}.mdl-b{overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+.eta{display:block;color:#fc0;font-size:13px;font-weight:700;margin-bottom:2px}.eta:empty{display:none}.dep{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px;color:#cbd5e1}.dep input{height:38px;padding:0 8px;border-radius:10px;border:1px solid rgba(255,255,255,.25);background:rgba(15,23,34,.82);color:#fff;font-size:15px}.dep button{width:auto;margin:0;padding:8px 12px;font-size:13px}
+.cm{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:20px;touch-action:none;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.cm.open{display:flex}
+.cm-b{width:100%;max-width:360px;background:#121924;border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:22px 20px 18px;box-shadow:0 14px 40px rgba(0,0,0,.65);text-align:center;animation:cmIn .16s ease-out}
+@keyframes cmIn{from{transform:scale(.92);opacity:0}}
+.cm-i{font-size:34px;margin-bottom:8px}
+.cm-t{font-size:17px;font-weight:600;line-height:1.35;margin-bottom:18px;color:#f8fafc;word-break:break-word}
+.cm-r{display:flex;gap:10px}
+.cm-r button{margin:0;flex:1}
+.cm-r button.cm-ok{background:rgba(239,68,68,.22);color:#ff8585;border:1.5px solid #ef4444}
+
+body{padding-bottom:96px}
+#toast{position:fixed;left:50%;bottom:84px;transform:translate(-50%,20px);opacity:0;pointer-events:none;transition:.2s;z-index:300;max-width:88vw;padding:11px 16px;border-radius:12px;font-size:14px;font-weight:600;background:rgba(18,25,36,.96);border:1.5px solid #10b981;color:#ecfdf5;box-shadow:0 8px 24px rgba(0,0,0,.5);text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.err{border-color:#ef4444;color:#ffb4b4}
+#busy{position:fixed;top:0;left:0;right:0;height:3px;z-index:400;opacity:0;transition:opacity .2s;background:linear-gradient(90deg,transparent,#fc0,#10b981,transparent);background-size:200% 100%;pointer-events:none}
+#busy.on{opacity:1;animation:bs 1s linear infinite}
+@keyframes bs{to{background-position:-200% 0}}
+#hint{display:none;text-align:center;color:#cbd5e1;font-size:14px;padding:16px 12px;margin:14px 0;border:1.5px dashed rgba(255,255,255,.25);border-radius:14px;background:rgba(18,25,36,.55);line-height:1.5}
+#hint.show{display:block}
+#ft{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;margin-top:22px;font-size:12px;color:#94a3b8}
+#ft button{width:auto;margin:0;padding:8px 12px;font-size:13px}
+#ver{width:100%;text-align:center}
+
+.mapm{position:fixed;inset:0;z-index:150;background:#0f1722;display:none;flex-direction:column;overscroll-behavior:contain}
+.mapm.open{display:flex}
+.mapm-h{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;font-size:17px;font-weight:700;color:#fc0;flex-shrink:0}
+#mapBox{flex:1;min-height:0;background:#1b2635}
+#mapInfo{flex-shrink:0;padding:10px 16px 14px;font-size:13px;line-height:1.5;color:#cbd5e1;background:#121924;border-top:1px solid rgba(255,255,255,.16);max-height:34vh;overflow-y:auto}
+#mapInfo .w{color:#fc0;font-weight:600;margin-top:4px}
+.mkw{background:none!important;border:none!important}
+.mk{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;background:#10b981;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+.mk.bad{background:#fc0;color:#000;border-color:#000}
+.mk.base{background:#6366f1}
+.mk.me{background:#0ea5e9;font-size:10px}
+
+
+.mapm-h{gap:8px;flex-wrap:nowrap}
+.mapm-t{white-space:nowrap}
+.mapm-b{display:flex;align-items:center;gap:8px}
+.mapm-b .mdl-x{width:auto;height:36px;padding:0 10px;font-size:13px;white-space:nowrap;display:flex;align-items:center;justify-content:center}
+.mapm-b .mapm-c{width:36px;padding:0}
+
+.grp{margin-top:24px;padding:14px;border-radius:20px;background:rgba(18,25,36,.6);border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.grp .ret-box{margin-top:0;padding:12px 14px;gap:12px;border-radius:14px;position:relative;transition:.2s}
+.grp .ret-box input{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
+.ret-sw{flex-shrink:0;width:48px;height:28px;border-radius:20px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);position:relative;transition:.2s}
+.ret-sw::after{content:"";position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:#cbd5e1;box-shadow:0 2px 6px rgba(0,0,0,.4);transition:.2s}
+.ret-box input:checked+.ret-sw{background:rgba(16,185,129,.35);border-color:#10b981}
+.ret-box input:checked+.ret-sw::after{transform:translateX(20px);background:#34d399}
+.ret-t{display:flex;flex-direction:column;font-size:15px;font-weight:600;color:#f8fafc}
+.ret-t small{font-size:12px;font-weight:400;color:#94a3b8;margin-top:2px}
+.ret-box:has(input:checked){border-color:#10b981;background:rgba(16,185,129,.12)}
+.ret-box:has(input:checked) .ret-t small{color:#a7f3d0}
+.grp button[onclick="go()"]{margin-top:12px}
+
+.grp.top{margin-top:0}
+.grp.top .inp-w{margin-bottom:0}
+.grp.top button[onclick="add()"]{margin-top:10px}
+#sg{margin-top:10px!important;padding:10px;border-radius:14px;background:rgba(15,23,34,.55);border:1px solid rgba(16,185,129,.45);gap:6px!important}
+#sg>div{color:#34d399;font-size:13px;font-weight:600;margin:0 0 4px!important}
+#sg button{display:flex!important;align-items:center;gap:10px;background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.14)!important;border-radius:10px!important;padding:10px 12px!important;font-size:14px!important;font-weight:500!important;color:#f8fafc!important;text-shadow:none!important;box-shadow:none!important;margin-top:0!important}
+#sg button::before{content:"+";background:#10b981;color:#fff;font-weight:700;font-size:15px;min-width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+#sg{margin:14px 0 0!important;padding:14px!important;border-radius:20px!important;background:rgba(18,25,36,.6)!important;border:1.5px solid #10b981!important;box-shadow:0 8px 24px rgba(0,0,0,.3)!important;gap:8px!important}
+#sg>div{color:#34d399;font-size:14px;font-weight:700;margin:0 0 2px!important}
+
+ol#l:not(:empty){margin:14px 0 0;padding:14px;border-radius:20px;background:rgba(18,25,36,.6);border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+
+.fab.fab-l{right:auto;left:16px}
+#bnMdl .bn-b{display:flex;flex-direction:column;max-height:90vh;padding:14px;overflow:hidden;touch-action:auto}
+#bnMdl .mdl-h{flex-shrink:0}
+#bnList{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:10px}
+#bnMdl input{height:40px;padding:0 10px;border-radius:10px;border:1px solid rgba(255,255,255,.25);background:rgba(15,23,34,.82);color:#fff;font-size:16px;outline:none;min-width:0}
+#bnMdl input:focus{border-color:#10b981}
+#bnMdl button{width:auto;margin:0;padding:0 12px;height:40px;font-size:15px;border-radius:10px;flex-shrink:0}
+#bnMdl .mdl-x{width:32px;height:32px;padding:0}
+.bn-c{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.16);border-left:4px solid #fc0;border-radius:14px;padding:10px}
+.bn-ch,.bn-sh,.bn-add,.bn-newc{display:flex;align-items:center;gap:8px}
+#bnMdl .bn-cn{flex:1;font-weight:700;color:#fc0;background:transparent;border-color:transparent;padding:0 4px}
+.bn-cs{color:#34d399;font-weight:700;font-size:14px;white-space:nowrap}
+#bnMdl .bn-ic{width:36px;padding:0;background:rgba(255,255,255,.08)}
+#bnMdl .bn-del{color:#ff6b6b;background:rgba(239,68,68,.18);border-color:rgba(239,68,68,.4)}
+.bn-s{margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,255,255,.14)}
+#bnMdl .bn-sn{flex:1}
+.bn-sr{display:flex;align-items:center;gap:6px;margin-top:6px}
+#bnMdl .bn-pm{min-width:40px;padding:0 12px;font-size:20px;font-weight:700;background:rgba(16,185,129,.18);color:#34d399;border:1.5px solid #10b981}
+#bnMdl .bn-pm.bn-m{background:rgba(239,68,68,.18);color:#ff8585;border-color:#ef4444}
+#bnMdl .bn-q{width:58px;text-align:center;font-weight:700}
+#bnMdl .bn-p{flex:1;width:0;text-align:right}
+.bn-x{color:#94a3b8}
+.bn-ss{margin-top:4px;text-align:right;color:#34d399;font-weight:700;font-size:14px}
+.bn-add{margin-top:10px}
+#bnMdl .bn-add input,#bnMdl .bn-newc input{flex:1}
+.bn-newc{margin-top:10px;flex-shrink:0}
+#bnMdl .bn-newc .bn-pm{font-size:14px;white-space:nowrap}
+.bn-ft{flex-shrink:0;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.16)}
+.bn-tr{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.bn-tr b#bnTot{font-size:22px;color:#fc0}
+.bn-sm{margin-top:8px;font-size:13px;color:#94a3b8}
+#bnMdl .bn-sm button{height:34px;font-size:12px;background:rgba(255,255,255,.08);color:#cbd5e1;border:1px solid rgba(255,255,255,.2)}
+.bn-empty{color:#94a3b8;font-size:14px;text-align:center;padding:18px 8px;line-height:1.5}
+
+.bn-sr+.bn-sr{margin-top:6px}
+
+.bn-lb{margin-top:8px;font-size:12px;font-weight:700;color:#fc0;letter-spacing:.3px}
+.bn-lb+.bn-sr{margin-top:4px}
+
+.grp.top #sg{margin:10px 0 0!important;padding:10px!important;border-radius:14px!important;box-shadow:none!important}
+
+/* bn-lock: заблокированные поля */
+#bnMdl input[readonly]{cursor:default}
+#bnMdl .bn-p[readonly]{background:transparent;border-color:rgba(255,255,255,.12);color:#fc0;font-weight:700}
+#bnMdl .bn-sn[readonly]{background:transparent;border-color:transparent;font-weight:600;padding-left:4px}
+
+/* bn-card: каждая подкатегория отдельной плашкой */
+.bn-s{margin-top:10px;padding:10px;border:1px solid rgba(255,255,255,.2);border-left:4px solid #10b981;border-radius:12px;background:rgba(15,23,34,.7)}
+.bn-s .bn-sn{font-weight:700;font-size:15px}
+.bn-ss{margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,.12);font-size:15px}
+
+/* bn-compact: компактные подкатегории */
+#bnList{gap:8px}
+.bn-c{padding:8px}
+.bn-ch{cursor:pointer;display:flex;align-items:center;gap:8px;min-height:30px}
+.bn-ar{color:#fc0;width:18px;text-align:center;font-size:15px}
+.bn-cname{flex:1;font-weight:700;color:#fc0;font-size:15px}
+.bn-s.bn-k{margin-top:6px;padding:6px 8px;border-radius:10px}
+.bn-sh2{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
+.bn-nm{flex:1;font-weight:700;font-size:14px;color:#f8fafc}
+.bn-k .bn-ss{margin:0;padding:0;border:0;font-size:14px}
+.bn-k .bn-sr{margin-top:4px;gap:5px}
+.bn-rl{width:44px;font-size:12px;font-weight:700;color:#fc0;flex-shrink:0}
+#bnMdl .bn-k .bn-pm{min-width:34px;width:34px;height:34px;padding:0;font-size:18px}
+#bnMdl .bn-k input{height:34px;font-size:15px}
+#bnMdl .bn-k .bn-q{width:48px}
+.bn-pv{flex:1;text-align:right;color:#fc0;font-weight:700;font-size:14px}
+
+/* bn-equal: одинаковый размер плашек и белые подписи */
+.bn-rl{color:#f8fafc;font-weight:600}
+.bn-ph{height:34px;visibility:hidden}
+
+/* bn-pl: подпись Город/Район рядом с ценой */
+.bn-pl{color:#94a3b8;font-size:12px;font-weight:600;margin-right:8px}
+
+/* bn-pretty: красивые карточки категорий */
+#bnList .bn-c{--ac:#fbbf24;padding:0;border:1px solid rgba(255,255,255,.14);border-left:none;border-radius:16px;background:linear-gradient(135deg,rgba(255,255,255,.09),rgba(255,255,255,.03));overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.25);position:relative}
+#bnList .bn-c::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--ac)}
+#bnList .bn-c[data-pk=sofas]{--ac:#f472b6}
+#bnList .bn-c[data-pk=recep]{--ac:#60a5fa}
+#bnList .bn-c[data-pk=kitchen]{--ac:#fb923c}
+#bnList .bn-c[data-pk=living]{--ac:#a78bfa}
+#bnList .bn-c[data-pk=bedroom]{--ac:#34d399}
+#bnList .bn-c[data-pk=wardrobe]{--ac:#22d3ee}
+#bnList .bn-ch{padding:12px 12px 12px 16px;gap:12px;min-height:62px}
+.bn-ic2{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;background:rgba(255,255,255,.1);background:color-mix(in srgb,var(--ac) 24%,transparent)}
+.bn-ct{flex:1;display:flex;flex-direction:column;min-width:0}
+#bnList .bn-cname{flex:none;color:#f8fafc;font-size:16px;font-weight:700;line-height:1.2}
+.bn-sub{font-size:12px;color:#94a3b8;margin-top:3px}
+.bn-sub.on{color:var(--ac);font-weight:600}
+#bnList .bn-cs{color:var(--ac);font-size:16px;font-weight:700;white-space:nowrap}
+#bnList .bn-ar{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.1);color:#f8fafc;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#bnList .bn-c.open .bn-ch{border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:8px}
+#bnList .bn-c>.bn-s.bn-k{margin:0 10px 8px;border-left-color:var(--ac)}
+
+/* bn-scrollfix: список прокручивается, карточки не сжимаются, больше места */
+#bnMdl{padding:8px}
+#bnMdl .bn-b{max-height:96vh;padding:12px}
+#bnMdl .mdl-h{margin-bottom:8px}
+#bnList{padding-bottom:6px}
+#bnList>.bn-c{flex:0 0 auto}
+#bnList .bn-ch{min-height:54px;padding:8px 10px 8px 14px;gap:10px}
+.bn-ic2{width:38px;height:38px;font-size:20px;border-radius:12px}
+#bnList .bn-c.open .bn-ch{margin-bottom:6px}
+#bnList .bn-c>.bn-s.bn-k{margin:0 8px 6px}
+.bn-ft{margin-top:8px;padding-top:8px}
+
+/* bn-btns, bn-ov: кнопки внизу и окно итогов */
+.bn-btns{display:flex;gap:8px;margin-top:8px}
+#bnMdl .bn-btns button{flex:1;height:42px;font-size:14px;font-weight:600;background:rgba(255,255,255,.08);color:#f8fafc;border:1px solid rgba(255,255,255,.2)}
+#bnMdl .bn-btns #bnSumB{background:rgba(16,185,129,.18);color:#34d399;border:1.5px solid #10b981}
+#bnMdl .bn-btns #bnRst{background:rgba(239,68,68,.18);color:#ff8585;border:1.5px solid #ef4444}
+.bn-ov{position:absolute;inset:0;z-index:5;display:none;align-items:center;justify-content:center;padding:8px;background:rgba(0,0,0,.65)}
+.bn-ov.open{display:flex}
+.bn-ov .bn-b{max-height:92vh}
+#bnSmList{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:8px}
+.bn-sc{flex:0 0 auto;border:1px solid rgba(255,255,255,.16);border-radius:14px;background:rgba(255,255,255,.05);padding:8px 10px}
+.bn-sch{display:flex;justify-content:space-between;gap:8px;color:#fc0;font-weight:700;font-size:15px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,.12)}
+.bn-sch b{color:#34d399;white-space:nowrap}
+.bn-si{padding:6px 0;border-bottom:1px dashed rgba(255,255,255,.1)}
+.bn-si:last-child{border-bottom:0;padding-bottom:0}
+.bn-sin{font-weight:700;font-size:14px;margin-bottom:2px}
+.bn-sp{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:#cbd5e1}
+.bn-sp b{color:#fc0;white-space:nowrap}
+.bn-tr b#bnSmTot{font-size:22px;color:#fc0}
+
+/* lg-r: окно выбора языка */
+.lg-r{display:flex;flex-direction:column;gap:8px}
+.lg-r button{margin:0;padding:13px;font-size:16px}
+.lg-r button.on{background:rgba(16,185,129,.22);color:#34d399;border:1.5px solid #10b981}
+
+/* NET: индикатор онлайн/офлайн */
+.net-ico{font-size:15px;opacity:.95;cursor:default}
+.net-ico.off{filter:grayscale(1);opacity:.65}
+
+
+
+/* ONLINE: индикатор онлайна */
+.online-badge{
+  background: rgba(16,185,129,.18);
+  border: 1px solid #10b981;
+  color: #34d399;
+  font-size: 13px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-weight: 700;
+  white-space: nowrap;
+  margin-left: 4px;
+}
+.online-badge[data-n="0"]{
+  background: rgba(148,163,184,.15);
+  border-color: #94a3b8;
+  color: #94a3b8;
+}
+
+/* CHAT v5: Финальный стиль */
+.fab-c{right:16px;bottom:84px;width:56px;height:56px;padding:0;border-radius:50%;font-size:24px;display:flex;align-items:center;justify-content:center;background:#fc0;color:#000;box-shadow:0 4px 12px rgba(252,204,0,.4);border:none;cursor:pointer}
+.chat-mdl .chat-b{display:flex;flex-direction:column;height:80vh;max-height:85vh;padding:0;overflow:hidden;border-radius:20px}
+.chat-mdl .mdl-h{padding:14px 16px;margin:0;background:rgba(18,25,36,.95);border-bottom:1px solid rgba(255,255,255,.1);font-size:18px;display:flex;justify-content:space-between;align-items:center}
+.chat-mdl .mdl-x{background:rgba(255,255,255,.08);border-radius:8px;width:34px;height:34px;font-size:16px;display:flex;align-items:center;justify-content:center;transition:.2s;border:none;color:#fff}
+.chat-mdl .mdl-x:active{background:rgba(255,255,255,.2);transform:scale(.95)}
+#chatMsgList{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;overscroll-behavior:contain;background:#0f1722}
+
+.chat-msg{background:#1c2634;border-radius:16px;border-bottom-left-radius:4px;padding:10px 14px;max-width:85%;align-self:flex-start;border:1px solid rgba(255,255,255,.05);box-shadow:0 2px 6px rgba(0,0,0,.2);animation:msgIn .2s ease-out}
+@keyframes msgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.chat-msg.my-msg{align-self:flex-end;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);border-radius:16px;border-bottom-right-radius:4px}
+
+.chat-meta{display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-bottom:6px;gap:12px;align-items:center}
+.chat-msg.my-msg .chat-meta{flex-direction:row-reverse}
+.chat-author{font-weight:700;color:#fc0;white-space:nowrap}
+.chat-msg.my-msg .chat-author{color:#34d399}
+.chat-time{font-size:10px;white-space:nowrap;opacity:.7}
+.chat-text{font-size:15px;line-height:1.4;color:#f8fafc;word-break:break-word}
+
+.chat-input-w{display:flex;padding:12px;background:#121924;border-top:1px solid rgba(255,255,255,.08);gap:10px;align-items:center}
+.chat-input-w input{flex:1;height:44px;border-radius:22px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;padding:0 18px;font-size:15px;outline:none;transition:.2s}
+.chat-input-w input:focus{border-color:#10b981;background:rgba(16,185,129,.05);box-shadow:0 0 0 2px rgba(16,185,129,.15)}
+.chat-input-w button{width:44px;height:44px;border-radius:50%;margin:0;padding:0;background:#10b981;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;border:none;box-shadow:0 4px 12px rgba(16,185,129,.3);transition:.2s}
+.chat-input-w button:active{transform:scale(.92);background:#059669}
+#chatNameBtn{font-size:16px}
+
+
+====== ФАЙЛ: app.js ======
+const $=id=>document.getElementById(id);
+let P=JSON.parse(localStorage.getItem('P')||'[]');
+function save(){localStorage.setItem('P',JSON.stringify(P));draw()}
+function draw(){if($('cnt'))$('cnt').textContent=P.length;$('l').innerHTML=P.map((p,i)=>`<li class="${p.pin?'pin':''}"><span style="flex:1">${p.name}</span><div class="cbtns"><a class="st ${p.pin?'on':''}" href="#" onclick="pin(${i});return false">${p.pin?'⭐':'☆'}</a><a class="x" href="#" onclick="del(${i});return false">✕</a></div></li>`).join('')}
+function del(i){P.splice(i,1);save();window.toast&&toast('Адрес удалён')}
+function pin(i){const v=!P[i].pin;P.forEach(x=>x.pin=false);P[i].pin=v;save()}
+
+function pos(){return new Promise((ok,no)=>navigator.geolocation.getCurrentPosition(p=>ok({lat:p.coords.latitude,lon:p.coords.longitude}),no,{enableHighAccuracy:true,timeout:15000}))}
+$('a').onkeydown=ev=>{if(ev.key==='Enter')add()};
+draw();
+
+function voice(){
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){$('s').textContent='Голосовой ввод не поддерживается в этом браузере';return}
+ const r=new SR(),m=$('mic');
+ r.lang=window.LANG_SR||'ru-RU';r.interimResults=false;
+ r.onstart=()=>{m.classList.add('rec');$('s').textContent='Говорите адрес...'};
+ r.onend=()=>{m.classList.remove('rec')};
+ r.onerror=()=>{m.classList.remove('rec');$('s').textContent='Не удалось распознать голос'};
+ r.onresult=e=>{const t=e.results.item(0).item(0).transcript;$('a').value=t;$('s').textContent='';add()};
+ r.start();
+}
+;
+let SPEC_PTS=(()=>{try{const v=JSON.parse(localStorage.getItem('SPEC')||'null');if(Array.isArray(v))return v}catch(e){}return[{name:'Артак',lat:40.163019,lon:44.388218},{name:'Геворг Спайка',lat:40.127240,lon:44.490112}]})();
+let _spTok=0;
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function saveSpec(){localStorage.setItem('SPEC',JSON.stringify(SPEC_PTS))}
+function drawSpec(me,dists,durs){
+ if(!SPEC_PTS.length){$('ptList').innerHTML='<div style="color:#94a3b8;font-size:14px;padding:6px 2px">Список пуст. Добавьте точку ниже.</div>';return}
+ $('ptList').innerHTML=SPEC_PTS.map((p,i)=>{
+  let info='';
+  if(durs&&durs[i]!=null){
+   const d=dists&&dists[i],km=d?' • '+(d<10000?(d/1000).toFixed(1):Math.round(d/1000))+' км':'';
+   info='<span class="t-tag" style="color:#34d399">⏱ ~'+fmtT(durs[i])+km+'</span>';
+  }else if(me){
+   const d=Math.hypot((me.lat-p.lat)*111000,(me.lon-p.lon)*85000)*1.35,t=d/11;
+   const km=' • '+(d<10000?(d/1000).toFixed(1):Math.round(d/1000))+' км';
+   info='<span class="t-tag" style="color:#34d399">⏱ ~'+fmtT(t)+km+'</span>';
+  }else{
+   info='<span class="t-tag" style="color:#94a3b8">Определяю геопозицию...</span>';
+  }
+  return '<div class="pt-r"><a class="pt-i" href="yandexnavi://build_route_on_map?lat_to='+p.lat+'&lon_to='+p.lon+'"><span>'+esc(p.name)+info+'</span><span style="color:#fc0">🧭 Поехали</span></a><a class="x" href="#" onclick="delSpec('+i+');return false">✕</a></div>';
+ }).join('');
+}
+async function delSpec(i){
+ if(!SPEC_PTS[i])return;
+ if(!await askC('Удалить точку «'+SPEC_PTS[i].name+'»?','Удалить'))return;
+ SPEC_PTS.splice(i,1);saveSpec();window.toast&&toast('Точка удалена');openPts();
+}
+async function addSpec(){
+ const n=$('pn').value.trim(),c=$('pc').value.trim(),m=$('ptMsg');
+ if(!n){m.textContent='Введите название точки';return}
+ let lat,lon;
+ if(c){
+  const nums=c.match(/-?\d+(?:[.,]\d+)?/g);
+  if(!nums||nums.length!==2){m.textContent='Нужно два числа: 40.1630, 44.3882';return}
+  lat=parseFloat(nums[0].replace(',','.'));lon=parseFloat(nums[1].replace(',','.'));
+  if(lat>43&&lon<43){const t=lat;lat=lon;lon=t}
+  if(!(lat>38.8&&lat<41.3&&lon>43.4&&lon<46.7)){m.textContent='Координаты вне Армении, проверьте';return}
+ }else{
+  m.textContent='Определяю вашу геопозицию...';
+  try{const me=await pos();lat=me.lat;lon=me.lon}catch(e){m.textContent='Нет доступа к геолокации. Введите координаты вручную';return}
+ }
+ SPEC_PTS.push({name:n,lat:+lat.toFixed(6),lon:+lon.toFixed(6)});saveSpec();
+ $('pn').value='';$('pc').value='';m.textContent='';window.toast&&toast('Точка добавлена');openPts();
+}
+async function fillPos(){
+ const m=$('ptMsg');
+ m.textContent='Определяю вашу геопозицию...';
+ try{const me=await pos();$('pc').value=me.lat.toFixed(6)+', '+me.lon.toFixed(6);m.textContent='Координаты подставлены. Введите название и нажмите «Добавить точку»'}
+ catch(e){m.textContent='Нет доступа к геолокации. Разрешите её для Chrome'}
+}
+async function openPts(){
+ const tok=++_spTok;
+ $('ptMdl').classList.add('open');
+ drawSpec(null,null,null);
+ if(!SPEC_PTS.length)return;
+ let me;
+ try{me=await pos()}catch(e){
+  if(tok!==_spTok)return;
+  $('ptList').querySelectorAll('.t-tag').forEach(t=>{t.textContent='Включите геолокацию для расчёта времени';t.style.color='#fbbf24'});
+  return;
+ }
+ if(tok!==_spTok)return;
+ drawSpec(me,null,null);
+ try{
+  const all=[me].concat(SPEC_PTS);
+  const r=await fT('https://router.project-osrm.org/table/v1/driving/'+all.map(p=>p.lon+','+p.lat).join(';')+'?sources=0&annotations=duration,distance');
+  const j=await r.json();
+  if(tok!==_spTok)return;
+  if(j.durations&&j.durations[0])drawSpec(me,j.distances[0].slice(1),j.durations[0].slice(1));
+ }catch(e){}
+}
+;
+let _defPrompt=null;
+const isStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+if(!isStandalone&&!localStorage.getItem('INST_HIDE')){
+ window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  _defPrompt=e;
+  $('instTxt').textContent='📲 Установить EuroBaza на главный экран';
+  $('instBtn').style.display='block';
+  $('instBar').style.display='flex';
+ });
+ const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+ if(isIOS){
+  $('instTxt').innerHTML='📲 Чтобы установить на iPhone: нажмите <b>Поделиться</b> (квадрат со стрелкой) → <b>На экран «Домой»</b>';
+  $('instBar').style.display='flex';
+ }
+}
+async function runInstall(){
+ if(!_defPrompt)return;
+ _defPrompt.prompt();
+ const res=await _defPrompt.userChoice;
+ if(res.outcome==='accepted')$('instBar').style.display='none';
+ _defPrompt=null;
+}
+window.addEventListener('appinstalled',()=>{$('instBar').style.display='none'});
+;
+const fT=async u=>{let last;for(let i=0;i<2;i++){try{return await fetch(u,{signal:AbortSignal.timeout(9000)})}catch(e){last=e;if(!navigator.onLine)throw e;await new Promise(r=>setTimeout(r,400*(i+1)))}}throw last};
+const BASE={name:'🏁 Возврат на базу (Арин Берд 7)',lat:40.120847,lon:44.514271};
+function solve(D,n,bIdx){const skipPen=(a,b,used)=>{let pen=0;for(let j=1;j<=n;j++)if(!used[j]&&j!==b){const det=D[a][j]+D[j][b]-D[a][b];if(det<900)pen+=3600}return pen};let best=[],bc=Infinity;const pI=P.findIndex(x=>x&&x.pin)+1;if(n<=8){const rec=(path,used,c)=>{if(c>=bc)return;if(path.length===n){const l=path[path.length-1],t=c+(bIdx?D[l][bIdx]:0);if(t<bc){bc=t;best=path.slice()}return}const last=path.length?path[path.length-1]:0;for(let i=1;i<=n;i++)if(!used[i]){const pen=skipPen(last,i,used);used[i]=1;path.push(i);rec(path,used,c+D[last][i]+pen);path.pop();used[i]=0}};if(pI>0){const u=Array(n+2).fill(0);u[pI]=1;rec([pI],u,D[0][pI])}else rec([],Array(n+2).fill(0),0)}else{const used=Array(n+2).fill(0);let cur=0;if(pI>0){used[pI]=1;best.push(pI);cur=pI}for(let k=best.length;k<n;k++){let b=-1,bv=Infinity;for(let i=1;i<=n;i++)if(!used[i]){const v=D[cur][i]+skipPen(cur,i,used);if(v<bv){bv=v;b=i}}used[b]=1;best.push(b);cur=b}const st=pI>0?1:0;const cost=p=>{let c=0,l=0;for(let k=0;k<p.length;k++){const x=p[k];c+=D[l][x];if(k>=st)for(let m=k+1;m<p.length;m++){const j=p[m];if(D[l][j]+D[j][x]-D[l][x]<900)c+=3600}l=x}return c+(bIdx?D[l][bIdx]:0)};let imp=true,it=0;while(imp&&it++<50){imp=false;for(let i=st;i<n-1;i++)for(let j=i+1;j<n;j++){const q=best.slice(0,i).concat(best.slice(i,j+1).reverse(),best.slice(j+1));if(cost(q)<cost(best)-1e-9){best=q;imp=true}}}}return best}
+function etaBase(){const d=localStorage.getItem('DEP');if(d&&/^\d\d:\d\d$/.test(d)){const x=new Date();x.setHours(+d.slice(0,2),+d.slice(3,5),0,0);return x.getTime()}return +localStorage.getItem('R_T0')||Date.now()}
+function hm(ms){const x=new Date(ms),p=n=>String(n).padStart(2,'0');return p(x.getHours())+':'+p(x.getMinutes())+(x.getDate()!==new Date().getDate()?' (+1 д)':'')}
+function setDep(v){if(v)localStorage.setItem('DEP',v);else{localStorage.removeItem('DEP');localStorage.setItem('R_T0',Date.now())}updEta()}
+function updEta(){return;const c=window.CUR;if(!c)return;const i=$('dep');if(i&&document.activeElement!==i)i.value=localStorage.getItem('DEP')||'';const els=document.querySelectorAll('#o ol li .eta');const ok=c.every(x=>typeof x.st==='number');let t=etaBase()-600000;c.forEach((it,k)=>{t+=(it.st||0)*1000;if(els[k])els[k].textContent=ok?'🕒 '+hm(t):''})}
+function fmtT(s){const m=Math.round(s/60);return m<60?m+' мин':Math.floor(m/60)+' ч '+(m%60)+' мин'}
+function buildNav(arr){const to=arr.at(-1),via=arr.slice(0,-1);let u='yandexnavi://build_route_on_map?lat_to='+to.lat+'&lon_to='+to.lon;via.forEach((p,i)=>u+='&lat_via_'+i+'='+p.lat+'&lon_via_'+i+'='+p.lon);return u}
+async function go(){if(!P.length)return;const back=$('ret').checked;$('o').innerHTML='';$('s').textContent='Определяю местоположение...';let me;try{me=await pos()}catch(e){$('s').textContent='Разрешите доступ к геолокации для Chrome';window.toast&&toast('Нет доступа к геолокации','err');return}const pts=back?[me,...P,BASE]:[me,...P],bIdx=back?pts.length-1:0;$('s').textContent='Считаю лучший порядок...';let D,approx=false;try{const r=await fT('https://router.project-osrm.org/table/v1/driving/'+pts.map(p=>p.lon+','+p.lat).join(';')+'?annotations=duration');D=(await r.json()).durations;if(!D)throw 0;D=D.map((row,i)=>row.map((v,j)=>{if(v==null){approx=true;return Math.hypot((pts[i].lat-pts[j].lat)*111,(pts[i].lon-pts[j].lon)*85)*90}return v}))}catch(e){approx=true;D=pts.map(a=>pts.map(b=>Math.hypot((a.lat-b.lat)*111,(a.lon-b.lon)*85)*90))}let Dist=pts.map(a=>pts.map(b=>Math.hypot((a.lat-b.lat)*111000,(a.lon-b.lon)*85000)*1.35));const idx=solve(D,P.length,bIdx);if(back)idx.push(bIdx);try{const rPts=[pts.at(0),...idx.map(i=>pts.at(i))],rr=await fT('https://router.project-osrm.org/route/v1/driving/'+rPts.map(p=>p.lon+','+p.lat).join(';')+'?overview=false'),legs=(await rr.json()).routes.at(0).legs;if(legs)legs.forEach((leg,k)=>{const a=k===0?0:idx.at(k-1),b=idx.at(k);D[a][b]=leg.duration;Dist[a][b]=leg.distance})}catch(e){approx=true}let prev=0,totT=0,totD=0;let curOrder=idx.map(i=>{const sT=600+D.at(prev).at(i),sD=Dist.at(prev).at(i);totT+=sT;totD+=sD;prev=i;const sKm=sD?' • '+(sD<10000?(sD/1000).toFixed(1):Math.round(sD/1000))+' км':'';return{name:pts.at(i).name,lat:pts.at(i).lat,lon:pts.at(i).lon,st:sT,sub:'+'+fmtT(sT)+sKm}});const startPt=pts.at(0);$('s').textContent='';const km=totD?' • '+Math.round(totD/1000)+' км':'',liHtml=curOrder.map(it=>`<li><span style="flex:1">${it.name}<span class="t-tag">(${it.sub})</span></span><span class="dh">☰</span></li>`).join('');localStorage.removeItem('DEP');localStorage.setItem('R_T0',Date.now());renderOut(curOrder,startPt,totT,totD,approx);window.toast&&toast(approx?'Маршрут построен (время приблизительно)':'Маршрут построен',approx?'err':'ok')}
+function renderOut(curOrder,startPt,totT,totD,approx){window.CUR=curOrder;localStorage.setItem('R_SAVE',JSON.stringify({curOrder:curOrder,startPt:startPt,totT:totT,totD:totD,approx:!!approx}));const km=totD?' • '+Math.round(totD/1000)+' км':'',liHtml=curOrder.map(it=>`<li><span style="flex:1">${it.name}<span class="t-tag">(${it.sub})</span></span><span class="dh">☰</span></li>`).join('');$('o').innerHTML=`<h3>Порядок (потяните ☰):</h3><div class="stat">⏱ Весь путь: ~${fmtT(totT)}${km}${approx?' ⚠ приблизительно':''}</div><ol>${liHtml}</ol><a class="nav" href="${buildNav(curOrder)}">Открыть в навигаторе</a>`;updEta();const ol=$('o').querySelector('ol');let dragEl=null;ol.addEventListener('touchstart',ev=>{const h=ev.target.closest('.dh');if(!h)return;dragEl=h.closest('li');dragEl.classList.add('drag')},{passive:true});ol.addEventListener('touchmove',ev=>{if(!dragEl)return;ev.preventDefault();const over=document.elementFromPoint(ev.touches.item(0).clientX,ev.touches.item(0).clientY),target=over&&over.closest('#o ol li');if(target&&target!==dragEl){const items=Array.from(ol.children),fromI=items.indexOf(dragEl),toI=items.indexOf(target);if(fromI<toI)target.after(dragEl);else target.before(dragEl);curOrder.splice(toI,0,curOrder.splice(fromI,1).at(0))}},{passive:false});ol.addEventListener('touchend',async()=>{if(!dragEl)return;dragEl.classList.remove('drag');dragEl=null;const navA=document.querySelector('#o a.nav');if(navA)navA.href=buildNav(curOrder);let tT=totT,tD=totD,ap=!!approx;try{const rPts=new Array(startPt).concat(curOrder),rr=await fT('https://router.project-osrm.org/route/v1/driving/'+rPts.map(p=>p.lon+','+p.lat).join(';')+'?overview=false'),legs=(await rr.json()).routes.at(0).legs;if(legs){ap=false;tT=0;tD=0;const lis=ol.querySelectorAll('li');legs.forEach((leg,k)=>{const sT=600+leg.duration,sD=leg.distance;tT+=sT;tD+=sD;const sKm=sD?' • '+(sD<10000?(sD/1000).toFixed(1):Math.round(sD/1000))+' км':'',sub='+'+fmtT(sT)+sKm;curOrder.at(k).sub=sub;curOrder.at(k).st=sT;const tag=lis.item(k)&&lis.item(k).querySelector('.t-tag');if(tag)tag.textContent='('+sub+')'});const st=document.querySelector('#o .stat');if(st)st.textContent='⏱ Весь путь: ~'+fmtT(tT)+(tD?' • '+Math.round(tD/1000)+' км':'')+(ap?' ⚠ приблизительно':'')}}catch(e){ap=true}localStorage.setItem('R_SAVE',JSON.stringify({curOrder:curOrder,startPt:startPt,totT:tT,totD:tD,approx:ap}));updEta()})}
+try{const sv=JSON.parse(localStorage.getItem('R_SAVE')||'null');if(sv&&sv.curOrder&&sv.curOrder.length)renderOut(sv.curOrder,sv.startPt,sv.totT,sv.totD,sv.approx)}catch(e){}
+;
+(function(){
+ const K='APP_V',g=id=>document.getElementById(id);
+ 
+ // 1. Слушаем обновление Service Worker'а
+ if ('serviceWorker' in navigator) {
+   navigator.serviceWorker.addEventListener('controllerchange', () => {
+     window.location.reload();
+   });
+ }
+
+ async function chk(){
+  try{
+   const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});
+   const v=(await r.json()).v,old=localStorage.getItem(K);
+   if(!old){localStorage.setItem(K,v);return}
+   if(old===v)return;
+   const busy=(g('a')&&g('a').value.trim())||(g('ptMdl')&&g('ptMdl').classList.contains('open'))||(g('pn')&&g('pn').value.trim())||(g('cm')&&g('cm').classList.contains('open'))||(g('mapM')&&g('mapM').classList.contains('open'))||(g('bnMdl')&&g('bnMdl').classList.contains('open'));
+   if(busy)return;
+   localStorage.setItem(K,v);
+   
+   // 2. Если есть новый SW, говорим ему примениться (это вызовет controllerchange -> reload)
+   if ('serviceWorker' in navigator) {
+     navigator.serviceWorker.getRegistration().then(reg => {
+       if (reg && reg.waiting) {
+         reg.waiting.postMessage({type: 'SKIP_WAITING'});
+       } else {
+         // Если SW еще не готов, просто перезагружаем
+         window.location.reload();
+       }
+     }).catch(() => window.location.reload());
+   } else {
+     window.location.reload();
+   }
+  }catch(e){}
+ }
+ chk();
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)chk()});
+ setInterval(chk,60000);
+})();
+;
+(function lockScroll(){
+ const m=document.getElementById('ptMdl');if(!m)return;
+ const upd=()=>{const o=m.classList.contains('open');document.documentElement.classList.toggle('lock',o);document.body.classList.toggle('lock',o)};
+ new MutationObserver(upd).observe(m,{attributes:true,attributeFilter:['class']});
+ upd();
+})();
+;
+function askC(text,ok,icon){return new Promise(res=>{
+ const g=id=>document.getElementById(id),m=g('cm'),y=g('cmOk'),n=g('cmNo');
+ g('cmT').textContent=text;g('cmI').textContent=icon||'🗑️';y.textContent=ok||'OK';m.classList.add('open');
+ const done=v=>{m.classList.remove('open');y.onclick=n.onclick=m.onclick=null;res(v)};
+ y.onclick=()=>done(true);n.onclick=()=>done(false);m.onclick=e=>{if(e.target===m)done(false)};
+})}
+
+;
+(function ptBack(){
+ const m=document.getElementById('ptMdl');if(!m)return;
+ let was=m.classList.contains('open');
+ new MutationObserver(()=>{
+  const now=m.classList.contains('open');
+  if(now===was)return;
+  was=now;
+  if(now){try{history.pushState({pt:1},'')}catch(e){}}
+  else{try{if(history.state&&history.state.pt)setTimeout(()=>history.back(),0)}catch(e){}}
+ }).observe(m,{attributes:true,attributeFilter:['class']});
+ window.addEventListener('popstate',()=>{if(m.classList.contains('open'))m.classList.remove('open')});
+})();
+
+
+====== ФАЙЛ: yandex.js ======
+let ADR_CACHE = JSON.parse(localStorage.getItem("ADR_CACHE") || "null") || new Array();
+function saveAdrCache(it){
+ if(!it || !it.name) return;
+ const idx = ADR_CACHE.findIndex(x => x.name === it.name);
+ if(idx >= 0) ADR_CACHE.splice(idx, 1);
+ ADR_CACHE.unshift({name: it.name, lat: it.lat, lon: it.lon});
+ if(ADR_CACHE.length > 500) ADR_CACHE.pop();
+ localStorage.setItem("ADR_CACHE", JSON.stringify(ADR_CACHE));
+}
+const YKEY='a197b5c2-1e4f-480d-abab-9ab7bd63b447';
+async function yan(q){
+ let last;
+ for(let i=0;i<2;i++){
+  try{
+   const r=await fetch('https://geocode-maps.yandex.ru/1.x/?format=json&results=5&lang=ru_RU&rspn=1&bbox=43.4,38.8~46.7,41.3&apikey='+YKEY+'&geocode='+encodeURIComponent(q),{signal:AbortSignal.timeout(9000)});
+   if(!r.ok){const a=new Array();a.err=(r.status===403||r.status===429)?'limit':'srv';return a}
+   const j=await r.json();
+   return j.response.GeoObjectCollection.featureMember.map(m=>{
+    const g=m.GeoObject,md=g.metaDataProperty.GeocoderMetaData;
+    const p=g.Point.pos.split(' ');
+    return{name:md.text.replace(/^Армения, /,'')+(md.precision==='exact'?'':' 📍'),lat:+p[1],lon:+p[0],exact:md.precision==='exact'};
+   });
+  }catch(e){last=e;if(navigator.onLine===false)break;await new Promise(r=>setTimeout(r,400*(i+1)))}
+ }
+ const a=new Array();a.err=navigator.onLine===false?'off':'net';return a
+}
+function showList(list,msg){
+ let b=document.getElementById('sg');
+ if(!b){b=document.createElement('div');b.id='sg';const ia=document.getElementById('a'),w=ia.closest('.inp-w');(w||ia).after(b)}
+ b.innerHTML=list.length&&msg?'<div style="margin-top:8px;font-size:13px">'+msg+'</div>':'';
+ list.forEach(it=>{
+  const x=document.createElement('button');
+  x.textContent=it.name;
+  x.style.cssText='margin-top:4px;padding:10px;font-size:14px;text-align:left;background:#fc0;color:#000';
+  x.onclick=()=>choose(it);
+  b.appendChild(x);
+ });
+}
+function choose(it){
+ saveAdrCache(it);window.toast&&toast('Адрес добавлен');
+ P.push({name:it.name,lat:it.lat,lon:it.lon});
+ document.getElementById('a').value='';
+ showList([]);
+ document.getElementById('s').textContent='';
+ save();
+}
+window.add=async function(){
+ const s=document.getElementById('s');
+ const q=document.getElementById('a').value.trim();
+ if(!q)return;
+ s.textContent='Ищу адрес в Яндексе...';
+ const l=await yan(q);
+ if(!l.length){const E=l.err,m=E==='off'?'Нет интернета. Проверьте сеть и повторите':E==='net'?'Не удалось связаться с Яндексом. Проверьте сеть':E==='limit'?'Яндекс отклонил запрос (лимит или ключ API)':E==='srv'?'Яндекс временно не отвечает. Попробуйте позже':'Адрес не найден. Попробуйте написать иначе или добавьте город';s.textContent=m;window.toast&&toast(m,'err');return}
+ if(l.length===1&&l[0].exact){choose(l[0]);return}
+ s.textContent='';
+ showList(l,'Выберите нужный вариант:');
+};
+
+let _liveSearch;
+document.getElementById("a").addEventListener("input", function(){
+ clearTimeout(_liveSearch);
+ const q = this.value.trim();
+ if(q.length < 2){ showList(new Array()); return; }
+ _liveSearch = setTimeout(async function(){
+  const ql = q.toLowerCase();
+  const cached = ADR_CACHE.filter(x => x.name.toLowerCase().includes(ql));
+  if(cached.length > 0 && document.getElementById("a").value.trim() === q){
+   showList(cached.slice(0, 5), "Из сохранённых адресов:");
+  }
+  if(cached.length >= 3) return;
+  const l = await yan(q);
+  const merged = cached.concat(l.filter(x => !cached.some(c => c.name === x.name))).slice(0, 5);
+  if(document.getElementById("a").value.trim() === q){
+   showList(merged, merged.length ? "Выберите нужный вариант:" : "");
+  }
+ }, 400);
+});
+
+
+====== ФАЙЛ: ui.js ======
+function vib(p){try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}}
+function toast(msg,type){
+ let t=document.getElementById('toast');
+ if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t)}
+ t.textContent=msg;t.className='show '+(type||'ok');
+ clearTimeout(toast._t);toast._t=setTimeout(()=>{t.className=''},2600);
+ if(type==='err')vib([60,40,60]);
+}
+let _busyN=0;
+function busy(on){
+ _busyN=Math.max(0,_busyN+(on?1:-1));
+ let e=document.getElementById('busy');
+ if(!e){e=document.createElement('div');e.id='busy';document.body.appendChild(e)}
+ e.className=_busyN?'on':'';
+}
+['go','add','addSpec'].forEach(n=>{
+ const o=window[n];if(typeof o!=='function')return;
+ window[n]=async function(){busy(1);try{return await o.apply(this,arguments)}finally{busy(0)}};
+});
+
+function updHint(){
+ const l=document.getElementById('l');if(!l)return;
+ let h=document.getElementById('hint');
+ if(!h){h=document.createElement('div');h.id='hint';h.textContent='Пока нет адресов. Введите адрес выше или нажмите 🎤 и продиктуйте';l.after(h)}
+ h.className=(typeof P!=='undefined'&&P.length)?'':'show';
+}
+(function(){const d=window.draw;if(typeof d==='function'){window.draw=function(){d.apply(this,arguments);updHint()}}updHint()})();
+
+function showVer(){
+ const e=document.getElementById('ver');if(!e)return;
+ const f=v=>/^\d{14}$/.test(v||'')?'версия от '+v.slice(6,8)+'.'+v.slice(4,6)+'.'+v.slice(0,4)+' '+v.slice(8,10)+':'+v.slice(10,12):'версия: нет данных';
+ let v=null;try{v=localStorage.getItem('APP_V')}catch(x){}
+ if(v){e.textContent=f(v);return}
+ fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(j=>{e.textContent=f(j.v)}).catch(()=>{e.textContent=f('')});
+}
+(function(){
+ const f=document.createElement('div');f.id='ft';
+ f.innerHTML='<span id="ver"></span>';
+ const o=document.getElementById('o');if(o)o.after(f);else document.body.appendChild(f);
+ showVer();
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)showVer()});
+})();
+
+function gmapsUrl(h){
+ const q=new URLSearchParams(h.split('?')[1]||''),via=[];
+ for(let i=0;q.has('lat_via_'+i);i++)via.push(q.get('lat_via_'+i)+','+q.get('lon_via_'+i));
+ return 'https://www.google.com/maps/dir/?api=1&travelmode=driving&destination='+q.get('lat_to')+','+q.get('lon_to')+(via.length?'&waypoints='+encodeURIComponent(via.join('|')):'');
+}
+document.addEventListener('click',e=>{
+ const a=e.target.closest&&e.target.closest('a[href^="yandexnavi://"]');if(!a)return;
+ const h=a.getAttribute('href');let left=false;const f=()=>{left=true};
+ document.addEventListener('visibilitychange',f);window.addEventListener('pagehide',f);window.addEventListener('blur',f);
+ setTimeout(async()=>{
+  document.removeEventListener('visibilitychange',f);window.removeEventListener('pagehide',f);window.removeEventListener('blur',f);
+  if(left||document.hidden)return;
+  if(await askC('Яндекс Навигатор не открылся. Открыть маршрут в Google Maps?','Открыть','🧭'))window.open(gmapsUrl(h),'_blank');
+ },2500);
+});
+
+// TAPVIB: лёгкая вибрация при нажатии на кнопки
+document.addEventListener('click',e=>{
+ const t=e.target&&e.target.closest&&e.target.closest('button,a,.inp-x,.inp-mic,.inst-x,.ret-box');
+ if(t)vib(40);
+},true);
+
+// NAVSYS: открывать навигатор по умолчанию вместо Яндекса
+function navMode(){try{return localStorage.getItem('NAV')==='ya'?'ya':'sys'}catch(e){return 'sys'}}
+function sysUrl(h){
+ const q=new URLSearchParams(h.split('?')[1]||'');
+ if(q.has('lat_via_0'))return gmapsUrl(h);
+ const la=q.get('lat_to'),lo=q.get('lon_to');
+ return 'geo:'+la+','+lo+'?q='+la+','+lo;
+}
+document.addEventListener('click',e=>{
+ if(navMode()!=='sys')return;
+ const a=e.target.closest&&e.target.closest('a[href^="yandexnavi://"]');if(!a)return;
+ e.preventDefault();e.stopPropagation();
+ const url=sysUrl(a.getAttribute('href'));
+ if(url.indexOf('geo:')===0){const t=document.createElement('a');t.href=url;document.body.appendChild(t);t.click();t.remove()}
+ else window.open(url,'_blank');
+},true);
+(function(){
+ const f=document.getElementById('ft');if(!f)return;
+ const b=document.createElement('button');b.id='navBtn';
+ const lab=()=>{b.textContent='🧭 Навигатор: '+(navMode()==='ya'?'Яндекс':'по умолчанию')};
+ b.onclick=()=>{
+  try{localStorage.setItem('NAV',navMode()==='ya'?'sys':'ya')}catch(e){}
+  lab();window.toast&&toast(navMode()==='ya'?'Откроется Яндекс Навигатор':'Откроется навигатор по умолчанию');
+ };
+ lab();f.appendChild(b);
+})();
+
+// NET: индикатор онлайн/офлайн
+(function(){
+ const updNet=()=>{
+  const on=navigator.onLine;
+  let b=document.getElementById('netIco');
+  if(!b){
+   b=document.createElement('span');b.id='netIco';b.className='net-ico';
+   const h=document.querySelector('h2 .badge');if(!h)return;
+   h.after(b);
+  }
+  b.textContent=on?'📶':'📵';
+  b.title=on?'Интернет есть':'Нет интернета';
+  b.classList.toggle('off',!on);
+ };
+ window.addEventListener('online',()=>{updNet();window.toast&&toast('Интернет восстановлен','ok')});
+ window.addEventListener('offline',()=>{updNet();window.toast&&toast('Нет интернета. Работаю в офлайн-режиме','err')});
+ updNet();
+})();
+
+
+====== ФАЙЛ: map.js ======
+(function(){if(document.getElementById('mapCss'))return;var t=document.createElement('style');t.id='mapCss';t.textContent=".mapm{position:fixed;inset:0;z-index:150;background:#0f1722;display:none;flex-direction:column;overscroll-behavior:contain}\n.mapm.open{display:flex}\n.mapm-h{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;font-size:17px;font-weight:700;color:#fc0;flex-shrink:0}\n#mapBox{flex:1;min-height:0;background:#1b2635}\n#mapInfo{flex-shrink:0;padding:10px 16px 14px;font-size:13px;line-height:1.5;color:#cbd5e1;background:#121924;border-top:1px solid rgba(255,255,255,.16);max-height:34vh;overflow-y:auto}\n#mapInfo .w{color:#fc0;font-weight:600;margin-top:4px}\n.mkw{background:none!important;border:none!important}\n.mk{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;background:#10b981;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)}\n.mk.bad{background:#fc0;color:#000;border-color:#000}\n.mk.base{background:#6366f1}\n.mk.me{background:#0ea5e9;font-size:10px}\n\n";document.head.appendChild(t)})();
+(function(){
+ const g=id=>document.getElementById(id);
+ const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+ const LF_CSS='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css';
+ const LF_JS='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js';
+ const RT_JS='https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js';
+ let _lp=null,_map=null,_tok=0,_fit=null;
+ function lock(on){document.documentElement.classList.toggle('lock',on);document.body.classList.toggle('lock',on)}
+ function loadLeaflet(){
+  if(window.L&&L.map)return Promise.resolve();
+  if(_lp)return _lp;
+  _lp=new Promise((res,rej)=>{
+   let tries=0;
+   const go=()=>{
+    const c=document.createElement('link');c.rel='stylesheet';c.href=LF_CSS;document.head.appendChild(c);
+    const s=document.createElement('script');s.src=LF_JS;
+    s.onload=()=>{const p=document.createElement('script');p.src=RT_JS;p.onload=p.onerror=()=>res();document.head.appendChild(p)};
+    s.onerror=()=>{tries++;if(tries<3){setTimeout(go,700*tries)}else{_lp=null;s.remove();c.remove();rej(new Error('leaflet'))}};
+    document.head.appendChild(s);
+   };
+   go();
+  });
+  return _lp;
+ }
+ function ensureModal(){
+  let m=g('mapM');if(m)return m;
+  m=document.createElement('div');m.id='mapM';m.className='mapm';
+  m.innerHTML='<div class="mapm-h"><span class="mapm-t">🗺 Карта</span><span class="mapm-b"><button class="mdl-x" id="mapN">🧭 Север</button><button class="mdl-x" id="mapFit">⤢ Весь маршрут</button><button class="mdl-x mapm-c" id="mapX" aria-label="Закрыть"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg></button></span></div><div id="mapBox"></div><div id="mapInfo"></div>';
+  document.body.appendChild(m);
+  g('mapX').onclick=()=>closeMap();g('mapFit').onclick=()=>{if(_fit)_fit()};g('mapN').onclick=()=>{if(_map&&_map.setBearing)_map.setBearing(0)};g('mapInfo').style.maxHeight='22vh';
+  return m;
+ }
+ function closeMap(src){
+  _tok++;_fit=null;if(src!=='pop'){try{if(history.state&&history.state.map)setTimeout(()=>history.back(),0)}catch(e){}}
+  if(_map){try{_map.remove()}catch(e){}_map=null}
+  const m=g('mapM');if(m)m.classList.remove('open');
+  lock(false);
+ }
+ function icon(cls,label){
+  return L.divIcon({className:'mkw',html:'<div class="mk '+cls+'">'+label+'</div>',iconSize:[32,32],iconAnchor:[16,16],popupAnchor:[0,-16]});
+ }
+ async function openMap(){
+  const cur=window.CUR;
+  if(!cur||!cur.length){window.toast&&toast('Сначала постройте маршрут','err');return}
+  let sv={};try{sv=JSON.parse(localStorage.getItem('R_SAVE')||'{}')||{}}catch(e){}
+  const start=sv.startPt&&isFinite(sv.startPt.lat)&&isFinite(sv.startPt.lon)?sv.startPt:null;
+  const m=ensureModal(),tok=++_tok;
+  m.classList.add('open');lock(true);try{history.pushState({map:1},'')}catch(e){}
+  g('mapInfo').textContent='Загружаю карту...';
+  try{await loadLeaflet()}catch(e){
+   if(tok!==_tok)return;
+   closeMap();window.toast&&toast('Не удалось загрузить карту. Проверьте интернет','err');return;
+  }
+  if(tok!==_tok)return;
+  draw(cur,start,sv,tok);
+ }
+ function draw(cur,start,sv,tok){
+  if(_map){try{_map.remove()}catch(e){}_map=null}
+  const box=g('mapBox');box.innerHTML='';
+  box.style.touchAction='none';const map=L.map(box,{zoomControl:true,dragging:true,touchZoom:true,doubleClickZoom:true,scrollWheelZoom:true,tap:true,inertia:true,rotate:true,touchRotate:true,bearing:0,rotateControl:{closeOnZeroBearing:false}});_map=map;
+  let _tc=0;const op=map.getPane('overlayPane');
+  const hideL=()=>{op.style.opacity='0'};
+  const showL=()=>{if(_tc>0||_map!==map)return;map.eachLayer(l=>{if(l instanceof L.Polyline&&l.redraw)l.redraw()});op.style.opacity=''};
+  box.addEventListener('touchstart',e=>{_tc=e.touches.length;if(_tc>1)hideL()},{passive:true});
+  box.addEventListener('touchend',e=>{_tc=e.touches.length;if(_tc===0)setTimeout(showL,120)},{passive:true});
+  box.addEventListener('touchcancel',()=>{_tc=0;setTimeout(showL,120)},{passive:true});
+  map.on('zoomstart',hideL);
+  map.on('zoomend moveend',()=>setTimeout(showL,60));
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  const etas=document.querySelectorAll('#o ol li .eta');
+  const ll=[];let bad=0;
+  if(start){
+   ll.push([start.lat,start.lon]);
+   L.marker([start.lat,start.lon],{icon:icon('me','Вы'),zIndexOffset:500}).addTo(map).bindPopup('<b>Вы здесь</b><br>старт маршрута');
+  }
+  cur.forEach((it,k)=>{
+   const name=String(it.name),base=name.indexOf('🏁')===0,inex=name.indexOf('📍')>=0;
+   if(inex)bad++;
+   ll.push([it.lat,it.lon]);
+   const eta=etas[k]?etas[k].textContent:'';
+   let h='<b>'+esc(name)+'</b>';
+   if(eta)h+='<br>'+esc(eta);
+   if(it.sub)h+='<br>'+esc(it.sub);
+   if(inex)h+='<br><span style="color:#b45309">⚠ Неточный адрес: Яндекс нашёл только район или город</span>';
+   L.marker([it.lat,it.lon],{icon:icon(base?'base':inex?'bad':'ok',base?'🏁':String(k+1))}).addTo(map).bindPopup(h);
+  });
+  const straight=L.polyline(ll,{color:'#0ea5e9',weight:4,opacity:.8,dashArray:'8 8'}).addTo(map);
+  _fit=()=>map.fitBounds(L.latLngBounds(ll),{padding:[30,30],maxZoom:16});_fit();
+  setTimeout(()=>{if(_map===map){map.invalidateSize();map.fitBounds(L.latLngBounds(ll),{padding:[30,30],maxZoom:16})}},150);
+
+  let note='Линия по прямой (загружаю дороги...)';
+  function info(){
+   let h='<div>Точек: <b>'+cur.length+'</b>';
+   if(sv.totT&&typeof fmtT==='function')h+=' • ⏱ ~'+fmtT(sv.totT)+(sv.totD?' • '+Math.round(sv.totD/1000)+' км':'');
+   h+='</div><div>'+esc(note)+'</div>';
+   if(bad)h+='<div class="w">⚠ Неточных адресов: '+bad+' (жёлтые маркеры). Маршрут приведёт в центр района, уточните улицу и дом.</div>';
+   g('mapInfo').innerHTML=h;
+  }
+  info();
+  if(ll.length<2){note='';info();return}
+  fetch('https://router.project-osrm.org/route/v1/driving/'+ll.map(p=>p[1]+','+p[0]).join(';')+'?overview=full&geometries=geojson',{signal:AbortSignal.timeout(10000)})
+   .then(r=>r.json()).then(j=>{
+    if(tok!==_tok||_map!==map)return;
+    const c=j.routes&&j.routes[0]&&j.routes[0].geometry&&j.routes[0].geometry.coordinates;
+    if(!c||!c.length)throw 0;
+    map.removeLayer(straight);
+    L.polyline(c.map(x=>[x[1],x[0]]),{color:'#0ea5e9',weight:5,opacity:.9}).addTo(map);
+    note='Линия построена по дорогам';info();
+   }).catch(()=>{
+    if(tok!==_tok||_map!==map)return;
+    note='Дороги не загрузились, линия по прямой';info();
+   });
+ }
+ window.openMap=openMap;window.closeMap=closeMap;
+ window.addEventListener('popstate',()=>{const x=g('mapM');if(x&&x.classList.contains('open'))closeMap('pop')});
+
+ function inject(){
+  const o=g('o');if(!o)return;
+  const nav=o.querySelector('a.nav');
+  if(nav&&!g('mapBtn')){
+   const b=document.createElement('button');b.id='mapBtn';b.textContent='🗺 Показать на карте';b.onclick=openMap;nav.before(b);
+  }
+  const c=window.CUR;
+  
+ }
+ const o=g('o');
+ if(o)new MutationObserver(inject).observe(o,{childList:true});
+ inject();
+})();
+
+
+====== ФАЙЛ: bonus.js ======
+(function(){
+ const g=id=>document.getElementById(id);
+ const CUR='֏';
+ const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+ const num=v=>{const n=parseFloat(String(v).replace(',','.').replace(/\s/g,''));return isFinite(n)&&n>0?n:0};
+ const r3=n=>Math.round(n*1000)/1000;
+ const fm=n=>(Math.round(n*100)/100).toLocaleString('ru-RU',{maximumFractionDigits:2});
+ const tst=(t,k)=>{window.toast&&toast(t,k)};
+ function lock(on){document.documentElement.classList.toggle('lock',on);document.body.classList.toggle('lock',on)}
+
+ // Фиксированный список: названия и цены менять нельзя, добавлять и удалять нельзя
+ const S=(sk,name,price,price2)=>({sk:sk,name:name,price:price,price2:price2});
+ const PRE=[
+  {pk:'other',name:'Այլ',subs:[
+   {sk:'a',name:'Աթոռ, դարակաշար',one:1,price:50},
+   {sk:'b',name:'Աթոռ սեղաններ',one:1,price:100},
+   S('c','Լվացարան',300,390),
+   S('d','Կոմոդներ',500,650),
+   S('e','Մահճակալ',500,650),
+   S('f','Մոդուլներ',250,325),
+   S('g','Ներքնակներ',250,325),
+   S('h','Պահոցներ',500,650),
+   {sk:'i',name:'դուռ',one:1,price:500},
+   S('j','Պուֆիկներ',50,65),
+   S('k','Տումբաներ',50,65)]},
+  {pk:'sofas',name:'Բազմոցներ',subs:[
+   S('a','Բազկաթոռ',500,650),
+   S('b','Բազմոց',1000,1300),
+   S('c','Հավաքածու',1500,1950)]},
+  {pk:'recep',name:'Ընդունարան',subs:[
+   S('a','Մինչև 1,6',700,910),
+   S('b','1,6 ից ավել',1200,1560)]},
+  {pk:'kitchen',name:'Խոհանոցներ',subs:[
+   S('a','1,6 մ',1000,1300),
+   S('b','2-3 մ',2500,3250)]},
+  {pk:'living',name:'Հյուրասրահ',subs:[
+   S('a','մինչև 1,7',1000,1300),
+   S('b','1,7 ից ավել',2000,2600),
+   S('c','Էքսկլ.',3000,3900)]},
+  {pk:'bedroom',name:'Ննջասենյակներ',subs:[
+   S('a','2 դուռ',1050,1365),
+   S('b','3 դուռ առանց կոմոդ',1550,2015),
+   S('c','3 դուռ կոմոդով',2050,2665),
+   S('d','4 դուռ',2600,3380),
+   S('e','5 դուռ',3100,4030),
+   S('f','6 դուռ',3600,4680),
+   S('g','0,9*2',3100,4030)]},
+  {pk:'wardrobe',name:'Պահարաններ',subs:[
+   S('a','2 դուռ',500,650),
+   S('b','3 դուռ',1000,1300),
+   S('c','4 դուռ',1500,1950),
+   S('d','5 դուռ',2000,2600),
+   S('e','6 դուռ',2500,3250)]}
+ ];
+
+ const ICO={other:'📦',sofas:'🛋️',recep:'🗄️',kitchen:'🍳',living:'📺',bedroom:'🛏️',wardrobe:'🚪'};
+ let B=[];
+ try{const v=JSON.parse(localStorage.getItem('BON')||'[]');if(Array.isArray(v))B=v.filter(c=>c&&Array.isArray(c.subs))}catch(e){}
+ const save=()=>{try{localStorage.setItem('BON',JSON.stringify(B))}catch(e){}};
+
+ // Берём только готовый список; из сохранённого переносим количества и «свёрнуто/развёрнуто»
+ function sync(){
+  B=PRE.map(p=>{
+   const oc=B.find(c=>c.pk===p.pk)||{};
+   return {pk:p.pk,name:p.name,col:oc.col===undefined?true:!!oc.col,subs:p.subs.map(s=>{
+    const os=(oc.subs||[]).find(x=>x.sk===s.sk)||{};
+    return {sk:s.sk,one:s.one?1:0,name:s.name,qty:num(os.qty),price:s.price,qty2:s.one?0:num(os.qty2),price2:s.one?0:s.price2};
+   })};
+  });
+  save();
+ }
+ sync();
+ try{if(!localStorage.getItem('BON_INIT')){B.forEach(c=>{c.col=true});save();localStorage.setItem('BON_INIT','1')}}catch(e){}
+
+ function upd(){
+  let t=0,q=0;
+  B.forEach((c,ci)=>{
+   let cs=0,cq=0;
+   c.subs.forEach((s,si)=>{
+    const v=num(s.qty)*num(s.price)+num(s.qty2)*num(s.price2);const dq=num(s.qty)+num(s.qty2);cs+=v;q+=dq;cq+=dq;
+    const e=g('bs'+ci+'_'+si);if(e)e.textContent=fm(v)+' '+CUR;
+   });
+   t+=cs;{const e2=g('bq'+ci);if(e2){e2.textContent=cq?('Выбрано: '+fm(cq)+' шт'):(c.subs.length+' поз.');e2.classList.toggle('on',cq>0)}}
+   const e=g('bc'+ci);if(e)e.textContent=fm(cs)+' '+CUR;
+  });
+  g('bnTot').textContent=fm(t)+' '+CUR;
+  g('bnQty').textContent=fm(q);
+ }
+
+ const row=(a,s,k,lab)=>'<div class="bn-sr">'
+  +'<button class="bn-pm bn-m" data-act="dec" data-k="'+k+'" '+a+'>−</button>'
+  +'<input class="bn-q" data-k="'+k+'" '+a+' inputmode="decimal" value="'+num(s['qty'+k])+'">'
+  +'<button class="bn-pm" data-act="inc" data-k="'+k+'" '+a+'>+</button>'
+  +'<span class="bn-x">×</span>'
+  +'<span class="bn-pv">'+(lab?'<small class="bn-pl">'+lab+'</small>':'')+fm(num(s['price'+k]))+'</span></div>';
+
+ function render(){
+  const l=g('bnList'),st=l.scrollTop;
+  l.innerHTML=B.map((c,ci)=>{
+   let h='<div class="bn-c'+(c.col?'':' open')+'" data-pk="'+c.pk+'"><div class="bn-ch" data-act="col" data-c="'+ci+'">'
+    +'<span class="bn-ic2">'+(ICO[c.pk]||'📦')+'</span>'
+    +'<span class="bn-ct"><span class="bn-cname">'+esc(c.name)+'</span><span class="bn-sub" id="bq'+ci+'"></span></span>'
+    +'<span class="bn-cs" id="bc'+ci+'"></span>'
+    +'<span class="bn-ar">'+(c.col?'▸':'▾')+'</span></div>';
+   if(!c.col){
+    h+=c.subs.map((s,si)=>{
+     const a='data-c="'+ci+'" data-s="'+si+'"';
+     return '<div class="bn-s bn-k"><div class="bn-sh2"><span class="bn-nm">'+esc(s.name)+'</span><span class="bn-ss" id="bs'+ci+'_'+si+'"></span></div>'
+      +row(a,s,'',s.one?'':'Город')
+      +(s.one?'':row(a,s,'2','Район'))
+      +'</div>';
+    }).join('');
+   }
+   return h+'</div>';
+  }).join('');
+  l.scrollTop=st;
+  upd();
+ }
+
+ function onInput(e){
+  const t=e.target,c=B[+t.dataset.c],s=c&&c.subs[+t.dataset.s];
+  if(!c||!s||!t.classList.contains('bn-q'))return;
+  s['qty'+(t.dataset.k||'')]=num(t.value);
+  save();upd();
+ }
+
+ async function onClick(e){
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const a=b.dataset.act,ci=+b.dataset.c,si=+b.dataset.s,c=B[ci],s=c&&c.subs[si];
+  if(!c)return;
+  if(a==='inc'||a==='dec'){
+   if(!s)return;
+   const kk='qty'+(b.dataset.k||'');
+   s[kk]=Math.max(0,r3(num(s[kk])+(a==='inc'?1:-1)));
+   const q=b.parentNode.querySelector('.bn-q');if(q)q.value=s[kk];
+   save();upd();
+  }else if(a==='col'){
+   c.col=!c.col;save();render();
+  }
+ }
+
+ async function resetQty(){
+  if(!await askC('Обнулить все количества?','Обнулить','🔄'))return;
+  B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));save();render();tst('Количества обнулены');
+ }
+
+ let skipPop=0;
+ const SUMM=[['','Город'],['2','Район']];
+ function sumRows(){
+  const out=[];
+  B.forEach(c=>{
+   const items=[];let cs=0;
+   c.subs.forEach(s=>{
+    const parts=[];
+    SUMM.forEach(x=>{
+     const n=num(s['qty'+x[0]]),p=num(s['price'+x[0]]);
+     if(n>0)parts.push({l:s.one?'':x[1],n:n,p:p,v:n*p});
+    });
+    if(parts.length){items.push({name:s.name,parts:parts});parts.forEach(z=>{cs+=z.v})}
+   });
+   if(items.length)out.push({name:c.name,sum:cs,items:items});
+  });
+  return out;
+ }
+ function openSum(){
+  const rows=sumRows(),l=g('bnSmList');let t=0,q=0;
+  if(!rows.length)l.innerHTML='<div class="bn-empty">Пока ничего не выбрано.</div>';
+  else l.innerHTML=rows.map(c=>{
+   t+=c.sum;
+   return '<div class="bn-sc"><div class="bn-sch"><span>'+esc(c.name)+'</span><b>'+fm(c.sum)+' '+CUR+'</b></div>'
+    +c.items.map(it=>'<div class="bn-si"><div class="bn-sin">'+esc(it.name)+'</div>'
+     +it.parts.map(z=>{q+=z.n;return '<div class="bn-sp"><span>'+(z.l?z.l+' · ':'')+fm(z.n)+' × '+fm(z.p)+'</span><b>'+fm(z.v)+' '+CUR+'</b></div>'}).join('')
+     +'</div>').join('')+'</div>';
+  }).join('');
+  g('bnSmTot').textContent=fm(t)+' '+CUR;g('bnSmQty').textContent=fm(q);
+  g('bnSm').classList.add('open');
+  try{history.pushState({bs:1},'')}catch(e){}
+ }
+ function closeSum(){
+  const o=g('bnSm');if(!o||!o.classList.contains('open'))return;
+  o.classList.remove('open');
+  try{if(history.state&&history.state.bs){skipPop++;setTimeout(()=>history.back(),0)}}catch(e){}
+ }
+ function copySum(){
+  const rows=sumRows();
+  if(!rows.length){tst('Пока ничего не выбрано','err');return}
+  let t=0,q=0,s='Итоги\n';
+  rows.forEach(c=>{
+   t+=c.sum;s+='\n'+c.name+' — '+fm(c.sum)+' '+CUR+'\n';
+   c.items.forEach(it=>{
+    s+='• '+it.name+'\n';
+    it.parts.forEach(z=>{q+=z.n;s+='   '+(z.l?z.l+': ':'')+fm(z.n)+' × '+fm(z.p)+' = '+fm(z.v)+' '+CUR+'\n'});
+   });
+  });
+  s+='\nВсего штук: '+fm(q)+'\nОбщая сумма: '+fm(t)+' '+CUR;
+  try{navigator.clipboard.writeText(window.i18nCopy?i18nCopy(s):s).then(()=>tst('Скопировано')).catch(()=>tst('Не удалось скопировать','err'))}catch(e){tst('Не удалось скопировать','err')}
+ }
+
+ function ensure(){
+  let m=g('bnMdl');if(m)return m;
+  m=document.createElement('div');m.id='bnMdl';m.className='mdl';
+  m.innerHTML='<div class="mdl-b bn-b"><div class="mdl-h"><span>🧮 Бонусы</span><button class="mdl-x" id="bnX">✕</button></div>'
+   +'<div id="bnList"></div>'
+   +'<div class="bn-ft"><div class="bn-tr"><span>Общая сумма</span><b id="bnTot">0</b></div>'
+   +'<div class="bn-tr bn-sm"><span>Всего штук: <b id="bnQty">0</b></span></div>'
+   +'<div class="bn-btns"><button id="bnSumB">📋 Итоги</button><button id="bnRst">🔄 Обнулить</button></div></div></div>'
+   +'<div class="bn-ov" id="bnSm"><div class="mdl-b bn-b"><div class="mdl-h"><span>📋 Итоги</span><button class="mdl-x" id="bnSmX">✕</button></div><div id="bnSmList"></div>'
+   +'<div class="bn-ft"><div class="bn-tr"><span>Общая сумма</span><b id="bnSmTot">0</b></div><div class="bn-tr bn-sm"><span>Всего штук: <b id="bnSmQty">0</b></span></div>'
+   +'<div class="bn-btns"><button id="bnSmCp">📄 Скопировать</button></div></div></div></div>';
+  document.body.appendChild(m);
+  m.onclick=e=>{if(e.target===m)closeBon()};
+  g('bnX').onclick=()=>closeBon();
+  g('bnRst').onclick=resetQty;
+  g('bnSumB').onclick=openSum;g('bnSmX').onclick=()=>closeSum();g('bnSmCp').onclick=copySum;g('bnSm').onclick=e=>{if(e.target===g('bnSm'))closeSum()};
+  const l=g('bnList');
+  l.addEventListener('input',onInput);
+  l.addEventListener('click',onClick);
+  return m;
+ }
+
+ function openBon(){
+  const m=ensure();render();
+  m.classList.add('open');lock(true);
+  try{history.pushState({bn:1},'')}catch(e){}
+ }
+ function closeBon(src){
+  const m=g('bnMdl');if(!m||!m.classList.contains('open'))return;
+  const ov=g('bnSm');if(ov)ov.classList.remove('open');m.classList.remove('open');lock(false);
+  if(src!=='pop'){try{if(history.state&&history.state.bn)setTimeout(()=>history.back(),0)}catch(e){}}
+ }
+ window.addEventListener('popstate',()=>{if(skipPop>0){skipPop--;return}const o=g('bnSm');if(o&&o.classList.contains('open')){o.classList.remove('open');return}const m=g('bnMdl');if(m&&m.classList.contains('open'))closeBon('pop')});
+ window.openBon=openBon;window.closeBon=closeBon;
+
+ const f=document.createElement('button');
+ f.className='fab fab-l';f.textContent='🧮 Бонусы';f.onclick=openBon;
+ document.body.appendChild(f);
+})();
+
+
+====== ФАЙЛ: i18n.js ======
+(function(){
+ const LANGS={ru:'Русский',hy:'Հայերեն',en:'English'  'Общий чат':['Ընդհանուր չատ','General chat'],
+  'Сообщение...':['Հաղորդագրություն...','Message...'],
+  'Нет соединения с сервером':['Չկա կապ սերվերի հետ','No connection to server'],
+  'Ошибка:':['Սխալ՝','Error:'],
+  'Введите имя':['Մուտքագրեք անունը','Enter a name'],
+  'Ваше имя':['Ձեր անունը','Your name'],
+  'Сохранить':['Պահպանել','Save'],
+  'Имя сохранено':['Անունը պահպանվեց','Name saved'],
+  'Нет интернета':['Ինտերնետ չկա','No internet'],
+  'Сменить имя':['Փոխել անունը','Change name'],
+  'Не удалось загрузить чат':['Չհաջողվեց բեռնել չատը','Could not load chat'],
+  'Например: Артак':['Օրինակ՝ Արտակ','For example: Artak'],
+};
+ const SR={ru:'ru-RU',hy:'hy-AM',en:'en-US'};
+ let L='ru';try{const v=localStorage.getItem('LANG');if(LANGS[v])L=v}catch(e){}
+ // Ключ — русский текст, значение — [армянский, английский]
+ const D={
+  'Установите приложение на экран':['Տեղադրեք հավելվածը հիմնական էկրանին','Install the app on your home screen'],
+  'Установить':['Տեղադրել','Install'],
+  'Установить EuroBaza на главный экран':['Տեղադրել EuroBaza-ն հիմնական էկրանին','Install EuroBaza on your home screen'],
+  'Чтобы установить на iPhone: нажмите':['iPhone-ում տեղադրելու համար սեղմեք','To install on iPhone, tap'],
+  'Поделиться':['Կիսվել','Share'],
+  '(квадрат со стрелкой) →':['(քառակուսի սլաքով) →','(square with arrow) →'],
+  'На экран «Домой»':['Ավելացնել հիմնական էկրանին','Add to Home Screen'],
+  'Доставка EuroBaza':['EuroBaza առաքում','EuroBaza Delivery'],
+  'Например: Абовяна 10, Ереван':['Օրինակ՝ Աբովյան 10, Երևան','For example: Abovyan 10, Yerevan'],
+  'Добавить адрес':['Ավելացնել հասցե','Add address'],
+  'Очистить':['Մաքրել','Clear'],
+  'Найти лучший порядок':['Գտնել լավագույն հերթականությունը','Find the best order'],
+  'Вернуться на базу':['Վերադառնալ բազա','Return to base'],
+  'Маршрут закончится на базе':['Երթուղին կավարտվի բազայում','The route will end at the base'],
+  'Точки':['Կետեր','Points'],
+  'Бонусы':['Բոնուսներ','Bonuses'],
+  'Точки без адреса':['Կետեր առանց հասցեի','Points without address'],
+  'Название точки':['Կետի անվանումը','Point name'],
+  'Координаты или нажмите 📍':['Կոորդինատներ կամ սեղմեք 📍','Coordinates or tap 📍'],
+  'Добавить точку':['Ավելացնել կետ','Add point'],
+  'Отмена':['Չեղարկել','Cancel'],
+  'Пока нет адресов. Введите адрес выше или нажмите 🎤 и продиктуйте':['Դեռ հասցեներ չկան։ Մուտքագրեք հասցեն վերևում կամ սեղմեք 🎤 և թելադրեք','No addresses yet. Enter an address above or tap 🎤 and speak'],
+  'Очистить список адресов?':['Մաքրե՞լ հասցեների ցանկը','Clear the address list?'],
+  'Очистить построенный маршрут?':['Մաքրե՞լ կառուցված երթուղին','Clear the built route?'],
+  'Список очищен':['Ցանկը մաքրվեց','List cleared'],
+  'Маршрут очищен':['Երթուղին մաքրվեց','Route cleared'],
+  'Адрес удалён':['Հասցեն ջնջվեց','Address deleted'],
+  'Голосовой ввод не поддерживается в этом браузере':['Ձայնային մուտքը չի աջակցվում այս դիտարկիչում','Voice input is not supported in this browser'],
+  'Говорите адрес...':['Ասեք հասցեն...','Say the address...'],
+  'Не удалось распознать голос':['Չհաջողվեց ճանաչել ձայնը','Could not recognize speech'],
+  'Список пуст. Добавьте точку ниже.':['Ցանկը դատարկ է։ Ավելացրեք կետ ներքևում։','The list is empty. Add a point below.'],
+  'Определяю геопозицию...':['Որոշում եմ գտնվելու վայրը...','Detecting your location...'],
+  'Определяю вашу геопозицию...':['Որոշում եմ ձեր գտնվելու վայրը...','Detecting your location...'],
+  'Определяю местоположение...':['Որոշում եմ դիրքը...','Detecting your position...'],
+  'Включите геолокацию для расчёта времени':['Միացրեք գեոդիրքավորումը ժամանակը հաշվելու համար','Turn on location to calculate the time'],
+  'Поехали':['Գնացինք','Go'],
+  'Удалить':['Ջնջել','Delete'],
+  'Точка удалена':['Կետը ջնջվեց','Point deleted'],
+  'Точка добавлена':['Կետը ավելացվեց','Point added'],
+  'Введите название точки':['Մուտքագրեք կետի անվանումը','Enter the point name'],
+  'Нужно два числа: 40.1630, 44.3882':['Պետք է երկու թիվ՝ 40.1630, 44.3882','Two numbers needed: 40.1630, 44.3882'],
+  'Координаты вне Армении, проверьте':['Կոորդինատները Հայաստանից դուրս են, ստուգեք','Coordinates are outside Armenia, please check'],
+  'Нет доступа к геолокации. Введите координаты вручную':['Գեոդիրքավորման հասանելիություն չկա։ Մուտքագրեք կոորդինատները ձեռքով','No location access. Enter the coordinates manually'],
+  'Координаты подставлены. Введите название и нажмите «Добавить точку»':['Կոորդինատները տեղադրված են։ Մուտքագրեք անվանումը և սեղմեք «Ավելացնել կետ»','Coordinates filled in. Enter a name and tap “Add point”'],
+  'Нет доступа к геолокации. Разрешите её для Chrome':['Գեոդիրքավորման հասանելիություն չկա։ Թույլատրեք այն Chrome-ի համար','No location access. Allow it for Chrome'],
+  'Разрешите доступ к геолокации для Chrome':['Թույլատրեք գեոդիրքավորման հասանելիությունը Chrome-ի համար','Allow location access for Chrome'],
+  'Нет доступа к геолокации':['Գեոդիրքավորման հասանելիություն չկա','No location access'],
+  'Считаю лучший порядок...':['Հաշվում եմ լավագույն հերթականությունը...','Calculating the best order...'],
+  'Маршрут построен (время приблизительно)':['Երթուղին կառուցվեց (ժամանակը մոտավոր է)','Route built (time is approximate)'],
+  'Маршрут построен':['Երթուղին կառուցվեց','Route built'],
+  'Порядок (потяните ☰):':['Հերթականություն (քաշեք ☰)՝','Order (drag ☰):'],
+  'Весь путь':['Ամբողջ ճանապարհը','Total trip'],
+  'приблизительно':['մոտավորապես','approximate'],
+  'Открыть в навигаторе':['Բացել նավիգատորում','Open in navigator'],
+  'Возврат на базу (Арин Берд 7)':['Վերադարձ բազա (Առին Բերդ 7)','Return to base (Arin Berd 7)'],
+  'Ищу адрес в Яндексе...':['Որոնում եմ հասցեն Yandex-ում...','Searching the address in Yandex...'],
+  'Выберите нужный вариант:':['Ընտրեք համապատասխան տարբերակը՝','Choose the right option:'],
+  'Из сохранённых адресов:':['Պահպանված հասցեներից՝','From saved addresses:'],
+  'Нет интернета. Проверьте сеть и повторите':['Ինտերնետ չկա։ Ստուգեք կապը և կրկնեք','No internet. Check your connection and try again'],
+  'Не удалось связаться с Яндексом. Проверьте сеть':['Չհաջողվեց կապ հաստատել Yandex-ի հետ։ Ստուգեք կապը','Could not reach Yandex. Check your connection'],
+  'Яндекс отклонил запрос (лимит или ключ API)':['Yandex-ը մերժեց հարցումը (սահմանաչափ կամ API բանալի)','Yandex rejected the request (limit or API key)'],
+  'Яндекс временно не отвечает. Попробуйте позже':['Yandex-ը ժամանակավորապես չի պատասխանում։ Փորձեք ավելի ուշ','Yandex is temporarily unavailable. Try again later'],
+  'Адрес не найден. Попробуйте написать иначе или добавьте город':['Հասցեն չի գտնվել։ Փորձեք այլ կերպ գրել կամ ավելացրեք քաղաքը','Address not found. Try writing it differently or add the city'],
+  'Адрес добавлен':['Հասցեն ավելացվեց','Address added'],
+  'Яндекс Навигатор не открылся. Открыть маршрут в Google Maps?':['Yandex Navigator-ը չբացվեց։ Բացե՞լ երթուղին Google Maps-ում','Yandex Navigator did not open. Open the route in Google Maps?'],
+  'Открыть':['Բացել','Open'],
+  'версия: нет данных':['տարբերակ՝ տվյալներ չկան','version: no data'],
+  'Навигатор: по умолчанию':['Նավիգատոր՝ լռելյայն','Navigator: default'],
+  'Навигатор: Яндекс':['Նավիգատոր՝ Yandex','Navigator: Yandex'],
+  'Откроется Яндекс Навигатор':['Կբացվի Yandex Navigator-ը','Yandex Navigator will open'],
+  'Откроется навигатор по умолчанию':['Կբացվի լռելյայն նավիգատորը','The default navigator will open'],
+  'Показать на карте':['Ցույց տալ քարտեզի վրա','Show on map'],
+  'Карта':['Քարտեզ','Map'],
+  'Север':['Հյուսիս','North'],
+  'Весь маршрут':['Ամբողջ երթուղին','Whole route'],
+  'Сначала постройте маршрут':['Նախ կառուցեք երթուղին','Build a route first'],
+  'Загружаю карту...':['Բեռնում եմ քարտեզը...','Loading the map...'],
+  'Не удалось загрузить карту. Проверьте интернет':['Չհաջողվեց բեռնել քարտեզը։ Ստուգեք ինտերնետը','Could not load the map. Check your internet'],
+  'Точек:':['Կետեր՝','Points:'],
+  'Линия по прямой (загружаю дороги...)':['Գիծը ուղիղ է (բեռնում եմ ճանապարհները...)','Straight line (loading roads...)'],
+  'Линия построена по дорогам':['Գիծը կառուցված է ճանապարհներով','Line follows the roads'],
+  'Дороги не загрузились, линия по прямой':['Ճանապարհները չբեռնվեցին, գիծը ուղիղ է','Roads failed to load, straight line shown'],
+  'Вы':['Դուք','You'],
+  'Вы здесь':['Դուք այստեղ եք','You are here'],
+  'старт маршрута':['երթուղու սկիզբ','route start'],
+  'Неточный адрес: Яндекс нашёл только район или город':['Անճշգրիտ հասցե․ Yandex-ը գտել է միայն թաղամասը կամ քաղաքը','Inexact address: Yandex found only a district or city'],
+  'Всего штук:':['Ընդամենը հատ՝','Total pieces:'],
+  'Общая сумма':['Ընդհանուր գումար','Total amount'],
+  'Итоги':['Ամփոփում','Summary'],
+  'Обнулить':['Զրոյացնել','Reset'],
+  'Обнулить количества':['Զրոյացնել քանակները','Reset quantities'],
+  'Обнулить все количества?':['Զրոյացնե՞լ բոլոր քանակները','Reset all quantities?'],
+  'Количества обнулены':['Քանակները զրոյացվեցին','Quantities reset'],
+  'Скопировать':['Պատճենել','Copy'],
+  'Скопировано':['Պատճենվեց','Copied'],
+  'Не удалось скопировать':['Չհաջողվեց պատճենել','Could not copy'],
+  'Пока ничего не выбрано.':['Դեռ ոչինչ ընտրված չէ։','Nothing selected yet.'],
+  'Пока ничего не выбрано':['Դեռ ոչինչ ընտրված չէ','Nothing selected yet'],
+  'Город':['Քաղաք','City'],
+  'Район':['Մարզ','Region'],
+ 'Интернет восстановлен':['Ինտերնետը վերականգնվեց','Internet restored'],
+ 'Нет интернета. Работаю в офлайн-режиме':['Ինտերնետ չկա։ Աշխատում եմ անցանց ռեժիմում','No internet. Working offline'],
+ };
+ const UN={hy:{h:'ժ',m:'ր',k:'կմ'},en:{h:'h',m:'min',k:'km'}};
+ const units=(s,l)=>{const u=UN[l];return s.replace(/(\d) ч(?=\s|$|\))/g,'$1 '+u.h).replace(/(\d) мин(?=\s|$|\))/g,'$1 '+u.m).replace(/(\d) км(?=\s|$|\))/g,'$1 '+u.k)};
+ const T=(k,i)=>D[k]?D[k][i]:k;
+ const PAT=[
+  [/^~(.+)$/,(m,l)=>'~'+units(m[1],l)],
+  [/^\(\+(.+)\)$/,(m,l)=>'(+'+units(m[1],l)+')'],
+  [/^Весь путь: ~(.+?)(\s*⚠\uFE0F?\s*приблизительно)?$/,(m,l,i)=>T('Весь путь',i)+': ~'+units(m[1],l)+(m[2]?' ⚠ '+T('приблизительно',i):'')],
+  [/^версия от (.+)$/,(m,l,i)=>['տարբերակ՝ ','Version from '][i]+m[1]],
+  [/^(\d+) поз\.$/,(m,l,i)=>m[1]+[' տեսակ',' items'][i]],
+  [/^Выбрано: (.+) шт$/,(m,l,i)=>[ 'Ընտրված՝ '+m[1]+' հատ','Selected: '+m[1]+' pcs'][i]],
+  [/^(Город|Район) · (.+)$/,(m,l,i)=>T(m[1],i)+' · '+m[2]],
+  [/^Удалить точку «([\s\S]*)»\?$/,(m,l,i)=>['Ջնջե՞լ «'+m[1]+'» կետը','Delete point “'+m[1]+'”?'][i]],
+  [/^Неточных адресов: (\d+) \(жёлтые маркеры\)\. Маршрут приведёт в центр района, уточните улицу и дом\.$/,(m,l,i)=>['Անճշգրիտ հասցեներ՝ '+m[1]+' (դեղին նշիչներ)։ Երթուղին կտանի թաղամասի կենտրոն, ճշտեք փողոցը և տունը։','Inexact addresses: '+m[1]+' (yellow markers). The route leads to the district center, so please specify the street and house number.'][i]]
+ ];
+ function tc(core,l){
+  const i=l==='hy'?0:1;
+  if(Object.prototype.hasOwnProperty.call(D,core))return D[core][i];
+  for(const p of PAT){const m=core.match(p[0]);if(m)return p[1](m,l,i)}
+  const e=core.match(/^([^\p{L}\p{N}(«~+]+)([\s\S]+)$/u);
+  if(e){const r=tc(e[2],l);if(r!=null)return e[1]+r}
+  return null;
+ }
+ function tx(raw,l){
+  if(l==='ru')return null;
+  const m=raw.match(/^(\s*)([\s\S]*?)(\s*)$/);
+  if(!m[2])return null;
+  const r=tc(m[2],l);
+  return r==null?null:m[1]+r+m[3];
+ }
+ const ORIG=new WeakMap(),OUT=new WeakMap(),AO=new WeakMap();
+ function doText(n){
+  const cur=n.data;
+  if(OUT.get(n)!==cur)ORIG.set(n,cur);
+  const o=ORIG.get(n),r=tx(o,L),want=r==null?o:r;
+  if(n.data!==want)n.data=want;
+  OUT.set(n,want);
+ }
+ const AT=['placeholder','title','aria-label'];
+ function attrs(el){
+  for(const a of AT){
+   if(!el.hasAttribute||!el.hasAttribute(a))continue;
+   let m=AO.get(el);if(!m){m={};AO.set(el,m)}
+   const cur=el.getAttribute(a);
+   if(!m[a]||m[a].out!==cur)m[a]={o:cur,out:cur};
+   const r=tx(m[a].o,L),want=r==null?m[a].o:r;
+   if(cur!==want)el.setAttribute(a,want);
+   m[a].out=want;
+  }
+ }
+ const FLT={acceptNode:n=>n.nodeType===1&&(n.tagName==='SCRIPT'||n.tagName==='STYLE')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT};
+ function walk(root){
+  if(root.nodeType===3){doText(root);return}
+  if(root.nodeType!==1)return;
+  if(root.tagName==='SCRIPT'||root.tagName==='STYLE')return;
+  attrs(root);
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_TEXT,FLT);
+  let n;while((n=w.nextNode())){if(n.nodeType===3)doText(n);else attrs(n)}
+ }
+ new MutationObserver(ms=>{
+  if(L==='ru')return;
+  for(const m of ms){
+   if(m.type==='characterData')doText(m.target);
+   else m.addedNodes.forEach(walk);
+  }
+ }).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
+
+ // Текст для буфера обмена («Итоги → Скопировать»)
+ window.i18nCopy=function(s){
+  if(L==='ru')return s;
+  const i=L==='hy'?0:1,w=k=>D[k][i];
+  return s.replace(/^Итоги$/m,w('Итоги'))
+   .replace(/^(\s*)Город: /gm,'$1'+w('Город')+': ')
+   .replace(/^(\s*)Район: /gm,'$1'+w('Район')+': ')
+   .replace(/^Всего штук: /m,w('Всего штук:')+' ')
+   .replace(/^Общая сумма: /m,w('Общая сумма')+': ');
+ };
+
+ let btn=null;
+ const lab=()=>{if(btn)btn.textContent='🌐 '+LANGS[L]};
+ function setLang(l){
+  if(!LANGS[l])return;
+  L=l;try{localStorage.setItem('LANG',l)}catch(e){}
+  document.documentElement.lang=l;window.LANG_SR=SR[l];
+  walk(document.body);lab();
+ }
+ function dlg(){
+  let m=document.getElementById('lgM');if(m)return m;
+  m=document.createElement('div');m.id='lgM';m.className='cm';
+  m.innerHTML='<div class="cm-b"><div class="cm-i">🌐</div><div class="cm-t">Язык / Լեզու / Language</div><div class="lg-r">'
+   +Object.keys(LANGS).map(k=>'<button data-l="'+k+'">'+LANGS[k]+'</button>').join('')+'</div></div>';
+  document.body.appendChild(m);
+  m.onclick=e=>{
+   const b=e.target.closest('button[data-l]');
+   if(b){setLang(b.dataset.l);m.classList.remove('open');return}
+   if(e.target===m)m.classList.remove('open');
+  };
+  return m;
+ }
+ function openDlg(){
+  const m=dlg();
+  m.querySelectorAll('button[data-l]').forEach(b=>b.classList.toggle('on',b.dataset.l===L));
+  m.classList.add('open');
+ }
+ const f=document.getElementById('ft');
+ btn=document.createElement('button');btn.id='langBtn';btn.onclick=openDlg;
+ if(f)f.appendChild(btn);else document.body.appendChild(btn);
+ document.documentElement.lang=L;window.LANG_SR=SR[L];
+ lab();
+ if(L!=='ru')walk(document.body);
+})();
+
+
+====== ФАЙЛ: online.js ======
+// ONLINE: счётчик присутствия через Firebase Realtime Database
+(function(){
+  const g = id => document.getElementById(id);
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyCR8uHLrEMGDd-sbMIdaphuaRdFK3fNdng",
+    databaseURL: "https://eurobaza-c5aa5-default-rtdb.europe-west1.firebasedatabase.app"
+  };
+
+  function uid(){
+    let u = null;
+    try { u = localStorage.getItem('ONLINE_UID'); } catch(e){}
+    if (!u){ u = 'u' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); try { localStorage.setItem('ONLINE_UID', u); } catch(e){} }
+    return u;
+  }
+  const MY_ID = uid();
+
+  function loadSDK(){
+    return new Promise((res, rej) => {
+      if (window.firebase && window.firebase.database) return res();
+      const s1 = document.createElement('script');
+      s1.src = 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js';
+      s1.onload = () => {
+        const s2 = document.createElement('script');
+        s2.src = 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js';
+        s2.onload = () => res();
+        s2.onerror = () => rej(new Error('db sdk'));
+        document.head.appendChild(s2);
+      };
+      s1.onerror = () => rej(new Error('app sdk'));
+      document.head.appendChild(s1);
+    });
+  }
+
+  function ensureBadge(){
+    let b = g('onlineBadge');
+    if (b) return b;
+    b = document.createElement('span');
+    b.id = 'onlineBadge';
+    b.className = 'online-badge';
+    b.title = 'Сейчас в приложении';
+    b.textContent = '🟢 –';
+    const h = document.querySelector('h2 .badge');
+    if (h) h.after(b);
+    else document.querySelector('h2')?.appendChild(b);
+    return b;
+  }
+
+  function setCount(n){
+    const b = ensureBadge();
+    b.textContent = '🟢 ' + n;
+    b.dataset.n = n;
+  }
+
+  let db = null, ref = null, hbTimer = null, renderTimer = null;
+  const TTL = 60 * 1000, HB = 20 * 1000;
+  let last = {};
+
+  function start(){
+    if (!window.firebase) return;
+    try { firebase.initializeApp(FIREBASE_CONFIG); } catch(e){ }
+    db = firebase.database();
+    ref = db.ref('online');
+    ref.on('value', snap => { last = snap.val() || {}; render(); });
+
+    const beat = () => {
+      if (document.hidden) return;
+      ref.child(MY_ID).set({ t: Date.now() }).catch(()=>{});
+    };
+    beat();
+    hbTimer = setInterval(beat, HB);
+    renderTimer = setInterval(render, 5000);
+
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) beat(); });
+  }
+
+  function render(){
+    const now = Date.now();
+    let n = 0;
+    for (const k in last){
+      const t = last[k] && last[k].t;
+      if (typeof t === 'number' && now - t < TTL) n++;
+    }
+    setCount(n);
+  }
+
+  window.addEventListener('pagehide', () => { try { ref && ref.child(MY_ID).remove(); } catch(e){} });
+
+  function boot(){
+    ensureBadge();
+    loadSDK().then(start).catch(() => {
+      const b = ensureBadge();
+      b.textContent = '🔴 –';
+      b.title = 'Онлайн недоступен';
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+
+====== ФАЙЛ: chat.js ======
+/* CHAT v5: Финальная версия */
+(function(){
+  const g = id => document.getElementById(id);
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyCR8uHLrEMGDd-sbMIdaphuaRdFK3fNdng",
+    databaseURL: "https://eurobaza-c5aa5-default-rtdb.europe-west1.firebasedatabase.app"
+  };
+  const LIMIT = 50;
+  let db = null, chatRef = null, chatPush = null;
+  let userName = localStorage.getItem('CHAT_NAME') || '';
+
+  // Сброс застрявших имен
+  if (userName === 'Курьер' || userName === 'null') { try { localStorage.removeItem('CHAT_NAME'); } catch(e){} userName = ''; }
+
+  function loadSDK(){
+    return new Promise((res, rej) => {
+      if (window.firebase && window.firebase.database) return res();
+      const s1 = document.createElement('script');
+      s1.src = 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js';
+      s1.onload = () => {
+        const s2 = document.createElement('script');
+        s2.src = 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js';
+        s2.onload = () => res();
+        s2.onerror = () => rej(new Error('db sdk'));
+        document.head.appendChild(s2);
+      };
+      s1.onerror = () => rej(new Error('app sdk'));
+      document.head.appendChild(s1);
+    });
+  }
+
+  function ensureUI(){
+    if (g('chatFab')) return;
+    const fab = document.createElement('button');
+    fab.id = 'chatFab'; fab.className = 'fab fab-c'; fab.textContent = '💬';
+    fab.onclick = openChat;
+    document.body.appendChild(fab);
+
+    const mdl = document.createElement('div');
+    mdl.id = 'chatMdl'; mdl.className = 'mdl chat-mdl';
+    mdl.innerHTML = `
+      <div class="mdl-b chat-b">
+        <div class="mdl-h"><span>💬 Общий чат</span>
+          <span style="display:flex;gap:6px;align-items:center">
+            <button class="mdl-x" id="chatNameBtn" title="Сменить имя">✏️</button>
+            <button class="mdl-x" id="chatX">✕</button>
+          </span>
+        </div>
+        <div id="chatMsgList"></div>
+        <div class="chat-input-w">
+          <input id="chatInp" placeholder="Сообщение..." autocomplete="off">
+          <button id="chatSend">➤</button>
+        </div>
+      </div>`;
+    document.body.appendChild(mdl);
+
+    g('chatX').onclick = () => closeChat();
+    g('chatSend').onclick = sendMsg;
+    g('chatInp').onkeydown = e => { if(e.key === 'Enter') sendMsg(); };
+    g('chatNameBtn').onclick = askName;
+    mdl.onclick = e => { if(e.target === mdl) closeChat(); };
+
+    let wasOpen = false;
+    new MutationObserver(() => {
+      const now = mdl.classList.contains('open');
+      if (now === wasOpen) return;
+      wasOpen = now;
+      if (now) { try { history.pushState({chat:1},''); } catch(e){} }
+      else { try { if(history.state && history.state.chat) setTimeout(()=>history.back(),0); } catch(e){} }
+    }).observe(mdl, {attributes:true, attributeFilter:['class']});
+    window.addEventListener('popstate', () => {
+      if (mdl.classList.contains('open')) closeChat('pop');
+    });
+  }
+
+  function askName(){
+    if (g('chatNameM') && g('chatNameM').classList.contains('open')) return;
+    const m = document.createElement('div');
+    m.id = 'chatNameM'; m.className = 'cm';
+    m.innerHTML = `<div class="cm-b">
+      <div class="cm-i">✏️</div>
+      <div class="cm-t">Ваше имя</div>
+      <div style="margin-bottom:14px"><input id="chatNameInp" maxlength="20" placeholder="Например: Артак" style="width:100%;height:44px;padding:0 12px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(15,23,34,.82);color:#fff;font-size:16px;outline:none"></div>
+      <div class="cm-r"><button id="chatNameNo">Отмена</button><button id="chatNameOk" class="cm-ok">Сохранить</button></div>
+    </div>`;
+    document.body.appendChild(m);
+    g('chatNameInp').value = userName || '';
+    const done = (save) => {
+      if (save) {
+        const v = g('chatNameInp').value.trim();
+        if (!v) { if (window.toast) toast('Введите имя','err'); return; }
+        userName = v;
+        try { localStorage.setItem('CHAT_NAME', v); } catch(e){}
+        if (window.toast) toast('Имя сохранено');
+        if (window.vib) vib(40);
+      }
+      m.classList.remove('open');
+    };
+    g('chatNameOk').onclick = () => done(true);
+    g('chatNameNo').onclick = () => done(false);
+    m.onclick = e => { if (e.target === m) done(false); };
+    m.classList.add('open');
+    setTimeout(()=>g('chatNameInp').focus(), 50);
+  }
+
+  function openChat(){
+    ensureUI();
+    g('chatMdl').classList.add('open');
+    document.documentElement.classList.add('lock');
+    document.body.classList.add('lock');
+    if (window.vib) vib(40);
+    
+    if (!userName) { setTimeout(askName, 100); }
+    
+    setTimeout(() => { const l = g('chatMsgList'); if (l) l.scrollTop = l.scrollHeight; }, 100);
+    const inp = g('chatInp'); if (inp && userName) inp.focus();
+
+    // При открытии клавиатуры (изменении размера окна) скроллим вниз
+    if (!window._chatResizeListener) {
+      window._chatResizeListener = true;
+      window.addEventListener('resize', () => {
+        const m = g('chatMdl');
+        if (m && m.classList.contains('open')) {
+          const l = g('chatMsgList');
+          if (l) l.scrollTop = l.scrollHeight;
+        }
+      });
+    }
+  }
+
+  function closeChat(src){
+    const mdl = g('chatMdl');
+    if (!mdl || !mdl.classList.contains('open')) return;
+    mdl.classList.remove('open');
+    document.documentElement.classList.remove('lock');
+    document.body.classList.remove('lock');
+    const inp = g('chatInp'); if (inp) inp.blur();
+    if (src !== 'pop') { try { if(history.state && history.state.chat) setTimeout(()=>history.back(),0); } catch(e){} }
+  }
+
+  function initDB(){
+    if (!window.firebase) return;
+    try {
+      if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+    } catch(e){}
+    db = firebase.database();
+    chatRef = db.ref('chat').limitToLast(LIMIT);
+    chatPush = db.ref('chat');
+    chatRef.on('child_added', snap => {
+      const msg = snap.val();
+      if (!msg) return;
+      renderMsg(msg, snap.key);
+    });
+  }
+
+  function renderMsg(msg, key){
+    const list = g('chatMsgList');
+    if (!list) return;
+    if (g('msg_' + key)) return;
+    const div = document.createElement('div');
+    div.className = 'chat-msg';
+    div.id = 'msg_' + key;
+    
+    // Проверка на "моё" сообщение для стилизации
+    const isMe = (msg.name === userName);
+    if (isMe) div.classList.add('my-msg');
+
+    const time = new Date(msg.t).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    
+    // ТУТ ПРОБЕЛ МЕЖДУ ИМЕНЕМ И ВРЕМЕНЕМ
+    div.innerHTML = `<div class="chat-meta"><span class="chat-author">${esc(msg.name || 'Курьер')}</span> <span class="chat-time">${time}</span></div><div class="chat-text">${esc(msg.text)}</div>`;
+    list.appendChild(div);
+    // Скролл вниз, если мы были у нижнего края (погрешность 150px для клавиатуры)
+    const isBottom = list.scrollHeight - list.scrollTop <= list.clientHeight + 150;
+    if (isBottom) list.scrollTop = list.scrollHeight;
+  }
+
+  function sendMsg(){
+    const inp = g('chatInp');
+    if (!inp) return;
+    const text = inp.value.trim();
+    if (!text) return;
+    if (!userName) { askName(); return; }
+    if (navigator.onLine === false) { if (window.toast) toast('Нет интернета','err'); return; }
+    if (!db) { if (window.toast) toast('Нет соединения с сервером','err'); return; }
+    if (window.vib) vib(40);
+    
+    // УБРАЛИ inp.focus() ОТСЮДА, ЧТОБЫ КЛАВИАТУРА НЕ ВЫСКАКИВАЛА
+    chatPush.push({ name: userName, text: text, t: Date.now() })
+      .then(() => { 
+        inp.value = ''; 
+        // Принудительный скролл вниз, так как мы точно отправили
+        const list = g('chatMsgList');
+        if (list) setTimeout(() => { list.scrollTop = list.scrollHeight; }, 50);
+      })
+      .catch(err => { if (window.toast) toast('Ошибка: ' + err.message, 'err'); });
+  }
+
+  function boot(){
+    ensureUI();
+    loadSDK().then(initDB).catch(() => { if (window.toast) toast('Не удалось загрузить чат','err'); });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+
+====== ФАЙЛ: sw.js ======
+
+const C='eb-cache-20261116212703';
+const PRE=['./','./index.html','./style.css','./app.js','./yandex.js','./ui.js','./map.js','./bonus.js','./i18n.js','./online.js','./chat.js','./manifest.json','./icon-192.png','./icon-512.png','./bg.jpg'];
+
+self.addEventListener('install',e=>{
+  self.skipWaiting();
+  e.waitUntil(caches.open(C).then(c=>Promise.all(PRE.map(u=>c.add(u).catch(()=>{})))));
+});
+
+self.addEventListener('activate',e=>{
+  e.waitUntil(
+    caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))))
+    .then(()=>self.clients.claim())
+  );
+});
+
+// Команда от app.js на немедленное обновление
+self.addEventListener('message',e=>{
+  if(e.data && e.data.type === 'SKIP_WAITING'){
+    self.skipWaiting();
+  }
+});
+
+const STATIC=/\.(?:css|js|png|jpe?g|svg|woff2?|ico|json|map)$/i;
+const isNav=r=>r.mode==='navigate'||(r.method==='GET'&&(r.headers.get('accept')||'').includes('text/html'));
+self.addEventListener('fetch',e=>{
+ const r=e.request,u=new URL(r.url);
+ if(r.method!=='GET')return;
+ if(u.pathname.endsWith('/version.json')){
+  e.respondWith(fetch(r,{cache:'no-store'}).then(res=>{const cl=res.clone();caches.open(C).then(c=>c.put(r,cl));return res}).catch(()=>caches.match(r,{ignoreSearch:true})));
+  return;
+ }
+ if(u.origin!==location.origin){
+  e.respondWith(fetch(r).then(res=>{if(res.ok&&res.status===200){const cl=res.clone();caches.open(C).then(c=>c.put(r,cl))}return res}).catch(()=>caches.match(r,{ignoreSearch:true})));
+  return;
+ }
+ if(STATIC.test(u.pathname)){
+  e.respondWith(fetch(r).then(res=>{if(res.ok){const cl=res.clone();caches.open(C).then(c=>c.put(r,cl))}return res}).catch(()=>caches.match(r,{ignoreSearch:true})));
+  return;
+ }
+ if(isNav(r)){
+  e.respondWith(fetch(r).then(res=>{const cl=res.clone();caches.open(C).then(c=>c.put('./index.html',cl));return res}).catch(()=>caches.match('./index.html',{ignoreSearch:true})));
+  return;
+ }
+});
+
+
+====== ФАЙЛ: manifest.json ======
+{"name":"Доставка EuroBaza","short_name":"EuroBaza","start_url":"./","scope":"./","display":"standalone","background_color":"#1e2a38","theme_color":"#1e2a38","icons":[{"src":"icon-192.png","sizes":"192x192","type":"image/png"},{"src":"icon-512.png","sizes":"512x512","type":"image/png"}]}
+
+
