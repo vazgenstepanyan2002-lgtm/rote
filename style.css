@@ -227,3 +227,22 @@ ol#l:not(:empty){margin:14px 0 0;padding:14px;border-radius:20px;background:rgba
 #bnList .bn-c.open .bn-ch{margin-bottom:6px}
 #bnList .bn-c>.bn-s.bn-k{margin:0 8px 6px}
 .bn-ft{margin-top:8px;padding-top:8px}
+
+/* bn-btns, bn-ov: кнопки внизу и окно итогов */
+.bn-btns{display:flex;gap:8px;margin-top:8px}
+#bnMdl .bn-btns button{flex:1;height:42px;font-size:14px;font-weight:600;background:rgba(255,255,255,.08);color:#f8fafc;border:1px solid rgba(255,255,255,.2)}
+#bnMdl .bn-btns #bnSumB{background:rgba(16,185,129,.18);color:#34d399;border:1.5px solid #10b981}
+#bnMdl .bn-btns #bnRst{background:rgba(239,68,68,.18);color:#ff8585;border:1.5px solid #ef4444}
+.bn-ov{position:absolute;inset:0;z-index:5;display:none;align-items:center;justify-content:center;padding:8px;background:rgba(0,0,0,.65)}
+.bn-ov.open{display:flex}
+.bn-ov .bn-b{max-height:92vh}
+#bnSmList{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:8px}
+.bn-sc{flex:0 0 auto;border:1px solid rgba(255,255,255,.16);border-radius:14px;background:rgba(255,255,255,.05);padding:8px 10px}
+.bn-sch{display:flex;justify-content:space-between;gap:8px;color:#fc0;font-weight:700;font-size:15px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,.12)}
+.bn-sch b{color:#34d399;white-space:nowrap}
+.bn-si{padding:6px 0;border-bottom:1px dashed rgba(255,255,255,.1)}
+.bn-si:last-child{border-bottom:0;padding-bottom:0}
+.bn-sin{font-weight:700;font-size:14px;margin-bottom:2px}
+.bn-sp{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:#cbd5e1}
+.bn-sp b{color:#fc0;white-space:nowrap}
+.bn-tr b#bnSmTot{font-size:22px;color:#fc0}

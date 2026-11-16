@@ -144,17 +144,74 @@
   B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));save();render();tst('Количества обнулены');
  }
 
+ let skipPop=0;
+ const SUMM=[['','Город'],['2','Район']];
+ function sumRows(){
+  const out=[];
+  B.forEach(c=>{
+   const items=[];let cs=0;
+   c.subs.forEach(s=>{
+    const parts=[];
+    SUMM.forEach(x=>{
+     const n=num(s['qty'+x[0]]),p=num(s['price'+x[0]]);
+     if(n>0)parts.push({l:s.one?'':x[1],n:n,p:p,v:n*p});
+    });
+    if(parts.length){items.push({name:s.name,parts:parts});parts.forEach(z=>{cs+=z.v})}
+   });
+   if(items.length)out.push({name:c.name,sum:cs,items:items});
+  });
+  return out;
+ }
+ function openSum(){
+  const rows=sumRows(),l=g('bnSmList');let t=0,q=0;
+  if(!rows.length)l.innerHTML='<div class="bn-empty">Пока ничего не выбрано.</div>';
+  else l.innerHTML=rows.map(c=>{
+   t+=c.sum;
+   return '<div class="bn-sc"><div class="bn-sch"><span>'+esc(c.name)+'</span><b>'+fm(c.sum)+' '+CUR+'</b></div>'
+    +c.items.map(it=>'<div class="bn-si"><div class="bn-sin">'+esc(it.name)+'</div>'
+     +it.parts.map(z=>{q+=z.n;return '<div class="bn-sp"><span>'+(z.l?z.l+' · ':'')+fm(z.n)+' × '+fm(z.p)+'</span><b>'+fm(z.v)+' '+CUR+'</b></div>'}).join('')
+     +'</div>').join('')+'</div>';
+  }).join('');
+  g('bnSmTot').textContent=fm(t)+' '+CUR;g('bnSmQty').textContent=fm(q);
+  g('bnSm').classList.add('open');
+  try{history.pushState({bs:1},'')}catch(e){}
+ }
+ function closeSum(){
+  const o=g('bnSm');if(!o||!o.classList.contains('open'))return;
+  o.classList.remove('open');
+  try{if(history.state&&history.state.bs){skipPop++;setTimeout(()=>history.back(),0)}}catch(e){}
+ }
+ function copySum(){
+  const rows=sumRows();
+  if(!rows.length){tst('Пока ничего не выбрано','err');return}
+  let t=0,q=0,s='Итоги\n';
+  rows.forEach(c=>{
+   t+=c.sum;s+='\n'+c.name+' — '+fm(c.sum)+' '+CUR+'\n';
+   c.items.forEach(it=>{
+    s+='• '+it.name+'\n';
+    it.parts.forEach(z=>{q+=z.n;s+='   '+(z.l?z.l+': ':'')+fm(z.n)+' × '+fm(z.p)+' = '+fm(z.v)+' '+CUR+'\n'});
+   });
+  });
+  s+='\nВсего штук: '+fm(q)+'\nОбщая сумма: '+fm(t)+' '+CUR;
+  try{navigator.clipboard.writeText(s).then(()=>tst('Скопировано')).catch(()=>tst('Не удалось скопировать','err'))}catch(e){tst('Не удалось скопировать','err')}
+ }
+
  function ensure(){
   let m=g('bnMdl');if(m)return m;
   m=document.createElement('div');m.id='bnMdl';m.className='mdl';
   m.innerHTML='<div class="mdl-b bn-b"><div class="mdl-h"><span>🧮 Бонусы</span><button class="mdl-x" id="bnX">✕</button></div>'
    +'<div id="bnList"></div>'
    +'<div class="bn-ft"><div class="bn-tr"><span>Общая сумма</span><b id="bnTot">0</b></div>'
-   +'<div class="bn-tr bn-sm"><span>Всего штук: <b id="bnQty">0</b></span><button id="bnRst">🔄 Обнулить количества</button></div></div></div>';
+   +'<div class="bn-tr bn-sm"><span>Всего штук: <b id="bnQty">0</b></span></div>'
+   +'<div class="bn-btns"><button id="bnSumB">📋 Итоги</button><button id="bnRst">🔄 Обнулить</button></div></div></div>'
+   +'<div class="bn-ov" id="bnSm"><div class="mdl-b bn-b"><div class="mdl-h"><span>📋 Итоги</span><button class="mdl-x" id="bnSmX">✕</button></div><div id="bnSmList"></div>'
+   +'<div class="bn-ft"><div class="bn-tr"><span>Общая сумма</span><b id="bnSmTot">0</b></div><div class="bn-tr bn-sm"><span>Всего штук: <b id="bnSmQty">0</b></span></div>'
+   +'<div class="bn-btns"><button id="bnSmCp">📄 Скопировать</button></div></div></div></div>';
   document.body.appendChild(m);
   m.onclick=e=>{if(e.target===m)closeBon()};
   g('bnX').onclick=()=>closeBon();
   g('bnRst').onclick=resetQty;
+  g('bnSumB').onclick=openSum;g('bnSmX').onclick=()=>closeSum();g('bnSmCp').onclick=copySum;g('bnSm').onclick=e=>{if(e.target===g('bnSm'))closeSum()};
   const l=g('bnList');
   l.addEventListener('input',onInput);
   l.addEventListener('click',onClick);
@@ -168,10 +225,10 @@
  }
  function closeBon(src){
   const m=g('bnMdl');if(!m||!m.classList.contains('open'))return;
-  m.classList.remove('open');lock(false);
+  const ov=g('bnSm');if(ov)ov.classList.remove('open');m.classList.remove('open');lock(false);
   if(src!=='pop'){try{if(history.state&&history.state.bn)setTimeout(()=>history.back(),0)}catch(e){}}
  }
- window.addEventListener('popstate',()=>{const m=g('bnMdl');if(m&&m.classList.contains('open'))closeBon('pop')});
+ window.addEventListener('popstate',()=>{if(skipPop>0){skipPop--;return}const o=g('bnSm');if(o&&o.classList.contains('open')){o.classList.remove('open');return}const m=g('bnMdl');if(m&&m.classList.contains('open'))closeBon('pop')});
  window.openBon=openBon;window.closeBon=closeBon;
 
  const f=document.createElement('button');
