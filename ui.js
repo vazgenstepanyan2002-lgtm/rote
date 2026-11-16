@@ -113,7 +113,7 @@ document.addEventListener('click',e=>{
 (function(){
  const URL='https://supabase.co';
  const KEY='sb_publishable_IQ02Jspk2jh8x0HqzhZ95Q_lcv1BOkO';
- const HDR={'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json'};
+ const HDR={'apikey':KEY,'Content-Type':'application/json'};
  let uid=localStorage.getItem('EB_UID');
  if(!uid){uid='u_'+Math.random().toString(36).slice(2,10);localStorage.setItem('EB_UID',uid)}
  let b=document.getElementById('onlB');
