@@ -1,16 +1,7 @@
 (function(){
  const LANGS={ru:'Русский',hy:'Հայերեն',en:'English'  'Общий чат':['Ընդհանուր չատ','General chat'],
-  'Сообщение...':['Հաղորդագրություն...','Message...'],
-  'Нет соединения с сервером':['Չկա կապ սերվերի հետ','No connection to server'],
-  'Ошибка:':['Սխալ՝','Error:'],
-  'Введите имя':['Մուտքագրեք անունը','Enter a name'],
-  'Ваше имя':['Ձեր անունը','Your name'],
   'Сохранить':['Պահպանել','Save'],
-  'Имя сохранено':['Անունը պահպանվեց','Name saved'],
   'Нет интернета':['Ինտերնետ չկա','No internet'],
-  'Сменить имя':['Փոխել անունը','Change name'],
-  'Не удалось загрузить чат':['Չհաջողվեց բեռնել չատը','Could not load chat'],
-  'Например: Артак':['Օրինակ՝ Արտակ','For example: Artak'],
 };
  const SR={ru:'ru-RU',hy:'hy-AM',en:'en-US'};
  let L='ru';try{const v=localStorage.getItem('LANG');if(LANGS[v])L=v}catch(e){}

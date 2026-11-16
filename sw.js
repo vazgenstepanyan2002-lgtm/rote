@@ -1,6 +1,6 @@
 
 const C='eb-cache-20261116212703';
-const PRE=['./','./index.html','./style.css','./app.js','./yandex.js','./ui.js','./map.js','./bonus.js','./i18n.js','./online.js','./chat.js','./manifest.json','./icon-192.png','./icon-512.png','./bg.jpg'];
+const PRE=['./','./index.html','./style.css','./app.js','./yandex.js','./ui.js','./map.js','./bonus.js','./i18n.js','./online.js','./manifest.json','./icon-192.png','./icon-512.png','./bg.jpg'];
 
 self.addEventListener('install',e=>{
   self.skipWaiting();
