@@ -166,3 +166,8 @@ ol#l:not(:empty){margin:14px 0 0;padding:14px;border-radius:20px;background:rgba
 #bnMdl input[readonly]{cursor:default}
 #bnMdl .bn-p[readonly]{background:transparent;border-color:rgba(255,255,255,.12);color:#fc0;font-weight:700}
 #bnMdl .bn-sn[readonly]{background:transparent;border-color:transparent;font-weight:600;padding-left:4px}
+
+/* bn-card: каждая подкатегория отдельной плашкой */
+.bn-s{margin-top:10px;padding:10px;border:1px solid rgba(255,255,255,.2);border-left:4px solid #10b981;border-radius:12px;background:rgba(15,23,34,.7)}
+.bn-s .bn-sn{font-weight:700;font-size:15px}
+.bn-ss{margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,.12);font-size:15px}
