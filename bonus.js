@@ -86,12 +86,12 @@
   g('bnQty').textContent=fm(q);
  }
 
- const row=(a,s,k,lab)=>'<div class="bn-sr">'+(lab?'<span class="bn-rl">'+lab+'</span>':'')
+ const row=(a,s,k,lab)=>'<div class="bn-sr">'
   +'<button class="bn-pm bn-m" data-act="dec" data-k="'+k+'" '+a+'>−</button>'
   +'<input class="bn-q" data-k="'+k+'" '+a+' inputmode="decimal" value="'+num(s['qty'+k])+'">'
   +'<button class="bn-pm" data-act="inc" data-k="'+k+'" '+a+'>+</button>'
   +'<span class="bn-x">×</span>'
-  +'<span class="bn-pv">'+fm(num(s['price'+k]))+'</span></div>';
+  +'<span class="bn-pv">'+(lab?'<small class="bn-pl">'+lab+'</small>':'')+fm(num(s['price'+k]))+'</span></div>';
 
  function render(){
   const l=g('bnList'),st=l.scrollTop;
@@ -104,7 +104,7 @@
     h+=c.subs.map((s,si)=>{
      const a='data-c="'+ci+'" data-s="'+si+'"';
      return '<div class="bn-s bn-k"><div class="bn-sh2"><span class="bn-nm">'+esc(s.name)+'</span><span class="bn-ss" id="bs'+ci+'_'+si+'"></span></div>'
-      +row(a,s,'',s.one?'&nbsp;':'Город')
+      +row(a,s,'',s.one?'':'Город')
       +(s.one?'':row(a,s,'2','Район'))
       +'</div>';
     }).join('');
