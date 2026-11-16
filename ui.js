@@ -109,9 +109,11 @@ document.addEventListener('click',e=>{
  updNet();
 })();
 
-// ONLINE: мгновенный счётчик активных пользователей через Firebase
+// ONLINE: счётчик активных пользователей через Supabase
 (function(){
- const DB='https://firebasedatabase.app';
+ const URL='https://supabase.co';
+ const KEY='sb_publishable_IQ02Jspk2jh8x0HqzhZ95Q_lcv1BOkO';
+ const HDR={'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json'};
  let uid=localStorage.getItem('EB_UID');
  if(!uid){uid='u_'+Math.random().toString(36).slice(2,10);localStorage.setItem('EB_UID',uid)}
  let b=document.getElementById('onlB');
@@ -121,58 +123,34 @@ document.addEventListener('click',e=>{
   const ref=document.getElementById('netIco')||document.querySelector('h2 .badge');
   if(ref)ref.before(b);
  }
- let curData={},lastErr='';
- function calc(){
-  const now=Date.now();let cnt=0;
-  for(const k in curData){
-   const ts=curData[k];
-   if(typeof ts==='number'&&now-ts<65000)cnt++;
-  }
-  b.textContent='🟢 '+Math.max(1,cnt);
-  return Math.max(1,cnt);
- }
+ let lastCnt=1,lastErr='';
  b.onclick=()=>{
   if(lastErr){window.toast&&toast('Ошибка связи с базой: '+lastErr,'err');return}
-  window.toast&&toast('Сейчас в приложении: '+calc()+' чел.','ok');
+  window.toast&&toast('Сейчас в приложении: '+lastCnt+' чел.','ok');
  };
  async function beat(){
   if(!navigator.onLine)return;
   const now=Date.now();
   try{
-   const r1=await fetch(DB+'/online/'+uid+'.json',{method:'PUT',body:JSON.stringify(now)});
+   const r1=await fetch(URL+'?on_conflict=id',{
+    method:'POST',
+    headers:Object.assign({'Prefer':'resolution=merge-duplicates,return=minimal'},HDR),
+    body:JSON.stringify({id:uid,ts:now})
+   });
    if(!r1.ok)throw new Error('HTTP '+r1.status);
-   const r2=await fetch(DB+'/online.json');
-   const data=await r2.json();
+   const r2=await fetch(URL+'?select=id,ts&ts=gt.'+(now-65000),{headers:HDR});
+   if(!r2.ok)throw new Error('HTTP '+r2.status);
+   const rows=await r2.json();
    lastErr='';
-   if(data&&typeof data==='object'){
-    curData=data;
-    for(const k in data){
-     if(typeof data[k]==='number'&&now-data[k]>180000)fetch(DB+'/online/'+k+'.json',{method:'DELETE'}).catch(()=>{});
-    }
-   }else{curData={[uid]:now}}
-   calc();
+   lastCnt=Math.max(1,Array.isArray(rows)?rows.length:1);
+   b.textContent='🟢 '+lastCnt;
+   if(Math.random()<0.25)fetch(URL+'?ts=lt.'+(now-180000),{method:'DELETE',headers:HDR}).catch(()=>{});
   }catch(e){lastErr=e.message||'нет ответа'}
  }
- try{
-  const es=new EventSource(DB+'/online.json');
-  const onEv=e=>{
-   try{
-    const d=JSON.parse(e.data);
-    if(!d)return;
-    if(d.path==='/'){curData=d.data||{}}
-    else if(d.path&&d.path.length>1){
-     const k=d.path.slice(1);
-     if(d.data===null)delete curData[k];else curData[k]=d.data;
-    }
-    lastErr='';calc();
-   }catch(err){}
-  };
-  es.addEventListener('put',onEv);
-  es.addEventListener('patch',onEv);
- }catch(e){}
  beat();
- setInterval(()=>{if(!document.hidden)beat()},20000);
- setInterval(calc,10000);
+ setInterval(()=>{if(!document.hidden)beat()},15000);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)beat()});
- window.addEventListener('pagehide',()=>{try{fetch(DB+'/online/'+uid+'.json',{method:'DELETE',keepalive:true})}catch(e){}});
+ window.addEventListener('pagehide',()=>{
+  try{fetch(URL+'?id=eq.'+uid,{method:'DELETE',headers:HDR,keepalive:true})}catch(e){}
+ });
 })();
