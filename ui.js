@@ -109,36 +109,70 @@ document.addEventListener('click',e=>{
  updNet();
 })();
 
-// ONLINE: счётчик активных пользователей через Firebase
+// ONLINE: мгновенный счётчик активных пользователей через Firebase
 (function(){
  const DB='https://firebasedatabase.app';
- let uid=sessionStorage.getItem('EB_UID');
- if(!uid){uid='u_'+Math.random().toString(36).slice(2,10);sessionStorage.setItem('EB_UID',uid)}
+ let uid=localStorage.getItem('EB_UID');
+ if(!uid){uid='u_'+Math.random().toString(36).slice(2,10);localStorage.setItem('EB_UID',uid)}
  let b=document.getElementById('onlB');
  if(!b){
-  b=document.createElement('span');b.id='onlB';b.className='onl-b';b.title='Онлайн сейчас';b.textContent='🟢 1';
+  b=document.createElement('span');b.id='onlB';b.className='onl-b';b.style.cursor='pointer';
+  b.title='Онлайн сейчас';b.textContent='🟢 1';
   const ref=document.getElementById('netIco')||document.querySelector('h2 .badge');
   if(ref)ref.before(b);
  }
+ let curData={},lastErr='';
+ function calc(){
+  const now=Date.now();let cnt=0;
+  for(const k in curData){
+   const ts=curData[k];
+   if(typeof ts==='number'&&now-ts<65000)cnt++;
+  }
+  b.textContent='🟢 '+Math.max(1,cnt);
+  return Math.max(1,cnt);
+ }
+ b.onclick=()=>{
+  if(lastErr){window.toast&&toast('Ошибка связи с базой: '+lastErr,'err');return}
+  window.toast&&toast('Сейчас в приложении: '+calc()+' чел.','ok');
+ };
  async function beat(){
   if(!navigator.onLine)return;
   const now=Date.now();
   try{
-   await fetch(DB+'/online/'+uid+'.json',{method:'PUT',body:JSON.stringify(now)});
-   const r=await fetch(DB+'/online.json');
-   const data=await r.json();
+   const r1=await fetch(DB+'/online/'+uid+'.json',{method:'PUT',body:JSON.stringify(now)});
+   if(!r1.ok)throw new Error('HTTP '+r1.status);
+   const r2=await fetch(DB+'/online.json');
+   const data=await r2.json();
+   lastErr='';
    if(data&&typeof data==='object'){
-    let cnt=0;
+    curData=data;
     for(const k in data){
-     if(typeof data[k]==='number'&&now-data[k]<65000)cnt++;
-     else if(typeof data[k]==='number'&&now-data[k]>180000)fetch(DB+'/online/'+k+'.json',{method:'DELETE'}).catch(()=>{});
+     if(typeof data[k]==='number'&&now-data[k]>180000)fetch(DB+'/online/'+k+'.json',{method:'DELETE'}).catch(()=>{});
     }
-    b.textContent='🟢 '+Math.max(1,cnt);
-   }
-  }catch(e){}
+   }else{curData={[uid]:now}}
+   calc();
+  }catch(e){lastErr=e.message||'нет ответа'}
  }
+ try{
+  const es=new EventSource(DB+'/online.json');
+  const onEv=e=>{
+   try{
+    const d=JSON.parse(e.data);
+    if(!d)return;
+    if(d.path==='/'){curData=d.data||{}}
+    else if(d.path&&d.path.length>1){
+     const k=d.path.slice(1);
+     if(d.data===null)delete curData[k];else curData[k]=d.data;
+    }
+    lastErr='';calc();
+   }catch(err){}
+  };
+  es.addEventListener('put',onEv);
+  es.addEventListener('patch',onEv);
+ }catch(e){}
  beat();
- setInterval(()=>{if(!document.hidden)beat()},25000);
+ setInterval(()=>{if(!document.hidden)beat()},20000);
+ setInterval(calc,10000);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)beat()});
  window.addEventListener('pagehide',()=>{try{fetch(DB+'/online/'+uid+'.json',{method:'DELETE',keepalive:true})}catch(e){}});
 })();
