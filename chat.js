@@ -145,6 +145,7 @@
       inp.value = '';
       inp.focus();
     }).catch(err => {
+      alert('Ошибка Firebase: ' + err.message);
       if (window.toast) toast('Ошибка отправки: ' + err.message, 'err');
     });
   }
