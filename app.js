@@ -197,3 +197,24 @@ function askC(text,ok,icon){return new Promise(res=>{
  }).observe(m,{attributes:true,attributeFilter:['class']});
  window.addEventListener('popstate',()=>{if(m.classList.contains('open'))m.classList.remove('open')});
 })();
+
+// --- ХИРУРГИЧЕСКОЕ УДАЛЕНИЕ ДУБЛИКАТОВ КНОПКИ ЯЗЫКА ---
+(function removeDupLangBtns(){
+  const kill = () => {
+    // Ищем все кнопки в футере
+    const btns = Array.from(document.querySelectorAll('#ft button'));
+    // Отбираем те, что отвечают за язык (по id или по тексту)
+    const langBtns = btns.filter(b => b.id === 'lgBtn' || b.id === 'langBtn' || b.textContent.includes('🌐') || b.textContent.includes('Русский') || b.textContent.includes('Язык'));
+    
+    // Если таких кнопок больше одной — удаляем все, кроме первой
+    if (langBtns.length > 1) {
+      for (let i = 1; i < langBtns.length; i++) {
+        langBtns[i].remove();
+      }
+    }
+  };
+  // Проверяем сразу и через полсекунды (когда все скрипты прогрузятся)
+  setTimeout(kill, 100);
+  setTimeout(kill, 800);
+  setTimeout(kill, 2000);
+})();
