@@ -330,3 +330,20 @@ ol#l:not(:empty){margin:14px 0 0;padding:14px;border-radius:20px;background:rgba
 .bn-qb small{font-size:11px;font-weight:700;opacity:.9}
 .bn-pp{font-style:normal;font-size:12px;color:#94a3b8;min-width:0}
 .bn-sp b{color:#fc0;font-size:15px;white-space:nowrap;font-weight:800}
+
+/* bn-compact: компактнее, с метками города и района */
+.bn-hero{padding:12px 16px;margin:0 0 12px;border-radius:16px}
+.bn-hero-v{font-size:22px}
+.bn-sc{padding:10px 12px 8px 16px;margin-bottom:8px;border-radius:16px}
+.bn-sch{font-size:14px;padding-bottom:7px;margin-bottom:2px}
+.bn-si{padding:7px 0}
+.bn-sin{font-size:13px;margin-bottom:4px}
+.bn-pr{display:grid;grid-template-columns:auto auto 1fr auto;align-items:center;gap:8px;padding:3px 0}
+.bn-tag{font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px;white-space:nowrap}
+.bn-city{background:rgba(14,165,233,.18);color:#7dd3fc;border:1px solid rgba(14,165,233,.45)}
+.bn-reg{background:rgba(167,139,250,.18);color:#c4b5fd;border:1px solid rgba(167,139,250,.45)}
+.bn-one{background:rgba(255,255,255,.08);color:#cbd5e1;border:1px solid rgba(255,255,255,.2)}
+.bn-qb{font-size:14px;padding:3px 9px;border-radius:10px;min-width:48px;gap:3px}
+.bn-pp{font-size:12px;color:#94a3b8;white-space:nowrap}
+.bn-pr b{font-size:14px;color:#fc0;font-weight:800;white-space:nowrap;text-align:right}
+#bnMdl .bn-btns #bnSave{background:rgba(16,185,129,.18);color:#34d399;border:1.5px solid #10b981}

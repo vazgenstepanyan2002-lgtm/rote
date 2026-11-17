@@ -162,50 +162,52 @@
   });
   return out;
  }
- // ===== Итоги по месяцам =====
+ // ===== Итоги: сохранение по кнопке и просмотр =====
+ const cqOf=c=>c.items.reduce((a,it)=>a+it.parts.reduce((b,z)=>b+z.n,0),0);
  const MK=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
  const HIST=()=>{try{const v=JSON.parse(localStorage.getItem('BON_HIST')||'{}');return v&&typeof v==='object'?v:{}}catch(e){return{}}};
  const saveHist=h=>{try{localStorage.setItem('BON_HIST',JSON.stringify(h))}catch(e){}};
- const qtyOf=rows=>rows.reduce((a,c)=>a+c.items.reduce((b,it)=>b+it.parts.reduce((x,z)=>x+z.n,0),0),0);
+ const qtyOf=rows=>rows.reduce((a,c)=>a+cqOf(c),0);
  const sumOf=rows=>rows.reduce((a,c)=>a+c.sum,0);
- function monthName(k){const p=k.split('-');const t=new Date(+p[0],+p[1]-1,1).toLocaleDateString('ru-RU',{month:'long',year:'numeric'});return t.charAt(0).toUpperCase()+t.slice(1)}
- // Новый месяц: итоги прошлого сохраняем, количества обнуляем
- function rollMonth(){
-  const now=MK(new Date());let cur=null;
-  try{cur=localStorage.getItem('BON_M')}catch(e){}
-  if(!cur){try{localStorage.setItem('BON_M',now)}catch(e){}return}
-  if(cur===now)return;
-  const rows=sumRows();
-  if(rows.length){const h=HIST();h[cur]={sum:sumOf(rows),qty:qtyOf(rows),rows:rows};saveHist(h)}
-  B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));save();
-  try{localStorage.setItem('BON_M',now)}catch(e){}
+ function monthName(k){
+  const p=String(k).split('-');if(p.length<2)return String(k);
+  const t=new Date(+p[0],+p[1]-1,1).toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
+  return t.charAt(0).toUpperCase()+t.slice(1);
  }
- function rowHtml(k,name,sum,qty,cur){
+ function rowHtml(k,name,sub,sum,qty,cur){
   return '<div class="bn-mr'+(cur?' bn-mr-cur':'')+'" data-m="'+k+'" role="button">'
    +'<span class="bn-mi">'+(cur?'🟢':'📅')+'</span>'
-   +'<span class="bn-mtx"><span class="bn-mn">'+esc(name)+'</span><span class="bn-mq">'+fm(qty)+' шт'+(cur?' · идёт':'')+'</span></span>'
-   +'<span class="bn-mv">'+fm(sum)+' '+CUR+'</span>'
-   +'<span class="bn-mc">›</span></div>';
+   +'<span class="bn-mtx"><span class="bn-mn">'+esc(name)+'</span><span class="bn-mq">'+fm(qty)+' шт'+(sub?' · '+esc(sub):'')+'</span></span>'
+   +'<span class="bn-mv">'+fm(sum)+' '+CUR+'</span><span class="bn-mc">›</span></div>';
  }
  function histView(){
-  const h=HIST(),keys=Object.keys(h).sort().reverse(),cr=sumRows();
-  const cs=sumOf(cr),cq=qtyOf(cr);
+  const h=HIST(),ks=Object.keys(h).sort((a,b)=>(h[b].t||0)-(h[a].t||0));
+  const cr=sumRows(),cs=sumOf(cr),cq=qtyOf(cr);
   let html='<div class="bn-hero"><span class="bn-hero-l">Текущий месяц</span><b class="bn-hero-v">'+fm(cs)+' '+CUR+'</b><span class="bn-hero-q">'+fm(cq)+' шт</span></div>';
-  html+='<div class="bn-sec">Месяцы</div>';
-  html+=rowHtml('cur',monthName(MK(new Date())),cs,cq,true);
-  keys.forEach(k=>{html+=rowHtml(k,monthName(k),h[k].sum,h[k].qty,false)});
-  if(!keys.length)html+='<div class="bn-tip">Закрытые месяцы появятся здесь автоматически, когда начнётся новый месяц.</div>';
+  html+='<div class="bn-sec">Сохранённые итоги</div>';
+  html+=rowHtml('cur',monthName(MK(new Date())),'идёт',cs,cq,true);
+  ks.forEach(k=>{
+   const d=h[k];
+   html+=rowHtml(k,monthName(d.m||k),new Date(d.t||0).toLocaleDateString('ru-RU',{day:'numeric',month:'short'}),d.sum,d.qty,false);
+  });
+  if(!ks.length)html+='<div class="bn-tip">Нажмите «💾 Сохранить», когда захотите зафиксировать итоги. Количества тогда обнулятся.</div>';
   g('bnSmList').innerHTML=html;
   g('bnSmTot').textContent=fm(cs)+' '+CUR;g('bnSmQty').textContent=fm(cq);
  }
- const cqOf=c=>c.items.reduce((a,it)=>a+it.parts.reduce((b,z)=>b+z.n,0),0);
- function detailView(rows,title){
-  let q=qtyOf(rows);
-  let html='<div class="bn-back" data-m="back">← Все месяцы</div><div class="bn-hero"><span class="bn-hero-l">'+esc(title)+'</span><b class="bn-hero-v">'+fm(sumOf(rows))+' '+CUR+'</b><span class="bn-hero-q">'+fm(q)+' шт</span></div>';
+ function detailView(rows,title,sub){
+  const q=qtyOf(rows);
+  let html='<div class="bn-back" data-m="back">← Все итоги</div>'
+   +'<div class="bn-hero"><span class="bn-hero-l">'+esc(title)+'</span><b class="bn-hero-v">'+fm(sumOf(rows))+' '+CUR+'</b><span class="bn-hero-q">'+fm(q)+' шт'+(sub?' · '+esc(sub):'')+'</span></div>';
   if(!rows.length)html+='<div class="bn-empty">Ничего не выбрано.</div>';
   else html+=rows.map(c=>'<div class="bn-sc"><div class="bn-sch"><span>'+esc(c.name)+'<i class="bn-cq">'+fm(cqOf(c))+' шт</i></span><b>'+fm(c.sum)+' '+CUR+'</b></div>'
    +c.items.map(it=>'<div class="bn-si"><div class="bn-sin">'+esc(it.name)+'</div>'
-    +it.parts.map(z=>'<div class="bn-sp"><span class="bn-qb">'+fm(z.n)+'<small>шт</small></span><em class="bn-pp">'+(z.l?z.l+' · ':'')+fm(z.p)+' '+CUR+' / шт</em><b>'+fm(z.v)+' '+CUR+'</b></div>').join('')
+    +it.parts.map(z=>{
+      const reg=z.l==='Район';
+      const cls=reg?'bn-reg':(z.l?'bn-city':'bn-one');
+      return '<div class="bn-pr"><span class="bn-tag '+cls+'">'+(z.l||'Шт')+'</span>'
+       +'<span class="bn-qb">'+fm(z.n)+'<small>шт</small></span>'
+       +'<span class="bn-pp">× '+fm(z.p)+' '+CUR+'</span><b>'+fm(z.v)+' '+CUR+'</b></div>';
+    }).join('')
     +'</div>').join('')+'</div>').join('');
   g('bnSmList').innerHTML=html;
   g('bnSmTot').textContent=fm(sumOf(rows))+' '+CUR;g('bnSmQty').textContent=fm(q);
@@ -214,7 +216,21 @@
   if(k==='back')return histView();
   if(k==='cur')return detailView(sumRows(),'Текущий месяц');
   const d=HIST()[k];if(!d)return;
-  detailView(d.rows,monthName(k));
+  detailView(d.rows,monthName(d.m||k),new Date(d.t||0).toLocaleDateString('ru-RU',{day:'numeric',month:'long'}));
+ }
+ function saveMonth(){
+  const rows=sumRows();
+  if(!rows.length){tst('Пока ничего не выбрано','err');return}
+  const now=new Date(),mk=MK(now);
+  askC('Сохранить итоги за '+monthName(mk)+' и обнулить количества?','Сохранить','💾').then(y=>{
+   if(!y)return;
+   const h=HIST(),id=now.getTime().toString(36);
+   h[id]={m:mk,t:now.getTime(),sum:sumOf(rows),qty:qtyOf(rows),rows:rows};
+   saveHist(h);
+   B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));
+   save();render();histView();
+   tst('Итоги сохранены');
+  });
  }
  function openSum(){
   histView();
@@ -251,12 +267,12 @@
    +'<div class="bn-btns"><button id="bnSumB">📋 Итоги</button><button id="bnRst">🔄 Обнулить</button></div></div></div>'
    +'<div class="bn-ov" id="bnSm"><div class="mdl-b bn-b"><div class="mdl-h"><span>📋 Итоги</span><button class="mdl-x" id="bnSmX">✕</button></div><div id="bnSmList"></div>'
    +'<div class="bn-ft"><div class="bn-tr"><span>Общая сумма</span><b id="bnSmTot">0</b></div><div class="bn-tr bn-sm"><span>Всего штук: <b id="bnSmQty">0</b></span></div>'
-   +'<div class="bn-btns"><button id="bnSmCp">📄 Скопировать</button></div></div></div></div>';
+   +'<div class="bn-btns"><button id="bnSave">💾 Сохранить</button><button id="bnSmCp">📄 Скопировать</button></div></div></div></div>';
   document.body.appendChild(m);
   m.onclick=e=>{if(e.target===m)closeBon()};
   g('bnX').onclick=()=>closeBon();
   g('bnRst').onclick=resetQty;
-  g('bnSumB').onclick=openSum;g('bnSmList').addEventListener('click',e=>{const r=e.target.closest('[data-m]');if(r)showMonth(r.dataset.m)});g('bnSmX').onclick=()=>closeSum();g('bnSmCp').onclick=copySum;g('bnSm').onclick=e=>{if(e.target===g('bnSm'))closeSum()};
+  g('bnSumB').onclick=openSum;g('bnSmList').addEventListener('click',e=>{const r=e.target.closest('[data-m]');if(r)showMonth(r.dataset.m)});g('bnSmX').onclick=()=>closeSum();g('bnSmCp').onclick=copySum;g('bnSave').onclick=saveMonth;g('bnSm').onclick=e=>{if(e.target===g('bnSm'))closeSum()};
   const l=g('bnList');
   l.addEventListener('input',onInput);
   l.addEventListener('click',onClick);
@@ -264,7 +280,7 @@
  }
 
  function openBon(){
-  rollMonth();const m=ensure();render();
+  const m=ensure();render();
   m.classList.add('open');lock(true);
   try{history.pushState({bn:1},'')}catch(e){}
  }
