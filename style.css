@@ -367,7 +367,7 @@ ol#l:not(:empty){margin:14px 0 0;padding:14px;border-radius:20px;background:rgba
 /* ===== Единая нижняя панель кнопок ===== */
 body{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))!important}
 
-.fab,.fab-l,.fab-c,.fab-r{
+.fab,.fab-l,.fab-c,.fab-r,#instBtn,.inst-btn{
   position:fixed!important;
   bottom:calc(14px + env(safe-area-inset-bottom,0px))!important;
   top:auto!important;
@@ -395,8 +395,8 @@ body{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))!important}
   z-index:41!important;
   transition:transform .14s ease,border-color .16s ease,background .16s ease,opacity .2s ease!important;
 }
-.fab span{display:inline-block;line-height:1}
-.fab svg{
+.fab span,.fab-r span,#instBtn span,.inst-btn span{display:inline-block;line-height:1}
+.fab svg,.fab-r svg,#instBtn svg,.inst-btn svg{
   width:22px;
   height:22px;
   padding:4px;
@@ -439,7 +439,7 @@ body{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))!important}
 .fab-c:active{transform:translateX(-50%) scale(.96)!important;background:linear-gradient(180deg,rgba(16,185,129,.26) 0%,rgba(8,26,20,.68) 100%)!important}
 
 /* Правая кнопка: Точки — прозрачное сапфирово-голубое стекло */
-.fab-r{
+.fab-r,#instBtn,.inst-btn{
   right:calc(50% - (min(440px, calc(100vw - 24px)) / 2))!important;
   left:auto!important;
   transform:none!important;
@@ -447,15 +447,15 @@ body{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))!important}
   border:1px solid rgba(56,189,248,.34)!important;
   box-shadow:0 10px 24px rgba(0,0,0,.38),inset 0 1px 0 rgba(186,230,253,.24)!important;
 }
-.fab-r svg{
+.fab-r svg,#instBtn svg,.inst-btn svg{
   background:rgba(56,189,248,.16);
   border:1px solid rgba(56,189,248,.32);
   color:#7dd3fc;
 }
-.fab-r:active{transform:scale(.96)!important;background:linear-gradient(180deg,rgba(56,189,248,.26) 0%,rgba(8,20,32,.68) 100%)!important}
+.fab-r:active,#instBtn:active,.inst-btn:active{transform:scale(.96)!important;background:linear-gradient(180deg,rgba(56,189,248,.26) 0%,rgba(8,20,32,.68) 100%)!important}
 
 /* Полное скрытие при открытии Бонусов, Точек или любого модального окна */
-body.dock-hide .fab{
+body.dock-hide .fab, body.dock-hide .fab-r,body.dock-hide #instBtn,body.dock-hide .inst-btn{
   opacity:0!important;
   pointer-events:none!important;
   visibility:hidden!important;
