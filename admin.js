@@ -169,22 +169,70 @@
   window.scrollTo(0,st);
  }
 
+ 
+ // ===== Кастомные модальные окна (без системных confirm/prompt) =====
+ function openDialog({title, msg, okText, danger, inputVal, placeholder}){
+  return new Promise(res => {
+   const ov = g("cOv"), box = g("cBox"), ic = g("cIc"), inp = g("cIn"), ok = g("cOk"), no = g("cNo");
+   const isInput = inputVal !== undefined;
+   box.className = "dlg" + (danger ? " danger" : "");
+   g("cT").textContent = title || (danger ? "Удаление записи" : "Подтверждение");
+   g("cM").textContent = msg || "";
+   g("cM").hidden = !msg;
+   ok.textContent = okText || (danger ? "Удалить" : isInput ? "Сохранить" : "Подтвердить");
+
+   if(isInput){
+    inp.hidden = false;
+    inp.value = inputVal;
+    inp.placeholder = placeholder || "";
+    ic.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+   } else {
+    inp.hidden = true;
+    ic.innerHTML = danger
+     ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>'
+     : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>';
+   }
+
+   const close = val => {
+    ov.classList.remove("show");
+    document.removeEventListener("keydown", onKey);
+    ok.onclick = no.onclick = ov.onclick = inp.onkeydown = null;
+    setTimeout(() => { ov.hidden = true; res(val); }, 180);
+   };
+   const onKey = e => { if(e.key === "Escape") close(isInput ? null : false); };
+
+   ok.onclick = () => close(isInput ? inp.value : true);
+   no.onclick = () => close(isInput ? null : false);
+   ov.onclick = e => { if(e.target === ov) close(isInput ? null : false); };
+   inp.onkeydown = e => { if(e.key === "Enter"){ e.preventDefault(); close(inp.value); } };
+   document.addEventListener("keydown", onKey);
+
+   ov.hidden = false;
+   requestAnimationFrame(() => {
+    ov.classList.add("show");
+    if(isInput){ inp.focus(); inp.select(); } else { ok.focus(); }
+   });
+  });
+ }
+ const ask = (msg, opts = {}) => openDialog({ ...opts, msg, danger: opts.danger ?? /удал|очист|сброс/i.test(msg) });
+ const askInput = (title, msg, inputVal, placeholder) => openDialog({ title, msg, inputVal, placeholder });
+
  // ===== Действия =====
  async function force(){
-  if(!(await ask('Отправить всем устройствам команду обновления?')))return;
+  if(!(await ask('Отправить всем устройствам команду обновления?', { title: 'Обновление приложения', okText: 'Обновить' })))return;
   try{await db.ref('config/forceUpdate').set(firebase.database.ServerValue.TIMESTAMP);toast('Команда отправлена')}
   catch(e){toast('Не удалось: '+((e&&e.message)||e),true)}
  }
  async function rename(id){
   const cur=LABELS[id]||'';
-  const v=prompt('Название устройства (пусто — убрать имя):',cur);
+  const v=await askInput('Имя устройства', 'Оставьте поле пустым, чтобы сбросить название', cur, 'Например: Водитель Артак');
   if(v===null)return;
   const t=v.trim().slice(0,40);
   try{if(t)await db.ref('labels/'+id).set(t);else await db.ref('labels/'+id).remove();toast('Сохранено')}
   catch(e){toast('Не удалось: '+((e&&e.message)||e),true)}
  }
  async function del(id){
-  if(!(await ask('Удалить запись об этом устройстве из панели? Данные в самом приложении останутся.')))return;
+  if(!(await ask('Удалить запись об этом устройстве из панели? Данные в самом приложении останутся.', { title: 'Удалить устройство', okText: 'Удалить', danger: true })))return;
   try{await db.ref('users/'+id).remove();await db.ref('labels/'+id).remove();toast('Удалено')}
   catch(e){toast('Не удалось: '+((e&&e.message)||e),true)}
  }

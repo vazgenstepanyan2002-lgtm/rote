@@ -112,6 +112,9 @@ body:has(#login:not([hidden])){height:100dvh;overflow:hidden;overscroll-behavior
 .dlg-no{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#cbd5e1}
 .dlg-ok{border:none;color:#042414;background:linear-gradient(135deg,#6ee7b7 0%,#10b981 55%,#059669 100%);box-shadow:0 8px 20px rgba(16,185,129,.28)}
 .dlg.danger .dlg-ok{color:#fff;background:linear-gradient(135deg,#f87171 0%,#ef4444 55%,#dc2626 100%);box-shadow:0 8px 20px rgba(239,68,68,.3)}
+
+.dlg-inp{width:100%;height:48px;padding:0 14px;font-size:15.5px;border-radius:14px;border:1px solid rgba(255,255,255,.16);background:rgba(7,11,18,.85);color:#fff;outline:none;margin-bottom:18px;text-align:left}
+.dlg-inp:focus{border-color:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.16)}
 </style></head><body>
 <a class="back" href="./"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>В приложение</a>
 <div id="login" class="auth-wrap"><div class="card">
@@ -140,7 +143,20 @@ body:has(#login:not([hidden])){height:100dvh;overflow:hidden;overscroll-behavior
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="admin.js"></script>
+
+<div id="cOv" class="ov" role="dialog" aria-modal="true" hidden>
+ <div id="cBox" class="dlg">
+  <div id="cIc" class="dlg-ic"></div>
+  <div id="cT" class="dlg-t"></div>
+  <div id="cM" class="dlg-m"></div>
+  <input id="cIn" class="dlg-inp" type="text" maxlength="40" autocomplete="off" hidden>
+  <div class="dlg-act">
+   <button type="button" id="cNo" class="dlg-no">Отмена</button>
+   <button type="button" id="cOk" class="dlg-ok">Подтвердить</button>
+  </div>
+ </div>
+</div>
+<script src="admin.js?v=1794920174835"></script>
 <script>
 ['lgEm','lgPw'].forEach(id=>{
  const el=document.getElementById(id);
@@ -158,28 +174,5 @@ body:has(#login:not([hidden])){height:100dvh;overflow:hidden;overscroll-behavior
  el.addEventListener('animationstart',clean);
 });
 </script>
-<div id="cOv" class="ov" role="dialog" aria-modal="true"><div id="cBox" class="dlg">
- <div id="cIc" class="dlg-ic"></div>
- <div id="cT" class="dlg-t">Подтвердите действие</div>
- <div id="cM" class="dlg-m"></div>
- <div class="dlg-act"><button type="button" id="cNo" class="dlg-no">Отмена</button><button type="button" id="cOk" class="dlg-ok">Подтвердить</button></div>
-</div></div>
-<script>
-window.ask=(msg,opts={})=>new Promise(res=>{
- const ov=document.getElementById('cOv'),box=document.getElementById('cBox'),ic=document.getElementById('cIc'),ok=document.getElementById('cOk'),no=document.getElementById('cNo');
- const danger=/удал|очист|сброс/i.test(msg)||opts.danger;
- box.className='dlg'+(danger?' danger':'');
- document.getElementById('cT').textContent=opts.title||(danger?'Удаление записи':'Подтверждение');
- document.getElementById('cM').textContent=msg;
- ok.textContent=opts.okText||(danger?'Удалить':'Отправить');
- ic.innerHTML=danger
-  ?'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>'
-  :'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>';
- const close=v=>{ov.classList.remove('show');ok.onclick=no.onclick=ov.onclick=null;res(v)};
- ok.onclick=()=>close(true);
- no.onclick=()=>close(false);
- ov.onclick=e=>{if(e.target===ov)close(false)};
- ov.classList.add('show');
-});
-</script>
+
 </body></html>
