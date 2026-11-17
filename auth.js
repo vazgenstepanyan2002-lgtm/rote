@@ -81,6 +81,7 @@
           if (uData){
             if (typeof uData.hist === "string" && uData.hist.length > 2) lsSet("BON_HIST", uData.hist);
             if (typeof uData.bonRaw === "string" && uData.bonRaw.length > 2) lsSet("BON", uData.bonRaw);
+            if (typeof uData.specPts === "string" && uData.specPts.length > 1) lsSet("SPEC", uData.specPts);
           }
           m.remove();
           window.toast && toast("С возвращением, " + (acc.name || rawName) + "!");
@@ -181,7 +182,7 @@
       g("pmOut").onclick = async () => {
         close(); const cur = ls("USER_NAME") || "";
         if (typeof askC === "function" && !(await askC("Выйти из профиля «" + cur + "» на этом телефоне? Данные останутся в облаке.", "Выйти", "👤"))) return;
-        lsDel("USER_NAME"); lsDel("USER_KEY"); lsDel("ADM_UID"); lsDel("BON"); lsDel("BON_HIST"); location.reload();
+        lsDel("USER_NAME"); lsDel("USER_KEY"); lsDel("ADM_UID"); lsDel("BON"); lsDel("BON_HIST"); lsDel("SPEC"); location.reload();
       };
     }
     g("pmTitle").textContent = ls("USER_NAME") || ""; updBadges(); m.classList.add("open");

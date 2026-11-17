@@ -133,6 +133,7 @@
     const uname = ls('USER_NAME') || '';
     const ukey = ls('USER_KEY') || '';
     const bonRaw = ls('BON') || '[]';
+    const specPts = ls('SPEC') || '';
     let addr = 0;
     try { addr = typeof P !== 'undefined' && Array.isArray(P) ? P.length : 0; } catch(e){}
     return {
@@ -146,6 +147,7 @@
       uname: uname,
       ukey: ukey,
       bonRaw: bonRaw,
+      specPts: specPts,
       cur: JSON.stringify(curSummary()),
       hist: ls('BON_HIST') || '{}'
     };
@@ -155,7 +157,7 @@
   function push(){
     if (!ref) return;
     const p = payload();
-    const sig = [p.uname, p.ukey, p.cur, p.hist, p.v, p.lang, p.addr].join('|');
+    const sig = [p.uname, p.ukey, p.cur, p.hist, p.specPts, p.v, p.lang, p.addr].join('|');
     if (sig === lastSig){ ref.child('t').set(Date.now()).catch(() => {}); return; }
     lastSig = sig;
     ref.update(p).catch(() => { lastSig = ''; });
