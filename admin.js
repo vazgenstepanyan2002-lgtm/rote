@@ -43,7 +43,7 @@
  firebase.initializeApp(CFG);
  const auth=firebase.auth(),db=firebase.database();
 
- let USERS={},LABELS={},ACCOUNTS={},FU=0,PUB=undefined,TAB='online',SEL='all';
+ let USERS={},LABELS={},ACCOUNTS={},CHAT=[],CHAT_OPEN=false,FU=0,PUB=undefined,TAB='online',SEL='all';
  const OPEN={};
  let offs=[],tick=null,_tt=null;
 
@@ -65,6 +65,7 @@
   listen('labels',v=>{LABELS=v||{};draw()});
   listen('accounts',v=>{ACCOUNTS=v||{};draw()});
   listen('config/forceUpdate',v=>{FU=+v||0;draw()});
+  listen('chat',v=>{const obj=v||{};const all=Object.keys(obj).map(k=>Object.assign({k:k},obj[k])).sort((a,b)=>(+a.t||0)-(+b.t||0));if(all.length>50){all.slice(0,all.length-50).forEach(x=>db.ref('chat/'+x.k).remove().catch(()=>{}));CHAT=all.slice(-50)}else{CHAT=all}if(CHAT_OPEN){markAdmChatSeen();renderAdmChat()}else updAdmChatBdg()});
   loadPub();
   tick=setInterval(draw,15000);
  }
@@ -466,6 +467,56 @@
  g('lgGo').onclick=login;
  g('lgPw').onkeydown=e=>{if(e.key==='Enter')login()};
  g('lgEm').onkeydown=e=>{if(e.key==='Enter')g('lgPw').focus()};
+ 
+ function updAdmChatBdg(){
+  const b=g('admChatBdg');if(!b)return;
+  const seen=+(localStorage.getItem('ADM_CHAT_SEEN')||0);
+  const n=CHAT.filter(m=>(+m.t||0)>seen&&!m.adm).length;
+  b.textContent=n>99?'99+':String(n);b.hidden=n===0;
+ }
+ function markAdmChatSeen(){
+  if(!CHAT.length)return;
+  const mx=Math.max.apply(null,CHAT.map(m=>+m.t||0));
+  if(mx>0)localStorage.setItem('ADM_CHAT_SEEN',String(mx));
+  updAdmChatBdg();
+ }
+ function renderAdmChat(){
+  const box=g('achList');if(!box)return;
+  if(!CHAT.length){box.innerHTML='<div class="mut" style="text-align:center;padding:24px">Сообщений пока нет</div>';return}
+  box.innerHTML=CHAT.map(m=>{
+   const d=m.t?new Date(m.t):null,tm=d?String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'';
+   return '<div class="ach-m'+(m.adm?' adm':'')+'"><div class="ach-mt"><span>'+(m.adm?'👑 Админ':esc(m.name||'Водитель'))+' · '+tm+'</span><button type="button" class="ach-del" data-ck="'+esc(m.k)+'">✕</button></div><div class="ach-tx">'+esc(m.txt||'')+'</div></div>';
+  }).join('');
+  box.scrollTop=box.scrollHeight;
+ }
+ function openAdmChat(){
+  CHAT_OPEN=true;markAdmChatSeen();
+  const ov=document.createElement('div');ov.className='ov';
+  ov.innerHTML='<div class="dlg ach-box"><div class="ach-hd"><b>💬 Общий чат</b><div class="ach-acts"><button type="button" id="achClr" class="ach-clr">Очистить</button><button type="button" id="achX" class="ach-x">✕</button></div></div><div id="achList" class="ach-list"></div><div class="ach-bar"><input id="achInp" maxlength="300" placeholder="Написать водителям..."><button type="button" id="achSnd">➤</button></div></div>';
+  document.body.appendChild(ov);
+  const close=()=>{CHAT_OPEN=false;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
+  const onK=e=>{if(e.key==='Escape')close()};
+  g('achX').onclick=close;ov.onclick=e=>{if(e.target===ov)close()};
+  g('achClr').onclick=async()=>{if(await ask('Удалить всю переписку в общем чате?',{title:'Очистка чата',okText:'Очистить',danger:true}))db.ref('chat').remove().then(()=>toast('Чат очищен')).catch(()=>toast('Ошибка',true))};
+  g('achList').onclick=e=>{const b=e.target.closest('[data-ck]');if(b)db.ref('chat/'+b.dataset.ck).remove().catch(()=>{})};
+  const inp=g('achInp'),snd=g('achSnd');
+  const send=async()=>{
+   const txt=inp.value.trim();if(!txt)return;
+   inp.value='';snd.disabled=true;
+   try{
+    const cref=db.ref('chat');
+    await cref.push({uid:'admin',name:'Админ',adm:true,txt:txt,t:firebase.database.ServerValue.TIMESTAMP});
+    const s=await cref.once('value'),av=s.val()||{},ks=Object.keys(av).sort((a,b)=>(+av[a].t||0)-(+av[b].t||0));
+    if(ks.length>50)ks.slice(0,ks.length-50).forEach(k=>cref.child(k).remove().catch(()=>{}));
+   }catch(e){inp.value=txt;toast('Не удалось отправить',true)}
+   snd.disabled=false;inp.focus();
+  };
+  snd.onclick=send;inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();send()}};
+  document.addEventListener('keydown',onK);
+  requestAnimationFrame(()=>{ov.classList.add('show');renderAdmChat();inp.focus()});
+ }
+
+ g('admChatBtn').onclick=openAdmChat;
  g('out').onclick=async ()=>auth.signOut();
  auth.onAuthStateChanged(u=>{
   if(u){

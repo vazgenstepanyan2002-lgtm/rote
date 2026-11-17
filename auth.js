@@ -109,29 +109,101 @@
     return m;
   }
 
+  let _chatList = [], _chatOpen = false, _chatBound = false;
+  const esc = t => String(t == null ? "" : t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const fmtTime = ms => ms ? String(new Date(ms).getHours()).padStart(2, "0") + ":" + String(new Date(ms).getMinutes()).padStart(2, "0") : "";
+
+  function unreadCount(){
+    const seen = +(ls("CHAT_SEEN") || 0), myUid = ls("ADM_UID") || "";
+    return _chatList.filter(m => (m.t || 0) > seen && m.uid !== myUid).length;
+  }
+  function markChatSeen(){
+    if (!_chatList.length) return;
+    const maxT = Math.max.apply(null, _chatList.map(m => +m.t || 0));
+    if (maxT > 0) lsSet("CHAT_SEEN", String(maxT));
+    updBadges();
+  }
+  function updBadges(){
+    const n = unreadCount(), txt = n > 99 ? "99+" : String(n);
+    ["usrBadge", "pmChatBadge"].forEach(id => { const el = g(id); if (el){ el.textContent = txt; el.hidden = n === 0; } });
+  }
+  function renderChatRows(){
+    const box = g("chatMsgs"); if (!box) return;
+    const myUid = ls("ADM_UID") || "";
+    if (!_chatList.length){ box.innerHTML = '<div class="ch-empty">Сообщений пока нет. Напишите первым!</div>'; return; }
+    box.innerHTML = _chatList.map(m => {
+      const mine = m.uid && m.uid === myUid, isAdm = !!m.adm;
+      return '<div class="ch-msg' + (mine ? " mine" : "") + (isAdm ? " adm" : "") + '"><div class="ch-meta"><span>' + (isAdm ? "👑 Админ" : esc(m.name || "Водитель")) + '</span><span>' + fmtTime(m.t) + '</span></div><div class="ch-txt">' + esc(m.txt || "") + '</div></div>';
+    }).join("");
+    box.scrollTop = box.scrollHeight;
+  }
+  function openChat(){
+    _chatOpen = true; markChatSeen();
+    let m = g("chatMdl");
+    if (!m){
+      m = document.createElement("div"); m.id = "chatMdl"; m.className = "mdl";
+      m.innerHTML = '<div class="mdl-b ch-box"><div class="mdl-h"><span>💬 Общий чат</span><button type="button" class="mdl-x" id="chClose">✕</button></div><div id="chatMsgs" class="ch-list"></div><div class="ch-bar"><input id="chInp" maxlength="300" placeholder="Сообщение..."><button type="button" id="chSend">➤</button></div></div>';
+      document.body.appendChild(m);
+      const close = () => { _chatOpen = false; m.classList.remove("open"); };
+      g("chClose").onclick = close;
+      m.onclick = e => { if (e.target === m) close(); };
+      const inp = g("chInp"), snd = g("chSend");
+      const sendMsg = async () => {
+        const txt = inp.value.trim(); if (!txt) return;
+        if (!window.firebase || !firebase.apps || !firebase.apps.length){ window.toast && toast("Нет соединения с сервером", "err"); return; }
+        inp.value = ""; snd.disabled = true;
+        try {
+          const ref = firebase.database().ref("chat");
+          await ref.push({ uid: ls("ADM_UID") || "", name: ls("USER_NAME") || "Водитель", txt: txt, t: firebase.database.ServerValue.TIMESTAMP });
+          const s = await ref.once("value"), av = s.val() || {};
+          const ks = Object.keys(av).sort((a, b) => (+av[a].t || 0) - (+av[b].t || 0));
+          if (ks.length > 50) ks.slice(0, ks.length - 50).forEach(k => ref.child(k).remove().catch(() => {}));
+        } catch(e){ inp.value = txt; window.toast && toast("Не удалось отправить сообщение", "err"); }
+        snd.disabled = false; inp.focus();
+      };
+      snd.onclick = sendMsg;
+      inp.onkeydown = e => { if (e.key === "Enter"){ e.preventDefault(); sendMsg(); } };
+    }
+    m.classList.add("open"); renderChatRows();
+    setTimeout(() => { const i = g("chInp"); if (i) i.focus(); }, 120);
+  }
+  function openProfileMenu(){
+    let m = g("profMdl");
+    if (!m){
+      m = document.createElement("div"); m.id = "profMdl"; m.className = "cm";
+      m.innerHTML = '<div class="cm-b pm-box"><div class="pm-top"><div class="pm-av">👤</div><div><div class="pm-nm" id="pmTitle"></div><div class="pm-sb">Профиль водителя</div></div></div><button type="button" class="pm-btn pm-chat" id="pmChat"><span>💬 Общий чат</span><span id="pmChatBadge" class="pm-bdg" hidden>0</span></button><button type="button" class="pm-btn pm-out" id="pmOut">🚪 Выйти</button><button type="button" class="pm-btn pm-cls" id="pmCls">Закрыть</button></div>';
+      document.body.appendChild(m);
+      const close = () => m.classList.remove("open");
+      m.onclick = e => { if (e.target === m) close(); };
+      g("pmCls").onclick = close;
+      g("pmChat").onclick = () => { close(); openChat(); };
+      g("pmOut").onclick = async () => {
+        close(); const cur = ls("USER_NAME") || "";
+        if (typeof askC === "function" && !(await askC("Выйти из профиля «" + cur + "» на этом телефоне? Данные останутся в облаке.", "Выйти", "👤"))) return;
+        lsDel("USER_NAME"); lsDel("USER_KEY"); lsDel("ADM_UID"); lsDel("BON"); lsDel("BON_HIST"); location.reload();
+      };
+    }
+    g("pmTitle").textContent = ls("USER_NAME") || ""; updBadges(); m.classList.add("open");
+  }
+  function bindChat(){
+    if (_chatBound || !window.firebase || !firebase.apps || !firebase.apps.length) return;
+    _chatBound = true;
+    firebase.database().ref("chat").limitToLast(50).on("value", snap => {
+      const val = snap.val() || {};
+      _chatList = Object.keys(val).map(k => Object.assign({ k: k }, val[k])).sort((a, b) => (+a.t || 0) - (+b.t || 0));
+      if (_chatOpen){ markChatSeen(); renderChatRows(); } else updBadges();
+    }, () => {});
+  }
   function renderUserBtn(){
-    const ft = g("ft");
-    const uname = ls("USER_NAME");
-    if (!ft || !uname) return;
-    let b = g("usrBtn");
-    if (!b){ b = document.createElement("button"); b.id = "usrBtn"; ft.appendChild(b); }
+    const ft = g("ft"), uname = ls("USER_NAME"); if (!ft || !uname) return;
+    let b = g("usrBtn"); if (!b){ b = document.createElement("button"); b.id = "usrBtn"; ft.appendChild(b); }
     if (!g("ft-br")){ const br = document.createElement("div"); br.id = "ft-br"; ft.appendChild(br); }
-    b.textContent = "👤 " + uname;
-    b.onclick = async () => {
-      if (typeof askC === "function"){
-        const ok = await askC("Выйти из профиля «" + uname + "» на этом телефоне? Данные останутся в облаке.", "Выйти", "👤");
-        if (!ok) return;
-      }
-      lsDel("USER_NAME"); lsDel("USER_KEY"); lsDel("ADM_UID"); lsDel("BON"); lsDel("BON_HIST");
-      location.reload();
-    };
+    b.innerHTML = '<span>👤 ' + esc(uname) + '</span><span id="usrBadge" class="usr-bdg" hidden>0</span>';
+    b.onclick = openProfileMenu; updBadges();
   }
-
   function boot(){
-    renderUserBtn();
-    if (!ls("USER_NAME")) ensureModal();
+    renderUserBtn(); if (!ls("USER_NAME")) ensureModal();
+    let tries = 0; const w = setInterval(() => { if (++tries > 60) clearInterval(w); else if (window.firebase && firebase.apps && firebase.apps.length){ clearInterval(w); bindChat(); } }, 500);
   }
-
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
-  else boot();
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })();
