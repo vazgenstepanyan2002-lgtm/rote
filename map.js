@@ -95,10 +95,10 @@
  function draw(cur,start,sv,tok){
   if(_map){try{_map.remove()}catch(e){}_map=null}
   const box=g('mapBox');box.innerHTML='';
-  box.style.touchAction='none';const cv=L.canvas({padding:0.5});
-  const map=L.map(box,{preferCanvas:true,renderer:cv,zoomControl:true,dragging:true,touchZoom:true,doubleClickZoom:true,scrollWheelZoom:true,tap:true,inertia:true,zoomAnimation:true,markerZoomAnimation:true,rotate:true,touchRotate:true,bearing:0,rotateControl:{closeOnZeroBearing:false}});_map=map;
-  const syncLines=()=>{if(_map===map&&cv&&cv._update)try{cv._update()}catch(e){}};
-  map.on('zoom move rotate zoomend moveend viewreset',syncLines);
+  box.style.touchAction='none';const svg=L.svg({padding:0.5});
+  const map=L.map(box,{preferCanvas:false,renderer:svg,zoomControl:true,dragging:true,touchZoom:true,doubleClickZoom:true,scrollWheelZoom:true,tap:true,inertia:true,zoomAnimation:false,markerZoomAnimation:false,rotate:true,touchRotate:true,bearing:0,rotateControl:{closeOnZeroBearing:false}});_map=map;
+  const syncLines=()=>{if(_map===map&&svg&&svg._update)try{svg._update()}catch(e){}};
+  map.on('rotate zoomend moveend viewreset',syncLines);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   const etas=document.querySelectorAll('#o ol li .eta');
   const ll=[];let bad=0;
