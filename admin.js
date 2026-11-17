@@ -273,7 +273,11 @@
   if(TAB==='totals'&&document.activeElement&&document.activeElement.id==='sel')return;
   document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===TAB));
   const st=window.scrollY;
-  if(TAB==='online')drawOnline();else if(TAB==='totals')drawTotals();else drawVer();
+  if(TAB!=='map'&&_map)destroyMap();
+  if(TAB==='online')drawOnline();
+  else if(TAB==='map')drawMap();
+  else if(TAB==='totals')drawTotals();
+  else drawVer();
   window.scrollTo(0,st);
  }
 
