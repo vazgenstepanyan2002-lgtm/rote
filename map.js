@@ -120,7 +120,7 @@
   box.appendChild(rCvs);
   let routePts=ll,routeDashed=true,curLines=[];
   const paintRoute=()=>{
-    if(_map!==map)return;
+    if(_map!==map||!map._loaded)return;
     const w=box.clientWidth,h=box.clientHeight;
     if(!w||!h)return;
     const dpr=window.devicePixelRatio||1;
@@ -151,10 +151,10 @@
     paintRoute();
     return [];
   };
-  drawRoute(ll,true);
-  map.on('move zoom rotate resize viewreset zoomend moveend rotateend',paintRoute);
   const pad=new Array(30,30);
   const _fit=()=>map.fitBounds(L.latLngBounds(ll),{padding:pad,maxZoom:16});_fit();
+  drawRoute(ll,true);
+  map.on('move zoom rotate resize viewreset zoomend moveend rotateend',paintRoute);
   setTimeout(()=>{if(_map===map){map.invalidateSize();map.fitBounds(L.latLngBounds(ll),{padding:pad,maxZoom:16});paintRoute();}},150);
 
   let note='Линия по прямой (загружаю дороги...)';
