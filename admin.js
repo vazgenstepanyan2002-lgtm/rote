@@ -359,6 +359,8 @@
   else if(a==='del'){e.stopPropagation();del(b.dataset.id)}
   else if(a==='rename')rename(b.dataset.id);
   else if(a==='month'){OPEN[b.dataset.key]=!OPEN[b.dataset.key];draw()}
+  else if(a==='mapfilter'){MAP_ONLY_ONLINE=!MAP_ONLY_ONLINE;_didFit=false;drawMap()}
+  else if(a==='focus'){const mk=_markers[b.dataset.id];if(mk&&_map){_map.setView(mk.getLatLng(),16,{animate:true});mk.openPopup()}}
  });
  g('view').addEventListener('change',e=>{if(e.target.id==='sel'){SEL=e.target.value;draw()}});
  document.querySelectorAll('.tabs button').forEach(b=>b.onclick=async ()=>{TAB=b.dataset.tab;draw()});
