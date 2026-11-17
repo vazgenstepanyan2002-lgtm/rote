@@ -271,12 +271,10 @@ body:has(#login:not([hidden])){height:100dvh;overflow:hidden;overscroll-behavior
 .row:has(.rv) .rv::before{content:"";display:none}
 .row:has(.rv) .rv-pill{display:inline-block}
 .row:has(.rv) .dm-btn,.row:has(.rv) .xb{grid-row:2;margin-top:7px;width:30px;height:30px;border-radius:10px;font-size:13.5px}
-.row:has(.rv) .dm-btn{grid-column:3}
-.row:has(.rv) .xb:nth-of-type(1){grid-column:4}
-.row:has(.rv) .xb:nth-of-type(2){grid-column:5}
-.row:has(.rv) .xb:nth-of-type(3){grid-column:6}
-.row:has(.rv):not(:has(.xb:nth-of-type(3))) .xb:nth-of-type(1){grid-column:5}
-.row:has(.rv):not(:has(.xb:nth-of-type(3))) .xb:nth-of-type(2){grid-column:6}
+.row:has(.rv) [data-act="dm"]{grid-column:3}
+.row:has(.rv) [data-act="pin"]{grid-column:4}
+.row:has(.rv) [data-act="block"]{grid-column:5}
+.row:has(.rv) [data-act="del"]{grid-column:6}
 </style></head><body>
 <a class="back" href="./"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>В приложение</a>
 <div id="login" class="auth-wrap"><div class="card">
@@ -323,7 +321,7 @@ body:has(#login:not([hidden])){height:100dvh;overflow:hidden;overscroll-behavior
   </div>
  </div>
 </div>
-<script src="admin.js?v=20261117220243"></script>
+<script src="admin.js?v=20261117220611"></script>
 <script>
 ['lgEm','lgPw'].forEach(id=>{
  const el=document.getElementById(id);
