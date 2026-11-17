@@ -200,7 +200,7 @@
  }
  function detailView(rows,title){
   let q=qtyOf(rows);
-  let html='<div class="bn-back" data-m="back">← Все месяцы</div><div class="bn-mt">'+esc(title)+'</div>';
+  let html='<div class="bn-back" data-m="back">← Все месяцы</div><div class="bn-hero"><span class="bn-hero-l">'+esc(title)+'</span><b class="bn-hero-v">'+fm(sumOf(rows))+' '+CUR+'</b><span class="bn-hero-q">'+fm(q)+' шт</span></div>';
   if(!rows.length)html+='<div class="bn-empty">Ничего не выбрано.</div>';
   else html+=rows.map(c=>'<div class="bn-sc"><div class="bn-sch"><span>'+esc(c.name)+'</span><b>'+fm(c.sum)+' '+CUR+'</b></div>'
    +c.items.map(it=>'<div class="bn-si"><div class="bn-sin">'+esc(it.name)+'</div>'
