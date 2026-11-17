@@ -26,7 +26,7 @@
 .mk.base{background:linear-gradient(135deg,#34d399,#059669)}
 .mk.ok{background:linear-gradient(135deg,#38bdf8,#0284c7)}
 .mk.me{background:linear-gradient(135deg,#f43f5e,#e11d48);font-size:11px}
-#mapBox .leaflet-tile-pane{filter:invert(100%) hue-rotate(180deg) brightness(93%) contrast(95%) saturate(80%)}
+#mapBox .leaflet-tile-pane img{filter:invert(100%) hue-rotate(180deg) brightness(93%) contrast(95%) saturate(82%)}
 #mapBox .leaflet-bar{border:1px solid rgba(255,255,255,.16)!important;border-radius:13px!important;overflow:hidden;box-shadow:0 8px 22px rgba(0,0,0,.55)!important;background:rgba(13,19,31,.88)!important;backdrop-filter:blur(12px)}
 #mapBox .leaflet-bar a{background:transparent!important;color:#f1f5f9!important;border-bottom:1px solid rgba(255,255,255,.12)!important;width:36px!important;height:36px!important;line-height:36px!important;font-weight:700!important}
 #mapBox .leaflet-bar a:last-child{border-bottom:none!important}
@@ -104,7 +104,7 @@
   box.addEventListener('touchcancel',()=>{_tc=0;setTimeout(showL,120)},{passive:true});
   map.on('zoomstart',hideL);
   map.on('zoomend moveend',()=>setTimeout(showL,60));
-  L.tileLayer('https://openstreetmap.org{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   const etas=document.querySelectorAll('#o ol li .eta');
   const ll=[];let bad=0;
   if(start){
@@ -142,19 +142,23 @@
   }
   info();
   if(ll.length<2){note='';info();return}
-  fetch('https://project-osrm.org/route/v1/driving/' + ll.map(p => p.at(1) + ',' + p.at(0)).join(';') + '?overview=full&geometries=geojson', {signal: AbortSignal.timeout(10000)})
-   .then(r=>r.json()).then(j=>{
-    if(tok!==_tok||_map!==map)return;
-    const r0=j.routes&&j.routes.at(0);
-    const c=r0&&r0.geometry&&r0.geometry.coordinates;
-    if(!c||!c.length)throw 0;
-    curLines.forEach(l=>map.removeLayer(l));
-    curLines=drawRoute(c.map(x=>[x.at(1),x.at(0)]),false);
-    note='Линия построена по дорогам';info();
-   }).catch(()=>{
-    if(tok!==_tok||_map!==map)return;
-    note='Дороги не загрузились, линия по прямой';info();
-   });
+  const coords=ll.map(p=>p.at(1)+','+p.at(0)).join(';');
+  const q='?overview=full&geometries=geojson';
+  const loadRoad=u=>fetch(u+coords+q).then(r=>r.json()).then(j=>{
+   const r0=j.routes&&j.routes.at(0);
+   const c=r0&&r0.geometry&&r0.geometry.coordinates;
+   if(!c||!c.length)throw 0;
+   return c;
+  });
+  loadRoad('https://router.project-osrm.org/route/v1/driving/').catch(()=>loadRoad('https://routing.openstreetmap.de/routed-car/route/v1/driving/')).then(c=>{
+   if(tok!==_tok||_map!==map)return;
+   curLines.forEach(l=>map.removeLayer(l));
+   curLines=drawRoute(c.map(x=>[x.at(1),x.at(0)]),false);
+   note='Линия построена по дорогам';info();
+  }).catch(()=>{
+   if(tok!==_tok||_map!==map)return;
+   note='Дороги не загрузились, линия по прямой';info();
+  });
  }
  window.openMap=openMap;window.closeMap=closeMap;
  window.addEventListener('popstate',()=>{const x=g('mapM');if(x&&x.classList.contains('open'))closeMap('pop')});
