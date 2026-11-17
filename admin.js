@@ -43,7 +43,7 @@
  firebase.initializeApp(CFG);
  const auth=firebase.auth(),db=firebase.database();
 
- let USERS={},LABELS={},FU=0,PUB=undefined,TAB='online',SEL='all';
+ let USERS={},LABELS={},ACCOUNTS={},FU=0,PUB=undefined,TAB='online',SEL='all';
  const OPEN={};
  let offs=[],tick=null,_tt=null;
 
@@ -63,6 +63,7 @@
   stop();
   listen('users',v=>{USERS=v||{};showErr('');draw()});
   listen('labels',v=>{LABELS=v||{};draw()});
+  listen('accounts',v=>{ACCOUNTS=v||{};draw()});
   listen('config/forceUpdate',v=>{FU=+v||0;draw()});
   loadPub();
   tick=setInterval(draw,15000);
@@ -80,6 +81,8 @@
   try{const h=JSON.parse(u.hist||'{}');if(h&&typeof h==='object')hist=h}catch(e){}
   return{id:id,u:u,cur:cur,hist:hist};
  }
+ const accByUid=uid=>Object.keys(ACCOUNTS).map(k=>Object.assign({key:k},ACCOUNTS[k])).find(a=>a&&a.uid===uid)||null;
+ const dispName=d=>LABELS[d.id]||d.u.uname||(accByUid(d.id)&&accByUid(d.id).name)||devName(d.u.ua);
  const devs=()=>Object.keys(USERS).map(k=>parseDev(k,USERS[k])).sort((a,b)=>(b.u.t||0)-(a.u.t||0));
  function aggMonths(list){
   const map={};
@@ -147,7 +150,7 @@
    const live = now - (d.u.t || 0) < TTL;
    if(MAP_ONLY_ONLINE && !live) return;
    seen[d.id] = true;
-   const title = LABELS[d.id] || devName(d.u.ua);
+   const title = dispName(d);
    const spd = typeof d.u.spd === "number" && d.u.spd > 2 ? " · " + d.u.spd + " км/ч" : "";
    const popHtml = '<div class="pop-t">' + esc(title) + '</div>'
     + '<div class="pop-s">' + (live ? "🟢 В сети" : "⚪ Был(а) " + ago(d.u.gt || d.u.t)) + esc(spd) + '</div>';
@@ -212,7 +215,7 @@
   } else {
    ch += withGeo.map(d => {
     const live = now - (d.u.t || 0) < TTL;
-    const title = LABELS[d.id] || devName(d.u.ua);
+    const title = dispName(d);
     const spd = typeof d.u.spd === "number" && d.u.spd > 2 ? " · " + d.u.spd + " км/ч" : "";
     return '<div class="row" data-act="focus" data-id="' + esc(d.id) + '"><span class="dot' + (live ? " on" : "") + '"></span>'
      + '<div class="rm"><div class="rt">' + esc(title) + '</div>'
@@ -228,12 +231,14 @@
   let h='<div class="tiles"><div class="tile"><b>'+on+'</b><span>онлайн</span></div><div class="tile"><b>'+day+'</b><span>за 24 часа</span></div><div class="tile"><b>'+L.length+'</b><span>всего</span></div></div>';
   if(!L.length)h+='<div class="mut box">Данных пока нет. Устройства появятся, когда откроют обновлённое приложение.</div>';
   h+=L.map(d=>{
-   const live=now-(d.u.t||0)<TTL,lab=LABELS[d.id];
+   const live=now-(d.u.t||0)<TTL,acc=accByUid(d.id);
+   const pinTag=acc?' · 🔑 '+esc(acc.pin):'';
    return '<div class="row" data-act="rename" data-id="'+esc(d.id)+'"><span class="dot'+(live?' on':'')+'"></span>'
-    +'<div class="rm"><div class="rt">'+esc(lab||devName(d.u.ua))+'</div>'
-    +'<div class="rs">'+esc(devInfo(d.u.ua)+' · '+(d.u.lang||'ru')+' · …'+d.id.slice(-4))+'</div>'
+    +'<div class="rm"><div class="rt">'+esc(dispName(d))+'</div>'
+    +'<div class="rs">'+esc(devInfo(d.u.ua)+' · '+(d.u.lang||'ru'))+pinTag+'</div>'
     +'<div class="rs">'+(live?'сейчас в приложении':'был(а) '+ago(d.u.t))+' · версия '+esc(verFmt(d.u.v))+(d.u.addr!=null?' · адресов: '+esc(d.u.addr):'')+'</div></div>'
     +'<div class="rv">'+money(d.cur.sum)+'</div>'
+    +(acc?'<button class="xb" style="background:rgba(250,204,21,.14);border-color:rgba(250,204,21,.35);color:#fde047" data-act="pin" data-key="'+esc(acc.key)+'" aria-label="ПИН">🔑</button>':'')
     +'<button class="xb" data-act="del" data-id="'+esc(d.id)+'" aria-label="Удалить">✕</button></div>';
   }).join('');
   if(L.length)h+='<div class="mut hint">Нажмите на устройство, чтобы задать ему имя.</div>';
@@ -243,7 +248,7 @@
   const L=devs();
   if(SEL!=='all'&&!USERS[SEL])SEL='all';
   let h='<select id="sel"><option value="all">Все устройства</option>'
-   +L.map(d=>'<option value="'+esc(d.id)+'"'+(SEL===d.id?' selected':'')+'>'+esc(LABELS[d.id]||devName(d.u.ua)+' …'+d.id.slice(-4))+'</option>').join('')+'</select>';
+   +L.map(d=>'<option value="'+esc(d.id)+'"'+(SEL===d.id?' selected':'')+'>'+esc(dispName(d)+' …'+d.id.slice(-4))+'</option>').join('')+'</select>';
   if(SEL==='all'){
    const sum=L.reduce((a,d)=>a+(+d.cur.sum||0),0),qty=L.reduce((a,d)=>a+(+d.cur.qty||0),0);
    h+='<div class="hero"><span>Текущий месяц (не сохранён)</span><b>'+money(sum)+'</b><span>'+fm(qty)+' шт</span></div>';
@@ -359,7 +364,7 @@
  }
  async function del(id){
   if(!(await ask('Удалить запись об этом устройстве из панели? Данные в самом приложении останутся.', { title: 'Удалить устройство', okText: 'Удалить', danger: true })))return;
-  try{await db.ref('users/'+id).remove();await db.ref('labels/'+id).remove();toast('Удалено')}
+  try{const acc=accByUid(id);await db.ref('users/'+id).remove();await db.ref('labels/'+id).remove();if(acc)await db.ref('accounts/'+acc.key).remove();toast('Удалено')}
   catch(e){toast('Не удалось: '+((e&&e.message)||e),true)}
  }
  g('view').addEventListener('click',async e=>{
@@ -369,6 +374,7 @@
   else if(a==='force')force();
   else if(a==='del'){e.stopPropagation();del(b.dataset.id)}
   else if(a==='rename')rename(b.dataset.id);
+  else if(a==='pin'){e.stopPropagation();const k=b.dataset.key,cur=ACCOUNTS[k]&&ACCOUNTS[k].pin||'';const np=await askInput('Смена ПИН-кода','Введите новый 4-значный код для водителя',cur,'Например: 1234');if(np===null)return;const clean=np.replace(/\D/g,'');if(clean.length!==4){toast('Нужно ровно 4 цифры',true);return}try{await db.ref('accounts/'+k+'/pin').set(clean);toast('ПИН-код обновлён')}catch(err){toast('Ошибка сохранения',true)}}
   else if(a==='month'){OPEN[b.dataset.key]=!OPEN[b.dataset.key];draw()}
   else if(a==='mapfilter'){MAP_ONLY_ONLINE=!MAP_ONLY_ONLINE;_didFit=false;drawMap()}
   else if(a==='focus'){const mk=_markers[b.dataset.id];if(mk&&_map){_map.setView(mk.getLatLng(),16,{animate:true});mk.openPopup()}}
@@ -403,7 +409,7 @@
    g('login').hidden=true;g('panel').hidden=false;g('who').textContent=u.email||'';
    start();draw();
   }else{
-   stop();USERS={};LABELS={};
+   stop();USERS={};LABELS={};ACCOUNTS={};
    g('panel').hidden=true;g('login').hidden=false;
   }
  });

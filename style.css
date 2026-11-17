@@ -460,3 +460,10 @@ body.dock-hide .fab{
   pointer-events:none!important;
   visibility:hidden!important;
 }
+
+/* AUTH-LIGHT */
+.auth-box{max-width:380px!important}
+.auth-sub{font-size:13px;color:#94a3b8;line-height:1.45;margin:-8px 0 16px}
+.auth-box .inp-w input{padding:0 14px;text-align:center;font-weight:600}
+.auth-err{min-height:18px;font-size:13px;color:#ff8585;margin:4px 0 10px}
+.auth-ok{background:rgba(16,185,129,.22)!important;color:#34d399!important;border:1.5px solid #10b981!important}
