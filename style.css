@@ -360,3 +360,6 @@ ol#l:not(:empty){margin:14px 0 0;padding:14px;border-radius:20px;background:rgba
 .bn-pkr{display:grid;grid-template-columns:1fr 110px;gap:10px;margin:4px 0 16px}
 .bn-pkr select,.bn-pkr input{height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(15,23,34,.9);color:#fff;font-size:16px;padding:0 10px;outline:none;width:100%}
 .bn-pkr select:focus,.bn-pkr input:focus{border-color:#10b981}
+
+/* fab-c: кнопка Админ по центру снизу */
+.fab.fab-c{left:50%;right:auto;transform:translateX(-50%);padding:12px 11px;font-size:13px}

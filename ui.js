@@ -110,3 +110,12 @@ document.addEventListener('click',e=>{
  window.addEventListener('offline',()=>{updNet();window.toast&&toast('Нет интернета. Работаю в офлайн-режиме','err')});
  updNet();
 })();
+
+// ADMIN-BTN: кнопка входа в административную панель (по центру снизу)
+(function(){
+ if(document.getElementById('admBtn'))return;
+ const b=document.createElement('button');
+ b.id='admBtn';b.className='fab fab-c';b.textContent='🛠 Админ';
+ b.onclick=function(){location.href='admin.html'};
+ document.body.appendChild(b);
+})();
