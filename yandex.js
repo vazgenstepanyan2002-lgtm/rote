@@ -46,26 +46,32 @@ function choose(it){
 }
 // Добавление выбранного адреса (вызывается только по Enter или кнопке)
 async function addPick(it){
- if(it.lat==null){
-  const l=await yan(it.text||it.name);
-  if(!l.length){window.toast&&toast('Не удалось найти координаты этого адреса','err');return}
-  it={name:l[0].name,lat:l[0].lat,lon:l[0].lon,exact:l[0].exact};
+ const clean=t=>String(t||'').replace(/[\s]*[\u{1F50E}\u{1F4CD}]\s*$/u,'').trim();
+ let lat=it.lat,lon=it.lon,name=clean(it.name),exact=it.exact;
+ if(lat==null||lon==null){
+  const q=clean(it.text||it.name);
+  const l=await yan(q);
+  if(!l.length){
+   const E=l.err;
+   window.toast&&toast(E?'Не удалось найти координаты: '+({off:'нет интернета',net:'нет связи',limit:'лимит Яндекса',srv:'Яндекс не отвечает'}[E]||E):'Не удалось найти координаты: «'+q+'»','err');
+   return;
+  }
+  lat=l[0].lat;lon=l[0].lon;name=clean(l[0].name);exact=l[0].exact;
  }
- const name=it.name.replace(/ 🔎$/,'');
- saveAdrCache({name:name,lat:it.lat,lon:it.lon});
- window.toast&&toast('Адрес добавлен');
- P.push({name:name,lat:it.lat,lon:it.lon});
+ saveAdrCache({name:name,lat:lat,lon:lon});
+ P.push({name:name,lat:lat,lon:lon});
  document.getElementById('a').value='';
  _pick=null;
  showList([]);
  document.getElementById('s').textContent='';
+ window.toast&&toast('Адрес добавлен');
  save();
 }
 window.add=async function(){
  const s=document.getElementById('s');
  const q=document.getElementById('a').value.trim();
  if(!q)return;
- if(_pick&&q===_pick.label){addPick(_pick);return}
+ if(_pick){addPick(_pick);return}
  s.textContent='Ищу адрес в Яндексе...';
  const l=await yan(q);
  if(!l.length){const E=l.err,m=E==='off'?'Нет интернета. Проверьте сеть и повторите':E==='net'?'Не удалось связаться с Яндексом. Проверьте сеть':E==='limit'?'Яндекс отклонил запрос (лимит или ключ API)':E==='srv'?'Яндекс временно не отвечает. Попробуйте позже':'Адрес не найден. Попробуйте написать иначе или добавьте город';s.textContent=m;window.toast&&toast(m,'err');return}
