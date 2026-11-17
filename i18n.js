@@ -105,6 +105,9 @@
   'версия: нет данных':['տարբերակ՝ տվյալներ չկան','version: no data'],
   'Навигатор: по умолчанию':['Նավիգատոր՝ լռելյայն','Navigator: default'],
   'Навигатор: Яндекс':['Նավիգատոր՝ Yandex','Navigator: Yandex'],
+  'Навигатор':['Նավիգատոր','Navigator'],
+  'Яндекс':['Yandex','Yandex'],
+  'По умолчанию':['Լռելյայն','Default'],
   'Откроется Яндекс Навигатор':['Կբացվի Yandex Navigator-ը','Yandex Navigator will open'],
   'Откроется навигатор по умолчанию':['Կբացվի լռելյայն նավիգատորը','The default navigator will open'],
   'Показать на карте':['Ցույց տալ քարտեզի վրա','Show on map'],
@@ -266,7 +269,7 @@
  };
 
  let btn=null;
- const lab=()=>{if(btn)btn.textContent='🌐 '+LANGS[L]};
+ const lab=()=>{if(btn){btn.title='Язык: '+LANGS[L];btn.setAttribute('aria-label','Язык: '+LANGS[L]);}};
  function setLang(l){
   if(!LANGS[l])return;
   L=l;try{localStorage.setItem('LANG',l)}catch(e){}
@@ -291,9 +294,9 @@
   m.querySelectorAll('button[data-l]').forEach(b=>b.classList.toggle('on',b.dataset.l===L));
   m.classList.add('open');
  }
- const f=document.getElementById('ft');
- btn=document.createElement('button');btn.id='lgBtn';btn.onclick=openDlg;
- if(f)f.appendChild(btn);else document.body.appendChild(btn);
+ btn=document.createElement('button');btn.id='lgBtn';btn.type='button';btn.className='hdr-lg';btn.innerHTML='🌐';btn.onclick=openDlg;
+ const hdr=document.querySelector('h2');
+ if(hdr)hdr.appendChild(btn);else document.body.appendChild(btn);
  document.documentElement.lang=L;window.LANG_SR=SR[L];
  lab();
  if(L!=='ru')walk(document.body);

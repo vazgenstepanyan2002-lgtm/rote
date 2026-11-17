@@ -396,10 +396,27 @@
     }, () => {});
   }
   function renderUserBtn(){
-    const ft = g("ft"), uname = ls("USER_NAME"); if (!ft || !uname) return;
-    let b = g("usrBtn"); if (!b){ b = document.createElement("button"); b.id = "usrBtn"; ft.appendChild(b); }
-    if (!g("ft-br")){ const br = document.createElement("div"); br.id = "ft-br"; ft.appendChild(br); }
-    b.innerHTML = '<span>👤 ' + esc(uname) + '</span><span id="usrBadge" class="usr-bdg" hidden>0</span>';
+    const hdr = document.querySelector("h2"), uname = ls("USER_NAME");
+    if (!hdr || !uname) return;
+    let left = g("hdrLeft");
+    if (!left){
+      const titleSpan = hdr.querySelector("span");
+      if (!titleSpan) return;
+      left = document.createElement("div");
+      left.id = "hdrLeft";
+      left.className = "hdr-l";
+      titleSpan.before(left);
+      left.appendChild(titleSpan);
+    }
+    let b = g("usrBtn");
+    if (!b){
+      b = document.createElement("button");
+      b.id = "usrBtn";
+      b.type = "button";
+      b.className = "hdr-usr";
+      left.appendChild(b);
+    }
+    b.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>' + esc(uname) + '</span><span id="usrBadge" class="usr-bdg" hidden>0</span>';
     b.onclick = openProfileMenu; updBadges();
   }
   function boot(){

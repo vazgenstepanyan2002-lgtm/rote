@@ -82,33 +82,33 @@ document.addEventListener('click',e=>{
  else window.open(url,'_blank');
 },true);
 (function(){
- const f=document.getElementById('ft');if(!f)return;
- const b=document.createElement('button');b.id='navBtn';
- const lab=()=>{b.textContent='🧭 Навигатор: '+(navMode()==='ya'?'Яндекс':'по умолчанию')};
- b.onclick=()=>{
-  try{localStorage.setItem('NAV',navMode()==='ya'?'sys':'ya')}catch(e){}
-  lab();window.toast&&toast(navMode()==='ya'?'Откроется Яндекс Навигатор':'Откроется навигатор по умолчанию');
+ window.mountNavSwitch=function(){
+  const o=document.getElementById('o');if(!o)return;
+  const navA=o.querySelector('a.nav');if(!navA)return;
+  let b=document.getElementById('navBtn');
+  if(!b){
+   b=document.createElement('button');b.id='navBtn';b.type='button';b.className='nav-sw';
+   b.onclick=()=>{
+    try{localStorage.setItem('NAV',navMode()==='ya'?'sys':'ya')}catch(e){}
+    lab();window.toast&&toast(navMode()==='ya'?'Откроется Яндекс Навигатор':'Откроется навигатор по умолчанию');
+   };
+   navA.before(b);
+  }
+  const lab=()=>{
+   const ya=navMode()==='ya';
+   b.innerHTML='<span class="nav-sw-l"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg><span>Навигатор</span></span><span class="nav-sw-v">'+(ya?'Яндекс':'По умолчанию')+' ⇄</span>';
+  };
+  lab();
  };
- lab();f.appendChild(b);
+ const o=document.getElementById('o');
+ if(o)new MutationObserver(window.mountNavSwitch).observe(o,{childList:true});
+ window.mountNavSwitch();
 })();
 
-// NET: индикатор онлайн/офлайн
+// NET: уведомления о смене статуса сети
 (function(){
- const updNet=()=>{
-  const on=navigator.onLine;
-  let b=document.getElementById('netIco');
-  if(!b){
-   b=document.createElement('span');b.id='netIco';b.className='net-ico';
-   const h=document.querySelector('h2 .badge');if(!h)return;
-   h.after(b);
-  }
-  b.textContent=on?'📶':'📵';
-  b.title=on?'Интернет есть':'Нет интернета';
-  b.classList.toggle('off',!on);
- };
- window.addEventListener('online',()=>{updNet();window.toast&&toast('Интернет восстановлен','ok')});
- window.addEventListener('offline',()=>{updNet();window.toast&&toast('Нет интернета. Работаю в офлайн-режиме','err')});
- updNet();
+ window.addEventListener('online',()=>{window.toast&&toast('Интернет восстановлен','ok')});
+ window.addEventListener('offline',()=>{window.toast&&toast('Нет интернета. Работаю в офлайн-режиме','err')});
 })();
 
 // ADMIN-BTN: кнопка входа в административную панель (по центру снизу)

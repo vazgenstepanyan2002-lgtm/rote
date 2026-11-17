@@ -662,3 +662,19 @@ body.dock-hide .fab{
 .pt-cnl:active{transform:scale(.97)}
 
 #goGrp:not(.show){display:none}
+
+/* HEADER-LAYOUT & NAV-SWITCH */
+h2{padding:11px 13px!important;gap:8px!important;align-items:center!important}
+.hdr-l{display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-width:0;flex:1}
+.hdr-l>span{font-size:18px;font-weight:800;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.hdr-usr{width:auto!important;height:auto!important;margin:0!important;padding:4px 10px!important;border-radius:99px!important;font-size:12.5px!important;font-weight:700!important;line-height:1.1!important;color:#ecfdf5!important;background:linear-gradient(135deg,rgba(16,185,129,.26) 0%,rgba(14,165,233,.18) 100%)!important;border:1px solid rgba(52,211,153,.5)!important;box-shadow:0 4px 12px rgba(16,185,129,.18)!important;display:inline-flex!important;align-items:center;gap:5px;max-width:100%;transition:.14s}
+.hdr-usr span:first-of-type{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hdr-usr svg{color:#34d399;flex-shrink:0}
+.hdr-usr:active{transform:scale(.96)}
+.hdr-lg{width:34px!important;height:34px!important;min-width:34px!important;margin:0!important;padding:0!important;border-radius:11px!important;background:rgba(255,255,255,.08)!important;border:1px solid rgba(255,255,255,.18)!important;font-size:17px!important;line-height:1!important;display:inline-flex!important;align-items:center;justify-content:center;flex-shrink:0;box-shadow:none!important;transition:.14s}
+.hdr-lg:active{transform:scale(.92);border-color:#38bdf8!important}
+.nav-sw{width:100%!important;height:42px!important;margin:10px 0 0!important;padding:0 13px!important;border-radius:12px!important;background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.15)!important;display:flex!important;align-items:center;justify-content:space-between;gap:8px;font-size:13.5px!important;font-weight:600!important;color:#cbd5e1!important;box-shadow:none!important;transition:.14s}
+.nav-sw:active{transform:scale(.985);border-color:rgba(250,204,21,.45)!important}
+.nav-sw-l{display:inline-flex;align-items:center;gap:7px;color:#e2e8f0}
+.nav-sw-l svg{color:#fc0;flex-shrink:0}
+.nav-sw-v{color:#fde047;font-weight:700;font-size:13px;background:rgba(250,204,21,.12);border:1px solid rgba(250,204,21,.3);padding:3px 9px;border-radius:99px;white-space:nowrap}
