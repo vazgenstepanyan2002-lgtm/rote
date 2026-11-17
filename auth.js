@@ -172,11 +172,11 @@
     let m = g("profMdl");
     if (!m){
       m = document.createElement("div"); m.id = "profMdl"; m.className = "cm";
-      m.innerHTML = '<div class="cm-b pm-box"><div class="pm-top"><div class="pm-av">👤</div><div><div class="pm-nm" id="pmTitle"></div><div class="pm-sb">Профиль водителя</div></div></div><button type="button" class="pm-btn pm-chat" id="pmChat"><span>💬 Общий чат</span><span id="pmChatBadge" class="pm-bdg" hidden>0</span></button><button type="button" class="pm-btn pm-out" id="pmOut">🚪 Выйти</button><button type="button" class="pm-btn pm-cls" id="pmCls">Закрыть</button></div>';
+      m.innerHTML = '<div class="cm-b pm-box"><button type="button" class="pm-x" id="pmX" aria-label="Закрыть">✕</button><div class="pm-top"><div class="pm-ring"><div class="pm-av"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div></div><div class="pm-info"><div class="pm-pill"><i></i>Driver Profile</div><div class="pm-nm" id="pmTitle"></div><div class="pm-sb">Профиль водителя</div></div></div><div class="pm-acts"><button type="button" class="pm-btn pm-chat" id="pmChat"><span class="pm-btn-l"><span class="pm-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="pm-tx"><b>Общий чат</b><small>Канал водителей EuroBaza</small></span></span><span class="pm-btn-r"><span id="pmChatBadge" class="pm-bdg" hidden>0</span><span class="pm-arr">›</span></span></button><button type="button" class="pm-btn pm-out" id="pmOut"><span class="pm-btn-l"><span class="pm-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span><span class="pm-tx"><b>Выйти</b><small>Сменить водителя на телефоне</small></span></span><span class="pm-arr">›</span></button></div><button type="button" class="pm-cls" id="pmCls">Закрыть</button></div>';
       document.body.appendChild(m);
       const close = () => m.classList.remove("open");
       m.onclick = e => { if (e.target === m) close(); };
-      g("pmCls").onclick = close;
+      g("pmCls").onclick = close; g("pmX").onclick = close;
       g("pmChat").onclick = () => { close(); openChat(); };
       g("pmOut").onclick = async () => {
         close(); const cur = ls("USER_NAME") || "";
