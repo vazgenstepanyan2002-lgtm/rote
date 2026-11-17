@@ -1,4 +1,40 @@
-(function(){if(document.getElementById('mapCss'))return;var t=document.createElement('style');t.id='mapCss';t.textContent=".mapm{position:fixed;inset:0;z-index:150;background:#0f1722;display:none;flex-direction:column;overscroll-behavior:contain}\n.mapm.open{display:flex}\n.mapm-h{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;font-size:17px;font-weight:700;color:#fc0;flex-shrink:0}\n#mapBox{flex:1;min-height:0;background:#1b2635}\n#mapInfo{flex-shrink:0;padding:10px 16px 14px;font-size:13px;line-height:1.5;color:#cbd5e1;background:#121924;border-top:1px solid rgba(255,255,255,.16);max-height:34vh;overflow-y:auto}\n#mapInfo .w{color:#fc0;font-weight:600;margin-top:4px}\n.mkw{background:none!important;border:none!important}\n.mk{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;background:#10b981;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)}\n.mk.bad{background:#fc0;color:#000;border-color:#000}\n.mk.base{background:#6366f1}\n.mk.me{background:#0ea5e9;font-size:10px}\n\n";document.head.appendChild(t)})();
+(function(){if(document.getElementById('mapCss'))return;var t=document.createElement('style');t.id='mapCss';t.textContent=`
+.mapm{position:fixed;inset:0;z-index:150;background:#070b14;display:none;flex-direction:column;overscroll-behavior:contain}
+.mapm.open{display:flex;animation:cmIn .16s ease-out}
+.mapm-h{position:relative;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px;background:rgba(13,19,31,.94);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,.12);z-index:500;flex-shrink:0}
+.mapm-h::before{content:'';position:absolute;top:0;left:16px;right:16px;height:1px;background:linear-gradient(90deg,transparent,rgba(56,189,248,.6),rgba(52,211,153,.55),transparent);pointer-events:none}
+.mapm-t{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:800;color:#f8fafc;min-width:0;white-space:nowrap}
+.mapm-tic{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,rgba(56,189,248,.24),rgba(16,185,129,.18));border:1px solid rgba(56,189,248,.45);color:#38bdf8;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.mapm-b{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.mapm-b button{width:auto!important;height:34px!important;margin:0!important;padding:0 11px!important;border-radius:11px!important;font-size:12.5px!important;font-weight:700!important;background:rgba(255,255,255,.07)!important;border:1px solid rgba(255,255,255,.16)!important;color:#e2e8f0!important;display:inline-flex!important;align-items:center;justify-content:center;gap:5px;box-shadow:none!important;transition:.14s}
+.mapm-b button svg{color:#38bdf8;flex-shrink:0}
+.mapm-b button:active{transform:scale(.95);border-color:#38bdf8!important}
+.mapm-b .mapm-c{width:34px!important;padding:0!important;background:rgba(244,63,94,.14)!important;border-color:rgba(244,63,94,.38)!important;color:#fda4af!important}
+#mapBox{flex:1;min-height:0;background:#090e1a;position:relative}
+#mapInfo{flex-shrink:0;padding:11px 14px calc(12px + env(safe-area-inset-bottom,0px));background:rgba(13,19,31,.96);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid rgba(255,255,255,.14);box-shadow:0 -10px 28px rgba(0,0,0,.45);z-index:500;max-height:34vh;overflow-y:auto}
+.map-stats{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+.map-pill{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);font-size:13px;font-weight:700;color:#f1f5f9}
+.map-pill b{color:#fde047}
+.map-pill.tm b{color:#34d399}
+.map-pill.km b{color:#38bdf8}
+.map-note{margin-top:7px;font-size:12.5px;color:#94a3b8;display:flex;align-items:center;gap:6px;line-height:1.35}
+.map-note i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#38bdf8;box-shadow:0 0 8px #38bdf8;flex-shrink:0}
+#mapInfo .w{color:#fbbf24;font-size:12.5px;font-weight:600;margin-top:6px;padding:6px 9px;border-radius:9px;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.28)}
+.mkw{background:none!important;border:none!important}
+.mk{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;border:2.5px solid #0f172a;box-shadow:0 4px 12px rgba(0,0,0,.65),0 0 0 2px rgba(255,255,255,.35)}
+.mk.bad{background:linear-gradient(135deg,#facc15,#eab308);color:#0f172a}
+.mk.base{background:linear-gradient(135deg,#34d399,#059669)}
+.mk.ok{background:linear-gradient(135deg,#38bdf8,#0284c7)}
+.mk.me{background:linear-gradient(135deg,#f43f5e,#e11d48);font-size:11px}
+#mapBox .leaflet-bar{border:1px solid rgba(255,255,255,.16)!important;border-radius:13px!important;overflow:hidden;box-shadow:0 8px 22px rgba(0,0,0,.55)!important;background:rgba(13,19,31,.88)!important;backdrop-filter:blur(12px)}
+#mapBox .leaflet-bar a{background:transparent!important;color:#f1f5f9!important;border-bottom:1px solid rgba(255,255,255,.12)!important;width:36px!important;height:36px!important;line-height:36px!important;font-weight:700!important}
+#mapBox .leaflet-bar a:last-child{border-bottom:none!important}
+#mapBox .leaflet-bar a:active{background:rgba(56,189,248,.22)!important;color:#38bdf8!important}
+#mapBox .leaflet-control-attribution{background:rgba(9,14,26,.65)!important;color:rgba(148,163,184,.65)!important;font-size:9.5px!important;border-top-left-radius:8px;padding:1px 6px!important}
+#mapBox .leaflet-control-attribution a{color:#7dd3fc!important}
+#mapBox .leaflet-popup-content-wrapper,#mapBox .leaflet-popup-tip{background:#111827!important;color:#f8fafc!important;border:1px solid rgba(255,255,255,.16);box-shadow:0 10px 26px rgba(0,0,0,.6)}
+#mapBox .leaflet-popup-close-button{color:#94a3b8!important}
+`;document.head.appendChild(t)})();
 (function(){
  const g=id=>document.getElementById(id);
  const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -26,7 +62,7 @@
  function ensureModal(){
   let m=g('mapM');if(m)return m;
   m=document.createElement('div');m.id='mapM';m.className='mapm';
-  m.innerHTML='<div class="mapm-h"><span class="mapm-t">🗺 Карта</span><span class="mapm-b"><button class="mdl-x" id="mapN">🧭 Север</button><button class="mdl-x" id="mapFit">⤢ Весь маршрут</button><button class="mdl-x mapm-c" id="mapX" aria-label="Закрыть"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg></button></span></div><div id="mapBox"></div><div id="mapInfo"></div>';
+  m.innerHTML='<div class="mapm-h"><span class="mapm-t"><span class="mapm-tic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg></span><span>Карта</span></span><span class="mapm-b"><button class="mdl-x" id="mapN"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 19 21 12 17 5 21 12 2"/></svg><span>Север</span></button><button class="mdl-x" id="mapFit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg><span>Весь маршрут</span></button><button class="mdl-x mapm-c" id="mapX" aria-label="Закрыть"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg></button></span></div><div id="mapBox"></div><div id="mapInfo"></div>';
   document.body.appendChild(m);
   g('mapX').onclick=()=>closeMap();g('mapFit').onclick=()=>{if(_fit)_fit()};g('mapN').onclick=()=>{if(_map&&_map.setBearing)_map.setBearing(0)};g('mapInfo').style.maxHeight='22vh';
   return m;
@@ -67,7 +103,7 @@
   box.addEventListener('touchcancel',()=>{_tc=0;setTimeout(showL,120)},{passive:true});
   map.on('zoomstart',hideL);
   map.on('zoomend moveend',()=>setTimeout(showL,60));
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  const darkTile=L.tileLayer('https://{s}://{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19,attribution:'© OpenStreetMap © CARTO'});darkTile.on('tileerror',()=>{if(!map._osmFallback){map._osmFallback=true;L.tileLayer('https://openstreetmap.org{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map)}});darkTile.addTo(map);
   const etas=document.querySelectorAll('#o ol li .eta');
   const ll=[];let bad=0;
   if(start){
@@ -85,27 +121,34 @@
    if(inex)h+='<br><span style="color:#b45309">⚠ Неточный адрес: Яндекс нашёл только район или город</span>';
    L.marker([it.lat,it.lon],{icon:icon(base?'base':inex?'bad':'ok',base?'🏁':String(k+1))}).addTo(map).bindPopup(h);
   });
-  const straight=L.polyline(ll,{color:'#0ea5e9',weight:4,opacity:.8,dashArray:'8 8'}).addTo(map);
+  const drawRoute=(pts,dashed)=>{
+   const glow=L.polyline(pts,{color:'#0284c7',weight:10,opacity:.32,lineCap:'round',lineJoin:'round'}).addTo(map);
+   const core=L.polyline(pts,{color:'#38bdf8',weight:4.5,opacity:.96,lineCap:'round',lineJoin:'round',dashArray:dashed?'8 8':null}).addTo(map);
+   return [glow,core];
+  };
+  let curLines=drawRoute(ll,true);
   _fit=()=>map.fitBounds(L.latLngBounds(ll),{padding:[30,30],maxZoom:16});_fit();
   setTimeout(()=>{if(_map===map){map.invalidateSize();map.fitBounds(L.latLngBounds(ll),{padding:[30,30],maxZoom:16})}},150);
 
   let note='Линия по прямой (загружаю дороги...)';
   function info(){
-   let h='<div>Точек: <b>'+cur.length+'</b>';
-   if(sv.totT&&typeof fmtT==='function')h+=' • ⏱ ~'+fmtT(sv.totT)+(sv.totD?' • '+Math.round(sv.totD/1000)+' км':'');
-   h+='</div><div>'+esc(note)+'</div>';
+   let h='<div class="map-stats"><span class="map-pill">Точек: <b>'+cur.length+'</b></span>';
+   if(sv.totT&&typeof fmtt==='function')h+='<span class="map-pill tm">Время: <b>~'+fmtt(sv.totT)+'</b></span>';
+   if(sv.totD)h+='<span class="map-pill km">Путь: <b>'+Math.round(sv.totD/1000)+' км</b></span>';
+   h+='</div><div class="map-note"><i></i><span>'+esc(note)+'</span></div>';
    if(bad)h+='<div class="w">⚠ Неточных адресов: '+bad+' (жёлтые маркеры). Маршрут приведёт в центр района, уточните улицу и дом.</div>';
    g('mapInfo').innerHTML=h;
   }
   info();
   if(ll.length<2){note='';info();return}
-  fetch('https://router.project-osrm.org/route/v1/driving/'+ll.map(p=>p[1]+','+p[0]).join(';')+'?overview=full&geometries=geojson',{signal:AbortSignal.timeout(10000)})
+  fetch('https://project-osrm.org/route/v1/driving/' + ll.map(p => p.at(1) + ',' + p.at(0)).join(';') + '?overview=full&geometries=geojson', {signal: AbortSignal.timeout(10000)})
    .then(r=>r.json()).then(j=>{
     if(tok!==_tok||_map!==map)return;
-    const c=j.routes&&j.routes[0]&&j.routes[0].geometry&&j.routes[0].geometry.coordinates;
+    const r0=j.routes&&j.routes.at(0);
+    const c=r0&&r0.geometry&&r0.geometry.coordinates;
     if(!c||!c.length)throw 0;
-    map.removeLayer(straight);
-    L.polyline(c.map(x=>[x[1],x[0]]),{color:'#0ea5e9',weight:5,opacity:.9}).addTo(map);
+    curLines.forEach(l=>map.removeLayer(l));
+    curLines=drawRoute(c.map(x=>[x.at(1),x.at(0)]),false);
     note='Линия построена по дорогам';info();
    }).catch(()=>{
     if(tok!==_tok||_map!==map)return;
