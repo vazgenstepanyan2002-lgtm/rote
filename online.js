@@ -2,7 +2,7 @@
 (function(){
   const g = id => document.getElementById(id);
   const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyCR8uHLrEMGDd-sbMIdaphuaRdFK3fNdng",
+    apiKey: "AIzaSyCR8uHLrEMGDd-sbMidapnuaRdFK3fNdng",
     databaseURL: "https://eurobaza-c5aa5-default-rtdb.europe-west1.firebasedatabase.app"
   };
 

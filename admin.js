@@ -34,7 +34,7 @@
 
  // ===== Firebase =====
  const CFG={
-  apiKey:'AIzaSyCR8uHLrEMGDd-sbMIdaphuaRdFK3fNdng',
+  apiKey:'AIzaSyCR8uHLrEMGDd-sbMidapnuaRdFK3fNdng',
   authDomain:'eurobaza-c5aa5.firebaseapp.com',
   databaseURL:'https://eurobaza-c5aa5-default-rtdb.europe-west1.firebasedatabase.app',
   projectId:'eurobaza-c5aa5'
