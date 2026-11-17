@@ -163,7 +163,27 @@ body:has(#login:not([hidden])){height:100dvh;overflow:hidden;overscroll-behavior
 .hero a{color:#fde047;text-decoration:none;border-bottom:1px dashed rgba(253,224,71,.5);padding-bottom:1px}
 
 /* Селект, заголовки секций и инфо-блоки */
-select#sel{height:50px;border-radius:16px;background:rgba(17,24,39,.92);border:1px solid rgba(255,255,255,.14);font-size:15px;font-weight:600;padding:0 16px;margin-bottom:12px;box-shadow:0 8px 20px rgba(0,0,0,.25)}
+.sel-btn{width:100%;height:52px;border-radius:16px;background:linear-gradient(180deg,rgba(22,31,48,.92) 0%,rgba(13,19,31,.96) 100%);border:1px solid rgba(255,255,255,.14);font-size:15px;font-weight:700;padding:0 16px;margin-bottom:12px;box-shadow:0 8px 20px rgba(0,0,0,.28);display:flex;align-items:center;justify-content:space-between;gap:10px;color:#f8fafc;transition:.15s}
+.sel-btn:active{transform:scale(.985);border-color:rgba(52,211,153,.45)}
+.sel-btn-l{display:flex;align-items:center;gap:10px;min-width:0}
+.sel-btn-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sel-ic{width:30px;height:30px;border-radius:10px;background:rgba(16,185,129,.14);border:1px solid rgba(52,211,153,.32);color:#34d399;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sel-chev{color:#94a3b8;flex-shrink:0;transition:.2s}
+.sel-dlg{max-width:400px;padding:22px 18px 18px;text-align:left}
+.sel-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.sel-hd b{font-size:17px;font-weight:800;color:#fff}
+.sel-x{width:32px;height:32px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#94a3b8;display:flex;align-items:center;justify-content:center;font-size:16px}
+.sel-list{max-height:56vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:2px}
+.sel-it{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:15px;background:rgba(7,11,18,.65);border:1px solid rgba(255,255,255,.09);cursor:pointer;transition:.15s}
+.sel-it:active{transform:scale(.98)}
+.sel-it.on{background:rgba(16,185,129,.14);border-color:rgba(52,211,153,.5);box-shadow:0 6px 18px rgba(16,185,129,.16)}
+.sel-it-l{display:flex;align-items:center;gap:10px;min-width:0}
+.sel-it-nm{font-size:14.5px;font-weight:700;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sel-it-sb{font-size:11.5px;color:#8b9bb4;margin-top:2px}
+.sel-it-r{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.sel-it-sm{font-size:13px;font-weight:800;color:#fde047}
+.sel-chk{width:20px;height:20px;border-radius:50%;border:1.5px solid rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;color:transparent;font-size:12px;font-weight:800}
+.sel-it.on .sel-chk{background:#10b981;border-color:#10b981;color:#042414}
 .sec{font-size:11.5px;font-weight:800;color:#64748b;letter-spacing:1px;margin:16px 4px 10px}
 .box{background:rgba(17,24,39,.75);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:15px 16px;font-size:13.5px;line-height:1.55;color:#cbd5e1}
 .btn{height:52px;border-radius:16px;margin-top:12px;font-size:15px;font-weight:700;color:#042414;border:none;background:linear-gradient(135deg,#6ee7b7 0%,#10b981 55%,#059669 100%);box-shadow:0 10px 24px rgba(16,185,129,.28)}
@@ -262,7 +282,7 @@ select#sel{height:50px;border-radius:16px;background:rgba(17,24,39,.92);border:1
   </div>
  </div>
 </div>
-<script src="admin.js?v=20261117195200"></script>
+<script src="admin.js?v=20261117200000"></script>
 <script>
 ['lgEm','lgPw'].forEach(id=>{
  const el=document.getElementById(id);

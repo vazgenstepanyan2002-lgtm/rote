@@ -267,8 +267,9 @@
  function drawTotals(){
   const L=devs();
   if(SEL!=='all'&&!USERS[SEL])SEL='all';
-  let h='<select id="sel"><option value="all">Все устройства</option>'
-   +L.map(d=>'<option value="'+esc(d.id)+'"'+(SEL===d.id?' selected':'')+'>'+esc(dispName(d)+' …'+d.id.slice(-4))+'</option>').join('')+'</select>';
+  const curSelObj=SEL==='all'?null:L.find(x=>x.id===SEL);
+  const curSelLabel=curSelObj?dispName(curSelObj):'Все устройства';
+  let h='<button type="button" class="sel-btn" data-act="opensel"><span class="sel-btn-l"><span class="sel-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span><span class="sel-btn-t">'+esc(curSelLabel)+'</span></span><svg class="sel-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>';
   if(SEL==='all'){
    const curList=L.map(d=>({id:d.id,name:dispName(d),sum:+d.cur.sum||0,qty:+d.cur.qty||0})).filter(x=>x.qty>0||x.sum>0).sort((a,b)=>b.sum-a.sum);
    const sum=curList.reduce((a,x)=>a+x.sum,0),qty=curList.reduce((a,x)=>a+x.qty,0);
@@ -323,7 +324,6 @@
  }
  function draw(){
   if(g('panel').hidden)return;
-  if(TAB==='totals'&&document.activeElement&&document.activeElement.id==='sel')return;
   document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===TAB));
   const st=window.scrollY;
   if(TAB!=='map'&&_map)destroyMap();
@@ -382,6 +382,32 @@
  const ask = (msg, opts = {}) => openDialog({ ...opts, msg, danger: opts.danger ?? /удал|очист|сброс/i.test(msg) });
  const askInput = (title, msg, inputVal, placeholder) => openDialog({ title, msg, inputVal, placeholder });
 
+ 
+ function openSelectModal(){
+  const L=devs(),now=Date.now();
+  const ov=document.createElement('div');
+  ov.className='ov';
+  const totSum=L.reduce((a,d)=>a+(+d.cur.sum||0),0);
+  let items='<div class="sel-it'+(SEL==='all'?' on':'')+'" data-val="all"><div class="sel-it-l"><span class="sel-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><div><div class="sel-it-nm">Все устройства</div><div class="sel-it-sb">Устройств: '+L.length+'</div></div></div><div class="sel-it-r"><span class="sel-it-sm">'+money(totSum)+'</span><span class="sel-chk">✓</span></div></div>';
+  items+=L.map(d=>{
+   const live=now-(d.u.t||0)<TTL;
+   const on=SEL===d.id;
+   return '<div class="sel-it'+(on?' on':'')+'" data-val="'+esc(d.id)+'"><div class="sel-it-l"><span class="dot'+(live?' on':'')+'"></span><div><div class="sel-it-nm">'+esc(dispName(d))+'</div><div class="sel-it-sb">'+(live?'сейчас в сети':'был(а) '+ago(d.u.t))+'</div></div></div><div class="sel-it-r"><span class="sel-it-sm">'+money(d.cur.sum)+'</span><span class="sel-chk">✓</span></div></div>';
+  }).join('');
+  ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>Выберите водителя</b><button type="button" class="sel-x" aria-label="Закрыть">✕</button></div><div class="sel-list">'+items+'</div></div>';
+  document.body.appendChild(ov);
+  const close=()=>{ov.classList.remove('show');document.removeEventListener('keydown',onKey);setTimeout(()=>ov.remove(),180)};
+  const onKey=e=>{if(e.key==='Escape')close()};
+  ov.querySelector('.sel-x').onclick=close;
+  ov.onclick=e=>{
+   if(e.target===ov){close();return}
+   const it=e.target.closest('.sel-it');
+   if(it){SEL=it.dataset.val;close();draw()}
+  };
+  document.addEventListener('keydown',onKey);
+  requestAnimationFrame(()=>ov.classList.add('show'));
+ }
+
  // ===== Действия =====
  async function force(){
   if(!(await ask('Отправить всем устройствам команду обновления?', { title: 'Обновление приложения', okText: 'Обновить' })))return;
@@ -411,12 +437,12 @@
   else if(a==='pin'){e.stopPropagation();const k=b.dataset.key,cur=ACCOUNTS[k]&&ACCOUNTS[k].pin||'';const np=await askInput('Смена ПИН-кода','Введите новый 4-значный код для водителя',cur,'Например: 1234');if(np===null)return;const clean=np.replace(/\D/g,'');if(clean.length!==4){toast('Нужно ровно 4 цифры',true);return}try{await db.ref('accounts/'+k+'/pin').set(clean);toast('ПИН-код обновлён')}catch(err){toast('Ошибка сохранения',true)}}
   else if(a==='month'){OPEN[b.dataset.key]=!OPEN[b.dataset.key];draw()}
   else if(a==='pickdev'){e.stopPropagation();SEL=b.dataset.id;draw()}
+  else if(a==='opensel'){e.stopPropagation();openSelectModal()}
   else if(a==='cpcur'){e.stopPropagation();const curList=devs().map(d=>({name:dispName(d),sum:+d.cur.sum||0,qty:+d.cur.qty||0})).filter(x=>x.qty>0||x.sum>0).sort((a,b)=>b.sum-a.sum);copyReport('Текущий месяц',curList,curList.reduce((a,x)=>a+x.qty,0),curList.reduce((a,x)=>a+x.sum,0))}
   else if(a==='cpmonth'){e.stopPropagation();const mObj=aggMonths(devs()).find(x=>x.m===b.dataset.m);if(mObj)copyReport(monthName(mObj.m),mObj.devs,mObj.qty,mObj.sum)}
   else if(a==='mapfilter'){MAP_ONLY_ONLINE=!MAP_ONLY_ONLINE;_didFit=false;drawMap()}
   else if(a==='focus'){const mk=_markers[b.dataset.id];if(mk&&_map){_map.setView(mk.getLatLng(),16,{animate:true});mk.openPopup()}}
  });
- g('view').addEventListener('change',e=>{if(e.target.id==='sel'){SEL=e.target.value;draw()}});
  document.querySelectorAll('.tabs button').forEach(b=>b.onclick=async ()=>{TAB=b.dataset.tab;draw()});
 
  // ===== Вход и выход =====
