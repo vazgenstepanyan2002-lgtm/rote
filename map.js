@@ -116,7 +116,7 @@
     L.marker([it.lat,it.lon],{icon:icon(base?'base':inex?'bad':'ok',base?'🏁':String(k+1))}).addTo(map).bindPopup(h);
   });
   const rCvs=document.createElement('canvas');
-  rCvs.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:350';
+  rCvs.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:450';
   box.appendChild(rCvs);
   let routePts=ll,routeDashed=true,curLines=[];
   const paintRoute=()=>{
