@@ -322,3 +322,11 @@ ol#l:not(:empty){margin:14px 0 0;padding:14px;border-radius:20px;background:rgba
 .bn-sp span{background:rgba(255,255,255,.06);border-radius:8px;padding:3px 8px}
 .bn-sp b{color:#fc0;font-size:14px;white-space:nowrap}
 .bn-empty{text-align:center;color:#94a3b8;padding:24px 10px;font-size:14px}
+
+/* bn-qty: заметное количество */
+.bn-cq{display:inline-block;margin-left:8px;font-style:normal;font-size:12px;font-weight:700;color:#0f1722;background:#fc0;padding:2px 9px;border-radius:10px;vertical-align:middle}
+.bn-sp{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:8px 0}
+.bn-qb{display:inline-flex;align-items:baseline;gap:4px;min-width:64px;justify-content:center;background:linear-gradient(135deg,#10b981,#0ea5e9);color:#fff;font-size:18px;font-weight:800;padding:6px 12px;border-radius:12px;box-shadow:0 4px 12px rgba(16,185,129,.3)}
+.bn-qb small{font-size:11px;font-weight:700;opacity:.9}
+.bn-pp{font-style:normal;font-size:12px;color:#94a3b8;min-width:0}
+.bn-sp b{color:#fc0;font-size:15px;white-space:nowrap;font-weight:800}

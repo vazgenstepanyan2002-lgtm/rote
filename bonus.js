@@ -198,13 +198,14 @@
   g('bnSmList').innerHTML=html;
   g('bnSmTot').textContent=fm(cs)+' '+CUR;g('bnSmQty').textContent=fm(cq);
  }
+ const cqOf=c=>c.items.reduce((a,it)=>a+it.parts.reduce((b,z)=>b+z.n,0),0);
  function detailView(rows,title){
   let q=qtyOf(rows);
   let html='<div class="bn-back" data-m="back">← Все месяцы</div><div class="bn-hero"><span class="bn-hero-l">'+esc(title)+'</span><b class="bn-hero-v">'+fm(sumOf(rows))+' '+CUR+'</b><span class="bn-hero-q">'+fm(q)+' шт</span></div>';
   if(!rows.length)html+='<div class="bn-empty">Ничего не выбрано.</div>';
-  else html+=rows.map(c=>'<div class="bn-sc"><div class="bn-sch"><span>'+esc(c.name)+'</span><b>'+fm(c.sum)+' '+CUR+'</b></div>'
+  else html+=rows.map(c=>'<div class="bn-sc"><div class="bn-sch"><span>'+esc(c.name)+'<i class="bn-cq">'+fm(cqOf(c))+' шт</i></span><b>'+fm(c.sum)+' '+CUR+'</b></div>'
    +c.items.map(it=>'<div class="bn-si"><div class="bn-sin">'+esc(it.name)+'</div>'
-    +it.parts.map(z=>'<div class="bn-sp"><span>'+(z.l?z.l+' · ':'')+fm(z.n)+' × '+fm(z.p)+'</span><b>'+fm(z.v)+' '+CUR+'</b></div>').join('')
+    +it.parts.map(z=>'<div class="bn-sp"><span class="bn-qb">'+fm(z.n)+'<small>шт</small></span><em class="bn-pp">'+(z.l?z.l+' · ':'')+fm(z.p)+' '+CUR+' / шт</em><b>'+fm(z.v)+' '+CUR+'</b></div>').join('')
     +'</div>').join('')+'</div>').join('');
   g('bnSmList').innerHTML=html;
   g('bnSmTot').textContent=fm(sumOf(rows))+' '+CUR;g('bnSmQty').textContent=fm(q);
