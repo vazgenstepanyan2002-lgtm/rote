@@ -53,7 +53,7 @@ function showList(list,msg){
 let _pick=null;
 function choose(it){
  const a=document.getElementById('a');
- a.value=it.name.replace(/ [🔎📍]$/,'');
+ a.value=it.name.replace(/\s*[\u{1F50E}\u{1F4CD}]$/u,'');
  _pick={label:a.value,name:it.name,text:it.text,lat:it.lat,lon:it.lon,exact:it.exact};
  showList([]);
  document.getElementById('s').textContent='';
