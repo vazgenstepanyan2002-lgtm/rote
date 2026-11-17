@@ -174,13 +174,26 @@
   const t=new Date(+p[0],+p[1]-1,1).toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
   return t.charAt(0).toUpperCase()+t.slice(1);
  }
+ function setFoot(k){
+  const b=g('bnSave');if(!b)return;
+  if(k&&k!=='cur'&&HIST()[k]){b.textContent='🗑️ Удалить';b.classList.add('bn-del');b.onclick=()=>deleteMonth(k)}
+  else{b.textContent='💾 Сохранить';b.classList.remove('bn-del');b.onclick=saveMonth}
+ }
+ function deleteMonth(k){
+  const d=HIST()[k];if(!d)return;
+  askC('Удалить итоги за '+monthName(d.m||k)+'? Это действие нельзя отменить.','Удалить','🗑️').then(y=>{
+   if(!y)return;
+   const h=HIST();delete h[k];saveHist(h);
+   tst('Итоги удалены');histView();
+  });
+ }
  function rowHtml(k,name,sub,sum,qty,cur){
   return '<div class="bn-mr'+(cur?' bn-mr-cur':'')+'" data-m="'+k+'" role="button">'
    +'<span class="bn-mi">'+(cur?'🟢':'📅')+'</span>'
    +'<span class="bn-mtx"><span class="bn-mn">'+esc(name)+'</span><span class="bn-mq">'+fm(qty)+' шт'+(sub?' · '+esc(sub):'')+'</span></span>'
    +'<span class="bn-mv">'+fm(sum)+' '+CUR+'</span><span class="bn-mc">›</span></div>';
  }
- function histView(){
+ function histView(){setFoot();
   const h=HIST(),ks=Object.keys(h).sort((a,b)=>(h[b].t||0)-(h[a].t||0));
   const cr=sumRows(),cs=sumOf(cr),cq=qtyOf(cr);
   let html='<div class="bn-hero"><span class="bn-hero-l">Текущий месяц</span><b class="bn-hero-v">'+fm(cs)+' '+CUR+'</b><span class="bn-hero-q">'+fm(cq)+' шт</span></div>';
@@ -214,8 +227,9 @@
  }
  function showMonth(k){
   if(k==='back')return histView();
-  if(k==='cur')return detailView(sumRows(),'Текущий месяц');
+  if(k==='cur'){setFoot();return detailView(sumRows(),'Текущий месяц')}
   const d=HIST()[k];if(!d)return;
+  setFoot(k);
   detailView(d.rows,monthName(d.m||k),new Date(d.t||0).toLocaleDateString('ru-RU',{day:'numeric',month:'long'}));
  }
  function saveMonth(){
