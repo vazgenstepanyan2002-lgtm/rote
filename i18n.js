@@ -136,6 +136,20 @@
  'Интернет восстановлен':['Ինտերնետը վերականգնվեց','Internet restored'],
  'Нет интернета. Работаю в офлайн-режиме':['Ինտերնետ չկա։ Աշխատում եմ անցանց ռեժիմում','No internet. Working offline'],
  };
+
+ // AUTO_I18N_TRANSLATIONS
+ fetch('./auto-translations.json')
+  .then(r => { if (!r.ok) throw new Error('translation file'); return r.json(); })
+  .then(extra => {
+   if (extra && typeof extra === 'object') {
+    Object.keys(extra).forEach(k => {
+     if (!Object.prototype.hasOwnProperty.call(D, k)) D[k] = extra[k];
+    });
+    if (L !== 'ru') walk(document.body);
+   }
+  })
+  .catch(e => console.warn('Auto translations unavailable:', e));
+
  const UN={hy:{h:'ժ',m:'ր',k:'կմ'},en:{h:'h',m:'min',k:'km'}};
  const units=(s,l)=>{const u=UN[l];return s.replace(/(\d) ч(?=\s|$|\))/g,'$1 '+u.h).replace(/(\d) мин(?=\s|$|\))/g,'$1 '+u.m).replace(/(\d) км(?=\s|$|\))/g,'$1 '+u.k)};
  const T=(k,i)=>D[k]?D[k][i]:k;

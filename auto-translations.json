@@ -1,0 +1,202 @@
+{
+  "'+fm(cqOf(c))+' шт": [
+    "'+fm(cqOf(c))+' հատ",
+    "'+fm(cqOf(c))+' pcs"
+  ],
+  "'+fm(q)+' шт'+(sub?' · '+esc(sub):'')+'": [
+    "'+fm(q)+' հատ'+(ենթակետ?' '+esc(sub):'')+'",
+    "'+fm(q)+' pcs'+(sub?' '+esc(sub):'')+'"
+  ],
+  "'+fm(qty)+' шт'+(sub?' · '+esc(sub):'')+'": [
+    "'+fm(քանակ)+' հատ'+(ենթա՞կ?' '+esc(sub):'')+'",
+    "'+fm(qty)+' pcs'+(sub?' '+esc(sub):'')+'"
+  ],
+  ").innerHTML=` Порядок (потяните ☰): ⏱ Весь путь: ~${fmtT(totT)}${km}${approx?": [
+    ").innerHTML=` Պատվեր (քաշեք ☰). ⏱ Ամբողջ ճանապարհը՝ ~${fmtT(totT)}${km}${մոտ?",
+    ").innerHTML=` Order (pull ☰): ⏱ Entire path: ~${fmtT(totT)}${km}${approx?"
+  ],
+  "} ${liHtml} Открыть в навигаторе `;updEta();const ol=$(": [
+    "} ${liHtml} Բացել նավիգատորում `;updEta();const ol=$(",
+    "} ${liHtml} Open in navigator `;updEta();const ol=$("
+  ],
+  "Артак": [
+    "Արտակ",
+    "Artak"
+  ],
+  "Выберите адрес из списка, чтобы добавить": [
+    "Ցանկից ընտրեք հասցե՝ ավելացնելու համար",
+    "Select an address from the list to add"
+  ],
+  "Выберите нужный вариант · источник:": [
+    "Ընտրեք ցանկալի տարբերակը · աղբյուր.",
+    "Select the desired option · source:"
+  ],
+  "Геворг Спайка": [
+    "Գեւորգ Սպայկա",
+    "Gevorg Spayka"
+  ],
+  "Геосаджест": [
+    "Geosajest",
+    "Geosajest"
+  ],
+  "Геосаджест: нет связи": [
+    "Geosagest. կապ չկա",
+    "Geosajest: no connection"
+  ],
+  "Геосаджест: ошибка": [
+    "Geosagest. սխալ",
+    "Geosajest: error"
+  ],
+  "Закрыть": [
+    "Փակել",
+    "Close"
+  ],
+  "Интернет есть": [
+    "Ինտերնետը հասանելի է",
+    "Internet is available"
+  ],
+  "Не удалось найти координаты:": [
+    "Չհաջողվեց գտնել կոորդինատները.",
+    "Could not find coordinates:"
+  ],
+  "Не удалось найти координаты: «": [
+    "Չհաջողվեց գտնել կոորդինատները.",
+    "Could not find coordinates: \""
+  ],
+  "Онлайн недоступен": [
+    "Առցանց հասանելի չէ",
+    "Online not available"
+  ],
+  "Русский": [
+    "ռուսերեն",
+    "Russian"
+  ],
+  "Сейчас в приложении": [
+    "Այժմ հավելվածում",
+    "Now in the app"
+  ],
+  "Язык / Լեզու / Language": [
+    "Լեզու / Լեզու / Language",
+    "Language / Լեզու / Language"
+  ],
+  "Яндекс": [
+    "Յանդեքս",
+    "Yandex"
+  ],
+  "Яндекс не отвечает": [
+    "Yandex-ը չի արձագանքում",
+    "Yandex does not respond"
+  ],
+  "версия от": [
+    "տարբերակից",
+    "version from"
+  ],
+  "или null function pickMonth(){return new Promise(res=>{ const old=g(": [
+    "կամ null ֆունկցիա pickMonth(){return new Promise(res=>{ const old=g(",
+    "or null function pickMonth(){return new Promise(res=>{ const old=g("
+  ],
+  "лимит Яндекса": [
+    "Yandex-ի սահմանաչափը",
+    "Yandex limit"
+  ],
+  "неизвестно": [
+    "անհայտ",
+    "unknown"
+  ],
+  "нет интернета": [
+    "ինտերնետ չկա",
+    "no internet"
+  ],
+  "нет ключа Геосаджеста": [
+    "ոչ Geosage բանալի",
+    "no Geosage key"
+  ],
+  "нет связи": [
+    "ոչ մի կապ",
+    "no connection"
+  ],
+  "по умолчанию": [
+    "լռելյայն",
+    "default"
+  ],
+  "шт": [
+    "հատ",
+    "pcs"
+  ],
+  "← Все итоги": [
+    "← Բոլոր արդյունքները",
+    "← All results"
+  ],
+  "⏱ Весь путь: ~${fmtT(totT)}${km}${approx?' ⚠ приблизительно':''}": [
+    "⏱ Ամբողջ ճանապարհին՝ ~${fmtT(totT)}${km}${մոտ?' ⚠ մոտավորապես':''}",
+    "⏱ All the way: ~${fmtT(totT)}${km}${approx?' ⚠ approximately':''}"
+  ],
+  "⚠ Неточный адрес: Яндекс нашёл только район или город": [
+    "⚠ Սխալ հասցե. Yandex-ը գտել է միայն թաղամաս կամ քաղաք",
+    "⚠ Inaccurate address: Yandex found only a district or city"
+  ],
+  "⚠ Неточных адресов: '+bad+' (жёлтые маркеры). Маршрут приведёт в центр района, уточните улицу и дом.": [
+    "⚠ Սխալ հասցեներ՝ «+ վատ+» (դեղին մարկերներ): Երթուղին տանելու է դեպի տարածքի կենտրոն, ստուգել փողոցն ու տունը։",
+    "⚠ Inaccurate addresses: '+bad+' (yellow markers). The route will lead to the center of the area, check the street and house."
+  ],
+  "➕ Добавить точку": [
+    "➕ Ավելացնել կետ",
+    "➕ Add point"
+  ],
+  "⤢ Весь маршрут": [
+    "⤢ Ամբողջ երթուղին",
+    "⤢ Entire route"
+  ],
+  "🌐 Язык / Լեզու / Language": [
+    "🌐 Լեզու / Լեզու / Լեզու",
+    "🌐 Language / Լեզու / Language"
+  ],
+  "🏁 Вернуться на базу": [
+    "🏁 Վերադարձ դեպի բազա",
+    "🏁 Return to base"
+  ],
+  "💾 Сохранить": [
+    "💾 Պահպանել",
+    "💾 Save"
+  ],
+  "📄 Скопировать": [
+    "📄Պատճենել",
+    "📄Copy"
+  ],
+  "📋 Итоги": [
+    "📋 Արդյունքներ",
+    "📋 Results"
+  ],
+  "📍 Точки": [
+    "📍 Կետեր",
+    "📍 Dots"
+  ],
+  "📲 Установите приложение на экран": [
+    "📲 Տեղադրեք հավելվածը ձեր էկրանին",
+    "📲 Install the application on your screen"
+  ],
+  "🔄 Обнулить": [
+    "🔄 Վերականգնել",
+    "🔄 Reset"
+  ],
+  "🗺 Карта": [
+    "🗺 Քարտեզ",
+    "🗺 Map"
+  ],
+  "🧭 Навигатор:": [
+    "🧭 Նավիգատոր.",
+    "🧭 Navigator:"
+  ],
+  "🧭 Поехали": [
+    "🧭 Եկեք գնանք",
+    "🧭 Let's go"
+  ],
+  "🧭 Север": [
+    "🧭 Հյուսիս",
+    "🧭 North"
+  ],
+  "🧮 Бонусы": [
+    "🧮 Բոնուսներ",
+    "🧮 Bonuses"
+  ]
+}
