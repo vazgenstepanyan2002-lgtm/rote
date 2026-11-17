@@ -26,7 +26,7 @@ let _spTok=0;
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function saveSpec(){localStorage.setItem('SPEC',JSON.stringify(SPEC_PTS));if(window._admPushNow)window._admPushNow()}
 function drawSpec(me,dists,durs){
- if(!SPEC_PTS.length){$('ptList').innerHTML='<div style="color:#94a3b8;font-size:14px;padding:6px 2px">Список пуст. Добавьте точку ниже.</div>';return}
+ if(!SPEC_PTS.length){$('ptList').innerHTML='<div class="pt-empty">Список пуст. Добавьте точку ниже.</div>';return}
  $('ptList').innerHTML=SPEC_PTS.map((p,i)=>{
   let info='';
   if(durs&&durs[i]!=null){
@@ -39,7 +39,7 @@ function drawSpec(me,dists,durs){
   }else{
    info='<span class="t-tag" style="color:#94a3b8">Определяю геопозицию...</span>';
   }
-  return '<div class="pt-r"><a class="pt-i" href="yandexnavi://build_route_on_map?lat_to='+p.lat+'&lon_to='+p.lon+'"><span>'+esc(p.name)+info+'</span><span style="color:#fc0">🧭 Поехали</span></a><a class="x" href="#" onclick="delSpec('+i+');return false">✕</a></div>';
+  return '<div class="pt-r"><a class="pt-i" href="yandexnavi://build_route_on_map?lat_to='+p.lat+'&lon_to='+p.lon+'"><span class="pt-ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span><span class="pt-tx"><b>'+esc(p.name)+'</b>'+info+'</span><span class="pt-go">🧭 Поехали</span></a><a class="pt-del" href="#" onclick="delSpec('+i+');return false" aria-label="Удалить">✕</a></div>';
  }).join('');
 }
 async function delSpec(i){
