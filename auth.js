@@ -111,6 +111,7 @@
           if (window._onlineBeatNow) window._onlineBeatNow();
           if (window._onlineBeatNow) window._onlineBeatNow();
           if (window._admPushNow) window._admPushNow();
+          reqNotifyPerm();
           window.toast && toast("С возвращением, " + (acc.name || rawName) + "!");
           setTimeout(() => location.reload(), 350);
         } else {
@@ -124,6 +125,7 @@
           lsSet("USER_KEY", key);
           m.remove();
           renderUserBtn();
+          reqNotifyPerm();
           window.toast && toast("Профиль создан: " + rawName);
           if (window._admPushNow) window._admPushNow();
         }
@@ -167,6 +169,7 @@
     box.scrollTop = box.scrollHeight;
   }
   function openChat(){
+    reqNotifyPerm();
     _chatOpen = true; markChatSeen();
     let m = g("chatMdl");
     if (!m){
@@ -197,6 +200,7 @@
     
   }
   function openProfileMenu(){
+    reqNotifyPerm();
     let m = g("profMdl");
     if (!m){
       m = document.createElement("div"); m.id = "profMdl"; m.className = "cm";
@@ -237,13 +241,73 @@
     if (uid) db.ref("users/" + uid + "/blocked").on("value", s => { if (s.val()) kick(false); }, () => {});
     if (key) db.ref("accounts/" + key + "/blocked").on("value", s => { if (s.val()) kick(false); }, () => {});
   }
+  let _chatInit = false, _lastNotifiedT = +(ls("CHAT_NOTIF_T") || 0);
+  function reqNotifyPerm(){
+    try {
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission().catch(() => {});
+      }
+    } catch(e){}
+  }
+  function pushSysNotify(title, body){
+    try {
+      if (!("Notification" in window) || Notification.permission !== "granted") return;
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: "NOTIFY",
+          title: title,
+          body: body,
+          tag: "eurobaza-chat",
+          url: "./"
+        });
+        return;
+      }
+      if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+        navigator.serviceWorker.ready.then(reg => {
+          if (reg && reg.showNotification) {
+            reg.showNotification(title, {
+              body: body,
+              icon: "icon-192.png",
+              badge: "icon-192.png",
+              tag: "eurobaza-chat",
+              renotify: true,
+              vibrate: new Array(180, 90, 180)
+            });
+          }
+        }).catch(() => {});
+        return;
+      }
+      new Notification(title, { body: body, icon: "icon-192.png", tag: "eurobaza-chat" });
+    } catch(e){}
+  }
   function bindChat(){
     if (_chatBound || !window.firebase || !firebase.apps || !firebase.apps.length) return;
     _chatBound = true;
     firebase.database().ref("chat").limitToLast(50).on("value", snap => {
       const val = snap.val() || {};
-      _chatList = Object.keys(val).map(k => Object.assign({ k: k }, val[k])).sort((a, b) => (+a.t || 0) - (+b.t || 0));
-      if (_chatOpen){ markChatSeen(); renderChatRows(); } else updBadges();
+      const nextList = Object.keys(val).map(k => Object.assign({ k: k }, val[k])).sort((a, b) => (+a.t || 0) - (+b.t || 0));
+      const myUid = ls("ADM_UID") || "";
+      if (_chatInit && myUid) {
+        const fresh = nextList.filter(m => (+m.t || 0) > _lastNotifiedT && m.uid !== myUid);
+        if (fresh.length) {
+          const lastMsg = fresh[fresh.length - 1];
+          _lastNotifiedT = +lastMsg.t || Date.now();
+          lsSet("CHAT_NOTIF_T", String(_lastNotifiedT));
+          if (!_chatOpen || document.hidden) {
+            const sender = lastMsg.adm ? "👑 Админ" : (lastMsg.name || "Водитель");
+            pushSysNotify("💬 Общий чат · " + sender, String(lastMsg.txt || "").slice(0, 140));
+          }
+        }
+      } else if (nextList.length) {
+        const mx = Math.max.apply(null, nextList.map(m => +m.t || 0));
+        if (mx > _lastNotifiedT) {
+          _lastNotifiedT = mx;
+          lsSet("CHAT_NOTIF_T", String(_lastNotifiedT));
+        }
+      }
+      _chatInit = true;
+      _chatList = nextList;
+      if (_chatOpen && !document.hidden){ markChatSeen(); renderChatRows(); } else updBadges();
     }, () => {});
   }
   function renderUserBtn(){
@@ -254,6 +318,12 @@
     b.onclick = openProfileMenu; updBadges();
   }
   function boot(){
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener("message", e => {
+        if (e.data && e.data.type === "OPEN_CHAT" && ls("USER_NAME")) openChat();
+      });
+    }
+
     renderUserBtn();
     const lockBack = () => {
       if (ls("USER_NAME")) return;

@@ -65,7 +65,7 @@
   listen('labels',v=>{LABELS=v||{};draw()});
   listen('accounts',v=>{ACCOUNTS=v||{};draw()});
   listen('config/forceUpdate',v=>{FU=+v||0;draw()});
-  listen('chat',v=>{const obj=v||{};const all=Object.keys(obj).map(k=>Object.assign({k:k},obj[k])).sort((a,b)=>(+a.t||0)-(+b.t||0));if(all.length>50){all.slice(0,all.length-50).forEach(x=>db.ref('chat/'+x.k).remove().catch(()=>{}));CHAT=all.slice(-50)}else{CHAT=all}if(CHAT_OPEN){markAdmChatSeen();renderAdmChat()}else updAdmChatBdg()});
+  listen('chat',v=>{const obj=v||{};const all=Object.keys(obj).map(k=>Object.assign({k:k},obj[k])).sort((a,b)=>(+a.t||0)-(+b.t||0));const list=all.length>50?(all.slice(0,all.length-50).forEach(x=>db.ref('chat/'+x.k).remove().catch(()=>{})),all.slice(-50)):all;if(_admChatInit){const fresh=list.filter(m=>(+m.t||0)>_admLastNotifT&&!m.adm);if(fresh.length){const lm=fresh[fresh.length-1];_admLastNotifT=+lm.t||Date.now();localStorage.setItem('ADM_CHAT_NOTIF_T',String(_admLastNotifT));if(!CHAT_OPEN||document.hidden)admNotify('💬 Чат · '+(lm.name||'Водитель'),String(lm.txt||'').slice(0,140))}}else if(list.length){const mx=Math.max.apply(null,list.map(m=>+m.t||0));if(mx>_admLastNotifT){_admLastNotifT=mx;localStorage.setItem('ADM_CHAT_NOTIF_T',String(_admLastNotifT))}}_admChatInit=true;CHAT=list;if(CHAT_OPEN&&!document.hidden){markAdmChatSeen();renderAdmChat()}else updAdmChatBdg()});
   loadPub();
   tick=setInterval(draw,15000);
  }
@@ -477,6 +477,20 @@
  g('lgPw').onkeydown=e=>{if(e.key==='Enter')login()};
  g('lgEm').onkeydown=e=>{if(e.key==='Enter')g('lgPw').focus()};
  
+ let _admChatInit=false,_admLastNotifT=+(localStorage.getItem('ADM_CHAT_NOTIF_T')||0);
+ function reqAdmNotify(){
+  try{if('Notification' in window && Notification.permission==='default')Notification.requestPermission().catch(()=>{})}catch(e){}
+ }
+ function admNotify(title,body){
+  try{
+   if(!('Notification' in window)||Notification.permission!=='granted')return;
+   if(navigator.serviceWorker&&navigator.serviceWorker.controller){
+    navigator.serviceWorker.controller.postMessage({type:'NOTIFY',title:title,body:body,tag:'eurobaza-adm-chat',url:'admin.html'});
+    return;
+   }
+   new Notification(title,{body:body,icon:'icon-192.png',tag:'eurobaza-adm-chat'});
+  }catch(e){}
+ }
  function updAdmChatBdg(){
   const b=g('admChatBdg');if(!b)return;
   const seen=+(localStorage.getItem('ADM_CHAT_SEEN')||0);
@@ -499,6 +513,7 @@
   box.scrollTop=box.scrollHeight;
  }
  function openAdmChat(){
+  reqAdmNotify();
   CHAT_OPEN=true;markAdmChatSeen();
   const ov=document.createElement('div');ov.className='ov';
   ov.innerHTML='<div class="dlg ach-box"><div class="ach-hd"><div class="ach-hd-l"><div class="ach-hd-ic">💬</div><div><b>Общий чат</b><small>Канал водителей (до 50 сообщ.)</small></div></div><div class="ach-acts"><button type="button" id="achClr" class="ach-clr">Очистить</button><button type="button" id="achX" class="ach-x">✕</button></div></div><div id="achList" class="ach-list"></div><div class="ach-bar"><input id="achInp" maxlength="300" placeholder="Написать водителям..."><button type="button" id="achSnd" aria-label="Отправить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></div>';
