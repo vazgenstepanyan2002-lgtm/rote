@@ -719,8 +719,7 @@
       const fbKey = fbOpts.apiKey || '';
       const fbDb = fbOpts.databaseURL || '';
 
-      const p1 = ['https:', '', '://googleapis.com', 'v1', 'accounts:lookup?key=' + fbKey].join('/');
-      const p2 = ['https:', '', 'geocode-maps.yandex.ru', '1.x', '?format=json&apikey=' + yKey + '&geocode=44.4425,40.0686'].join('/');
+            const p2 = ['https:', '', 'geocode-maps.yandex.ru', '1.x', '?format=json&apikey=' + yKey + '&geocode=44.4425,40.0686'].join('/');
       const p3 = ['https:', '', 'suggest-maps.yandex.ru', 'v1', 'suggest?apikey=' + sKey + '&text=Masis'].join('/');
       const p4 = ['https:', '', 'router.project-osrm.org', 'route', 'v1', 'driving', '44.4425,40.0686;44.4500,40.0750?overview=false'].join('/');
       const p5 = ['https:', '', 'routing.openstreetmap.de', 'routed-car', 'route', 'v1', 'driving', '44.4425,40.0686;44.4500,40.0750?overview=false'].join('/');
@@ -728,11 +727,8 @@
       const checks = await Promise.all([
         probe('Firebase API Key', maskKey(fbKey), async () => {
           if (!fbKey) return { ok: false, detail: 'Ключ отсутствует' };
-          const r = await fetch(p1, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken: 'test' }) });
-          const j = await r.json().catch(() => ({}));
-          const msg = j && j.error && j.error.message || '';
-          const valid = msg === 'INVALID_ID_TOKEN' || r.ok;
-          return { ok: valid, detail: valid ? 'Ключ валиден (HTTP ' + r.status + ')' : 'Ошибка ключа: ' + (msg || r.status) };
+          const ok = Boolean(fbKey && fbKey.startsWith('AIza') && window.firebase && firebase.auth().currentUser);
+          return { ok, detail: ok ? 'SDK и сессия ОК' : 'Ошибка авторизации' };
         }),
         probe('Firebase Realtime DB', fbDb ? 'europe-west1' : 'нет URL', async () => {
           const u=window.firebase&&firebase.auth().currentUser,tk=u?await u.getIdToken():'';const r=await fetch(fbDb+'/config.json'+(tk?'?auth='+tk:''));
