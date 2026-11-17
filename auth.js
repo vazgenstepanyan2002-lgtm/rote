@@ -115,6 +115,7 @@
     if (!ft || !uname) return;
     let b = g("usrBtn");
     if (!b){ b = document.createElement("button"); b.id = "usrBtn"; ft.appendChild(b); }
+    if (!g("ft-br")){ const br = document.createElement("div"); br.id = "ft-br"; ft.appendChild(br); }
     b.textContent = "👤 " + uname;
     b.onclick = async () => {
       if (typeof askC === "function"){

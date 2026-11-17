@@ -486,3 +486,30 @@ body.dock-hide .fab{
 .au-langs{display:flex;justify-content:center;gap:6px;margin-bottom:16px}
 .au-langs button{width:auto!important;height:28px!important;margin:0!important;padding:0 11px!important;border-radius:99px!important;font-size:11.5px!important;font-weight:700!important;background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.12)!important;color:#94a3b8!important;box-shadow:none!important}
 .au-langs button.on{background:rgba(16,185,129,.2)!important;border-color:#10b981!important;color:#34d399!important}
+
+/* PROFILE-HERO-BTN: крупная кнопка профиля по центру над навигатором и языком */
+#ft{justify-content:center;gap:10px}
+#ft #ver{order:1;width:100%;text-align:center;margin-bottom:2px}
+#ft #usrBtn{
+  order:2;
+  flex:0 1 auto;
+  min-width:210px;
+  max-width:90%;
+  margin:0 auto 2px;
+  padding:11px 22px;
+  font-size:15.5px;
+  font-weight:700;
+  letter-spacing:.2px;
+  color:#ecfdf5;
+  background:linear-gradient(135deg,rgba(16,185,129,.26) 0%,rgba(14,165,233,.18) 100%);
+  border:1.5px solid rgba(52,211,153,.55);
+  border-radius:15px;
+  box-shadow:0 8px 22px rgba(16,185,129,.22),inset 0 1px 0 rgba(255,255,255,.22);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+}
+#ft #usrBtn:active{transform:scale(.97)}
+#ft-br{order:3;flex-basis:100%;height:0;margin:0;padding:0}
+#ft #navBtn,#ft #lgBtn{order:4}
