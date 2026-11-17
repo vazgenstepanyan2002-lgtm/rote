@@ -198,7 +198,6 @@
   const cr=sumRows(),cs=sumOf(cr),cq=qtyOf(cr);
   let html='<div class="bn-hero"><span class="bn-hero-l">Текущий месяц</span><b class="bn-hero-v">'+fm(cs)+' '+CUR+'</b><span class="bn-hero-q">'+fm(cq)+' шт</span></div>';
   html+='<div class="bn-sec">Сохранённые итоги</div>';
-  html+=rowHtml('cur',monthName(MK(new Date())),'идёт',cs,cq,true);
   ks.forEach(k=>{
    const d=h[k];
    html+=rowHtml(k,monthName(d.m||k),new Date(d.t||0).toLocaleDateString('ru-RU',{day:'numeric',month:'short'}),d.sum,d.qty,false);
