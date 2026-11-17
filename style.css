@@ -355,3 +355,8 @@ ol#l:not(:empty){margin:14px 0 0;padding:14px;border-radius:20px;background:rgba
 .bn-hero-btn{cursor:pointer;position:relative}
 .bn-hero-btn::after{content:"›";position:absolute;right:18px;top:50%;transform:translateY(-50%);font-size:28px;color:rgba(255,255,255,.85);line-height:1}
 .bn-hero-btn:active{transform:scale(.98)}
+
+/* bn-pk: окно выбора месяца и года */
+.bn-pkr{display:grid;grid-template-columns:1fr 110px;gap:10px;margin:4px 0 16px}
+.bn-pkr select,.bn-pkr input{height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(15,23,34,.9);color:#fff;font-size:16px;padding:0 10px;outline:none;width:100%}
+.bn-pkr select:focus,.bn-pkr input:focus{border-color:#10b981}

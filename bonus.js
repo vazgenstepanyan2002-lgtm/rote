@@ -169,11 +169,34 @@
  const saveHist=h=>{try{localStorage.setItem('BON_HIST',JSON.stringify(h))}catch(e){}};
  const qtyOf=rows=>rows.reduce((a,c)=>a+cqOf(c),0);
  const sumOf=rows=>rows.reduce((a,c)=>a+c.sum,0);
+ // ===== Названия месяцев на текущем языке =====
+ const MN={ru:['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'],hy:['Հունվար','Փետրվար','Մարտ','Ապրիլ','Մայիս','Հունիս','Հուլիս','Օգոստոս','Սեպտեմբեր','Հոկտեմբեր','Նոյեմբեր','Դեկտեմբեր'],en:['January','February','March','April','May','June','July','August','September','October','November','December']};
+ function curLang(){try{return window.getLang?window.getLang():'ru'}catch(e){return 'ru'}}
+ function capName(n){return n.charAt(0).toUpperCase()+n.slice(1)}
  function monthName(k){
   const p=String(k).split('-');if(p.length<2)return String(k);
-  const t=new Date(+p[0],+p[1]-1,1).toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
-  return t.charAt(0).toUpperCase()+t.slice(1);
+  const L=curLang(),nm=capName((MN[L]||MN.ru)[+p[1]-1]||'');
+  return L==='ru'?nm+' '+p[0]+' г.':nm+' '+p[0];
  }
+ // Окно выбора месяца и года, возвращает 'YYYY-MM' или null
+ function pickMonth(){return new Promise(res=>{
+  const old=g('mPick');if(old)old.remove();
+  const now=new Date(),L=curLang(),names=MN[L]||MN.ru;
+  const opts=names.map((n,i)=>'<option value="'+(i+1)+'"'+(i===now.getMonth()?' selected':'')+'>'+capName(n)+'</option>').join('');
+  const m=document.createElement('div');m.id='mPick';m.className='cm open';
+  m.innerHTML='<div class="cm-b bn-pk"><div class="cm-i">📅</div><div class="cm-t">Выберите месяц и год</div>'
+   +'<div class="bn-pkr"><select id="pkM">'+opts+'</select><input id="pkY" type="number" inputmode="numeric" min="2000" max="2100" value="'+now.getFullYear()+'"></div>'
+   +'<div class="cm-r"><button id="pkNo">Отмена</button><button id="pkOk" class="cm-ok">Сохранить</button></div></div>';
+  document.body.appendChild(m);
+  const done=v=>{m.remove();res(v)};
+  g('pkNo').onclick=()=>done(null);
+  g('pkOk').onclick=()=>{
+   const mo=+g('pkM').value,y=+g('pkY').value;
+   if(!(y>=2000&&y<=2100)){tst('Укажите год от 2000 до 2100','err');return}
+   done(y+'-'+String(mo).padStart(2,'0'));
+  };
+  m.onclick=e=>{if(e.target===m)done(null)};
+ })}
  function setFoot(k){
   const b=g('bnSave');if(!b)return;
   if(k&&k!=='cur'&&HIST()[k]){b.textContent='🗑️ Удалить';b.classList.add('bn-del');b.onclick=()=>deleteMonth(k)}
@@ -181,7 +204,7 @@
  }
  function deleteMonth(k){
   const d=HIST()[k];if(!d)return;
-  askC('Удалить итоги за '+monthName(d.m||k)+'? Это действие нельзя отменить.','Удалить','🗑️').then(y=>{
+  askC('Удалить эти итоги? Это действие нельзя отменить.','Удалить','🗑️').then(y=>{
    if(!y)return;
    const h=HIST();delete h[k];saveHist(h);
    tst('Итоги удалены');histView();
@@ -231,19 +254,19 @@
   setFoot(k);
   detailView(d.rows,monthName(d.m||k),new Date(d.t||0).toLocaleDateString('ru-RU',{day:'numeric',month:'long'}));
  }
- function saveMonth(){
+ async function saveMonth(){
   const rows=sumRows();
   if(!rows.length){tst('Пока ничего не выбрано','err');return}
-  const now=new Date(),mk=MK(now);
-  askC('Сохранить итоги за '+monthName(mk)+' и обнулить количества?','Сохранить','💾').then(y=>{
-   if(!y)return;
-   const h=HIST(),id=now.getTime().toString(36);
-   h[id]={m:mk,t:now.getTime(),sum:sumOf(rows),qty:qtyOf(rows),rows:rows};
-   saveHist(h);
-   B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));
-   save();render();histView();
-   tst('Итоги сохранены');
-  });
+  const mk=await pickMonth();if(!mk)return;
+  const ok=await askC('Сохранить итоги за выбранный месяц и обнулить количества?','Сохранить','💾');
+  if(!ok)return;
+  const now=new Date(),id=now.getTime().toString(36);
+  const h=HIST();
+  h[id]={m:mk,t:now.getTime(),sum:sumOf(rows),qty:qtyOf(rows),rows:rows};
+  saveHist(h);
+  B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));
+  save();render();histView();
+  tst('Итоги сохранены');
  }
  function openSum(){
   histView();
