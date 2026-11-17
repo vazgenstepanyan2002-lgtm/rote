@@ -1,4 +1,4 @@
-const C='eb-cache-20261117140236';
+const C='eb-cache-20261117152005';
 const PRE=['./auto-translations.json','./','./index.html','./style.css','./app.js','./yandex.js','./ui.js','./map.js','./bonus.js','./i18n.js','./online.js','./manifest.json','./icon-192.png','./icon-512.png','./bg.jpg'];
 
 self.addEventListener('install',e=>{
@@ -37,6 +37,6 @@ self.addEventListener('fetch',e=>{
     return;
   }
   if(isNav(r)){
-    e.respondWith(fetch(r,{cache:'no-cache'}).then(res=>{const cl=res.clone();caches.open(C).then(c=>c.put('./index.html',cl));return res}).catch(()=>caches.match('./index.html',{ignoreSearch:true})));
+    e.respondWith(fetch(r,{cache:'no-cache'}).then(res=>{if(res.ok&&!u.pathname.endsWith('/admin.html')){const cl=res.clone();caches.open(C).then(c=>c.put('./index.html',cl))}return res}).catch(()=>caches.match('./index.html',{ignoreSearch:true})));
   }
 });

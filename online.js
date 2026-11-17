@@ -96,3 +96,109 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 })();
+
+// ADMIN-SYNC: данные для административной панели (users/<id>) и команда обновления (config/forceUpdate)
+(function(){
+  const ls = k => { try { return localStorage.getItem(k); } catch(e){ return null; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch(e){} };
+  // Отдельный закрытый идентификатор: не совпадает с публичным ONLINE_UID
+  let AID = ls('ADM_UID');
+  if (!AID){
+    AID = 'a' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
+    lsSet('ADM_UID', AID);
+  }
+  if (!ls('ADM_FIRST')) lsSet('ADM_FIRST', String(Date.now()));
+
+  function curSummary(){
+    let rows = [];
+    try { rows = JSON.parse(ls('BON') || '[]'); } catch(e){}
+    if (!Array.isArray(rows)) rows = [];
+    let sum = 0, qty = 0;
+    const cats = [];
+    rows.forEach(c => {
+      if (!c || !Array.isArray(c.subs)) return;
+      let cs = 0, cq = 0;
+      c.subs.forEach(s => {
+        const q1 = +s.qty || 0, q2 = +s.qty2 || 0;
+        cs += q1 * (+s.price || 0) + q2 * (+s.price2 || 0);
+        cq += q1 + q2;
+      });
+      if (cq > 0) cats.push({ n: c.name, q: cq, s: cs });
+      sum += cs; qty += cq;
+    });
+    return { sum: sum, qty: qty, cats: cats };
+  }
+
+  function payload(){
+    let addr = 0;
+    try { addr = typeof P !== 'undefined' && Array.isArray(P) ? P.length : 0; } catch(e){}
+    return {
+      t: Date.now(),
+      v: ls('APP_V') || '',
+      lang: ls('LANG') || 'ru',
+      ua: (navigator.userAgent || '').slice(0, 160),
+      scr: screen.width + 'x' + screen.height,
+      first: +ls('ADM_FIRST') || Date.now(),
+      addr: addr,
+      cur: JSON.stringify(curSummary()),
+      hist: ls('BON_HIST') || '{}'
+    };
+  }
+
+  let ref = null, lastSig = '';
+  function push(){
+    if (!ref) return;
+    const p = payload();
+    const sig = [p.cur, p.hist, p.v, p.lang, p.addr].join('|');
+    if (sig === lastSig){ ref.child('t').set(Date.now()).catch(() => {}); return; }
+    lastSig = sig;
+    ref.update(p).catch(() => { lastSig = ''; });
+  }
+
+  // Принудительное обновление: применяется, когда в приложении ничего не заполняется
+  let pendingFU = 0;
+  function busy(){
+    const g = id => document.getElementById(id);
+    const open = id => g(id) && g(id).classList.contains('open');
+    return !!((g('a') && g('a').value.trim()) || (g('pn') && g('pn').value.trim()) ||
+      open('ptMdl') || open('cm') || open('mapM') || open('bnMdl'));
+  }
+  async function applyFU(){
+    lsSet('FU_SEEN', String(pendingFU));
+    pendingFU = 0;
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
+        const rs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(rs.map(r => r.update().catch(() => {})));
+      }
+    } catch(e){}
+    location.reload();
+  }
+  function tryFU(){
+    if (pendingFU && !document.hidden && !busy()) applyFU();
+  }
+
+  function init(){
+    const db = firebase.database();
+    ref = db.ref('users/' + AID);
+    push();
+    setInterval(() => { if (!document.hidden) push(); }, 30000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden){ push(); tryFU(); } });
+    db.ref('config/forceUpdate').on('value', snap => {
+      const v = +snap.val() || 0;
+      const seen = ls('FU_SEEN');
+      if (seen === null){ lsSet('FU_SEEN', String(v)); return; }  // новое устройство: не перезагружаем
+      if (v > (+seen || 0)){ pendingFU = v; tryFU(); }
+    }, () => {});
+    setInterval(tryFU, 10000);
+  }
+
+  let tries = 0;
+  const wait = setInterval(() => {
+    tries++;
+    if (window.firebase && firebase.apps && firebase.apps.length && firebase.database){
+      clearInterval(wait);
+      init();
+    } else if (tries > 60) clearInterval(wait);
+  }, 500);
+})();
