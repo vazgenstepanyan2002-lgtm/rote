@@ -50,7 +50,6 @@ async function delSpec(i){
 function openAddSpec(){
  $('pn').value='';$('pc').value='';$('ptMsg').textContent='';
  $('ptAddMdl').classList.add('open');
- setTimeout(()=>{try{$('pn').focus()}catch(e){}},80);
 }
 function closeAddSpec(){
  $('ptAddMdl').classList.remove('open');
