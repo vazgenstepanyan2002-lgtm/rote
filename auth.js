@@ -6,6 +6,8 @@
   const lsDel = k => { try { localStorage.removeItem(k); } catch(e){} };
 
   const normKey = s => String(s || "").trim().toLowerCase().replace(/[.#$\[\]\/]+/g, "_").replace(/\s+/g, " ");
+  function getDevId(){ let d = ls("DEV_ID"); if (!d){ d = "d" + Math.random().toString(36).slice(2, 12) + Date.now().toString(36); lsSet("DEV_ID", d); } return d; }
+  let _devBlocked = false;
 
   function ensureModal(){
     let m = g("authMdl");
@@ -45,6 +47,7 @@
 
     async function submit(){
       err.textContent = "";
+      if (_devBlocked){ err.textContent = "Это устройство заблокировано администратором"; return; }
       const rawName = nm.value.trim();
       const key = normKey(rawName);
       const pin = pn.value.trim();
@@ -59,11 +62,24 @@
       btn.textContent = "Проверка...";
       try {
         const db = firebase.database();
+        const devSnap = await db.ref("blockedDevices/" + getDevId()).once("value");
+        if (devSnap.val()){
+          _devBlocked = true;
+          err.textContent = "Это устройство заблокировано администратором";
+          btn.disabled = true;
+          return;
+        }
         const accRef = db.ref("accounts/" + key);
         const snap = await accRef.once("value");
         const acc = snap.val();
 
         if (acc){
+          if (acc.blocked){
+            err.textContent = "Ваш профиль заблокирован администратором";
+            btn.disabled = false;
+            btn.innerHTML = '<span>Продолжить</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>';
+            return;
+          }
           if (String(acc.pin) !== pin){
             err.textContent = "Неверный 4-значный код для имени «" + (acc.name || rawName) + "»";
             btn.disabled = false;
@@ -78,6 +94,12 @@
 
           const uSnap = await db.ref("users/" + acc.uid).once("value");
           const uData = uSnap.val();
+          if (uData && uData.blocked){
+            err.textContent = "Ваш профиль заблокирован администратором";
+            btn.disabled = false;
+            btn.innerHTML = '<span>Продолжить</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>';
+            return;
+          }
           if (uData){
             if (typeof uData.hist === "string" && uData.hist.length > 2) lsSet("BON_HIST", uData.hist);
             if (typeof uData.bonRaw === "string" && uData.bonRaw.length > 2) lsSet("BON", uData.bonRaw);
@@ -190,6 +212,29 @@
     }
     g("pmTitle").textContent = ls("USER_NAME") || ""; updBadges(); m.classList.add("open");
   }
+  let _blkBound = false;
+  function bindBlockWatch(){
+    if (_blkBound || !window.firebase || !firebase.apps || !firebase.apps.length) return;
+    _blkBound = true;
+    const db = firebase.database();
+    const uid = ls("ADM_UID"), key = ls("USER_KEY"), devId = getDevId();
+    const kick = (byDev) => {
+      if (byDev) _devBlocked = true;
+      try { if (uid) db.ref("online/" + uid).remove(); } catch(e){}
+      lsDel("USER_NAME"); lsDel("USER_KEY"); lsDel("ADM_UID"); lsDel("BON"); lsDel("BON_HIST"); lsDel("SPEC");
+      ensureModal();
+      const err = g("auErr"), btn = g("auGo");
+      if (err) err.textContent = byDev ? "Это устройство заблокировано администратором" : "Ваш профиль заблокирован администратором";
+      if (btn && byDev) btn.disabled = true;
+      const ub = g("usrBtn"); if (ub) ub.remove();
+    };
+    db.ref("blockedDevices/" + devId).on("value", s => {
+      if (s.val()) kick(true);
+      else if (_devBlocked){ _devBlocked = false; const err = g("auErr"), btn = g("auGo"); if (err) err.textContent = ""; if (btn) btn.disabled = false; }
+    }, () => {});
+    if (uid) db.ref("users/" + uid + "/blocked").on("value", s => { if (s.val()) kick(false); }, () => {});
+    if (key) db.ref("accounts/" + key + "/blocked").on("value", s => { if (s.val()) kick(false); }, () => {});
+  }
   function bindChat(){
     if (_chatBound || !window.firebase || !firebase.apps || !firebase.apps.length) return;
     _chatBound = true;
@@ -208,7 +253,7 @@
   }
   function boot(){
     renderUserBtn(); if (!ls("USER_NAME")) ensureModal();
-    let tries = 0; const w = setInterval(() => { if (++tries > 60) clearInterval(w); else if (window.firebase && firebase.apps && firebase.apps.length){ clearInterval(w); bindChat(); } }, 500);
+    let tries = 0; const w = setInterval(() => { if (++tries > 60) clearInterval(w); else if (window.firebase && firebase.apps && firebase.apps.length){ clearInterval(w); bindChat(); bindBlockWatch(); } }, 500);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })();

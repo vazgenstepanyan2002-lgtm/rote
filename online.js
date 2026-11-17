@@ -106,6 +106,8 @@
   const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch(e){} };
   // Отдельный закрытый идентификатор: не совпадает с публичным ONLINE_UID
   let AID = ls('ADM_UID') || '';
+  let DEV_ID = ls('DEV_ID');
+  if (!DEV_ID){ DEV_ID = 'd' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36); lsSet('DEV_ID', DEV_ID); }
   if (!ls('ADM_FIRST')) lsSet('ADM_FIRST', String(Date.now()));
 
   function curSummary(){
@@ -143,6 +145,7 @@
       scr: screen.width + 'x' + screen.height,
       first: +ls('ADM_FIRST') || Date.now(),
       addr: addr,
+      devId: DEV_ID,
       uname: uname,
       ukey: ukey,
       bonRaw: bonRaw,
@@ -159,7 +162,7 @@
     const ref = dbRef.ref("users/" + curUid);
     if (curUid !== lastUid){ lastUid = curUid; lastSig = ""; }
     const p = payload();
-    const sig = [p.uname, p.ukey, p.cur, p.hist, p.specPts, p.v, p.lang, p.addr].join('|');
+    const sig = [p.devId, p.uname, p.ukey, p.cur, p.hist, p.specPts, p.v, p.lang, p.addr].join('|');
     if (sig === lastSig){ ref.child('t').set(Date.now()).catch(() => {}); return; }
     lastSig = sig;
     ref.update(p).catch(() => { lastSig = ''; });

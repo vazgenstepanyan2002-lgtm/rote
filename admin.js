@@ -254,14 +254,20 @@
   let h='<div class="tiles"><div class="tile"><b>'+on+'</b><span>онлайн</span></div><div class="tile"><b>'+day+'</b><span>за 24 часа</span></div><div class="tile"><b>'+L.length+'</b><span>всего</span></div></div>';
   if(!L.length)h+='<div class="mut box">Данных пока нет. Устройства появятся, когда откроют обновлённое приложение.</div>';
   h+=L.map(d=>{
-   const live=now-(d.u.t||0)<TTL,acc=accByUid(d.id);
+   const live=now-(d.u.t||0)<TTL,acc=accByUid(d.id),blk=!!((acc&&acc.blocked)||d.u.blocked);
    const pinTag=acc?' · 🔑 '+esc(acc.pin):'';
-   return '<div class="row" data-act="rename" data-id="'+esc(d.id)+'"><span class="dot'+(live?' on':'')+'"></span>'
-    +'<div class="rm"><div class="rt">'+dispHtml(d)+'</div>'
+   const blkBadge=blk?' <span style="display:inline-block;background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.45);color:#fca5a5;font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:99px;vertical-align:middle;margin-left:4px">🚫 ЗАБЛОКИРОВАН</span>':'';
+   const rowStyle=blk?' style="border-color:rgba(239,68,68,.45);background:linear-gradient(180deg,rgba(45,18,24,.88) 0%,rgba(22,12,16,.95) 100%)"':'';
+   const blkBtn=blk
+    ?'<button class="xb" style="background:rgba(16,185,129,.18);border-color:rgba(52,211,153,.4);color:#34d399" data-act="block" data-id="'+esc(d.id)+'" data-key="'+esc(acc?acc.key:'')+'" data-blk="1" aria-label="Разблокировать">✅</button>'
+    :'<button class="xb" style="background:rgba(249,115,22,.16);border-color:rgba(249,115,22,.38);color:#fb923c" data-act="block" data-id="'+esc(d.id)+'" data-key="'+esc(acc?acc.key:'')+'" data-blk="0" aria-label="Заблокировать">🚫</button>';
+   return '<div class="row"'+rowStyle+' data-act="rename" data-id="'+esc(d.id)+'"><span class="dot'+(live&&!blk?' on':'')+'"></span>'
+    +'<div class="rm"><div class="rt">'+dispHtml(d)+blkBadge+'</div>'
     +'<div class="rs">'+esc(devInfo(d.u.ua)+' · '+(d.u.lang||'ru'))+pinTag+'</div>'
     +'<div class="rs">'+(live?'сейчас в приложении':'был(а) '+ago(d.u.t))+' · версия '+esc(verFmt(d.u.v))+(d.u.addr!=null?' · адресов: '+esc(d.u.addr):'')+'</div></div>'
     +'<div class="rv">'+money(d.cur.sum)+'</div>'
     +(acc?'<button class="xb" style="background:rgba(250,204,21,.14);border-color:rgba(250,204,21,.35);color:#fde047" data-act="pin" data-key="'+esc(acc.key)+'" aria-label="ПИН">🔑</button>':'')
+    +blkBtn
     +'<button class="xb" data-act="del" data-id="'+esc(d.id)+'" aria-label="Удалить">✕</button></div>';
   }).join('');
   if(L.length)h+='<div class="mut hint">Нажмите на устройство, чтобы задать ему имя.</div>';
@@ -437,6 +443,7 @@
   else if(a==='force')force();
   else if(a==='del'){e.stopPropagation();del(b.dataset.id)}
   else if(a==='rename')rename(b.dataset.id);
+  else if(a==='block'){e.stopPropagation();const id=b.dataset.id,k=b.dataset.key,isBlk=b.dataset.blk==='1',du=USERS[id]||{};const who=dispName(parseDev(id,du));const ok=await ask(isBlk?'Разблокировать водителя и телефон «'+who+'»?':'Заблокировать водителя и этот телефон («'+who+'»)? Он сразу выйдет и не сможет войти даже под новым именем.',{title:isBlk?'Разблокировка':'Блокировка',okText:isBlk?'Разблокировать':'Заблокировать',danger:!isBlk});if(!ok)return;try{const nv=isBlk?null:true;await db.ref('users/'+id+'/blocked').set(nv);if(k)await db.ref('accounts/'+k+'/blocked').set(nv);if(du.devId)await db.ref('blockedDevices/'+du.devId).set(nv);if(!isBlk)await db.ref('online/'+id).remove();toast(isBlk?'Разблокировано':'Заблокировано')}catch(err){toast('Ошибка сохранения',true)}}
   else if(a==='pin'){e.stopPropagation();const k=b.dataset.key,cur=ACCOUNTS[k]&&ACCOUNTS[k].pin||'';const np=await askInput('Смена ПИН-кода','Введите новый 4-значный код для водителя',cur,'Например: 1234');if(np===null)return;const clean=np.replace(/\D/g,'');if(clean.length!==4){toast('Нужно ровно 4 цифры',true);return}try{await db.ref('accounts/'+k+'/pin').set(clean);toast('ПИН-код обновлён')}catch(err){toast('Ошибка сохранения',true)}}
   else if(a==='month'){OPEN[b.dataset.key]=!OPEN[b.dataset.key];draw()}
   else if(a==='pickdev'){e.stopPropagation();SEL=b.dataset.id;draw()}

@@ -147,6 +147,8 @@
  'Нет связи с сервером. Проверьте интернет':['Չկա կապ սերվերի հետ։ Ստուգեք ինտերնետը','No connection to server. Check your internet'],
  'Ошибка соединения. Попробуйте ещё раз':['Միացման սխալ։ Փորձեք ևս մեկ անգամ','Connection error. Please try again'],
  'Выйти':['Դուրս գալ','Log out'],
+ 'Ваш профиль заблокирован администратором':['Ձեր պրոֆիլը արգելափակված է ադմինիստրատորի կողմից','Your profile has been blocked by the administrator'],
+ 'Это устройство заблокировано администратором':['Այս սարքը արգելափակված է ադմինիստրատորի կողմից','This device has been blocked by the administrator'],
  };
 
  // AUTO_I18N_TRANSLATIONS
