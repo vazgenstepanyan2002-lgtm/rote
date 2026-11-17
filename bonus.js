@@ -162,17 +162,55 @@
   });
   return out;
  }
+ // ===== Итоги по месяцам =====
+ const MK=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+ const HIST=()=>{try{const v=JSON.parse(localStorage.getItem('BON_HIST')||'{}');return v&&typeof v==='object'?v:{}}catch(e){return{}}};
+ const saveHist=h=>{try{localStorage.setItem('BON_HIST',JSON.stringify(h))}catch(e){}};
+ const qtyOf=rows=>rows.reduce((a,c)=>a+c.items.reduce((b,it)=>b+it.parts.reduce((x,z)=>x+z.n,0),0),0);
+ const sumOf=rows=>rows.reduce((a,c)=>a+c.sum,0);
+ function monthName(k){const p=k.split('-');return new Date(+p[0],+p[1]-1,1).toLocaleDateString('ru-RU',{month:'long',year:'numeric'})}
+ // Новый месяц: итоги прошлого сохраняем, количества обнуляем
+ function rollMonth(){
+  const now=MK(new Date());let cur=null;
+  try{cur=localStorage.getItem('BON_M')}catch(e){}
+  if(!cur){try{localStorage.setItem('BON_M',now)}catch(e){}return}
+  if(cur===now)return;
+  const rows=sumRows();
+  if(rows.length){const h=HIST();h[cur]={sum:sumOf(rows),qty:qtyOf(rows),rows:rows};saveHist(h)}
+  B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));save();
+  try{localStorage.setItem('BON_M',now)}catch(e){}
+ }
+ function rowHtml(k,name,sum,qty){
+  return '<div class="bn-mr" data-m="'+k+'"><span class="bn-mn">'+esc(name)+'</span><span class="bn-mq">'+fm(qty)+'</span><span class="bn-mv">'+fm(sum)+' '+CUR+'</span></div>';
+ }
+ function histView(){
+  const h=HIST(),keys=Object.keys(h).sort().reverse(),cr=sumRows();
+  let html='<div class="bn-th"><span>Месяц</span><span>Штук</span><span>Сумма</span></div>';
+  html+=rowHtml('cur','Текущий месяц',sumOf(cr),qtyOf(cr));
+  keys.forEach(k=>{html+=rowHtml(k,monthName(k),h[k].sum,h[k].qty)});
+  if(!keys.length)html+='<div class="bn-empty">Закрытых месяцев пока нет. Итоги сохранятся, когда начнётся новый месяц.</div>';
+  g('bnSmList').innerHTML=html;
+  g('bnSmTot').textContent=fm(sumOf(cr))+' '+CUR;g('bnSmQty').textContent=fm(qtyOf(cr));
+ }
+ function detailView(rows,title){
+  let q=qtyOf(rows);
+  let html='<div class="bn-back" data-m="back">← Все месяцы</div><div class="bn-mt">'+esc(title)+'</div>';
+  if(!rows.length)html+='<div class="bn-empty">Ничего не выбрано.</div>';
+  else html+=rows.map(c=>'<div class="bn-sc"><div class="bn-sch"><span>'+esc(c.name)+'</span><b>'+fm(c.sum)+' '+CUR+'</b></div>'
+   +c.items.map(it=>'<div class="bn-si"><div class="bn-sin">'+esc(it.name)+'</div>'
+    +it.parts.map(z=>'<div class="bn-sp"><span>'+(z.l?z.l+' · ':'')+fm(z.n)+' × '+fm(z.p)+'</span><b>'+fm(z.v)+' '+CUR+'</b></div>').join('')
+    +'</div>').join('')+'</div>').join('');
+  g('bnSmList').innerHTML=html;
+  g('bnSmTot').textContent=fm(sumOf(rows))+' '+CUR;g('bnSmQty').textContent=fm(q);
+ }
+ function showMonth(k){
+  if(k==='back')return histView();
+  if(k==='cur')return detailView(sumRows(),'Текущий месяц');
+  const d=HIST()[k];if(!d)return;
+  detailView(d.rows,monthName(k));
+ }
  function openSum(){
-  const rows=sumRows(),l=g('bnSmList');let t=0,q=0;
-  if(!rows.length)l.innerHTML='<div class="bn-empty">Пока ничего не выбрано.</div>';
-  else l.innerHTML=rows.map(c=>{
-   t+=c.sum;
-   return '<div class="bn-sc"><div class="bn-sch"><span>'+esc(c.name)+'</span><b>'+fm(c.sum)+' '+CUR+'</b></div>'
-    +c.items.map(it=>'<div class="bn-si"><div class="bn-sin">'+esc(it.name)+'</div>'
-     +it.parts.map(z=>{q+=z.n;return '<div class="bn-sp"><span>'+(z.l?z.l+' · ':'')+fm(z.n)+' × '+fm(z.p)+'</span><b>'+fm(z.v)+' '+CUR+'</b></div>'}).join('')
-     +'</div>').join('')+'</div>';
-  }).join('');
-  g('bnSmTot').textContent=fm(t)+' '+CUR;g('bnSmQty').textContent=fm(q);
+  histView();
   g('bnSm').classList.add('open');
   try{history.pushState({bs:1},'')}catch(e){}
  }
@@ -211,7 +249,7 @@
   m.onclick=e=>{if(e.target===m)closeBon()};
   g('bnX').onclick=()=>closeBon();
   g('bnRst').onclick=resetQty;
-  g('bnSumB').onclick=openSum;g('bnSmX').onclick=()=>closeSum();g('bnSmCp').onclick=copySum;g('bnSm').onclick=e=>{if(e.target===g('bnSm'))closeSum()};
+  g('bnSumB').onclick=openSum;g('bnSmList').addEventListener('click',e=>{const r=e.target.closest('[data-m]');if(r)showMonth(r.dataset.m)});g('bnSmX').onclick=()=>closeSum();g('bnSmCp').onclick=copySum;g('bnSm').onclick=e=>{if(e.target===g('bnSm'))closeSum()};
   const l=g('bnList');
   l.addEventListener('input',onInput);
   l.addEventListener('click',onClick);
@@ -219,7 +257,7 @@
  }
 
  function openBon(){
-  const m=ensure();render();
+  rollMonth();const m=ensure();render();
   m.classList.add('open');lock(true);
   try{history.pushState({bn:1},'')}catch(e){}
  }
