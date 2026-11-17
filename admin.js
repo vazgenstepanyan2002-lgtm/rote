@@ -509,11 +509,11 @@
     const s=await cref.once('value'),av=s.val()||{},ks=Object.keys(av).sort((a,b)=>(+av[a].t||0)-(+av[b].t||0));
     if(ks.length>50)ks.slice(0,ks.length-50).forEach(k=>cref.child(k).remove().catch(()=>{}));
    }catch(e){inp.value=txt;toast('Не удалось отправить',true)}
-   snd.disabled=false;inp.focus();
+   snd.disabled=false;inp.blur();
   };
   snd.onclick=send;inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();send()}};
   document.addEventListener('keydown',onK);
-  requestAnimationFrame(()=>{ov.classList.add('show');renderAdmChat();inp.focus()});
+  requestAnimationFrame(()=>{ov.classList.add('show');renderAdmChat()});
  }
 
  g('admChatBtn').onclick=openAdmChat;

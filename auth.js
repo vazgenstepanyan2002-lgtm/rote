@@ -159,13 +159,13 @@
           const ks = Object.keys(av).sort((a, b) => (+av[a].t || 0) - (+av[b].t || 0));
           if (ks.length > 50) ks.slice(0, ks.length - 50).forEach(k => ref.child(k).remove().catch(() => {}));
         } catch(e){ inp.value = txt; window.toast && toast("Не удалось отправить сообщение", "err"); }
-        snd.disabled = false; inp.focus();
+        snd.disabled = false; inp.blur();
       };
       snd.onclick = sendMsg;
       inp.onkeydown = e => { if (e.key === "Enter"){ e.preventDefault(); sendMsg(); } };
     }
     m.classList.add("open"); renderChatRows();
-    setTimeout(() => { const i = g("chInp"); if (i) i.focus(); }, 120);
+    
   }
   function openProfileMenu(){
     let m = g("profMdl");
