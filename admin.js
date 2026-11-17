@@ -102,22 +102,49 @@
  
  
  
+ 
  // ===== Живая карта водителей =====
- const LF_CSS = "https://cloudflare.com";
- const LF_JS = "https://cloudflare.com";
+ const LF_SOURCES = new Array(
+  {
+   css: "https://cloudflare.com",
+   js: "https://cloudflare.com"
+  },
+  {
+   css: "https://unpkg.com",
+   js: "https://unpkg.com"
+  }
+ );
  const BASE_PT = { lat: 40.120847, lon: 44.514271, name: "База EuroBaza (Арин Берд 7)" };
  let _lfProm = null, _map = null, _markers = {}, _baseMk = null, _didFit = false;
+
+ function loadScriptPair(srcObj){
+  return new Promise((res, rej) => {
+   const c = document.createElement("link");
+   c.rel = "stylesheet";
+   c.href = srcObj.css;
+   document.head.appendChild(c);
+
+   const s = document.createElement("script");
+   s.src = srcObj.js;
+   s.onload = () => res();
+   s.onerror = () => { c.remove(); s.remove(); rej(new Error("CDN error")); };
+   document.head.appendChild(s);
+  });
+ }
 
  function ensureLeaflet(){
   if(window.L && L.map) return Promise.resolve();
   if(_lfProm) return _lfProm;
-  _lfProm = new Promise((res, rej) => {
-   const c = document.createElement("link"); c.rel = "stylesheet"; c.href = LF_CSS; document.head.appendChild(c);
-   const s = document.createElement("script"); s.src = LF_JS;
-   s.onload = () => res();
-   s.onerror = () => { _lfProm = null; rej(new Error("Не загрузилась карта")); };
-   document.head.appendChild(s);
-  });
+  _lfProm = (async () => {
+   for(let i = 0; i < LF_SOURCES.length; i++){
+    try{
+     await loadScriptPair(LF_SOURCES.at(i));
+     if(window.L && L.map) return;
+    }catch(e){}
+   }
+   _lfProm = null;
+   throw new Error("Не удалось загрузить библиотеку карт");
+  })();
   return _lfProm;
  }
 
@@ -183,8 +210,9 @@
     L.tileLayer("https://{s}://{z}/{x}/{y}{r}.png", { maxZoom: 19 }).addTo(_map);
     const baseIc = L.divIcon({ className: "drv-pin", html: '<div class="drv-b base"><i></i><span>База EuroBaza</span></div>', iconSize: new Array(0, 0) });
     _baseMk = L.marker(new Array(BASE_PT.lat, BASE_PT.lon), { icon: baseIc }).addTo(_map).bindPopup('<div class="pop-t">🏁 ' + esc(BASE_PT.name) + '</div>');
+    setTimeout(() => { if(_map) _map.invalidateSize(); }, 150);
    }catch(e){
-    if(g("mapCards")) g("mapCards").innerHTML = '<div class="box mut">Не удалось загрузить карту. Проверьте интернет.</div>';
+    if(g("mapCards")) g("mapCards").innerHTML = '<div class="box mut">Ошибка загрузки карты: ' + esc((e && e.message) || e) + '</div>';
     return;
    }
   }
