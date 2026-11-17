@@ -96,7 +96,7 @@
   if(_map){try{_map.remove()}catch(e){}_map=null}
   const box=g('mapBox');box.innerHTML='';
   box.style.touchAction='none';
-  const map=L.map(box,{preferCanvas:false,zoomControl:true,dragging:true,touchZoom:true,doubleClickZoom:true,scrollWheelZoom:true,tap:true,inertia:true,zoomAnimation:false,markerZoomAnimation:false,rotate:true,touchRotate:true,bearing:0,rotateControl:{closeOnZeroBearing:false}});_map=map;
+  const map=L.map(box,{preferCanvas:false,zoomControl:true,dragging:true,touchZoom:true,doubleClickZoom:true,scrollWheelZoom:true,tap:true,inertia:true,zoomAnimation:true,markerZoomAnimation:true,rotate:true,touchRotate:true,bearing:0,rotateControl:{closeOnZeroBearing:false}});_map=map;
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   const etas=document.querySelectorAll('#o ol li .eta');
   const ll=[];let bad=0;
@@ -115,50 +115,69 @@
     if(inex)h+='<br><span style="color:#b45309">⚠️ Неточный адрес: Яндекс нашёл только район или город</span>';
     L.marker([it.lat,it.lon],{icon:icon(base?'base':inex?'bad':'ok',base?'🏁':String(k+1))}).addTo(map).bindPopup(h);
   });
+  const rCvs=document.createElement('canvas');
+  rCvs.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:350';
+  box.appendChild(rCvs);
   let routePts=ll,routeDashed=true,curLines=[];
+  const paintRoute=()=>{
+    if(_map!==map)return;
+    const w=box.clientWidth,h=box.clientHeight;
+    if(!w||!h)return;
+    const dpr=window.devicePixelRatio||1;
+    if(rCvs.width!==Math.round(w*dpr)||rCvs.height!==Math.round(h*dpr)){
+      rCvs.width=Math.round(w*dpr);
+      rCvs.height=Math.round(h*dpr);
+    }
+    const ctx=rCvs.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);
+    if(!routePts||routePts.length<2)return;
+    const screenPts=routePts.map(p=>map.latLngToContainerPoint(p));
+    ctx.lineCap='round';
+    ctx.lineJoin='round';
+    ctx.beginPath();
+    screenPts.forEach((pt,i)=>{if(i===0)ctx.moveTo(pt.x,pt.y);else ctx.lineTo(pt.x,pt.y);});
+    ctx.strokeStyle='rgba(2,132,199,0.32)';
+    ctx.lineWidth=10;
+    ctx.setLineDash([]);
+    ctx.stroke();
+    ctx.strokeStyle='rgba(56,189,248,0.96)';
+    ctx.lineWidth=4.5;
+    ctx.setLineDash(routeDashed?[8,8]:[]);
+    ctx.stroke();
+  };
   const drawRoute=(pts,dashed)=>{
     routePts=pts;routeDashed=!!dashed;
-    curLines.forEach(l=>{try{map.removeLayer(l)}catch(e){}});
-    const r=L.svg({padding:0.5});
-    const glow=L.polyline(pts,{renderer:r,color:'#0284c7',weight:10,opacity:.32,lineCap:'round',lineJoin:'round'}).addTo(map);
-    const core=L.polyline(pts,{renderer:r,color:'#38bdf8',weight:4.5,opacity:.96,lineCap:'round',lineJoin:'round',dashArray:dashed?'8 8':null}).addTo(map);
-    curLines=[glow,core];
-    return curLines;
+    paintRoute();
+    return [];
   };
   drawRoute(ll,true);
-  let _rtT=null;
-  const syncLines=()=>{
-    if(_map!==map||!routePts||!routePts.length)return;
-    clearTimeout(_rtT);
-    _rtT=setTimeout(()=>{if(_map===map)drawRoute(routePts,routeDashed)},16);
-  };
-  map.on('zoomend rotateend moveend viewreset',syncLines);
-  _fit=()=>map.fitBounds(L.latLngBounds(ll),{padding:[30,30],maxZoom:16});_fit();
-  setTimeout(()=>{if(_map===map){map.invalidateSize();map.fitBounds(L.latLngBounds(ll),{padding:[30,30],maxZoom:16})}},150);
+  map.on('move zoom rotate resize viewreset zoomend moveend rotateend',paintRoute);
+  const _fit=()=>map.fitBounds(L.latLngBounds(ll),{padding:[30,30],maxZoom:16});_fit();
+  setTimeout(()=>{if(_map===map){map.invalidateSize();map.fitBounds(L.latLngBounds(ll),{padding:[30,30],maxZoom:16});paintRoute();}},150);
 
   let note='Линия по прямой (загружаю дороги...)';
   function info(){
-   let h='<div class="map-stats"><span class="map-pill">Точек: <b>'+cur.length+'</b></span>';
-   if(sv.totT&&typeof fmtt==='function')h+='<span class="map-pill tm">Время: <b>~'+fmtt(sv.totT)+'</b></span>';
-   if(sv.totD)h+='<span class="map-pill km">Путь: <b>'+Math.round(sv.totD/1000)+' км</b></span>';
-   h+='</div><div class="map-note"><i></i><span>'+esc(note)+'</span></div>';
-   if(bad)h+='<div class="w">⚠ Неточных адресов: '+bad+' (жёлтые маркеры). Маршрут приведёт в центр района, уточните улицу и дом.</div>';
-   g('mapInfo').innerHTML=h;
+    let h='<div class="map-stats"><span class="map-pill">Точек: <b>'+cur.length+'</b></span>';
+    if(sv.totT&&typeof fmtt==='function')h+='<span class="map-pill tm">Время: <b>'+fmtt(sv.totT)+'</b></span>';
+    if(sv.totD)h+='<span class="map-pill km">Путь: <b>'+Math.round(sv.totD/1000)+' км</b></span>';
+    h+='</div><div class="map-note"><i></i><span>'+esc(note)+'</span></div>';
+    if(bad)h+='<div class="w">⚠️ Неточных адресов: '+bad+' (жёлтые маркеры). Маршрут приведёт в центр района, уточните улицу и дом.</div>';
+    g('mapInfo').innerHTML=h;
   }
   info();
-  if(ll.length<2){note='';info();return}
-  const coords=ll.map(p=>p.at(1)+','+p.at(0)).join(';');
+  if(ll.length<2){note='';info();return;}
+  const coords=ll.map(p=>p[1]+','+p[0]).join(';');
   const q='?overview=full&geometries=geojson';
   const loadRoad=u=>fetch(u+coords+q).then(r=>r.json()).then(j=>{
-   const r0=j.routes&&j.routes.at(0);
-   const c=r0&&r0.geometry&&r0.geometry.coordinates;
-   if(!c||!c.length)throw 0;
-   return c;
+    const r0=j.routes&&j.routes[0];
+    const c=r0&&r0.geometry&&r0.geometry.coordinates;
+    if(!c||!c.length)throw 0;
+    return c;
   });
-  loadRoad('https://router.project-osrm.org/route/v1/driving/').catch(()=>loadRoad('https://routing.openstreetmap.de/routed-car/route/v1/driving/')).then(c=>{
-   if(tok!==_tok||_map!==map)return;
-   curLines.forEach(l=>map.removeLayer(l));
-   curLines=drawRoute(c.map(x=>[x.at(1),x.at(0)]),false);
+  loadRoad('https://project-osrm.org').catch(()=>loadRoad('https://openstreetmap.de')).then(c=>{
+    if(tok!==_tok||_map!==map)return;
+    curLines=drawRoute(c.map(x=>[x.at(1),x.at(0)]),false);
    note='Линия построена по дорогам';info();
   }).catch(()=>{
    if(tok!==_tok||_map!==map)return;
