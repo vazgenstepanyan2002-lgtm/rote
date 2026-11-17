@@ -53,6 +53,51 @@
    S('e','6 դուռ',2500,3250)]}
  ];
 
+
+ // FURNITURE_NAMES_I18N
+ const FURNITURE_NAMES_I18N = {
+  'Այլ':['Другое','Other'],
+  'Աթոռ, դարակաշար':['Стулья, стеллажи','Chairs, shelving'],
+  'Աթոռ սեղաններ':['Стулья, столы','Chairs, tables'],
+  'Լվացարան':['Раковина','Sink'],
+  'Կոմոդներ':['Комоды','Dressers'],
+  'Մահճակալ':['Кровать','Bed'],
+  'Մոդուլներ':['Модули','Modules'],
+  'Ներքնակներ':['Матрасы','Mattresses'],
+  'Պահոցներ':['Системы хранения','Storage units'],
+  'դուռ':['Дверь','Door'],
+  'Պուֆիկներ':['Пуфы','Poufs'],
+  'Տումբաներ':['Тумбы','Cabinets'],
+  'Բազմոցներ':['Диваны','Sofas'],
+  'Բազկաթոռ':['Кресло','Armchair'],
+  'Բազմոց':['Диван','Sofa'],
+  'Հավաքածու':['Комплект','Set'],
+  'Ընդունարան':['Ресепшен','Reception desk'],
+  'Խոհանոցներ':['Кухни','Kitchens'],
+  'Հյուրասրահ':['Гостиная','Living room'],
+  'Ննջասենյակներ':['Спальни','Bedrooms'],
+  'Պահարաններ':['Шкафы','Wardrobes'],
+  'Մինչև 1,6':['До 1,6','Up to 1.6'],
+  '1,6 ից ավել':['Более 1,6','Over 1.6'],
+  '1,6 մ':['1,6 м','1.6 m'],
+  '2-3 մ':['2–3 м','2–3 m'],
+  'մինչև 1,7':['До 1,7','Up to 1.7'],
+  '1,7 ից ավել':['Более 1,7','Over 1.7'],
+  'Էքսկլ.':['Эксклюзив','Exclusive'],
+  '2 դուռ':['2 двери','2 doors'],
+  '3 դուռ առանց կոմոդ':['3 двери без комода','3 doors without dresser'],
+  '3 դուռ կոմոդով':['3 двери с комодом','3 doors with dresser'],
+  '4 դուռ':['4 двери','4 doors'],
+  '5 դուռ':['5 дверей','5 doors'],
+  '6 դուռ':['6 дверей','6 doors']
+ };
+ function furnitureName(value) {
+  const pair = FURNITURE_NAMES_I18N[value];
+  if (!pair) return value;
+  const lang = window.getLang ? window.getLang() : 'ru';
+  return lang === 'hy' ? value : pair[lang === 'en' ? 1 : 0];
+ }
+
  const ICO={other:'📦',sofas:'🛋️',recep:'🗄️',kitchen:'🍳',living:'📺',bedroom:'🛏️',wardrobe:'🚪'};
  let B=[];
  try{const v=JSON.parse(localStorage.getItem('BON')||'[]');if(Array.isArray(v))B=v.filter(c=>c&&Array.isArray(c.subs))}catch(e){}
@@ -99,13 +144,13 @@
   l.innerHTML=B.map((c,ci)=>{
    let h='<div class="bn-c'+(c.col?'':' open')+'" data-pk="'+c.pk+'"><div class="bn-ch" data-act="col" data-c="'+ci+'">'
     +'<span class="bn-ic2">'+(ICO[c.pk]||'📦')+'</span>'
-    +'<span class="bn-ct"><span class="bn-cname">'+esc(c.name)+'</span><span class="bn-sub" id="bq'+ci+'"></span></span>'
+    +'<span class="bn-ct"><span class="bn-cname">'+esc(furnitureName(c.name))+'</span><span class="bn-sub" id="bq'+ci+'"></span></span>'
     +'<span class="bn-cs" id="bc'+ci+'"></span>'
     +'<span class="bn-ar">'+(c.col?'▸':'▾')+'</span></div>';
    if(!c.col){
     h+=c.subs.map((s,si)=>{
      const a='data-c="'+ci+'" data-s="'+si+'"';
-     return '<div class="bn-s bn-k"><div class="bn-sh2"><span class="bn-nm">'+esc(s.name)+'</span><span class="bn-ss" id="bs'+ci+'_'+si+'"></span></div>'
+     return '<div class="bn-s bn-k"><div class="bn-sh2"><span class="bn-nm">'+esc(furnitureName(s.name))+'</span><span class="bn-ss" id="bs'+ci+'_'+si+'"></span></div>'
       +row(a,s,'',s.one?'':'Город')
       +(s.one?'':row(a,s,'2','Район'))
       +'</div>';
@@ -234,8 +279,8 @@
   let html='<div class="bn-back" data-m="back">← Все итоги</div>'
    +'<div class="bn-hero"><span class="bn-hero-l">'+esc(title)+'</span><b class="bn-hero-v">'+fm(sumOf(rows))+' '+CUR+'</b><span class="bn-hero-q">'+fm(q)+' шт'+(sub?' · '+esc(sub):'')+'</span></div>';
   if(!rows.length)html+='<div class="bn-empty">Ничего не выбрано.</div>';
-  else html+=rows.map(c=>'<div class="bn-sc"><div class="bn-sch"><span>'+esc(c.name)+'<i class="bn-cq">'+fm(cqOf(c))+' шт</i></span><b>'+fm(c.sum)+' '+CUR+'</b></div>'
-   +c.items.map(it=>'<div class="bn-si"><div class="bn-sin">'+esc(it.name)+'</div>'
+  else html+=rows.map(c=>'<div class="bn-sc"><div class="bn-sch"><span>'+esc(furnitureName(c.name))+'<i class="bn-cq">'+fm(cqOf(c))+' шт</i></span><b>'+fm(c.sum)+' '+CUR+'</b></div>'
+   +c.items.map(it=>'<div class="bn-si"><div class="bn-sin">'+esc(furnitureName(it.name))+'</div>'
     +it.parts.map(z=>{
       const reg=z.l==='Район';
       const cls=reg?'bn-reg':(z.l?'bn-city':'bn-one');
@@ -283,9 +328,9 @@
   if(!rows.length){tst('Пока ничего не выбрано','err');return}
   let t=0,q=0,s='Итоги\n';
   rows.forEach(c=>{
-   t+=c.sum;s+='\n'+c.name+' — '+fm(c.sum)+' '+CUR+'\n';
+   t+=c.sum;s+='\n'+furnitureName(c.name)+' — '+fm(c.sum)+' '+CUR+'\n';
    c.items.forEach(it=>{
-    s+='• '+it.name+'\n';
+    s+='• '+furnitureName(it.name)+'\n';
     it.parts.forEach(z=>{q+=z.n;s+='   '+(z.l?z.l+': ':'')+fm(z.n)+' × '+fm(z.p)+' = '+fm(z.v)+' '+CUR+'\n'});
    });
   });
@@ -326,6 +371,17 @@
   if(src!=='pop'){try{if(history.state&&history.state.bn)setTimeout(()=>history.back(),0)}catch(e){}}
  }
  window.addEventListener('popstate',()=>{if(skipPop>0){skipPop--;return}const o=g('bnSm');if(o&&o.classList.contains('open')){o.classList.remove('open');return}const m=g('bnMdl');if(m&&m.classList.contains('open'))closeBon('pop')});
+
+ // Перерисовка названий мебели при смене языка приложения
+ new MutationObserver(()=>{
+  const m=g('bnMdl');
+  if(m && m.classList.contains('open')) {
+   render();
+   const sm=g('bnSm');
+   if(sm && sm.classList.contains('open')) histView();
+  }
+ }).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
+
  window.openBon=openBon;window.closeBon=closeBon;
 
  const f=document.createElement('button');
