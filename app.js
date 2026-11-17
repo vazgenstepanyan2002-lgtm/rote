@@ -197,4 +197,3 @@ function askC(text,ok,icon){return new Promise(res=>{
  }).observe(m,{attributes:true,attributeFilter:['class']});
  window.addEventListener('popstate',()=>{if(m.classList.contains('open'))m.classList.remove('open')});
 })();
-
