@@ -17,7 +17,7 @@ function voice(){
  r.onstart=()=>{m.classList.add('rec');$('s').textContent='Говорите адрес...'};
  r.onend=()=>{m.classList.remove('rec')};
  r.onerror=()=>{m.classList.remove('rec');$('s').textContent='Не удалось распознать голос'};
- r.onresult=e=>{const t=e.results.item(0).item(0).transcript;$('a').value=t;$('s').textContent='';add()};
+ r.onresult=e=>{const t=e.results.item(0).item(0).transcript;$('a').value=t;$('s').textContent='';$('a').dispatchEvent(new Event('input'))};
  r.start();
 }
 ;
