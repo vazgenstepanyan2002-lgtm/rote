@@ -188,7 +188,7 @@
   try{await db.ref('users/'+id).remove();await db.ref('labels/'+id).remove();toast('Удалено')}
   catch(e){toast('Не удалось: '+((e&&e.message)||e),true)}
  }
- g('view').addEventListener('click',e=>{
+ g('view').addEventListener('click',async e=>{
   const b=e.target.closest('[data-act]');if(!b)return;
   const a=b.dataset.act;
   if(a==='pub'){e.preventDefault();PUB=undefined;draw();loadPub()}
@@ -221,7 +221,7 @@
  g('lgGo').onclick=login;
  g('lgPw').onkeydown=e=>{if(e.key==='Enter')login()};
  g('lgEm').onkeydown=e=>{if(e.key==='Enter')g('lgPw').focus()};
- g('out').onclick=()=>auth.signOut();
+ g('out').onclick=async ()=>auth.signOut();
  auth.onAuthStateChanged(u=>{
   if(u){
    g('login').hidden=true;g('panel').hidden=false;g('who').textContent=u.email||'';
