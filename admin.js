@@ -165,7 +165,7 @@
     await ensureLeaflet();
     if(TAB !== "map" || !g("admMap")) return;
     _map = L.map("admMap", { zoomControl: true }).setView(new Array(BASE_PT.lat, BASE_PT.lon), 12);
-    L.tileLayer("https://openstreetmap.org{z}/{x}/{y}.png",{maxZoom:19}).addTo(_map);
+    L.tileLayer("https://arcgisonline.com{z}/{y}/{x}",{maxZoom:19}).addTo(_map);
     const baseIc = L.divIcon({ className: "drv-pin", html: '<div class="drv-b base"><i></i><span>База EuroBaza</span></div>', iconSize: new Array(0, 0) });
     _baseMk = L.marker(new Array(BASE_PT.lat, BASE_PT.lon), { icon: baseIc }).addTo(_map).bindPopup('<div class="pop-t">🏁 ' + esc(BASE_PT.name) + '</div>');
     setTimeout(() => { if(_map) _map.invalidateSize(); }, 150);
