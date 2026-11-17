@@ -104,7 +104,21 @@
  
  
  // ===== Живая карта водителей =====
- const BASE_PT={lat:40.120847,lon:44.514271,name:"База EuroBaza (Арин Берд 7)"};let _lfProm=null,_map=null,_markers={},_baseMk=null,_didFit=false;function ensureLeaflet(){if(window.L&&L.map)return Promise.resolve();if(_lfProm)return _lfProm;_lfProm=new Promise((r,e)=>{const s=document.createElement("script");s.src="leaflet.min.js";s.onload=()=>r();s.onerror=()=>{_lfProm=null;e(new Error("Ошибка leaflet.min.js"))};document.head.appendChild(s)});return _lfProm}
+ const BASE_PT = { lat: 40.120847, lon: 44.514271, name: "База EuroBaza (Арин Берд 7)" };
+ let _lfProm = null, _map = null, _markers = {}, _baseMk = null, _didFit = false, MAP_ONLY_ONLINE = false;
+
+ function ensureLeaflet(){
+  if(window.L && L.map) return Promise.resolve();
+  if(_lfProm) return _lfProm;
+  _lfProm = new Promise((res, rej) => {
+   const s = document.createElement("script");
+   s.src = "leaflet.min.js";
+   s.onload = () => res();
+   s.onerror = () => { _lfProm = null; rej(new Error("Ошибка загрузки leaflet.min.js")); };
+   document.head.appendChild(s);
+  });
+  return _lfProm;
+ }
 
  function destroyMap(){
   if(_map){ try{ _map.remove(); }catch(e){} _map = null; }
@@ -112,18 +126,17 @@
  }
 
  function fitAllDrivers(){
-  if(!_map) return;
+  if(!_map || !window.L) return;
   const now = Date.now();
-  const pts = new Array(new Array(BASE_PT.lat, BASE_PT.lon));
+  const baseLL = L.latLng(BASE_PT.lat, BASE_PT.lon);
+  const pts = new Array(baseLL);
   devs().forEach(d => {
    if(typeof d.u.lat !== "number" || typeof d.u.lon !== "number") return;
-   const live = now - (d.u.t || 0) < TTL;
-   if(MAP_ONLY_ONLINE && !live) return;
    if(MAP_ONLY_ONLINE && !(now - (d.u.t || 0) < TTL)) return;
-   pts.push(new Array(d.u.lat, d.u.lon));
+   pts.push(L.latLng(d.u.lat, d.u.lon));
   });
-  if(pts.length === 1) _map.setView(pts.at(0), 13);
-  else _map.fitBounds(L.latLngBounds(pts), { padding: new Array(36, 36), maxZoom: 15 });
+  if(pts.length === 1) _map.setView(baseLL, 13);
+  else _map.fitBounds(L.latLngBounds(pts), { padding: L.point(36, 36), maxZoom: 15 });
  }
 
  function syncMapMarkers(){
@@ -131,6 +144,8 @@
   const now = Date.now(), seen = {};
   devs().forEach(d => {
    if(typeof d.u.lat !== "number" || typeof d.u.lon !== "number") return;
+   const live = now - (d.u.t || 0) < TTL;
+   if(MAP_ONLY_ONLINE && !live) return;
    seen[d.id] = true;
    const title = LABELS[d.id] || devName(d.u.ua);
    const spd = typeof d.u.spd === "number" && d.u.spd > 2 ? " · " + d.u.spd + " км/ч" : "";
@@ -138,8 +153,8 @@
     + '<div class="pop-s">' + (live ? "🟢 В сети" : "⚪ Был(а) " + ago(d.u.gt || d.u.t)) + esc(spd) + '</div>';
 
    const htmlPin = '<div class="drv-b' + (live ? "" : " off") + '"><i></i><span>' + esc(title) + '</span></div>';
-   const ic = L.divIcon({ className: "drv-pin", html: htmlPin, iconSize: new Array(0, 0) });
-   const ll = new Array(d.u.lat, d.u.lon);
+   const ic = L.divIcon({ className: "drv-pin", html: htmlPin, iconSize: L.point(0, 0) });
+   const ll = L.latLng(d.u.lat, d.u.lon);
 
    if(_markers[d.id]){
     _markers[d.id].setLatLng(ll);
@@ -170,19 +185,20 @@
    try{
     await ensureLeaflet();
     if(TAB !== "map" || !g("admMap")) return;
-    _map = L.map("admMap", { zoomControl: true }).setView(new Array(BASE_PT.lat, BASE_PT.lon), 12);
-    const tl = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(_map);
+    const baseLL = L.latLng(BASE_PT.lat, BASE_PT.lon);
+    _map = L.map("admMap", { zoomControl: true }).setView(baseLL, 12);
+    const tl = L.tileLayer("https://openstreetmap.org{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(_map);
     let _fb = false;
     tl.on("tileerror", () => {
      if(_fb) return;
      _fb = true;
      tl.setUrl("https://google.com{x}&y={y}&z={z}");
     });
-    const baseIc = L.divIcon({ className: "drv-pin", html: '<div class="drv-b base"><i></i><span>База EuroBaza</span></div>', iconSize: new Array(0, 0) });
-    _baseMk = L.marker(new Array(BASE_PT.lat, BASE_PT.lon), { icon: baseIc }).addTo(_map).bindPopup('<div class="pop-t">🏁 ' + esc(BASE_PT.name) + '</div>');
+    const baseIc = L.divIcon({ className: "drv-pin", html: '<div class="drv-b base"><i></i><span>База EuroBaza</span></div>', iconSize: L.point(0, 0) });
+    _baseMk = L.marker(baseLL, { icon: baseIc }).addTo(_map).bindPopup('<div class="pop-t">🏁 ' + esc(BASE_PT.name) + '</div>');
     setTimeout(() => { if(_map) _map.invalidateSize(); }, 150);
    }catch(e){
-    if(g("mapCards")) g("mapCards").innerHTML = '<div class="box mut">Ошибка загрузки карты: ' + esc((e && e.message) || e) + '</div>';
+    if(g("mapCards")) g("mapCards").innerHTML = '<div class="box mut">Ошибка карты: ' + esc((e && e.message) || e) + '</div>';
     return;
    }
   }
@@ -192,7 +208,8 @@
    fBtn.classList.toggle("on", MAP_ONLY_ONLINE);
    fBtn.textContent = MAP_ONLY_ONLINE ? "🟢 Только онлайн" : "⚪ Все водители";
   }
-  syncMapMarkers();
+
+  try{ syncMapMarkers(); }catch(e){}
 
   let ch = '<div class="sec">' + (MAP_ONLY_ONLINE ? 'Сейчас на линии (' : 'На карте (') + withGeo.length + ')</div>';
   if(!withGeo.length){
@@ -209,7 +226,6 @@
   }
   if(g("mapCards")) g("mapCards").innerHTML = ch;
  }
-
  // ===== Вкладки =====
  function drawOnline(){
   const L=devs(),now=Date.now();
