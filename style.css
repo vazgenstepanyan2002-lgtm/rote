@@ -350,3 +350,8 @@ ol#l:not(:empty){margin:14px 0 0;padding:14px;border-radius:20px;background:rgba
 
 /* bn-del: кнопка удаления сохранённых итогов */
 #bnMdl .bn-btns #bnSave.bn-del{background:rgba(239,68,68,.18);color:#ff8585;border:1.5px solid #ef4444}
+
+/* bn-cur: сводка текущего месяца нажимается */
+.bn-hero-btn{cursor:pointer;position:relative}
+.bn-hero-btn::after{content:"›";position:absolute;right:18px;top:50%;transform:translateY(-50%);font-size:28px;color:rgba(255,255,255,.85);line-height:1}
+.bn-hero-btn:active{transform:scale(.98)}

@@ -196,7 +196,7 @@
  function histView(){setFoot();
   const h=HIST(),ks=Object.keys(h).sort((a,b)=>(h[b].t||0)-(h[a].t||0));
   const cr=sumRows(),cs=sumOf(cr),cq=qtyOf(cr);
-  let html='<div class="bn-hero"><span class="bn-hero-l">Текущий месяц</span><b class="bn-hero-v">'+fm(cs)+' '+CUR+'</b><span class="bn-hero-q">'+fm(cq)+' шт</span></div>';
+  let html='<div class="bn-hero bn-hero-btn" data-m="cur"><span class="bn-hero-l">Текущий месяц</span><b class="bn-hero-v">'+fm(cs)+' '+CUR+'</b><span class="bn-hero-q">'+fm(cq)+' шт</span></div>';
   html+='<div class="bn-sec">Сохранённые итоги</div>';
   ks.forEach(k=>{
    const d=h[k];
