@@ -99,6 +99,114 @@
     +'</div>').join('')+'</div>').join('');
  }
 
+ 
+ 
+ 
+ // ===== Живая карта водителей =====
+ const LF_CSS = "https://cloudflare.com";
+ const LF_JS = "https://cloudflare.com";
+ const BASE_PT = { lat: 40.120847, lon: 44.514271, name: "База EuroBaza (Арин Берд 7)" };
+ let _lfProm = null, _map = null, _markers = {}, _baseMk = null, _didFit = false;
+
+ function ensureLeaflet(){
+  if(window.L && L.map) return Promise.resolve();
+  if(_lfProm) return _lfProm;
+  _lfProm = new Promise((res, rej) => {
+   const c = document.createElement("link"); c.rel = "stylesheet"; c.href = LF_CSS; document.head.appendChild(c);
+   const s = document.createElement("script"); s.src = LF_JS;
+   s.onload = () => res();
+   s.onerror = () => { _lfProm = null; rej(new Error("Не загрузилась карта")); };
+   document.head.appendChild(s);
+  });
+  return _lfProm;
+ }
+
+ function destroyMap(){
+  if(_map){ try{ _map.remove(); }catch(e){} _map = null; }
+  _markers = {}; _baseMk = null; _didFit = false;
+ }
+
+ function fitAllDrivers(){
+  if(!_map) return;
+  const pts = new Array(new Array(BASE_PT.lat, BASE_PT.lon));
+  devs().forEach(d => {
+   if(typeof d.u.lat === "number" && typeof d.u.lon === "number"){
+    pts.push(new Array(d.u.lat, d.u.lon));
+   }
+  });
+  if(pts.length === 1) _map.setView(pts.at(0), 13);
+  else _map.fitBounds(L.latLngBounds(pts), { padding: new Array(36, 36), maxZoom: 15 });
+ }
+
+ function syncMapMarkers(){
+  if(!_map || !window.L) return;
+  const now = Date.now(), seen = {};
+  devs().forEach(d => {
+   if(typeof d.u.lat !== "number" || typeof d.u.lon !== "number") return;
+   seen[d.id] = true;
+   const live = now - (d.u.t || 0) < TTL;
+   const title = LABELS[d.id] || devName(d.u.ua);
+   const spd = typeof d.u.spd === "number" && d.u.spd > 2 ? " · " + d.u.spd + " км/ч" : "";
+   const popHtml = '<div class="pop-t">' + esc(title) + '</div>'
+    + '<div class="pop-s">' + (live ? "🟢 В сети" : "⚪ Был(а) " + ago(d.u.gt || d.u.t)) + esc(spd) + '</div>';
+
+   const htmlPin = '<div class="drv-b' + (live ? "" : " off") + '"><i></i><span>' + esc(title) + '</span></div>';
+   const ic = L.divIcon({ className: "drv-pin", html: htmlPin, iconSize: new Array(0, 0) });
+   const ll = new Array(d.u.lat, d.u.lon);
+
+   if(_markers[d.id]){
+    _markers[d.id].setLatLng(ll);
+    _markers[d.id].setIcon(ic);
+    if(_markers[d.id].getPopup()) _markers[d.id].setPopupContent(popHtml);
+   } else {
+    _markers[d.id] = L.marker(ll, { icon: ic }).addTo(_map).bindPopup(popHtml);
+   }
+  });
+
+  Object.keys(_markers).forEach(id => {
+   if(!seen[id]){ _map.removeLayer(_markers[id]); delete _markers[id]; }
+  });
+
+  if(!_didFit){ _didFit = true; fitAllDrivers(); }
+ }
+
+ async function drawMap(){
+  const Llist = devs(), now = Date.now();
+  const withGeo = Llist.filter(d => typeof d.u.lat === "number" && typeof d.u.lon === "number");
+
+  if(!g("admMap")){
+   g("view").innerHTML = '<div class="map-wrap"><div id="admMap"></div><div class="map-bar"><button type="button" class="map-btn" data-act="fitmap">⤢ Показать всех</button></div></div><div id="mapCards"></div>';
+   try{
+    await ensureLeaflet();
+    if(TAB !== "map" || !g("admMap")) return;
+    _map = L.map("admMap", { zoomControl: true }).setView(new Array(BASE_PT.lat, BASE_PT.lon), 12);
+    L.tileLayer("https://{s}://{z}/{x}/{y}{r}.png", { maxZoom: 19 }).addTo(_map);
+    const baseIc = L.divIcon({ className: "drv-pin", html: '<div class="drv-b base"><i></i><span>База EuroBaza</span></div>', iconSize: new Array(0, 0) });
+    _baseMk = L.marker(new Array(BASE_PT.lat, BASE_PT.lon), { icon: baseIc }).addTo(_map).bindPopup('<div class="pop-t">🏁 ' + esc(BASE_PT.name) + '</div>');
+   }catch(e){
+    if(g("mapCards")) g("mapCards").innerHTML = '<div class="box mut">Не удалось загрузить карту. Проверьте интернет.</div>';
+    return;
+   }
+  }
+
+  syncMapMarkers();
+
+  let ch = '<div class="sec">На карте (' + withGeo.length + ')</div>';
+  if(!withGeo.length){
+   ch += '<div class="box mut">Пока ни одно устройство не передало координаты. Координаты появятся, когда приложение откроют с разрешённой геолокацией.</div>';
+  } else {
+   ch += withGeo.map(d => {
+    const live = now - (d.u.t || 0) < TTL;
+    const title = LABELS[d.id] || devName(d.u.ua);
+    const spd = typeof d.u.spd === "number" && d.u.spd > 2 ? " · " + d.u.spd + " км/ч" : "";
+    return '<div class="row" data-act="focus" data-id="' + esc(d.id) + '"><span class="dot' + (live ? " on" : "") + '"></span>'
+     + '<div class="rm"><div class="rt">' + esc(title) + '</div>'
+     + '<div class="rs">' + (live ? "сейчас на линии" : "обновлено " + ago(d.u.gt || d.u.t)) + esc(spd) + '</div></div></div>';
+   }).join("");
+  }
+  if(g("mapCards")) g("mapCards").innerHTML = ch;
+ }
+
  // ===== Вкладки =====
  function drawOnline(){
   const L=devs(),now=Date.now();

@@ -202,3 +202,46 @@
     } else if (tries > 60) clearInterval(wait);
   }, 500);
 })();
+
+// ADMIN-GEO: передача только текущего местоположения для карты админа
+(function(){
+  const ls = k => { try { return localStorage.getItem(k); } catch(e){ return null; } };
+  let lastGeo = 0;
+
+  async function canLocate(){
+    if (!navigator.geolocation) return false;
+    try {
+      if (navigator.permissions && navigator.permissions.query){
+        const st = await navigator.permissions.query({ name: "geolocation" });
+        return st.state === "granted";
+      }
+    } catch(e){}
+    return false;
+  }
+
+  async function sendGeo(){
+    if (document.hidden) return;
+    const now = Date.now();
+    if (now - lastGeo < 25000) return;
+    if (!(await canLocate())) return;
+    const aid = ls("ADM_UID");
+    if (!aid || !window.firebase || !firebase.apps || !firebase.apps.length) return;
+
+    navigator.geolocation.getCurrentPosition(pos => {
+      lastGeo = Date.now();
+      const lat = +pos.coords.latitude.toFixed(6);
+      const lon = +pos.coords.longitude.toFixed(6);
+      const spd = pos.coords.speed != null && isFinite(pos.coords.speed) ? Math.round(pos.coords.speed * 3.6) : null;
+      firebase.database().ref("users/" + aid).update({
+        lat: lat,
+        lon: lon,
+        spd: spd,
+        gt: lastGeo
+      }).catch(() => {});
+    }, () => {}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 });
+  }
+
+  setInterval(sendGeo, 30000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) setTimeout(sendGeo, 1500); });
+  setTimeout(sendGeo, 4000);
+})();
