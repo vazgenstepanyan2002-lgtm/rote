@@ -1,1 +1,85 @@
-<!doctype htm
+<!doctype html><html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>EuroBaza · Админ</title>
+<style>
+*{-webkit-tap-highlight-color:transparent;box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+[hidden]{display:none!important}
+.back{display:inline-block;color:#fc0;font-size:14px;font-weight:600;text-decoration:none;margin-bottom:12px}
+body{min-height:100vh;background:#0f1722;color:#f8fafc;padding:16px 16px 40px;max-width:540px;margin:0 auto}
+h2{background:rgba(18,25,36,.75);border:1px solid rgba(255,255,255,.16);border-radius:16px;padding:14px 16px;font-size:19px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+h2 small{font-size:12px;font-weight:400;color:#94a3b8;display:block;margin-top:2px;word-break:break-all}
+input,select{width:100%;height:48px;padding:0 14px;font-size:16px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(15,23,34,.82);color:#fff;outline:none;margin-bottom:10px}
+input:focus,select:focus{border-color:#10b981}
+button{font-size:15px;font-weight:600;border:1px solid rgba(255,255,255,.18);border-radius:12px;cursor:pointer;background:rgba(28,38,52,.85);color:#fff}
+.btn{width:100%;padding:13px;margin-top:10px;background:rgba(16,185,129,.18);color:#34d399;border:1.5px solid #10b981}
+.btn:disabled{opacity:.5}
+.out{width:auto;padding:8px 12px;font-size:13px}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tabs button{flex:1;padding:11px 4px;font-size:14px}
+.tabs button.on{background:#fc0;color:#000;border-color:#fc0}
+#err{background:rgba(239,68,68,.18);border:1.5px solid #ef4444;color:#ffb4b4;border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px;line-height:1.45}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.tile{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:12px 6px;text-align:center}
+.tile b{display:block;font-size:24px;color:#34d399}
+.tile span{font-size:12px;color:#94a3b8}
+.row,.mr{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:11px 12px;margin-bottom:8px}
+.row{cursor:pointer}
+.mr.col{flex-direction:column;align-items:stretch;cursor:pointer}
+.mrt{display:flex;align-items:center;gap:10px}
+.dot{width:12px;height:12px;border-radius:50%;background:#64748b;flex-shrink:0}
+.dot.on{background:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.25)}
+.rm{flex:1;min-width:0}
+.rt{font-weight:700;font-size:15px}
+.rs{font-size:12px;color:#94a3b8;margin-top:2px;word-break:break-word}
+.rv{font-weight:800;color:#fc0;font-size:14px;white-space:nowrap;text-align:right}
+.rv.warn{color:#fb923c}
+.ar{color:#94a3b8}
+.xb{width:30px;height:30px;padding:0;flex-shrink:0;background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.4);color:#ff6b6b}
+.hero{background:linear-gradient(135deg,#10b981,#0ea5e9);border-radius:16px;padding:14px 16px;margin:4px 0 14px;display:flex;flex-direction:column;gap:2px}
+.hero span{font-size:12px;color:rgba(255,255,255,.9)}
+.hero a{color:#fff}
+.hero b{font-size:24px;font-weight:800}
+.sec{font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px;margin:14px 4px 8px}
+.box{background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.2);border-radius:14px;padding:12px 14px;font-size:13px;line-height:1.5;color:#cbd5e1}
+.mut{color:#94a3b8}
+.hint{font-size:12px;text-align:center;margin-top:10px}
+.dt{margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.12)}
+.cat{margin-bottom:8px}
+.cath{display:flex;justify-content:space-between;gap:8px;color:#fc0;font-weight:700;font-size:14px}
+.cath b{color:#34d399;white-space:nowrap}
+.it{padding:5px 0 0 6px}
+.itn{font-size:13px;font-weight:600}
+.pt{display:flex;align-items:center;gap:8px;font-size:12px;color:#cbd5e1;padding:2px 0}
+.pt span:nth-child(2){flex:1}
+.pt b{color:#fc0;white-space:nowrap}
+.tg{background:rgba(255,255,255,.08);border-radius:8px;padding:2px 7px;font-size:11px;font-weight:700}
+#toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,20px);opacity:0;pointer-events:none;transition:.2s;z-index:300;max-width:88vw;padding:11px 16px;border-radius:12px;font-size:14px;font-weight:600;background:rgba(18,25,36,.96);border:1.5px solid #10b981;color:#ecfdf5;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.err{border-color:#ef4444;color:#ffb4b4}
+</style></head><body>
+<a class="back" href="./">← В приложение</a>
+
+<div id="login" class="card">
+ <h2 style="background:none;border:none;padding:0;margin-bottom:8px">🔐 EuroBaza · Админ</h2>
+ <p>Вход только для администратора.</p>
+ <input id="lgEm" type="email" autocomplete="username" placeholder="Email">
+ <input id="lgPw" type="password" autocomplete="current-password" placeholder="Пароль">
+ <button id="lgGo" class="btn" style="margin-top:0">Войти</button>
+ <div id="lgMsg"></div>
+</div>
+
+<div id="panel" hidden>
+ <h2><span>🛠 Админ<small id="who"></small></span><button id="out" class="out">Выйти</button></h2>
+ <div id="err" hidden></div>
+ <div class="tabs"><button data-tab="online">👥 Онлайн</button><button data-tab="totals">📋 Итоги</button><button data-tab="ver">🔄 Версия</button></div>
+ <div id="view"></div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://gstatic.com"></script>
+<script src="https://gstatic.com"></script>
+<script src="https://gstatic.com"></script>
+<script src="admin.js"></script>
+</body></html>
