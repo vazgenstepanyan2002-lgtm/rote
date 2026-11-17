@@ -256,20 +256,40 @@
   if(!L.length)h+='<div class="mut box">Данных пока нет. Устройства появятся, когда откроют обновлённое приложение.</div>';
   h+=L.map(d=>{
    const live=now-(d.u.t||0)<TTL,acc=accByUid(d.id),blk=!!((acc&&acc.blocked)||d.u.blocked);
-   const pinTag=acc?' · 🔑 '+esc(acc.pin):'';
-   const blkBadge=blk?' <span style="display:inline-block;background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.45);color:#fca5a5;font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:99px;vertical-align:middle;margin-left:4px">🚫 ЗАБЛОКИРОВАН</span>':'';
-   const rowStyle=blk?' style="border-color:rgba(239,68,68,.45);background:linear-gradient(180deg,rgba(45,18,24,.88) 0%,rgba(22,12,16,.95) 100%)"':'';
-   const blkBtn=blk
-    ?'<button class="xb" style="background:rgba(16,185,129,.18);border-color:rgba(52,211,153,.4);color:#34d399" data-act="block" data-id="'+esc(d.id)+'" data-key="'+esc(acc?acc.key:'')+'" data-blk="1" aria-label="Разблокировать">✅</button>'
-    :'<button class="xb" style="background:rgba(249,115,22,.16);border-color:rgba(249,115,22,.38);color:#fb923c" data-act="block" data-id="'+esc(d.id)+'" data-key="'+esc(acc?acc.key:'')+'" data-blk="0" aria-label="Заблокировать">🚫</button>';
-   return '<div class="row"'+rowStyle+' data-act="rename" data-id="'+esc(d.id)+'"><span class="dot'+(live&&!blk?' on':'')+'"></span>'
-    +'<div class="rm"><div class="rt">'+dispHtml(d)+blkBadge+'</div>'
-    +'<div class="rs">'+esc(devInfo(d.u.ua)+' · '+(d.u.lang||'ru'))+pinTag+'</div>'
-    +'<div class="rs">'+(live?'сейчас в приложении':'был(а) '+ago(d.u.t))+' · версия '+esc(verFmt(d.u.v))+(d.u.addr!=null?' · адресов: '+esc(d.u.addr):'')+'</div></div>'
-    +'<div class="rv">'+money(d.cur.sum)+'</div>'
-    +(function(){const un=dmUnread(d.id);return '<button class="dm-btn" data-act="dm" data-id="'+esc(d.id)+'" aria-label="Личный чат">✉️'+(un?'<span class="dm-bdg">'+(un>99?'99+':un)+'</span>':'')+'</button>'})()+(acc?'<button class="xb" style="background:rgba(250,204,21,.14);border-color:rgba(250,204,21,.35);color:#fde047" data-act="pin" data-key="'+esc(acc.key)+'" aria-label="ПИН">🔑</button>':'')
-    +blkBtn
-    +'<button class="xb" data-act="del" data-id="'+esc(d.id)+'" aria-label="Удалить">✕</button></div>';
+   const pill = (txt, st) => '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:8px;font-size:11.5px;font-weight:600;line-height:1.2;white-space:nowrap;' + st + '">' + txt + '</span>';
+   const pBase = 'background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#cbd5e1;';
+   const pPin  = 'background:rgba(250,204,21,.12);border:1px solid rgba(250,204,21,.3);color:#fde047;font-weight:700;';
+   const pOn   = 'background:rgba(16,185,129,.14);border:1px solid rgba(52,211,153,.32);color:#6ee7b7;';
+   const pAdr  = 'background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.28);color:#7dd3fc;';
+
+   const metaRow1 = new Array(
+    pill('📱 ' + esc(devInfo(d.u.ua)), pBase),
+    pill('🌐 ' + esc((d.u.lang || 'ru').toUpperCase()), pBase)
+   );
+   if (acc && acc.pin) metaRow1.push(pill('🔑 ' + esc(acc.pin), pPin));
+
+   const metaRow2 = new Array(
+    pill(live ? '🟢 В сети' : '🕒 ' + esc(ago(d.u.t)), live ? pOn : pBase),
+    pill('📦 v' + esc(verFmt(d.u.v)), pBase)
+   );
+   if (d.u.addr != null) metaRow2.push(pill('📍 Адресов: ' + esc(d.u.addr), pAdr));
+
+   const blkBadge = blk ? ' <span style="display:inline-block;background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.45);color:#fca5a5;font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:99px;vertical-align:middle;margin-left:4px">🚫 ЗАБЛОКИРОВАН</span>' : '';
+   const rowStyle = blk ? ' style="border-color:rgba(239,68,68,.45);background:linear-gradient(180deg,rgba(45,18,24,.88) 0%,rgba(22,12,16,.95) 100%)"' : '';
+   const un = dmUnread(d.id);
+   const dmBtn = '<button class="dm-btn" data-act="dm" data-id="' + esc(d.id) + '" aria-label="Личный чат">✉️' + (un ? '<span class="dm-bdg">' + (un > 99 ? '99+' : un) + '</span>' : '') + '</button>';
+   const pinBtn = acc ? '<button class="xb" style="background:rgba(250,204,21,.14);border-color:rgba(250,204,21,.35);color:#fde047" data-act="pin" data-key="' + esc(acc.key) + '" aria-label="ПИН">🔑</button>' : '';
+   const blkBtn = blk
+    ? '<button class="xb" style="background:rgba(16,185,129,.18);border-color:rgba(52,211,153,.4);color:#34d399" data-act="block" data-id="' + esc(d.id) + '" data-key="' + esc(acc ? acc.key : '') + '" data-blk="1" aria-label="Разблокировать">✅</button>'
+    : '<button class="xb" style="background:rgba(249,115,22,.16);border-color:rgba(249,115,22,.38);color:#fb923c" data-act="block" data-id="' + esc(d.id) + '" data-key="' + esc(acc ? acc.key : '') + '" data-blk="0" aria-label="Заблокировать">🚫</button>';
+   const delBtn = '<button class="xb" data-act="del" data-id="' + esc(d.id) + '" aria-label="Удалить">✕</button>';
+
+   return '<div class="row"' + rowStyle + ' data-act="rename" data-id="' + esc(d.id) + '"><span class="dot' + (live && !blk ? ' on' : '') + '"></span>'
+    + '<div class="rm"><div class="rt" style="margin-bottom:7px">' + dispHtml(d) + blkBadge + '</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px">' + metaRow1.join('') + '</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:5px">' + metaRow2.join('') + '</div></div>'
+    + '<div class="rv">' + money(d.cur.sum) + '</div>'
+    + dmBtn + pinBtn + blkBtn + delBtn + '</div>';
   }).join('');
   if(L.length)h+='<div class="mut hint">Нажмите на устройство, чтобы задать ему имя.</div>';
   g('view').innerHTML=h;
