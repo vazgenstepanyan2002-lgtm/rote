@@ -8,6 +8,19 @@ function saveAdrCache(it){
  localStorage.setItem("ADR_CACHE", JSON.stringify(ADR_CACHE));
 }
 const SUG_KEY='7149646b-4ffe-4382-b926-544de306c692';
+const YKEY='a197b5c2-1e4f-480d-abab-9ab7bd63b447';
+async function yan(q){
+ try{
+  const r=await fetch('https://geocode-maps.yandex.ru/1.x/?format=json&results=5&lang=ru_RU&rspn=1&bbox=43.4,38.8~46.7,41.3&apikey='+YKEY+'&geocode='+encodeURIComponent(q));
+  const j=await r.json();
+  return j.response.GeoObjectCollection.featureMember.map(m=>{
+   const g=m.GeoObject,md=g.metaDataProperty.GeocoderMetaData;
+   const p=g.Point.pos.split(' ');
+   return{name:md.text.replace(/^Армения, /,'')+(md.precision==='exact'?'':' 📍'),lat:+p[1],lon:+p[0],exact:md.precision==='exact'};
+  });
+ }catch(e){return[]}
+}
+
 async function sugList(q){
  window._sugSrc='';
  if(SUG_KEY==='PASTE_SUGGEST_KEY'){window._sugSrc='Геокодер (нет ключа)';return yan(q)}
@@ -69,20 +82,15 @@ async function addPick(it){
 }
 window.add=async function(){
  const s=document.getElementById('s');
- window.toast&&toast('Нажата кнопка «Добавить»','ok');
  const q=document.getElementById('a').value.trim();
- if(!q){window.toast&&toast('Введите адрес','err');return}
+ if(!q)return;
  if(_pick&&q===_pick.label){addPick(_pick);return}
  s.textContent='Ищу адрес в Яндексе...';
  const l=await yan(q);
- if(!l.length){
-  const E=l.err;
-  const m=E==='off'?'Нет интернета. Проверьте сеть и повторите':E==='net'?'Не удалось связаться с Яндексом. Проверьте сеть':E==='limit'?'Яндекс отклонил запрос (лимит или ключ API)':E==='srv'?'Яндекс временно не отвечает. Попробуйте позже':'Адрес не найден. Попробуйте написать иначе или добавьте город';
-  s.textContent=m;window.toast&&toast(m,'err');return;
- }
- if(l[0].exact){s.textContent='';addPick(l[0]);return}
+ if(!l.length){const E=l.err,m=E==='off'?'Нет интернета. Проверьте сеть и повторите':E==='net'?'Не удалось связаться с Яндексом. Проверьте сеть':E==='limit'?'Яндекс отклонил запрос (лимит или ключ API)':E==='srv'?'Яндекс временно не отвечает. Попробуйте позже':'Адрес не найден. Попробуйте написать иначе или добавьте город';s.textContent=m;window.toast&&toast(m,'err');return}
+ if(l.length===1&&l[0].exact){addPick(l[0]);return}
  s.textContent='';
- showList(l,'Выберите нужный вариант:');
+ window.toast&&toast('Выберите адрес из списка, чтобы добавить','err');showList(l,'Выберите нужный вариант:');
 };
 
 let _liveSearch;
