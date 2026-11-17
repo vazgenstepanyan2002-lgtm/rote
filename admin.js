@@ -105,7 +105,7 @@
  
  // ===== Живая карта водителей =====
  const BASE_PT = { lat: 40.120847, lon: 44.514271, name: "База EuroBaza (Арин Берд 7)" };
- let _lfProm = null, _map = null, _markers = {}, _baseMk = null, _didFit = false, MAP_ONLY_ONLINE = false;
+ let _lfProm = null, _map = null, _markers = {}, _baseMk = null, _didFit = false, MAP_ONLY_ONLINE = true;
 
  function ensureLeaflet(){
   if(window.L && L.map) return Promise.resolve();
@@ -187,13 +187,7 @@
     if(TAB !== "map" || !g("admMap")) return;
     const baseLL = L.latLng(BASE_PT.lat, BASE_PT.lon);
     _map = L.map("admMap", { zoomControl: true }).setView(baseLL, 12);
-    const tl = L.tileLayer("https://openstreetmap.org{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(_map);
-    let _fb = false;
-    tl.on("tileerror", () => {
-     if(_fb) return;
-     _fb = true;
-     tl.setUrl("https://google.com{x}&y={y}&z={z}");
-    });
+    L.tileLayer("https://google.com{x}&y={y}&z={z}", { maxZoom: 20 }).addTo(_map);
     const baseIc = L.divIcon({ className: "drv-pin", html: '<div class="drv-b base"><i></i><span>База EuroBaza</span></div>', iconSize: L.point(0, 0) });
     _baseMk = L.marker(baseLL, { icon: baseIc }).addTo(_map).bindPopup('<div class="pop-t">🏁 ' + esc(BASE_PT.name) + '</div>');
     setTimeout(() => { if(_map) _map.invalidateSize(); }, 150);
