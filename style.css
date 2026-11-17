@@ -387,12 +387,9 @@ body{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))!important}
   font-weight:700!important;
   letter-spacing:-.1px!important;
   line-height:1!important;
-  background:linear-gradient(180deg,rgba(23,31,46,.88) 0%,rgba(12,17,27,.94) 100%)!important;
-  color:#f1f5f9!important;
-  border:1px solid rgba(255,255,255,.13)!important;
-  box-shadow:0 10px 24px rgba(0,0,0,.48),inset 0 1px 0 rgba(255,255,255,.1)!important;
-  backdrop-filter:blur(16px)!important;
-  -webkit-backdrop-filter:blur(16px)!important;
+  color:#f8fafc!important;
+  backdrop-filter:blur(18px) saturate(145%)!important;
+  -webkit-backdrop-filter:blur(18px) saturate(145%)!important;
   white-space:nowrap!important;
   overflow:hidden!important;
   z-index:41!important;
@@ -409,44 +406,53 @@ body{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))!important}
   stroke-width:2.1;
 }
 
-/* Левая кнопка: Бонусы */
+/* Левая кнопка: Бонусы — прозрачное тёплое янтарно-золотое стекло */
 .fab-l{
   left:calc(50% - (min(440px, calc(100vw - 24px)) / 2))!important;
   right:auto!important;
   transform:none!important;
+  background:linear-gradient(180deg,rgba(250,204,21,.17) 0%,rgba(28,22,8,.56) 100%)!important;
+  border:1px solid rgba(250,204,21,.34)!important;
+  box-shadow:0 10px 24px rgba(0,0,0,.38),inset 0 1px 0 rgba(254,240,138,.24)!important;
 }
 .fab-l svg{
-  background:rgba(250,204,21,.14);
-  border:1px solid rgba(250,204,21,.28);
-  color:#facc15;
+  background:rgba(250,204,21,.16);
+  border:1px solid rgba(250,204,21,.32);
+  color:#fde047;
 }
-.fab-l:active{transform:scale(.96)!important;border-color:rgba(250,204,21,.45)!important}
+.fab-l:active{transform:scale(.96)!important;background:linear-gradient(180deg,rgba(250,204,21,.26) 0%,rgba(28,22,8,.68) 100%)!important}
 
-/* Центральная кнопка: Админ */
+/* Центральная кнопка: Админ — прозрачное изумрудное стекло */
 .fab-c{
   left:50%!important;
   right:auto!important;
   transform:translateX(-50%)!important;
+  background:linear-gradient(180deg,rgba(16,185,129,.17) 0%,rgba(8,26,20,.56) 100%)!important;
+  border:1px solid rgba(52,211,153,.34)!important;
+  box-shadow:0 10px 24px rgba(0,0,0,.38),inset 0 1px 0 rgba(167,243,208,.24)!important;
 }
 .fab-c svg{
-  background:rgba(52,211,153,.14);
-  border:1px solid rgba(52,211,153,.28);
-  color:#34d399;
+  background:rgba(16,185,129,.16);
+  border:1px solid rgba(52,211,153,.32);
+  color:#6ee7b7;
 }
-.fab-c:active{transform:translateX(-50%) scale(.96)!important;border-color:rgba(52,211,153,.45)!important}
+.fab-c:active{transform:translateX(-50%) scale(.96)!important;background:linear-gradient(180deg,rgba(16,185,129,.26) 0%,rgba(8,26,20,.68) 100%)!important}
 
-/* Правая кнопка: Точки */
+/* Правая кнопка: Точки — прозрачное сапфирово-голубое стекло */
 .fab-r{
   right:calc(50% - (min(440px, calc(100vw - 24px)) / 2))!important;
   left:auto!important;
   transform:none!important;
+  background:linear-gradient(180deg,rgba(56,189,248,.17) 0%,rgba(8,20,32,.56) 100%)!important;
+  border:1px solid rgba(56,189,248,.34)!important;
+  box-shadow:0 10px 24px rgba(0,0,0,.38),inset 0 1px 0 rgba(186,230,253,.24)!important;
 }
 .fab-r svg{
-  background:rgba(56,189,248,.14);
-  border:1px solid rgba(56,189,248,.28);
-  color:#38bdf8;
+  background:rgba(56,189,248,.16);
+  border:1px solid rgba(56,189,248,.32);
+  color:#7dd3fc;
 }
-.fab-r:active{transform:scale(.96)!important;border-color:rgba(56,189,248,.45)!important}
+.fab-r:active{transform:scale(.96)!important;background:linear-gradient(180deg,rgba(56,189,248,.26) 0%,rgba(8,20,32,.68) 100%)!important}
 
 /* Полное скрытие при открытии Бонусов, Точек или любого модального окна */
 body.dock-hide .fab{
