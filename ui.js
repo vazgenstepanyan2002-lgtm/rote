@@ -119,3 +119,20 @@ document.addEventListener('click',e=>{
  b.onclick=function(){location.href='admin.html'};
  document.body.appendChild(b);
 })();
+
+// DOCK-AUTO-HIDE: автоматическое скрытие нижнего док-бара при открытии Бонусов, Точек или модалок
+(function(){
+  function syncDock(){
+    const hasModal = Array.from(document.querySelectorAll(".ov, .mdl, [role='dialog']")).some(el => {
+      if (el.hidden) return false;
+      const st = getComputedStyle(el);
+      return st.display !== "none" && st.visibility !== "hidden" && parseFloat(st.opacity || "1") > 0.05;
+    });
+    document.body.classList.toggle("dock-hide", hasModal);
+  }
+  const mo = new MutationObserver(syncDock);
+  if (document.body) {
+    mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "style", "hidden"] });
+    syncDock();
+  }
+})();

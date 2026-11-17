@@ -365,44 +365,95 @@ ol#l:not(:empty){margin:14px 0 0;padding:14px;border-radius:20px;background:rgba
 .fab.fab-c{left:50%;right:auto;transform:translateX(-50%);padding:12px 11px;font-size:13px}
 
 /* ===== Единая нижняя панель кнопок ===== */
-body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))!important}
+body{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))!important}
+
+/* Единая стеклянная подложка-остров под тремя кнопками */
+body::after{
+  content:"";
+  position:fixed;
+  left:50%;
+  bottom:calc(12px + env(safe-area-inset-bottom,0px));
+  transform:translateX(-50%);
+  width:min(356px, calc(100vw - 28px));
+  height:54px;
+  border-radius:22px;
+  background:linear-gradient(180deg,rgba(22,31,48,.88) 0%,rgba(11,16,27,.94) 100%);
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 16px 36px rgba(0,0,0,.62),inset 0 1px 0 rgba(255,255,255,.16);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+  z-index:40;
+  pointer-events:none;
+  transition:opacity .2s ease,transform .22s ease;
+}
+
 .fab,.fab-l,.fab-c,.fab-r{
   position:fixed!important;
   bottom:calc(16px + env(safe-area-inset-bottom,0px))!important;
   top:auto!important;
-  height:40px!important;
-  width:auto!important;
-  min-width:0!important;
+  height:46px!important;
+  width:calc((min(356px, calc(100vw - 28px)) - 16px) / 3)!important;
   max-width:none!important;
+  min-width:0!important;
   margin:0!important;
-  padding:0 14px!important;
-  border-radius:99px!important;
+  padding:4px 4px!important;
+  border-radius:16px!important;
   display:inline-flex!important;
+  flex-direction:column!important;
   align-items:center!important;
   justify-content:center!important;
-  gap:6px!important;
-  font-size:13px!important;
+  gap:3px!important;
+  font-size:11.5px!important;
   font-weight:700!important;
-  letter-spacing:0!important;
-  background:rgba(15,22,34,.82)!important;
-  color:#f1f5f9!important;
-  border:1px solid rgba(255,255,255,.15)!important;
-  box-shadow:0 8px 20px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08)!important;
-  backdrop-filter:blur(12px)!important;
-  -webkit-backdrop-filter:blur(12px)!important;
+  letter-spacing:.1px!important;
+  line-height:1.1!important;
+  background:transparent!important;
+  color:#cbd5e1!important;
+  border:1px solid transparent!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
   white-space:nowrap!important;
-  transition:transform .14s ease,background .14s ease,border-color .14s ease!important;
-  z-index:900!important;
+  z-index:41!important;
+  transition:transform .14s ease,background .16s ease,color .16s ease,opacity .2s ease!important;
 }
-.fab svg{flex-shrink:0}
-.fab-l{left:14px!important;right:auto!important;transform:none!important}
-.fab-l svg{color:#facc15}
-.fab-l:active{transform:scale(.95)!important;background:rgba(24,34,52,.94)!important}
+.fab svg{width:17px;height:17px;flex-shrink:0;transition:transform .16s ease}
+.fab:active svg{transform:scale(.9)}
 
-.fab-c{left:50%!important;right:auto!important;transform:translateX(-50%)!important}
-.fab-c svg{color:#34d399}
-.fab-c:active{transform:translateX(-50%) scale(.95)!important;background:rgba(24,34,52,.94)!important}
+/* Левая секция: Бонусы */
+.fab-l{
+  left:calc(50% - (min(356px, calc(100vw - 28px)) / 2) + 5px)!important;
+  right:auto!important;
+  transform:none!important;
+}
+.fab-l svg{color:#facc15;filter:drop-shadow(0 0 6px rgba(250,204,21,.35))}
+.fab-l:active{transform:scale(.95)!important;background:rgba(250,204,21,.12)!important;color:#fff!important}
 
-.fab-r{right:14px!important;left:auto!important;transform:none!important}
-.fab-r svg{color:#38bdf8}
-.fab-r:active{transform:scale(.95)!important;background:rgba(24,34,52,.94)!important}
+/* Центральная секция: Админ (с деликатной стеклянной пилюлей внутри острова) */
+.fab-c{
+  left:50%!important;
+  right:auto!important;
+  transform:translateX(-50%)!important;
+  background:rgba(255,255,255,.055)!important;
+  border-color:rgba(255,255,255,.09)!important;
+  color:#f8fafc!important;
+}
+.fab-c svg{color:#34d399;filter:drop-shadow(0 0 6px rgba(52,211,153,.35))}
+.fab-c:active{transform:translateX(-50%) scale(.95)!important;background:rgba(52,211,153,.14)!important}
+
+/* Правая секция: Точки */
+.fab-r{
+  right:calc(50% - (min(356px, calc(100vw - 28px)) / 2) + 5px)!important;
+  left:auto!important;
+  transform:none!important;
+}
+.fab-r svg{color:#38bdf8;filter:drop-shadow(0 0 6px rgba(56,189,248,.35))}
+.fab-r:active{transform:scale(.95)!important;background:rgba(56,189,248,.12)!important;color:#fff!important}
+
+/* Плавное полное скрытие док-бара при открытии Бонусов, Точек или любого модального окна */
+body.dock-hide::after,
+body.dock-hide .fab{
+  opacity:0!important;
+  pointer-events:none!important;
+  visibility:hidden!important;
+}
