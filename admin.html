@@ -127,7 +127,18 @@ body:has(#login:not([hidden])){height:100dvh;overflow:hidden;overscroll-behavior
 <script>
 ['lgEm','lgPw'].forEach(id=>{
  const el=document.getElementById(id);
- el.addEventListener('change',()=>{const v=el.value;el.value='';el.value=v;});
+ const clean=()=>{
+  setTimeout(()=>{
+   const v=el.value;
+   if(!v)return;
+   el.value=v.slice(0,-1);
+   el.dispatchEvent(new Event('input',{bubbles:true}));
+   el.value=v;
+   el.dispatchEvent(new Event('input',{bubbles:true}));
+  },50);
+ };
+ el.addEventListener('change',clean);
+ el.addEventListener('animationstart',clean);
 });
 </script>
 </body></html>
