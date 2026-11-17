@@ -171,7 +171,7 @@
 
  // ===== Действия =====
  async function force(){
-  if(!confirm('Отправить всем устройствам команду обновления?'))return;
+  if(!(await ask('Отправить всем устройствам команду обновления?')))return;
   try{await db.ref('config/forceUpdate').set(firebase.database.ServerValue.TIMESTAMP);toast('Команда отправлена')}
   catch(e){toast('Не удалось: '+((e&&e.message)||e),true)}
  }
@@ -184,7 +184,7 @@
   catch(e){toast('Не удалось: '+((e&&e.message)||e),true)}
  }
  async function del(id){
-  if(!confirm('Удалить запись об этом устройстве из панели? Данные в самом приложении останутся.'))return;
+  if(!(await ask('Удалить запись об этом устройстве из панели? Данные в самом приложении останутся.')))return;
   try{await db.ref('users/'+id).remove();await db.ref('labels/'+id).remove();toast('Удалено')}
   catch(e){toast('Не удалось: '+((e&&e.message)||e),true)}
  }
@@ -198,7 +198,7 @@
   else if(a==='month'){OPEN[b.dataset.key]=!OPEN[b.dataset.key];draw()}
  });
  g('view').addEventListener('change',e=>{if(e.target.id==='sel'){SEL=e.target.value;draw()}});
- document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{TAB=b.dataset.tab;draw()});
+ document.querySelectorAll('.tabs button').forEach(b=>b.onclick=async ()=>{TAB=b.dataset.tab;draw()});
 
  // ===== Вход и выход =====
  const AUTH_ERR={
