@@ -1,5 +1,5 @@
 
-const C='eb-cache-20261117115703';
+const C='eb-cache-20261117120517';
 const PRE=['./','./index.html','./style.css','./app.js','./yandex.js','./ui.js','./map.js','./bonus.js','./i18n.js','./online.js','./manifest.json','./icon-192.png','./icon-512.png','./bg.jpg'];
 
 self.addEventListener('install',e=>{

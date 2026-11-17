@@ -9,34 +9,19 @@ function saveAdrCache(it){
 }
 const SUG_KEY='7149646b-4ffe-4382-b926-544de306c692';
 async function sugList(q){
- if(SUG_KEY==='7149646b-4ffe-4382-b926-544de306c692')return yan(q);
+ window._sugSrc='';
+ if(SUG_KEY==='PASTE_SUGGEST_KEY'){window._sugSrc='Геокодер (нет ключа)';return yan(q)}
  try{
   const r=await fetch('https://suggest-maps.yandex.ru/v1/suggest?apikey='+SUG_KEY+'&lang=ru_RU&results=6&bbox=43.4,38.8~46.7,41.3&strict_bounds=1&text='+encodeURIComponent(q),{signal:AbortSignal.timeout(9000)});
-  if(!r.ok)return yan(q);
+  if(!r.ok){window._sugSrc='Геокодер (Геосаджест: ошибка '+r.status+')';return yan(q)}
   const j=await r.json();
+  window._sugSrc='Геосаджест';
   return (j.results||[]).map(x=>{
    const t=(x.title&&x.title.text)||'',st=(x.subtitle&&x.subtitle.text)||'';
    const full=st?t+', '+st:t;
    return{name:full.replace(/^Армения, /,'')+' 🔎',text:full,lat:null,lon:null,exact:false};
   });
- }catch(e){return yan(q)}
-}
-const YKEY='a197b5c2-1e4f-480d-abab-9ab7bd63b447';
-async function yan(q){
- let last;
- for(let i=0;i<2;i++){
-  try{
-   const r=await fetch('https://geocode-maps.yandex.ru/1.x/?format=json&results=5&lang=ru_RU&rspn=1&bbox=43.4,38.8~46.7,41.3&apikey='+YKEY+'&geocode='+encodeURIComponent(q),{signal:AbortSignal.timeout(9000)});
-   if(!r.ok){const a=new Array();a.err=(r.status===403||r.status===429)?'limit':'srv';return a}
-   const j=await r.json();
-   return j.response.GeoObjectCollection.featureMember.map(m=>{
-    const g=m.GeoObject,md=g.metaDataProperty.GeocoderMetaData;
-    const p=g.Point.pos.split(' ');
-    return{name:md.text.replace(/^Армения, /,'')+(md.precision==='exact'?'':' 📍'),lat:+p[1],lon:+p[0],exact:md.precision==='exact'};
-   });
-  }catch(e){last=e;if(navigator.onLine===false)break;await new Promise(r=>setTimeout(r,400*(i+1)))}
- }
- const a=new Array();a.err=navigator.onLine===false?'off':'net';return a
+ }catch(e){window._sugSrc='Геокодер (Геосаджест: нет связи)';return yan(q)}
 }
 function showList(list,msg){
  let b=document.getElementById('sg');
@@ -104,7 +89,7 @@ document.getElementById("a").addEventListener("input", function(){
   const l = await sugList(q);
   const merged = cached.concat(l.filter(x => !cached.some(c => c.name === x.name))).slice(0, 5);
   if(document.getElementById("a").value.trim() === q){
-   showList(merged, merged.length ? "Выберите нужный вариант:" : "");
+   showList(merged, merged.length ? "Выберите нужный вариант · источник: "+(window._sugSrc||"?")+":" : "");
   }
  }, 400);
 });
