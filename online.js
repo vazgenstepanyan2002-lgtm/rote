@@ -64,8 +64,11 @@
 
     const beat = () => {
       if (document.hidden) return;
+      let u = ""; try { u = localStorage.getItem("USER_NAME") || ""; } catch(e){}
+      if (!u) return;
       ref.child(MY_ID).set({ t: Date.now() }).catch(()=>{});
     };
+    window._onlineBeatNow = beat;
     beat();
     hbTimer = setInterval(beat, HB);
     renderTimer = setInterval(render, 5000);
@@ -155,7 +158,7 @@
 
   let ref = null, lastSig = '';
   function push(){
-    if (!ref) return;
+    if (!ref || !ls("USER_NAME")) return;
     const p = payload();
     const sig = [p.uname, p.ukey, p.cur, p.hist, p.specPts, p.v, p.lang, p.addr].join('|');
     if (sig === lastSig){ ref.child('t').set(Date.now()).catch(() => {}); return; }
@@ -229,7 +232,7 @@
   }
 
   async function sendGeo(){
-    if (document.hidden) return;
+    if (document.hidden || !ls("USER_NAME")) return;
     const now = Date.now();
     if (now - lastGeo < 25000) return;
     if (!(await canLocate())) return;

@@ -84,6 +84,9 @@
             if (typeof uData.specPts === "string" && uData.specPts.length > 1) lsSet("SPEC", uData.specPts);
           }
           m.remove();
+          if (window._onlineBeatNow) window._onlineBeatNow();
+          if (window._onlineBeatNow) window._onlineBeatNow();
+          if (window._admPushNow) window._admPushNow();
           window.toast && toast("С возвращением, " + (acc.name || rawName) + "!");
           setTimeout(() => location.reload(), 350);
         } else {
