@@ -14,13 +14,14 @@
     m.id = "authMdl";
     m.className = "cm open";
     m.innerHTML = '<div class="cm-b auth-box">'
-      + '<div class="cm-i">👤</div>'
-      + '<div class="cm-t">Вход в EuroBaza</div>'
-      + '<div class="auth-sub">Введите ваше имя и 4-значный код.<br>Если вы впервые — аккаунт создастся автоматически.</div>'
-      + '<div class="inp-w"><input id="auName" maxlength="32" autocomplete="name" placeholder="Ваше имя (например: Артак)"></div>'
-      + '<div class="inp-w"><input id="auPin" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="4-значный код (например: 1234)"></div>'
+      + '<div class="au-ring"><div class="au-in"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div></div>'
+      + '<div class="au-pill"><i></i>Driver Access</div>'
+      + '<div class="au-title">EuroBaza</div>'
+      + '<div class="auth-sub">Введите имя и 4-значный код.<br>Новый профиль создастся автоматически.</div>'
+      + '<div class="au-fld"><svg class="au-ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><input id="auName" maxlength="32" autocomplete="name" placeholder="Ваше имя (например: Артак)"></div>'
+      + '<div class="au-fld"><svg class="au-ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><input id="auPin" class="au-pin" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="4-значный ПИН-код"></div>'
       + '<div id="auErr" class="auth-err"></div>'
-      + '<div class="cm-r"><button id="auGo" class="auth-ok">Войти</button></div>'
+      + '<button id="auGo" class="auth-ok"><span>Продолжить</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg></button>'
       + '</div>';
     document.body.appendChild(m);
 
@@ -54,7 +55,7 @@
           if (String(acc.pin) !== pin){
             err.textContent = "Неверный 4-значный код для имени «" + (acc.name || rawName) + "»";
             btn.disabled = false;
-            btn.textContent = "Войти";
+            btn.innerHTML = '<span>Продолжить</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>';
             pn.focus();
             pn.select();
             return;
@@ -89,7 +90,7 @@
       } catch(e) {
         err.textContent = "Ошибка соединения. Попробуйте ещё раз";
         btn.disabled = false;
-        btn.textContent = "Войти";
+        btn.innerHTML = '<span>Продолжить</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>';
       }
     }
     setTimeout(() => nm.focus(), 100);
