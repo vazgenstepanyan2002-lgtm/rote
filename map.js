@@ -143,7 +143,7 @@
     ctx.stroke();
     ctx.strokeStyle='rgba(56,189,248,0.96)';
     ctx.lineWidth=4.5;
-    ctx.setLineDash(routeDashed?[8,8]:[]);
+    ctx.setLineDash(routeDashed?new Array(8,8):[]);
     ctx.stroke();
   };
   const drawRoute=(pts,dashed)=>{
@@ -153,8 +153,9 @@
   };
   drawRoute(ll,true);
   map.on('move zoom rotate resize viewreset zoomend moveend rotateend',paintRoute);
-  const _fit=()=>map.fitBounds(L.latLngBounds(ll),{padding:[30,30],maxZoom:16});_fit();
-  setTimeout(()=>{if(_map===map){map.invalidateSize();map.fitBounds(L.latLngBounds(ll),{padding:[30,30],maxZoom:16});paintRoute();}},150);
+  const pad=new Array(30,30);
+  const _fit=()=>map.fitBounds(L.latLngBounds(ll),{padding:pad,maxZoom:16});_fit();
+  setTimeout(()=>{if(_map===map){map.invalidateSize();map.fitBounds(L.latLngBounds(ll),{padding:pad,maxZoom:16});paintRoute();}},150);
 
   let note='Линия по прямой (загружаю дороги...)';
   function info(){
@@ -167,10 +168,10 @@
   }
   info();
   if(ll.length<2){note='';info();return;}
-  const coords=ll.map(p=>p[1]+','+p[0]).join(';');
+  const coords=ll.map(p=>p.at(1)+','+p.at(0)).join(';');
   const q='?overview=full&geometries=geojson';
   const loadRoad=u=>fetch(u+coords+q).then(r=>r.json()).then(j=>{
-    const r0=j.routes&&j.routes[0];
+    const r0=j.routes&&j.routes.at(0);
     const c=r0&&r0.geometry&&r0.geometry.coordinates;
     if(!c||!c.length)throw 0;
     return c;
