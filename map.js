@@ -141,7 +141,7 @@
   const coords=ll.map(p=>p.slice().reverse().join(',')).join(';');
   const q='?overview=full&geometries=geojson';
   const loadRoad=u=>fetch(u+coords+q).then(r=>r.json()).then(j=>{
-    const r0=j.routes&&j.routes.shift();
+    const r0=j.routes&&j.routes.at(0);
     const c=r0&&r0.geometry&&r0.geometry.coordinates;
     if(!c||!c.length)throw 0;
     return c;
@@ -150,10 +150,10 @@
     if(tok!==_tok||_map!==map)return;
     curLines.forEach(l=>map.removeLayer(l));
     curLines=drawRoute(c.map(x=>x.slice().reverse()),false);
-   note='Линия построена по дорогам';info();
+    note='Линия построена по дорогам';info();
   }).catch(()=>{
-   if(tok!==_tok||_map!==map)return;
-   note='Дороги не загрузились, линия по прямой';info();
+    if(tok!==_tok||_map!==map)return;
+    note='Дороги не загрузились, линия по прямой';info();
   });
  }
  window.openMap=openMap;window.closeMap=closeMap;
