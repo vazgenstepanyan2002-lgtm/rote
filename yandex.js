@@ -70,14 +70,18 @@ async function addPick(it){
 window.add=async function(){
  const s=document.getElementById('s');
  const q=document.getElementById('a').value.trim();
- if(!q)return;
+ if(!q){window.toast&&toast('Введите адрес','err');return}
  if(_pick&&q===_pick.label){addPick(_pick);return}
  s.textContent='Ищу адрес в Яндексе...';
  const l=await yan(q);
- if(!l.length){const E=l.err,m=E==='off'?'Нет интернета. Проверьте сеть и повторите':E==='net'?'Не удалось связаться с Яндексом. Проверьте сеть':E==='limit'?'Яндекс отклонил запрос (лимит или ключ API)':E==='srv'?'Яндекс временно не отвечает. Попробуйте позже':'Адрес не найден. Попробуйте написать иначе или добавьте город';s.textContent=m;window.toast&&toast(m,'err');return}
- if(l.length===1&&l[0].exact){addPick(l[0]);return}
+ if(!l.length){
+  const E=l.err;
+  const m=E==='off'?'Нет интернета. Проверьте сеть и повторите':E==='net'?'Не удалось связаться с Яндексом. Проверьте сеть':E==='limit'?'Яндекс отклонил запрос (лимит или ключ API)':E==='srv'?'Яндекс временно не отвечает. Попробуйте позже':'Адрес не найден. Попробуйте написать иначе или добавьте город';
+  s.textContent=m;window.toast&&toast(m,'err');return;
+ }
+ if(l[0].exact){s.textContent='';addPick(l[0]);return}
  s.textContent='';
- window.toast&&toast('Выберите адрес из списка, чтобы добавить','err');showList(l,'Выберите нужный вариант:');
+ showList(l,'Выберите нужный вариант:');
 };
 
 let _liveSearch;
