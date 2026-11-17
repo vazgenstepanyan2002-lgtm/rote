@@ -277,7 +277,7 @@ body:has(#login:not([hidden])){height:100dvh;overflow:hidden;overscroll-behavior
 .row:has(.rv) [data-act="del"]{grid-column:6}
 body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behavior:none!important}
 </style></head><body>
-<a class="back" href="./"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>В приложение</a>
+<a class="back" href="./" onclick="event.preventDefault();if(document.referrer&&document.referrer.indexOf(location.origin)===0&&history.length>1)history.back();else location.replace('./')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>В приложение</a>
 <div id="login" class="auth-wrap"><div class="card">
  <div class="brand">
   <div class="logo-ring"><div class="logo-in"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></div></div>
@@ -322,8 +322,8 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
   </div>
  </div>
 </div>
-<script src="yandex.js?v=20261118020900"></script>
-<script src="admin.js?v=20261118020900"></script>
+<script src="yandex.js?v=20261118021600"></script>
+<script src="admin.js?v=20261118021600"></script>
 <script>
 ['lgEm','lgPw'].forEach(id=>{
  const el=document.getElementById(id);
@@ -342,4 +342,11 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
 });
 </script>
 
+<script>(function(){
+  var fromApp = document.referrer && document.referrer.indexOf(location.origin) === 0;
+  if (!fromApp) {
+    try { history.replaceState({ admRoot: 1 }, '', location.href); history.pushState({ admPage: 1 }, '', location.href); } catch (e) {}
+    window.addEventListener('popstate', function(){ location.replace('./'); });
+  }
+})();</script>
 </body></html>
