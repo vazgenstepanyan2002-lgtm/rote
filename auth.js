@@ -209,7 +209,7 @@
       g("pmOut").onclick = async () => {
         close(); const cur = ls("USER_NAME") || "";
         if (typeof askC === "function" && !(await askC("Выйти из профиля «" + cur + "» на этом телефоне? Данные останутся в облаке.", "Выйти", "👤"))) return;
-        lsDel("USER_NAME"); lsDel("USER_KEY"); lsDel("ADM_UID"); lsDel("BON"); lsDel("BON_HIST"); lsDel("SPEC"); location.reload();
+        lsDel("USER_NAME"); lsDel("USER_KEY"); lsDel("ADM_UID"); lsDel("BON"); lsDel("BON_HIST"); lsDel("SPEC"); location.replace(location.pathname);
       };
     }
     g("pmTitle").textContent = ls("USER_NAME") || ""; updBadges(); m.classList.add("open");
@@ -254,7 +254,18 @@
     b.onclick = openProfileMenu; updBadges();
   }
   function boot(){
-    renderUserBtn(); if (!ls("USER_NAME")) ensureModal();
+    renderUserBtn();
+    if (!ls("USER_NAME")){
+      ensureModal();
+      try { history.pushState({ authLock: 1 }, "", location.href); } catch(e){}
+    }
+    window.addEventListener("popstate", () => {
+      if (!ls("USER_NAME")){
+        ensureModal();
+        try { history.pushState({ authLock: 1 }, "", location.href); } catch(e){}
+      }
+    });
+    window.addEventListener("pageshow", () => { if (!ls("USER_NAME")) ensureModal(); });
     let tries = 0; const w = setInterval(() => { if (++tries > 60) clearInterval(w); else if (window.firebase && firebase.apps && firebase.apps.length){ clearInterval(w); bindChat(); bindBlockWatch(); } }, 500);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
