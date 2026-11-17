@@ -71,7 +71,7 @@ window.add=async function(){
  if(!l.length){const E=l.err,m=E==='off'?'Нет интернета. Проверьте сеть и повторите':E==='net'?'Не удалось связаться с Яндексом. Проверьте сеть':E==='limit'?'Яндекс отклонил запрос (лимит или ключ API)':E==='srv'?'Яндекс временно не отвечает. Попробуйте позже':'Адрес не найден. Попробуйте написать иначе или добавьте город';s.textContent=m;window.toast&&toast(m,'err');return}
  if(l.length===1&&l[0].exact){addPick(l[0]);return}
  s.textContent='';
- showList(l,'Выберите нужный вариант:');
+ window.toast&&toast('Выберите адрес из списка, чтобы добавить','err');showList(l,'Выберите нужный вариант:');
 };
 
 let _liveSearch;
