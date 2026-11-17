@@ -138,10 +138,10 @@
   }
   info();
   if(ll.length<2){note='';info();return;}
-  const coords=ll.map(p=>p.at(1)+','+p.at(0)).join(';');
+  const coords=ll.map(p=>p.slice().reverse().join(',')).join(';');
   const q='?overview=full&geometries=geojson';
   const loadRoad=u=>fetch(u+coords+q).then(r=>r.json()).then(j=>{
-    const r0=j.routes&&j.routes.at(0);
+    const r0=j.routes&&j.routes.shift();
     const c=r0&&r0.geometry&&r0.geometry.coordinates;
     if(!c||!c.length)throw 0;
     return c;
@@ -149,7 +149,7 @@
   loadRoad('https://project-osrm.org').catch(()=>loadRoad('https://openstreetmap.de')).then(c=>{
     if(tok!==_tok||_map!==map)return;
     curLines.forEach(l=>map.removeLayer(l));
-    curLines=drawRoute(c.map(x=>[x.at(1),x.at(0)]),false);
+    curLines=drawRoute(c.map(x=>x.slice().reverse()),false);
    note='Линия построена по дорогам';info();
   }).catch(()=>{
    if(tok!==_tok||_map!==map)return;
