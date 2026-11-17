@@ -29,11 +29,15 @@ async function sugList(q){
   if(!r.ok){window._sugSrc='Геосаджест: ошибка '+r.status;return []}
   const j=await r.json();
   window._sugSrc='Геосаджест';
-  return (j.results||[]).map(x=>{
+  const items=(j.results||[]).map(x=>{
    const t=(x.title&&x.title.text)||'',st=(x.subtitle&&x.subtitle.text)||'';
    const full=st?t+', '+st:t;
    return{name:full.replace(/^Армения, /,'')+' 🔎',text:full,lat:null,lon:null,exact:false};
   });
+  const key=x=>x.text.replace(/\s*[\u{1F4CD}\u{1F50E}]/gu,'').trim();
+  const cnt={};
+  items.forEach(it=>{const k=key(it);cnt[k]=(cnt[k]||0)+1});
+  return items.filter(it=>cnt[key(it)]===1);
  }catch(e){window._sugSrc='Геосаджест: нет связи';return []}
 }
 function showList(list,msg){
