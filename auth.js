@@ -62,13 +62,15 @@
       btn.textContent = "Проверка...";
       try {
         const db = firebase.database();
-        const devSnap = await db.ref("blockedDevices/" + getDevId()).once("value");
-        if (devSnap.val()){
-          _devBlocked = true;
-          err.textContent = "Это устройство заблокировано администратором";
-          btn.disabled = true;
-          return;
-        }
+        try {
+          const devSnap = await db.ref("accounts/__dev_" + getDevId() + "/blocked").once("value");
+          if (devSnap.val()){
+            _devBlocked = true;
+            err.textContent = "Это устройство заблокировано администратором";
+            btn.disabled = true;
+            return;
+          }
+        } catch(e){}
         const accRef = db.ref("accounts/" + key);
         const snap = await accRef.once("value");
         const acc = snap.val();
@@ -228,7 +230,7 @@
       if (btn && byDev) btn.disabled = true;
       const ub = g("usrBtn"); if (ub) ub.remove();
     };
-    db.ref("blockedDevices/" + devId).on("value", s => {
+    db.ref("accounts/__dev_" + devId + "/blocked").on("value", s => {
       if (s.val()) kick(true);
       else if (_devBlocked){ _devBlocked = false; const err = g("auErr"), btn = g("auGo"); if (err) err.textContent = ""; if (btn) btn.disabled = false; }
     }, () => {});
