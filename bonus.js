@@ -168,7 +168,7 @@
  const saveHist=h=>{try{localStorage.setItem('BON_HIST',JSON.stringify(h))}catch(e){}};
  const qtyOf=rows=>rows.reduce((a,c)=>a+c.items.reduce((b,it)=>b+it.parts.reduce((x,z)=>x+z.n,0),0),0);
  const sumOf=rows=>rows.reduce((a,c)=>a+c.sum,0);
- function monthName(k){const p=k.split('-');return new Date(+p[0],+p[1]-1,1).toLocaleDateString('ru-RU',{month:'long',year:'numeric'})}
+ function monthName(k){const p=k.split('-');const t=new Date(+p[0],+p[1]-1,1).toLocaleDateString('ru-RU',{month:'long',year:'numeric'});return t.charAt(0).toUpperCase()+t.slice(1)}
  // Новый месяц: итоги прошлого сохраняем, количества обнуляем
  function rollMonth(){
   const now=MK(new Date());let cur=null;
@@ -180,17 +180,23 @@
   B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));save();
   try{localStorage.setItem('BON_M',now)}catch(e){}
  }
- function rowHtml(k,name,sum,qty){
-  return '<div class="bn-mr" data-m="'+k+'"><span class="bn-mn">'+esc(name)+'</span><span class="bn-mq">'+fm(qty)+'</span><span class="bn-mv">'+fm(sum)+' '+CUR+'</span></div>';
+ function rowHtml(k,name,sum,qty,cur){
+  return '<div class="bn-mr'+(cur?' bn-mr-cur':'')+'" data-m="'+k+'" role="button">'
+   +'<span class="bn-mi">'+(cur?'🟢':'📅')+'</span>'
+   +'<span class="bn-mtx"><span class="bn-mn">'+esc(name)+'</span><span class="bn-mq">'+fm(qty)+' шт'+(cur?' · идёт':'')+'</span></span>'
+   +'<span class="bn-mv">'+fm(sum)+' '+CUR+'</span>'
+   +'<span class="bn-mc">›</span></div>';
  }
  function histView(){
   const h=HIST(),keys=Object.keys(h).sort().reverse(),cr=sumRows();
-  let html='<div class="bn-th"><span>Месяц</span><span>Штук</span><span>Сумма</span></div>';
-  html+=rowHtml('cur','Текущий месяц',sumOf(cr),qtyOf(cr));
-  keys.forEach(k=>{html+=rowHtml(k,monthName(k),h[k].sum,h[k].qty)});
-  if(!keys.length)html+='<div class="bn-empty">Закрытых месяцев пока нет. Итоги сохранятся, когда начнётся новый месяц.</div>';
+  const cs=sumOf(cr),cq=qtyOf(cr);
+  let html='<div class="bn-hero"><span class="bn-hero-l">Текущий месяц</span><b class="bn-hero-v">'+fm(cs)+' '+CUR+'</b><span class="bn-hero-q">'+fm(cq)+' шт</span></div>';
+  html+='<div class="bn-sec">Месяцы</div>';
+  html+=rowHtml('cur',monthName(MK(new Date())),cs,cq,true);
+  keys.forEach(k=>{html+=rowHtml(k,monthName(k),h[k].sum,h[k].qty,false)});
+  if(!keys.length)html+='<div class="bn-tip">Закрытые месяцы появятся здесь автоматически, когда начнётся новый месяц.</div>';
   g('bnSmList').innerHTML=html;
-  g('bnSmTot').textContent=fm(sumOf(cr))+' '+CUR;g('bnSmQty').textContent=fm(qtyOf(cr));
+  g('bnSmTot').textContent=fm(cs)+' '+CUR;g('bnSmQty').textContent=fm(cq);
  }
  function detailView(rows,title){
   let q=qtyOf(rows);

@@ -286,3 +286,25 @@ ol#l:not(:empty){margin:14px 0 0;padding:14px;border-radius:20px;background:rgba
 .bn-mv{min-width:90px;text-align:right;color:#34d399;font-weight:700;font-size:14px;white-space:nowrap}
 .bn-back{color:#fc0;font-weight:700;font-size:14px;padding:6px 2px;cursor:pointer}
 .bn-mt{font-size:17px;font-weight:700;color:#f8fafc;margin:4px 2px 10px}
+
+/* bn-modern: современная таблица итогов */
+.bn-hero{background:linear-gradient(135deg,#10b981 0%,#0ea5e9 100%);border-radius:18px;padding:16px 18px;margin:4px 0 16px;display:flex;flex-direction:column;gap:2px;box-shadow:0 10px 26px rgba(16,185,129,.25)}
+.bn-hero-l{font-size:12px;font-weight:600;color:rgba(255,255,255,.85);text-transform:uppercase;letter-spacing:.6px}
+.bn-hero-v{font-size:28px;font-weight:800;color:#fff;line-height:1.15}
+.bn-hero-q{font-size:13px;color:rgba(255,255,255,.92)}
+.bn-sec{font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px;margin:4px 4px 10px}
+.bn-mr{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:transform .15s,background .2s;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.bn-mr:active{transform:scale(.98);background:rgba(255,255,255,.1)}
+.bn-mr-cur{border-color:#10b981;background:rgba(16,185,129,.12)}
+.bn-mi{font-size:18px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:rgba(255,255,255,.08);flex-shrink:0}
+.bn-mtx{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.bn-mn{font-weight:700;font-size:15px;color:#f8fafc}
+.bn-mq{font-size:12px;color:#94a3b8}
+.bn-mv{font-weight:800;color:#34d399;font-size:15px;white-space:nowrap}
+.bn-mc{color:#64748b;font-size:22px;line-height:1}
+.bn-tip{text-align:center;color:#94a3b8;font-size:13px;padding:12px 14px;line-height:1.5;border:1px dashed rgba(255,255,255,.18);border-radius:14px;margin-top:6px}
+.bn-back{display:inline-block;background:rgba(252,204,0,.14);border:1px solid rgba(252,204,0,.4);color:#fc0;font-weight:700;font-size:13px;padding:7px 12px;border-radius:20px;cursor:pointer;margin-bottom:12px}
+.bn-mt{font-size:20px;font-weight:800;color:#f8fafc;margin:0 2px 14px}
+.bn-sc{border-radius:18px;padding:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);margin-bottom:10px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.bn-sch{border-bottom:1px solid rgba(255,255,255,.12);padding-bottom:8px}
+.bn-sch b{color:#34d399;font-size:15px}
