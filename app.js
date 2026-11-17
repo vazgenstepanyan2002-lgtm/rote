@@ -47,6 +47,15 @@ async function delSpec(i){
  if(!await askC('Удалить точку «'+SPEC_PTS[i].name+'»?','Удалить'))return;
  SPEC_PTS.splice(i,1);saveSpec();window.toast&&toast('Точка удалена');openPts();
 }
+function openAddSpec(){
+ $('pn').value='';$('pc').value='';$('ptMsg').textContent='';
+ $('ptAddMdl').classList.add('open');
+ setTimeout(()=>{try{$('pn').focus()}catch(e){}},80);
+}
+function closeAddSpec(){
+ $('ptAddMdl').classList.remove('open');
+ $('ptMsg').textContent='';
+}
 async function addSpec(){
  const n=$('pn').value.trim(),c=$('pc').value.trim(),m=$('ptMsg');
  if(!n){m.textContent='Введите название точки';return}
@@ -54,7 +63,7 @@ async function addSpec(){
  if(c){
   const nums=c.match(/-?\d+(?:[.,]\d+)?/g);
   if(!nums||nums.length!==2){m.textContent='Нужно два числа: 40.1630, 44.3882';return}
-  lat=parseFloat(nums[0].replace(',','.'));lon=parseFloat(nums[1].replace(',','.'));
+  lat=parseFloat(nums.at(0).replace(',','.'));lon=parseFloat(nums.at(1).replace(',','.'));
   if(lat>43&&lon<43){const t=lat;lat=lon;lon=t}
   if(!(lat>38.8&&lat<41.3&&lon>43.4&&lon<46.7)){m.textContent='Координаты вне Армении, проверьте';return}
  }else{
@@ -62,12 +71,12 @@ async function addSpec(){
   try{const me=await pos();lat=me.lat;lon=me.lon}catch(e){m.textContent='Нет доступа к геолокации. Введите координаты вручную';return}
  }
  SPEC_PTS.push({name:n,lat:+lat.toFixed(6),lon:+lon.toFixed(6)});saveSpec();
- $('pn').value='';$('pc').value='';m.textContent='';window.toast&&toast('Точка добавлена');openPts();
+ closeAddSpec();window.toast&&toast('Точка добавлена');openPts();
 }
 async function fillPos(){
  const m=$('ptMsg');
  m.textContent='Определяю вашу геопозицию...';
- try{const me=await pos();$('pc').value=me.lat.toFixed(6)+', '+me.lon.toFixed(6);m.textContent='Координаты подставлены. Введите название и нажмите «Добавить точку»'}
+ try{const me=await pos();$('pc').value=me.lat.toFixed(6)+', '+me.lon.toFixed(6);m.textContent='Координаты подставлены. Введите название и нажмите «Сохранить»'}
  catch(e){m.textContent='Нет доступа к геолокации. Разрешите её для Chrome'}
 }
 async function openPts(){
@@ -195,5 +204,5 @@ function askC(text,ok,icon){return new Promise(res=>{
   if(now){try{history.pushState({pt:1},'')}catch(e){}}
   else{try{if(history.state&&history.state.pt)setTimeout(()=>history.back(),0)}catch(e){}}
  }).observe(m,{attributes:true,attributeFilter:['class']});
- window.addEventListener('popstate',()=>{if(m.classList.contains('open'))m.classList.remove('open')});
+ window.addEventListener('popstate',()=>{const am=document.getElementById('ptAddMdl');if(am&&am.classList.contains('open')){am.classList.remove('open');return}if(m.classList.contains('open'))m.classList.remove('open')});
 })();
