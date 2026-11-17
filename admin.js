@@ -187,7 +187,13 @@
     if(TAB !== "map" || !g("admMap")) return;
     const baseLL = L.latLng(BASE_PT.lat, BASE_PT.lon);
     _map = L.map("admMap", { zoomControl: true }).setView(baseLL, 12);
-    L.tileLayer("https://google.com{x}&y={y}&z={z}", { maxZoom: 20 }).addTo(_map);
+    const tl = L.tileLayer("https://{s}://{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: 19 }).addTo(_map);
+    let _fb = false;
+    tl.on("tileerror", () => {
+     if(_fb) return;
+     _fb = true;
+     tl.setUrl("https://google.com{x}&y={y}&z={z}");
+    });
     const baseIc = L.divIcon({ className: "drv-pin", html: '<div class="drv-b base"><i></i><span>База EuroBaza</span></div>', iconSize: L.point(0, 0) });
     _baseMk = L.marker(baseLL, { icon: baseIc }).addTo(_map).bindPopup('<div class="pop-t">🏁 ' + esc(BASE_PT.name) + '</div>');
     setTimeout(() => { if(_map) _map.invalidateSize(); }, 150);
