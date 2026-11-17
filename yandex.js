@@ -104,16 +104,9 @@ document.getElementById("a").addEventListener("input", function(){
  const q = this.value.trim();
  if(q.length < 2){ showList(new Array()); return; }
  _liveSearch = setTimeout(async function(){
-  const ql = q.toLowerCase();
-  const cached = ADR_CACHE.filter(x => x.name.toLowerCase().includes(ql));
-  if(cached.length > 0 && document.getElementById("a").value.trim() === q){
-   showList(cached.slice(0, 5), "Из сохранённых адресов:");
-  }
-  if(cached.length >= 3) return;
   const l = await sugList(q);
-  const merged = cached.concat(l.filter(x => !cached.some(c => c.name === x.name))).slice(0, 5);
   if(document.getElementById("a").value.trim() === q){
-   showList(merged, merged.length ? "Выберите нужный вариант · источник: "+(window._sugSrc||"?")+":" : "");
+   showList(l, l.length ? "Выберите нужный вариант · источник: "+(window._sugSrc||"?")+":" : "");
   }
  }, 400);
 });
