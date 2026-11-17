@@ -190,7 +190,8 @@
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(_map);
     const baseIc = L.divIcon({ className: "drv-pin", html: '<div class="drv-b base"><i></i><span>База EuroBaza</span></div>', iconSize: L.point(0, 0) });
     _baseMk = L.marker(baseLL, { icon: baseIc }).addTo(_map).bindPopup('<div class="pop-t">🏁 ' + esc(BASE_PT.name) + '</div>');
-    setTimeout(() => { if(_map) _map.invalidateSize(); }, 150);
+    setTimeout(() => { if(_map) _map.invalidateSize(true); }, 50);
+    setTimeout(() => { if(_map) _map.invalidateSize(true); }, 350);
    }catch(e){
     if(g("mapCards")) g("mapCards").innerHTML = '<div class="box mut">Ошибка карты: ' + esc((e && e.message) || e) + '</div>';
     return;
