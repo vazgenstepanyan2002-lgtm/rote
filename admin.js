@@ -735,7 +735,7 @@
           return { ok: valid, detail: valid ? 'Ключ валиден (HTTP ' + r.status + ')' : 'Ошибка ключа: ' + (msg || r.status) };
         }),
         probe('Firebase Realtime DB', fbDb ? 'europe-west1' : 'нет URL', async () => {
-          const r = await fetch(fbDb + '/version.json');
+          const u=window.firebase&&firebase.auth().currentUser,tk=u?await u.getIdToken():'';const r=await fetch(fbDb+'/config.json'+(tk?'?auth='+tk:''));
           return { ok: r.ok, detail: r.ok ? 'Доступна (HTTP ' + r.status + ')' : 'HTTP ' + r.status };
         }),
         probe('Яндекс Геокодер (YKEY)', maskKey(yKey), async () => {
