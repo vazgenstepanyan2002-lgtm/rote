@@ -23,10 +23,10 @@ async function yan(q){
 
 async function sugList(q){
  window._sugSrc='';
- if(SUG_KEY==='PASTE_SUGGEST_KEY'){window._sugSrc='Геокодер (нет ключа)';return yan(q)}
+ if(SUG_KEY==='PASTE_SUGGEST_KEY'){window._sugSrc='нет ключа Геосаджеста';return []}
  try{
   const r=await fetch('https://suggest-maps.yandex.ru/v1/suggest?apikey='+SUG_KEY+'&lang=ru_RU&results=6&bbox=43.4,38.8~46.7,41.3&strict_bounds=1&text='+encodeURIComponent(q),{signal:AbortSignal.timeout(9000)});
-  if(!r.ok){window._sugSrc='Геокодер (Геосаджест: ошибка '+r.status+')';return yan(q)}
+  if(!r.ok){window._sugSrc='Геосаджест: ошибка '+r.status;return []}
   const j=await r.json();
   window._sugSrc='Геосаджест';
   return (j.results||[]).map(x=>{
@@ -34,7 +34,7 @@ async function sugList(q){
    const full=st?t+', '+st:t;
    return{name:full.replace(/^Армения, /,'')+' 🔎',text:full,lat:null,lon:null,exact:false};
   });
- }catch(e){window._sugSrc='Геокодер (Геосаджест: нет связи)';return yan(q)}
+ }catch(e){window._sugSrc='Геосаджест: нет связи';return []}
 }
 function showList(list,msg){
  let b=document.getElementById('sg');
