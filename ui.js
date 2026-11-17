@@ -1,3 +1,5 @@
+window.addEventListener('error',e=>{window.toast&&toast('Ошибка: '+(e.message||'неизвестно'),'err')});
+window.addEventListener('unhandledrejection',e=>{window.toast&&toast('Ошибка: '+((e.reason&&e.reason.message)||e.reason||'неизвестно'),'err')});
 function vib(p){try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}}
 function toast(msg,type){
  let t=document.getElementById('toast');

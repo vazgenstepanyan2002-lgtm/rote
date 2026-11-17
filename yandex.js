@@ -69,6 +69,7 @@ async function addPick(it){
 }
 window.add=async function(){
  const s=document.getElementById('s');
+ window.toast&&toast('Нажата кнопка «Добавить»','ok');
  const q=document.getElementById('a').value.trim();
  if(!q){window.toast&&toast('Введите адрес','err');return}
  if(_pick&&q===_pick.label){addPick(_pick);return}
