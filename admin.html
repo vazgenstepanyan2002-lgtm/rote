@@ -262,6 +262,21 @@ body:has(#login:not([hidden])){height:100dvh;overflow:hidden;overscroll-behavior
 .ach-bar input:focus{border-color:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.16)}
 .ach-bar button{width:46px;height:46px;border-radius:50%;border:none;background:linear-gradient(135deg,#6ee7b7 0%,#10b981 55%,#059669 100%);color:#042414;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(16,185,129,.35);flex-shrink:0}
 .dm-btn{position:relative;width:34px;height:34px;padding:0;flex-shrink:0;border-radius:11px;background:rgba(14,165,233,.16);border:1px solid rgba(56,189,248,.38);color:#38bdf8;font-size:15px;display:inline-flex;align-items:center;justify-content:center;transition:.15s}.dm-btn:active{transform:scale(.92)}.dm-bdg{position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:1px 5px;border-radius:99px;line-height:1.2;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+
+/* Двухрядная сетка карточки водителя во вкладке Онлайн */
+.row:has(.rv){display:grid;grid-template-columns:11px 1fr repeat(4,auto);align-items:center;column-gap:8px;row-gap:11px}
+.row:has(.rv) .dot{grid-column:1;grid-row:1;align-self:start;margin-top:6px}
+.row:has(.rv) .rm{grid-column:2/-1;grid-row:1;padding-left:4px}
+.row:has(.rv) .rv{grid-column:1/3;grid-row:2;justify-self:start;padding-top:9px;border-top:1px solid rgba(255,255,255,.08);width:100%;display:flex;align-items:center;background:none;border-left:none;border-right:none;border-bottom:none;border-radius:0;padding-left:0;padding-right:0}
+.row:has(.rv) .rv::before{content:"";display:none}
+.row:has(.rv) .rv-pill{display:inline-block}
+.row:has(.rv) .dm-btn,.row:has(.rv) .xb{grid-row:2;margin-top:9px}
+.row:has(.rv) .dm-btn{grid-column:3}
+.row:has(.rv) .xb:nth-of-type(1){grid-column:4}
+.row:has(.rv) .xb:nth-of-type(2){grid-column:5}
+.row:has(.rv) .xb:nth-of-type(3){grid-column:6}
+.row:has(.rv):not(:has(.xb:nth-of-type(3))) .xb:nth-of-type(1){grid-column:5}
+.row:has(.rv):not(:has(.xb:nth-of-type(3))) .xb:nth-of-type(2){grid-column:6}
 </style></head><body>
 <a class="back" href="./"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>В приложение</a>
 <div id="login" class="auth-wrap"><div class="card">
@@ -308,7 +323,7 @@ body:has(#login:not([hidden])){height:100dvh;overflow:hidden;overscroll-behavior
   </div>
  </div>
 </div>
-<script src="admin.js?v=20261117214628"></script>
+<script src="admin.js?v=20261117215142"></script>
 <script>
 ['lgEm','lgPw'].forEach(id=>{
  const el=document.getElementById(id);
