@@ -691,100 +691,49 @@
   async function openDiag() {
     const ov = document.createElement('div');
     ov.className = 'ov show';
-    ov.innerHTML = '<div class="dlg" style="max-width:460px;width:94%;max-height:86vh;overflow:auto"><h3 style="margin:0 0 10px;display:flex;justify-content:space-between;align-items:center"><span>🩺 Диагностика системы и API</span><button id="dgClose" class="out" style="padding:4px 9px">✕</button></h3><div id="dgBody" style="font-size:12.5px;line-height:1.45;display:flex;flex-direction:column;gap:8px">Проверка сервисов...</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px"><button id="dgRe" style="height:42px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;background:rgba(16,185,129,.18);border:1px solid rgba(52,211,153,.4);color:#6ee7b7">🔄 Проверить</button><button id="dgClrCache" style="height:42px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;background:rgba(239,68,68,.16);border:1px solid rgba(239,68,68,.38);color:#fca5a5">🗑 Сбросить кэш</button></div></div>';
+    ov.style.cssText = 'position:fixed;inset:0;overflow:hidden;touch-action:none;display:flex;align-items:center;justify-content:center;padding:12px;z-index:9999';
+    ov.innerHTML = '<div class="dlg" style="position:relative;overflow:hidden;max-width:440px;width:100%;padding:14px;border-radius:24px;background:linear-gradient(180deg,rgba(19,28,43,.98) 0%,rgba(10,15,25,.99) 100%);border:1px solid rgba(255,255,255,.14);box-shadow:0 24px 60px rgba(0,0,0,.85)"><div style="position:absolute;top:0;left:24px;right:24px;height:1px;background:linear-gradient(90deg,transparent,rgba(52,211,153,.7),rgba(250,204,21,.5),transparent)"></div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="display:flex;align-items:center;gap:9px"><span style="width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,rgba(16,185,129,.22),rgba(14,165,233,.18));border:1px solid rgba(52,211,153,.38);color:#6ee7b7;display:flex;align-items:center;justify-content:center">🩺</span><div><div style="font-size:15px;font-weight:800;color:#f8fafc;line-height:1.15">Диагностика и API</div><div style="font-size:10.5px;color:#94a3b8">Статус сервисов и кэша</div></div></div><button id="dgClose" style="width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#94a3b8;font-size:14px;cursor:pointer">✕</button></div><div id="dgBody" style="display:flex;flex-direction:column;gap:8px"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px"><button id="dgRe" style="height:40px;border-radius:12px;font-size:12.5px;font-weight:700;cursor:pointer;background:rgba(16,185,129,.16);border:1px solid rgba(52,211,153,.38);color:#6ee7b7">↻ Проверить</button><button id="dgClrCache" style="height:40px;border-radius:12px;font-size:12.5px;font-weight:700;cursor:pointer;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.36);color:#fca5a5">✕ Сбросить кэш</button></div></div>';
+    document.body.style.overflow = 'hidden';
     document.body.appendChild(ov);
-    const close = () => ov.remove();
+    const close = () => { document.body.style.overflow = ''; ov.remove(); };
     ov.querySelector('#dgClose').onclick = close;
-    ov.onclick = e => { if (e.target === ov) close(); };
-
+    ov.onclick = ev => { if (ev.target === ov) close(); };
     ov.querySelector('#dgClrCache').onclick = async () => {
-      if ('caches' in window) {
-        const ks = await caches.keys();
-        await Promise.all(ks.map(k => caches.delete(k)));
-      }
-      if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map(r => r.unregister()));
-      }
+      if ('caches' in window) { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); }
+      if ('serviceWorker' in navigator) { const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.unregister())); }
       location.reload(true);
     };
-
     const run = async () => {
       const box = ov.querySelector('#dgBody');
-      box.innerHTML = '<div style="opacity:.75">Выполняется проверка ключей и серверов...</div>';
-
+      box.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:12px">Проверка сервисов...</div>';
       const yKey = typeof YKEY !== 'undefined' ? YKEY : '';
       const sKey = typeof SUG_KEY !== 'undefined' ? SUG_KEY : '';
       const fbOpts = (window.firebase && firebase.apps && firebase.apps.length) ? firebase.app().options : {};
-      const fbKey = fbOpts.apiKey || '';
-      const fbDb = fbOpts.databaseURL || '';
-
-            const p2 = ['https:', '', 'geocode-maps.yandex.ru', '1.x', '?format=json&apikey=' + yKey + '&geocode=44.4425,40.0686'].join('/');
+      const fbKey = fbOpts.apiKey || '', fbDb = fbOpts.databaseURL || '';
+      const p2 = ['https:', '', 'geocode-maps.yandex.ru', '1.x', '?format=json&apikey=' + yKey + '&geocode=44.4425,40.0686'].join('/');
       const p3 = ['https:', '', 'suggest-maps.yandex.ru', 'v1', 'suggest?apikey=' + sKey + '&text=Masis'].join('/');
       const p4 = ['https:', '', 'router.project-osrm.org', 'route', 'v1', 'driving', '44.4425,40.0686;44.4500,40.0750?overview=false'].join('/');
       const p5 = ['https:', '', 'routing.openstreetmap.de', 'routed-car', 'route', 'v1', 'driving', '44.4425,40.0686;44.4500,40.0750?overview=false'].join('/');
-
       const checks = await Promise.all([
-        probe('Firebase API Key', maskKey(fbKey), async () => {
-          if (!fbKey) return { ok: false, detail: 'Ключ отсутствует' };
-          const ok = Boolean(fbKey && fbKey.startsWith('AIza') && window.firebase && firebase.auth().currentUser);
-          return { ok, detail: ok ? 'SDK и сессия ОК' : 'Ошибка авторизации' };
-        }),
-        probe('Firebase Realtime DB', fbDb ? 'europe-west1' : 'нет URL', async () => {
-          const u=window.firebase&&firebase.auth().currentUser,tk=u?await u.getIdToken():'';const r=await fetch(fbDb+'/config.json'+(tk?'?auth='+tk:''));
-          return { ok: r.ok, detail: r.ok ? 'Доступна (HTTP ' + r.status + ')' : 'HTTP ' + r.status };
-        }),
-        probe('Яндекс Геокодер (YKEY)', maskKey(yKey), async () => {
-          if (!yKey) return { ok: false, detail: 'Ключ не найден' };
-          const r = await fetch(p2);
-          return { ok: r.ok, detail: r.ok ? 'Работает (HTTP 200)' : 'Отклонён (HTTP ' + r.status + ')' };
-        }),
-        probe('Яндекс Подсказки (SUG_KEY)', maskKey(sKey), async () => {
-          if (!sKey) return { ok: false, detail: 'Ключ не найден' };
-          const r = await fetch(p3);
-          return { ok: r.ok, detail: r.ok ? 'Работает (HTTP 200)' : 'Отклонён (HTTP ' + r.status + ')' };
-        }),
-        probe('OSRM Основной', 'project-osrm.org', async () => {
-          const r = await fetch(p4);
-          const j = await r.json().catch(() => ({}));
-          return { ok: r.ok && j.code === 'Ok', detail: (r.ok && j.code === 'Ok') ? 'Маршрут ОК' : 'HTTP ' + r.status };
-        }),
-        probe('OSRM Резервный', 'openstreetmap.de', async () => {
-          const r = await fetch(p5);
-          const j = await r.json().catch(() => ({}));
-          return { ok: r.ok && j.code === 'Ok', detail: (r.ok && j.code === 'Ok') ? 'Маршрут ОК' : 'HTTP ' + r.status };
-        })
+        probe('Firebase Auth', maskKey(fbKey), async () => { const ok = Boolean(fbKey && fbKey.startsWith('AIza') && window.firebase && firebase.auth().currentUser); return { ok, detail: ok ? 'Сессия ОК' : 'Нет сессии' }; }),
+        probe('Realtime DB', 'europe-west1', async () => { const u = window.firebase && firebase.auth().currentUser, tk = u ? await u.getIdToken() : ''; const r = await fetch(fbDb + '/config.json' + (tk ? '?auth=' + tk : '')); return { ok: r.ok, detail: r.ok ? 'HTTP 200' : 'HTTP ' + r.status }; }),
+        probe('Яндекс Геокодер', maskKey(yKey), async () => { const r = await fetch(p2); return { ok: r.ok, detail: r.ok ? 'HTTP 200' : 'HTTP ' + r.status }; }),
+        probe('Яндекс Подсказки', maskKey(sKey), async () => { const r = await fetch(p3); return { ok: r.ok, detail: r.ok ? 'HTTP 200' : 'HTTP ' + r.status }; }),
+        probe('OSRM Основной', 'project-osrm', async () => { const r = await fetch(p4); const d = await r.json().catch(() => ({})); return { ok: r.ok && d.code === 'Ok', detail: (r.ok && d.code === 'Ok') ? 'Маршрут ОК' : 'HTTP ' + r.status }; }),
+        probe('OSRM Резервный', 'osm.de', async () => { const r = await fetch(p5); const d = await r.json().catch(() => ({})); return { ok: r.ok && d.code === 'Ok', detail: (r.ok && d.code === 'Ok') ? 'Маршрут ОК' : 'HTTP ' + r.status }; })
       ]);
-
-      let swInfo = 'Не поддерживается';
-      if ('serviceWorker' in navigator) {
-        const reg = await navigator.serviceWorker.getRegistration();
-        swInfo = reg && reg.active ? 'Активен (' + reg.active.state + ')' : 'Не зарегистрирован';
-      }
-      let cacheList = '0';
-      if ('caches' in window) {
-        const ks = await caches.keys();
-        cacheList = ks.length ? ks.join(', ') : 'пусто';
-      }
+      let swInfo = 'Нет', cacheList = 'пусто';
+      if ('serviceWorker' in navigator) { const reg = await navigator.serviceWorker.getRegistration(); swInfo = reg && reg.active ? reg.active.state : 'не активен'; }
+      if ('caches' in window) { const ks = await caches.keys(); if (ks.length) cacheList = ks.join(', '); }
       const verRes = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json()).catch(() => null);
-      const srvVer = verRes && verRes.v ? verRes.v : 'ошибка чтения';
-
-      const cards = checks.map(c => {
-        const bg = c.ok ? 'rgba(16,185,129,.12)' : 'rgba(239,68,68,.15)';
-        const bd = c.ok ? 'rgba(52,211,153,.35)' : 'rgba(248,113,113,.4)';
-        const ic = c.ok ? '🟢' : '🔴';
-        return '<div style="padding:8px 10px;border-radius:10px;background:' + bg + ';border:1px solid ' + bd + ';display:flex;justify-content:space-between;align-items:center;gap:8px"><div><b>' + ic + ' ' + c.name + '</b><div style="opacity:.75;font-size:11px">Ключ/хост: ' + c.keyInfo + '</div></div><div style="text-align:right;font-size:11.5px">' + c.detail + '</div></div>';
-      }).join('');
-
-      const errsHtml = ERR_LOG.length
-        ? ERR_LOG.map(x => '<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,.08)"><b>[' + x.t + '] ' + x.type + ':</b> ' + x.msg + '</div>').join('')
-        : '<div style="opacity:.65">Ошибок за сессию не зафиксировано</div>';
-
-      box.innerHTML = cards
-        + '<div style="padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)"><b>⚙️ PWA и кэш:</b><br>Версия на сервере: <code>' + srvVer + '</code><br>Service Worker: ' + swInfo + '<br>Cache Storage: <code>' + cacheList + '</code></div>'
-        + '<div style="padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)"><b>🐞 Журнал ошибок (' + ERR_LOG.length + '):</b><div style="max-height:110px;overflow:auto;margin-top:4px;font-size:11px">' + errsHtml + '</div></div>';
+      const srvVer = verRes && verRes.v ? verRes.v : '—';
+      const grid = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">' + checks.map(c => {
+        const bg = c.ok ? 'rgba(16,185,129,.10)' : 'rgba(239,68,68,.14)', bd = c.ok ? 'rgba(52,211,153,.28)' : 'rgba(248,113,113,.36)', dot = c.ok ? '#10b981' : '#ef4444', stCol = c.ok ? '#6ee7b7' : '#fca5a5';
+        return '<div style="padding:8px 9px;border-radius:12px;background:' + bg + ';border:1px solid ' + bd + ';display:flex;flex-direction:column;gap:2px"><div style="display:flex;align-items:center;gap:5px"><i style="width:7px;height:7px;border-radius:50%;background:' + dot + ';box-shadow:0 0 7px ' + dot + ';flex-shrink:0"></i><span style="font-size:11.5px;font-weight:700;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + c.name + '</span></div><div style="font-size:10px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + c.keyInfo + '</div><div style="font-size:10.5px;font-weight:600;color:' + stCol + '">' + c.detail + '</div></div>';
+      }).join('') + '</div>';
+      const errBar = ERR_LOG.length ? '<div style="padding:7px 10px;border-radius:12px;background:rgba(239,68,68,.12);border:1px solid rgba(248,113,113,.3);font-size:10.5px;color:#fca5a5"><b>Ошибки (' + ERR_LOG.length + '):</b> ' + ERR_LOG.msg + '</div>' : '<div style="padding:7px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);display:flex;justify-content:space-between;font-size:11px;color:#94a3b8"><span>Журнал ошибок JS</span><span style="color:#6ee7b7;font-weight:600">0 ошибок</span></div>';
+      box.innerHTML = grid + '<div style="padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);display:flex;flex-direction:column;gap:3px;font-size:11px"><div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">Версия на сервере</span><code style="color:#fde047;font-weight:700">' + srvVer + '</code></div><div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">Service Worker</span><span style="color:#e2e8f0;font-weight:600">' + swInfo + '</span></div><div style="display:flex;justify-content:space-between;gap:8px"><span style="color:#94a3b8;flex-shrink:0">Cache</span><code style="color:#7dd3fc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + cacheList + '</code></div></div>' + errBar;
     };
-
     ov.querySelector('#dgRe').onclick = run;
     run();
   }
