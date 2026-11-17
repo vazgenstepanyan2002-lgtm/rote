@@ -113,11 +113,14 @@
 
  function fitAllDrivers(){
   if(!_map) return;
+  const now = Date.now();
   const pts = new Array(new Array(BASE_PT.lat, BASE_PT.lon));
   devs().forEach(d => {
-   if(typeof d.u.lat === "number" && typeof d.u.lon === "number"){
-    pts.push(new Array(d.u.lat, d.u.lon));
-   }
+   if(typeof d.u.lat !== "number" || typeof d.u.lon !== "number") return;
+   const live = now - (d.u.t || 0) < TTL;
+   if(MAP_ONLY_ONLINE && !live) return;
+   if(MAP_ONLY_ONLINE && !(now - (d.u.t || 0) < TTL)) return;
+   pts.push(new Array(d.u.lat, d.u.lon));
   });
   if(pts.length === 1) _map.setView(pts.at(0), 13);
   else _map.fitBounds(L.latLngBounds(pts), { padding: new Array(36, 36), maxZoom: 15 });
@@ -129,7 +132,6 @@
   devs().forEach(d => {
    if(typeof d.u.lat !== "number" || typeof d.u.lon !== "number") return;
    seen[d.id] = true;
-   const live = now - (d.u.t || 0) < TTL;
    const title = LABELS[d.id] || devName(d.u.ua);
    const spd = typeof d.u.spd === "number" && d.u.spd > 2 ? " · " + d.u.spd + " км/ч" : "";
    const popHtml = '<div class="pop-t">' + esc(title) + '</div>'
@@ -157,10 +159,14 @@
 
  async function drawMap(){
   const Llist = devs(), now = Date.now();
-  const withGeo = Llist.filter(d => typeof d.u.lat === "number" && typeof d.u.lon === "number");
+  const withGeo = Llist.filter(d => {
+   if(typeof d.u.lat !== "number" || typeof d.u.lon !== "number") return false;
+   if(MAP_ONLY_ONLINE && !(now - (d.u.t || 0) < TTL)) return false;
+   return true;
+  });
 
   if(!g("admMap")){
-   g("view").innerHTML = '<div class="map-wrap"><div id="admMap"></div><div class="map-bar"><button type="button" class="map-btn" data-act="fitmap">⤢ Показать всех</button></div></div><div id="mapCards"></div>';
+   g("view").innerHTML = '<div class="map-wrap"><div id="admMap"></div><div class="map-bar"><button type="button" id="mapFilterBtn" class="map-btn" data-act="mapfilter">⚪ Все водители</button></div></div><div id="mapCards"></div>';
    try{
     await ensureLeaflet();
     if(TAB !== "map" || !g("admMap")) return;
@@ -181,11 +187,16 @@
    }
   }
 
+  const fBtn = g("mapFilterBtn");
+  if(fBtn){
+   fBtn.classList.toggle("on", MAP_ONLY_ONLINE);
+   fBtn.textContent = MAP_ONLY_ONLINE ? "🟢 Только онлайн" : "⚪ Все водители";
+  }
   syncMapMarkers();
 
-  let ch = '<div class="sec">На карте (' + withGeo.length + ')</div>';
+  let ch = '<div class="sec">' + (MAP_ONLY_ONLINE ? 'Сейчас на линии (' : 'На карте (') + withGeo.length + ')</div>';
   if(!withGeo.length){
-   ch += '<div class="box mut">Пока ни одно устройство не передало координаты. Координаты появятся, когда приложение откроют с разрешённой геолокацией.</div>';
+   ch += '<div class="box mut">' + (MAP_ONLY_ONLINE ? 'Сейчас нет водителей в сети с активной геолокацией.' : 'Пока ни одно устройство не передало координаты. Координаты появятся, когда приложение откроют с разрешённой геолокацией.') + '</div>';
   } else {
    ch += withGeo.map(d => {
     const live = now - (d.u.t || 0) < TTL;
