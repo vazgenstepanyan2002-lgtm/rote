@@ -656,3 +656,143 @@
   }
  });
 })();
+
+
+;(function(){
+  const ERR_LOG = [];
+  const pushErr = (t, m) => {
+    ERR_LOG.unshift({ t: new Date().toLocaleTimeString('ru-RU'), type: t, msg: String(m || '').slice(0, 220) });
+    if (ERR_LOG.length > 20) ERR_LOG.pop();
+  };
+  window.addEventListener('error', e => pushErr('JS', e.message + (e.filename ? ' (' + e.filename.split('/').pop() + ':' + e.lineno + ')' : '')));
+  window.addEventListener('unhandledrejection', e => pushErr('Promise', e.reason && (e.reason.message || e.reason)));
+
+  const pulseLive = () => {
+    const el = document.getElementById('liveTxt');
+    if (el) el.textContent = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  };
+  setInterval(pulseLive, 15000);
+  setTimeout(pulseLive, 1500);
+
+  const maskKey = k => (!k || typeof k !== 'string') ? 'не найден' : (k.slice(0, 6) + '...' + k.slice(-4));
+
+  async function probe(name, keyInfo, fn) {
+    const t0 = performance.now();
+    try {
+      const res = await fn();
+      const ms = Math.round(performance.now() - t0);
+      return { name, keyInfo, ok: res.ok, detail: res.detail + ' (' + ms + ' мс)' };
+    } catch (e) {
+      const ms = Math.round(performance.now() - t0);
+      return { name, keyInfo, ok: false, detail: 'Ошибка: ' + (e.message || e) + ' (' + ms + ' мс)' };
+    }
+  }
+
+  async function openDiag() {
+    const ov = document.createElement('div');
+    ov.className = 'ov show';
+    ov.innerHTML = '<div class="dlg" style="max-width:460px;width:94%;max-height:86vh;overflow:auto"><h3 style="margin:0 0 10px;display:flex;justify-content:space-between;align-items:center"><span>🩺 Диагностика системы и API</span><button id="dgClose" class="out" style="padding:4px 9px">✕</button></h3><div id="dgBody" style="font-size:12.5px;line-height:1.45;display:flex;flex-direction:column;gap:8px">Проверка сервисов...</div><div style="display:flex;gap:8px;margin-top:12px"><button id="dgRe" class="btn" style="flex:1;padding:9px">🔄 Проверить снова</button><button id="dgClrCache" class="out" style="padding:9px;border-color:rgba(248,113,113,.4);color:#fca5a5">Сбросить кэш</button></div></div>';
+    document.body.appendChild(ov);
+    const close = () => ov.remove();
+    ov.querySelector('#dgClose').onclick = close;
+    ov.onclick = e => { if (e.target === ov) close(); };
+
+    ov.querySelector('#dgClrCache').onclick = async () => {
+      if ('caches' in window) {
+        const ks = await caches.keys();
+        await Promise.all(ks.map(k => caches.delete(k)));
+      }
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      location.reload(true);
+    };
+
+    const run = async () => {
+      const box = ov.querySelector('#dgBody');
+      box.innerHTML = '<div style="opacity:.75">Выполняется проверка ключей и серверов...</div>';
+
+      const yKey = typeof YKEY !== 'undefined' ? YKEY : '';
+      const sKey = typeof SUG_KEY !== 'undefined' ? SUG_KEY : '';
+      const fbKey = (typeof CFG !== 'undefined' && CFG.apiKey) ? CFG.apiKey : '';
+      const fbDb = (typeof CFG !== 'undefined' && CFG.databaseURL) ? CFG.databaseURL : '';
+
+      const p1 = ['https:', '', '://googleapis.com', 'v1', 'accounts:lookup?key=' + fbKey].join('/');
+      const p2 = ['https:', '', 'geocode-maps.yandex.ru', '1.x', '?format=json&apikey=' + yKey + '&geocode=44.4425,40.0686'].join('/');
+      const p3 = ['https:', '', 'suggest-maps.yandex.ru', 'v1', 'suggest?apikey=' + sKey + '&text=Masis'].join('/');
+      const p4 = ['https:', '', 'router.project-osrm.org', 'route', 'v1', 'driving', '44.4425,40.0686;44.4500,40.0750?overview=false'].join('/');
+      const p5 = ['https:', '', 'routing.openstreetmap.de', 'routed-car', 'route', 'v1', 'driving', '44.4425,40.0686;44.4500,40.0750?overview=false'].join('/');
+
+      const checks = await Promise.all([
+        probe('Firebase API Key', maskKey(fbKey), async () => {
+          if (!fbKey) return { ok: false, detail: 'Ключ отсутствует' };
+          const r = await fetch(p1, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken: 'test' }) });
+          const j = await r.json().catch(() => ({}));
+          const msg = j && j.error && j.error.message || '';
+          const valid = msg === 'INVALID_ID_TOKEN' || r.ok;
+          return { ok: valid, detail: valid ? 'Ключ валиден (HTTP ' + r.status + ')' : 'Ошибка ключа: ' + (msg || r.status) };
+        }),
+        probe('Firebase Realtime DB', fbDb ? 'europe-west1' : 'нет URL', async () => {
+          const r = await fetch(fbDb + '/version.json');
+          return { ok: r.ok, detail: r.ok ? 'Доступна (HTTP ' + r.status + ')' : 'HTTP ' + r.status };
+        }),
+        probe('Яндекс Геокодер (YKEY)', maskKey(yKey), async () => {
+          if (!yKey) return { ok: false, detail: 'Ключ не найден' };
+          const r = await fetch(p2);
+          return { ok: r.ok, detail: r.ok ? 'Работает (HTTP 200)' : 'Отклонён (HTTP ' + r.status + ')' };
+        }),
+        probe('Яндекс Подсказки (SUG_KEY)', maskKey(sKey), async () => {
+          if (!sKey) return { ok: false, detail: 'Ключ не найден' };
+          const r = await fetch(p3);
+          return { ok: r.ok, detail: r.ok ? 'Работает (HTTP 200)' : 'Отклонён (HTTP ' + r.status + ')' };
+        }),
+        probe('OSRM Основной', 'project-osrm.org', async () => {
+          const r = await fetch(p4);
+          const j = await r.json().catch(() => ({}));
+          return { ok: r.ok && j.code === 'Ok', detail: (r.ok && j.code === 'Ok') ? 'Маршрут ОК' : 'HTTP ' + r.status };
+        }),
+        probe('OSRM Резервный', 'openstreetmap.de', async () => {
+          const r = await fetch(p5);
+          const j = await r.json().catch(() => ({}));
+          return { ok: r.ok && j.code === 'Ok', detail: (r.ok && j.code === 'Ok') ? 'Маршрут ОК' : 'HTTP ' + r.status };
+        })
+      ]);
+
+      let swInfo = 'Не поддерживается';
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        swInfo = reg && reg.active ? 'Активен (' + reg.active.state + ')' : 'Не зарегистрирован';
+      }
+      let cacheList = '0';
+      if ('caches' in window) {
+        const ks = await caches.keys();
+        cacheList = ks.length ? ks.join(', ') : 'пусто';
+      }
+      const verRes = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json()).catch(() => null);
+      const srvVer = verRes && verRes.v ? verRes.v : 'ошибка чтения';
+
+      const cards = checks.map(c => {
+        const bg = c.ok ? 'rgba(16,185,129,.12)' : 'rgba(239,68,68,.15)';
+        const bd = c.ok ? 'rgba(52,211,153,.35)' : 'rgba(248,113,113,.4)';
+        const ic = c.ok ? '🟢' : '🔴';
+        return '<div style="padding:8px 10px;border-radius:10px;background:' + bg + ';border:1px solid ' + bd + ';display:flex;justify-content:space-between;align-items:center;gap:8px"><div><b>' + ic + ' ' + c.name + '</b><div style="opacity:.75;font-size:11px">Ключ/хост: ' + c.keyInfo + '</div></div><div style="text-align:right;font-size:11.5px">' + c.detail + '</div></div>';
+      }).join('');
+
+      const errsHtml = ERR_LOG.length
+        ? ERR_LOG.map(x => '<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,.08)"><b>[' + x.t + '] ' + x.type + ':</b> ' + x.msg + '</div>').join('')
+        : '<div style="opacity:.65">Ошибок за сессию не зафиксировано</div>';
+
+      box.innerHTML = cards
+        + '<div style="padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)"><b>⚙️ PWA и кэш:</b><br>Версия на сервере: <code>' + srvVer + '</code><br>Service Worker: ' + swInfo + '<br>Cache Storage: <code>' + cacheList + '</code></div>'
+        + '<div style="padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)"><b>🐞 Журнал ошибок (' + ERR_LOG.length + '):</b><div style="max-height:110px;overflow:auto;margin-top:4px;font-size:11px">' + errsHtml + '</div></div>';
+    };
+
+    ov.querySelector('#dgRe').onclick = run;
+    run();
+  }
+
+  document.addEventListener('click', e => {
+    if (e.target && e.target.closest('#diagBtn')) openDiag();
+  });
+})();
