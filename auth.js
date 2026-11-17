@@ -255,17 +255,22 @@
   }
   function boot(){
     renderUserBtn();
-    if (!ls("USER_NAME")){
+    const lockBack = () => {
+      if (ls("USER_NAME")) return;
       ensureModal();
-      try { history.pushState({ authLock: 1 }, "", location.href); } catch(e){}
-    }
+      try {
+        history.pushState({ authLock: 1 }, "", location.href);
+        history.pushState({ authLock: 2 }, "", location.href);
+      } catch(e){}
+    };
+    if (!ls("USER_NAME")) lockBack();
     window.addEventListener("popstate", () => {
       if (!ls("USER_NAME")){
         ensureModal();
         try { history.pushState({ authLock: 1 }, "", location.href); } catch(e){}
       }
     });
-    window.addEventListener("pageshow", () => { if (!ls("USER_NAME")) ensureModal(); });
+    window.addEventListener("pageshow", () => { if (!ls("USER_NAME")) lockBack(); });
     let tries = 0; const w = setInterval(() => { if (++tries > 60) clearInterval(w); else if (window.firebase && firebase.apps && firebase.apps.length){ clearInterval(w); bindChat(); bindBlockWatch(); } }, 500);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
