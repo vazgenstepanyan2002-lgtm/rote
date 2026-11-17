@@ -26,6 +26,7 @@
 .mk.base{background:linear-gradient(135deg,#34d399,#059669)}
 .mk.ok{background:linear-gradient(135deg,#38bdf8,#0284c7)}
 .mk.me{background:linear-gradient(135deg,#f43f5e,#e11d48);font-size:11px}
+#mapBox .leaflet-tile-pane{filter:invert(100%) hue-rotate(180deg) brightness(93%) contrast(95%) saturate(80%)}
 #mapBox .leaflet-bar{border:1px solid rgba(255,255,255,.16)!important;border-radius:13px!important;overflow:hidden;box-shadow:0 8px 22px rgba(0,0,0,.55)!important;background:rgba(13,19,31,.88)!important;backdrop-filter:blur(12px)}
 #mapBox .leaflet-bar a{background:transparent!important;color:#f1f5f9!important;border-bottom:1px solid rgba(255,255,255,.12)!important;width:36px!important;height:36px!important;line-height:36px!important;font-weight:700!important}
 #mapBox .leaflet-bar a:last-child{border-bottom:none!important}
@@ -103,7 +104,7 @@
   box.addEventListener('touchcancel',()=>{_tc=0;setTimeout(showL,120)},{passive:true});
   map.on('zoomstart',hideL);
   map.on('zoomend moveend',()=>setTimeout(showL,60));
-  const darkTile=L.tileLayer('https://{s}://{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19,attribution:'© OpenStreetMap © CARTO'});darkTile.on('tileerror',()=>{if(!map._osmFallback){map._osmFallback=true;L.tileLayer('https://openstreetmap.org{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map)}});darkTile.addTo(map);
+  L.tileLayer('https://openstreetmap.org{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   const etas=document.querySelectorAll('#o ol li .eta');
   const ll=[];let bad=0;
   if(start){
