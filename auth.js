@@ -133,7 +133,8 @@
     if (!_chatList.length){ box.innerHTML = '<div class="ch-empty">Сообщений пока нет. Напишите первым!</div>'; return; }
     box.innerHTML = _chatList.map(m => {
       const mine = m.uid && m.uid === myUid, isAdm = !!m.adm;
-      return '<div class="ch-msg' + (mine ? " mine" : "") + (isAdm ? " adm" : "") + '"><div class="ch-meta"><span>' + (isAdm ? "👑 Админ" : esc(m.name || "Водитель")) + '</span><span>' + fmtTime(m.t) + '</span></div><div class="ch-txt">' + esc(m.txt || "") + '</div></div>';
+      const author = isAdm ? '<div class="ch-au">👑 Админ</div>' : (!mine ? '<div class="ch-au">' + esc(m.name || "Водитель") + '</div>' : '');
+      return '<div class="ch-msg' + (mine ? " mine" : "") + (isAdm ? " adm" : "") + '">' + author + '<div class="ch-body"><span class="ch-txt">' + esc(m.txt || "") + '</span><span class="ch-tm">' + fmtTime(m.t) + '</span></div></div>';
     }).join("");
     box.scrollTop = box.scrollHeight;
   }
@@ -142,7 +143,7 @@
     let m = g("chatMdl");
     if (!m){
       m = document.createElement("div"); m.id = "chatMdl"; m.className = "mdl";
-      m.innerHTML = '<div class="mdl-b ch-box"><div class="mdl-h"><span>💬 Общий чат</span><button type="button" class="mdl-x" id="chClose">✕</button></div><div id="chatMsgs" class="ch-list"></div><div class="ch-bar"><input id="chInp" maxlength="300" placeholder="Сообщение..."><button type="button" id="chSend">➤</button></div></div>';
+      m.innerHTML = '<div class="mdl-b ch-box"><div class="ch-hd"><div class="ch-hd-l"><div class="ch-hd-ic">💬</div><div><div class="ch-hd-t">Общий чат</div><div class="ch-hd-s">Канал водителей EuroBaza</div></div></div><button type="button" class="ch-x" id="chClose" aria-label="Закрыть">✕</button></div><div id="chatMsgs" class="ch-list"></div><div class="ch-bar"><input id="chInp" maxlength="300" placeholder="Сообщение..."><button type="button" id="chSend" aria-label="Отправить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></div>';
       document.body.appendChild(m);
       const close = () => { _chatOpen = false; m.classList.remove("open"); };
       g("chClose").onclick = close;

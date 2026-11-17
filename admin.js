@@ -485,14 +485,14 @@
   if(!CHAT.length){box.innerHTML='<div class="mut" style="text-align:center;padding:24px">Сообщений пока нет</div>';return}
   box.innerHTML=CHAT.map(m=>{
    const d=m.t?new Date(m.t):null,tm=d?String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'';
-   return '<div class="ach-m'+(m.adm?' adm':'')+'"><div class="ach-mt"><span>'+(m.adm?'👑 Админ':esc(m.name||'Водитель'))+' · '+tm+'</span><button type="button" class="ach-del" data-ck="'+esc(m.k)+'">✕</button></div><div class="ach-tx">'+esc(m.txt||'')+'</div></div>';
+   return '<div class="ach-m'+(m.adm?' adm':'')+'"><div class="ach-mt"><span>'+(m.adm?'👑 Админ':esc(m.name||'Водитель'))+'</span><button type="button" class="ach-del" data-ck="'+esc(m.k)+'" aria-label="Удалить">✕</button></div><div class="ach-bd"><span class="ach-tx">'+esc(m.txt||'')+'</span><span class="ach-tm">'+tm+'</span></div></div>';
   }).join('');
   box.scrollTop=box.scrollHeight;
  }
  function openAdmChat(){
   CHAT_OPEN=true;markAdmChatSeen();
   const ov=document.createElement('div');ov.className='ov';
-  ov.innerHTML='<div class="dlg ach-box"><div class="ach-hd"><b>💬 Общий чат</b><div class="ach-acts"><button type="button" id="achClr" class="ach-clr">Очистить</button><button type="button" id="achX" class="ach-x">✕</button></div></div><div id="achList" class="ach-list"></div><div class="ach-bar"><input id="achInp" maxlength="300" placeholder="Написать водителям..."><button type="button" id="achSnd">➤</button></div></div>';
+  ov.innerHTML='<div class="dlg ach-box"><div class="ach-hd"><div class="ach-hd-l"><div class="ach-hd-ic">💬</div><div><b>Общий чат</b><small>Канал водителей (до 50 сообщ.)</small></div></div><div class="ach-acts"><button type="button" id="achClr" class="ach-clr">Очистить</button><button type="button" id="achX" class="ach-x">✕</button></div></div><div id="achList" class="ach-list"></div><div class="ach-bar"><input id="achInp" maxlength="300" placeholder="Написать водителям..."><button type="button" id="achSnd" aria-label="Отправить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></div>';
   document.body.appendChild(ov);
   const close=()=>{CHAT_OPEN=false;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
   const onK=e=>{if(e.key==='Escape')close()};
