@@ -385,6 +385,6 @@
  window.openBon=openBon;window.closeBon=closeBon;
 
  const f=document.createElement('button');
- f.className='fab fab-l';f.textContent='🧮 Бонусы';f.onclick=openBon;
+ f.className='fab fab-l';f.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h6"/></svg><span>Бонусы</span>';f.onclick=openBon;
  document.body.appendChild(f);
 })();
