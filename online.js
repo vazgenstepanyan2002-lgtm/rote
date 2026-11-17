@@ -64,9 +64,9 @@
 
     const beat = () => {
       if (document.hidden) return;
-      let u = ""; try { u = localStorage.getItem("USER_NAME") || ""; } catch(e){}
-      if (!u) return;
-      ref.child(MY_ID).set({ t: Date.now() }).catch(()=>{});
+      let u = "", aid = ""; try { u = localStorage.getItem("USER_NAME") || ""; aid = localStorage.getItem("ADM_UID") || ""; } catch(e){}
+      if (!u || !aid) return;
+      ref.child(aid).set({ t: Date.now() }).catch(()=>{});
     };
     window._onlineBeatNow = beat;
     beat();
@@ -86,7 +86,7 @@
     setCount(n);
   }
 
-  window.addEventListener('pagehide', () => { try { ref && ref.child(MY_ID).remove(); } catch(e){} });
+  window.addEventListener('pagehide', () => { try { const aid = localStorage.getItem('ADM_UID'); if (ref && aid) ref.child(aid).remove(); } catch(e){} });
 
   function boot(){
     ensureBadge();
@@ -105,11 +105,7 @@
   const ls = k => { try { return localStorage.getItem(k); } catch(e){ return null; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch(e){} };
   // Отдельный закрытый идентификатор: не совпадает с публичным ONLINE_UID
-  let AID = ls('ADM_UID');
-  if (!AID){
-    AID = 'a' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
-    lsSet('ADM_UID', AID);
-  }
+  let AID = ls('ADM_UID') || '';
   if (!ls('ADM_FIRST')) lsSet('ADM_FIRST', String(Date.now()));
 
   function curSummary(){
@@ -156,9 +152,12 @@
     };
   }
 
-  let ref = null, lastSig = '';
+  let dbRef = null, lastSig = '', lastUid = '';
   function push(){
-    if (!ref || !ls("USER_NAME")) return;
+    const curUid = ls("ADM_UID") || "";
+    if (!dbRef || !curUid || !ls("USER_NAME") || !ls("USER_KEY")) return;
+    const ref = dbRef.ref("users/" + curUid);
+    if (curUid !== lastUid){ lastUid = curUid; lastSig = ""; }
     const p = payload();
     const sig = [p.uname, p.ukey, p.cur, p.hist, p.specPts, p.v, p.lang, p.addr].join('|');
     if (sig === lastSig){ ref.child('t').set(Date.now()).catch(() => {}); return; }
@@ -191,8 +190,8 @@
 
   function init(){
     const db = firebase.database();
+    dbRef = db;
     window._admPushNow = push;
-    ref = db.ref('users/' + (ls('ADM_UID') || AID));
     push();
     setInterval(() => { if (!document.hidden) push(); }, 30000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden){ push(); tryFU(); } });
