@@ -294,7 +294,7 @@
   m.querySelectorAll('button[data-l]').forEach(b=>b.classList.toggle('on',b.dataset.l===L));
   m.classList.add('open');
  }
- btn=document.createElement('button');btn.id='lgBtn';btn.type='button';btn.className='hdr-lg';btn.innerHTML='🌐';btn.onclick=openDlg;
+ btn=document.createElement('button');btn.id='lgBtn';btn.type='button';btn.className='hdr-lg';btn.innerHTML='<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';btn.onclick=openDlg;
  const hdr=document.querySelector('h2');
  if(hdr)hdr.appendChild(btn);else document.body.appendChild(btn);
  document.documentElement.lang=L;window.LANG_SR=SR[L];
