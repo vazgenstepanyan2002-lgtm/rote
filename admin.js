@@ -43,7 +43,7 @@
  firebase.initializeApp(CFG);
  const auth=firebase.auth(),db=firebase.database();
 
- let USERS={},LABELS={},ACCOUNTS={},CHAT=[],CHAT_OPEN=false,FU=0,PUB=undefined,TAB='online',SEL='all';
+ let USERS={},LABELS={},ACCOUNTS={},CHAT=[],CHAT_OPEN=false,DMS={},DM_UID=null,FU=0,PUB=undefined,TAB='online',SEL='all';
  const OPEN={};
  let offs=[],tick=null,_tt=null;
 
@@ -64,6 +64,7 @@
   listen('users',v=>{USERS=v||{};showErr('');draw()});
   listen('labels',v=>{LABELS=v||{};draw()});
   listen('accounts',v=>{ACCOUNTS=v||{};draw()});
+  listen('dm',onDmSnap);
   listen('config/forceUpdate',v=>{FU=+v||0;draw()});
   listen('chat',v=>{const obj=v||{};const all=Object.keys(obj).map(k=>Object.assign({k:k},obj[k])).sort((a,b)=>(+a.t||0)-(+b.t||0));const list=all.length>50?(all.slice(0,all.length-50).forEach(x=>db.ref('chat/'+x.k).remove().catch(()=>{})),all.slice(-50)):all;if(_admChatInit){const fresh=list.filter(m=>(+m.t||0)>_admLastNotifT&&!m.adm);if(fresh.length){const lm=fresh[fresh.length-1];_admLastNotifT=+lm.t||Date.now();localStorage.setItem('ADM_CHAT_NOTIF_T',String(_admLastNotifT));if(!CHAT_OPEN||document.hidden)admNotify((lm.name||'Водитель'),String(lm.txt||'').slice(0,140))}}else if(list.length){const mx=Math.max.apply(null,list.map(m=>+m.t||0));if(mx>_admLastNotifT){_admLastNotifT=mx;localStorage.setItem('ADM_CHAT_NOTIF_T',String(_admLastNotifT))}}_admChatInit=true;CHAT=list;if(CHAT_OPEN&&!document.hidden){markAdmChatSeen();renderAdmChat()}else updAdmChatBdg()});
   loadPub();
@@ -266,7 +267,7 @@
     +'<div class="rs">'+esc(devInfo(d.u.ua)+' · '+(d.u.lang||'ru'))+pinTag+'</div>'
     +'<div class="rs">'+(live?'сейчас в приложении':'был(а) '+ago(d.u.t))+' · версия '+esc(verFmt(d.u.v))+(d.u.addr!=null?' · адресов: '+esc(d.u.addr):'')+'</div></div>'
     +'<div class="rv">'+money(d.cur.sum)+'</div>'
-    +(acc?'<button class="xb" style="background:rgba(250,204,21,.14);border-color:rgba(250,204,21,.35);color:#fde047" data-act="pin" data-key="'+esc(acc.key)+'" aria-label="ПИН">🔑</button>':'')
+    +(function(){const un=dmUnread(d.id);return '<button class="dm-btn" data-act="dm" data-id="'+esc(d.id)+'" aria-label="Личный чат">✉️'+(un?'<span class="dm-bdg">'+(un>99?'99+':un)+'</span>':'')+'</button>'})()+(acc?'<button class="xb" style="background:rgba(250,204,21,.14);border-color:rgba(250,204,21,.35);color:#fde047" data-act="pin" data-key="'+esc(acc.key)+'" aria-label="ПИН">🔑</button>':'')
     +blkBtn
     +'<button class="xb" data-act="del" data-id="'+esc(d.id)+'" aria-label="Удалить">✕</button></div>';
   }).join('');
@@ -443,6 +444,7 @@
   else if(a==='force')force();
   else if(a==='del'){e.stopPropagation();del(b.dataset.id)}
   else if(a==='rename')rename(b.dataset.id);
+  else if(a==='dm'){e.stopPropagation();openAdmDm(b.dataset.id)}
   else if(a==='block'){e.stopPropagation();const id=b.dataset.id,k=b.dataset.key,isBlk=b.dataset.blk==='1',du=USERS[id]||{};const who=dispName(parseDev(id,du));const ok=await ask(isBlk?'Разблокировать водителя и телефон «'+who+'»?':'Заблокировать водителя и этот телефон («'+who+'»)? Он сразу выйдет и не сможет войти даже под новым именем.',{title:isBlk?'Разблокировка':'Блокировка',okText:isBlk?'Разблокировать':'Заблокировать',danger:!isBlk});if(!ok)return;try{const nv=isBlk?null:true;await db.ref('users/'+id+'/blocked').set(nv);if(k)await db.ref('accounts/'+k+'/blocked').set(nv);if(du.devId)await db.ref('accounts/__dev_'+du.devId).set(isBlk?null:{blocked:true});if(!isBlk)await db.ref('online/'+id).remove();toast(isBlk?'Разблокировано':'Заблокировано')}catch(err){toast('Ошибка сохранения',true)}}
   else if(a==='pin'){e.stopPropagation();const k=b.dataset.key,cur=ACCOUNTS[k]&&ACCOUNTS[k].pin||'';const np=await askInput('Смена ПИН-кода','Введите новый 4-значный код для водителя',cur,'Например: 1234');if(np===null)return;const clean=np.replace(/\D/g,'');if(clean.length!==4){toast('Нужно ровно 4 цифры',true);return}try{await db.ref('accounts/'+k+'/pin').set(clean);toast('ПИН-код обновлён')}catch(err){toast('Ошибка сохранения',true)}}
   else if(a==='month'){OPEN[b.dataset.key]=!OPEN[b.dataset.key];draw()}
@@ -481,15 +483,56 @@
  function reqAdmNotify(){
   try{if('Notification' in window && Notification.permission==='default')Notification.requestPermission().catch(()=>{})}catch(e){}
  }
- function admNotify(title,body){
+ function admNotify(title,body,opts){
+  opts=opts||{};
   try{
    if(!('Notification' in window)||Notification.permission!=='granted')return;
    if(navigator.serviceWorker&&navigator.serviceWorker.controller){
-    navigator.serviceWorker.controller.postMessage({type:'NOTIFY',title:title,body:body,tag:'eurobaza-adm-chat',url:'admin.html'});
+    navigator.serviceWorker.controller.postMessage({type:'NOTIFY',title:title,body:body,tag:opts.tag||'eurobaza-adm-chat',action:opts.action||'OPEN_CHAT',uid:opts.uid||'',url:'admin.html'});
     return;
    }
-   new Notification(title,{body:body,icon:'icon-192.png',tag:'eurobaza-adm-chat'});
+   new Notification(title,{body:body,icon:'icon-192.png',tag:opts.tag||'eurobaza-adm-chat'});
   }catch(e){}
+ }
+ let _admDmInit=false,_admDmSeen=(()=>{try{return JSON.parse(localStorage.getItem('ADM_DM_SEEN')||'{}')}catch(e){return{}}})(),_admDmNotif=(()=>{try{return JSON.parse(localStorage.getItem('ADM_DM_NOTIF')||'{}')}catch(e){return{}}})();
+ function dmUnread(uid){
+  const list=DMS[uid]||[],seen=+(_admDmSeen[uid]||0);
+  return list.filter(m=>(+m.t||0)>seen&&!m.adm).length;
+ }
+ function markAdmDmSeen(uid){
+  const list=DMS[uid]||[];
+  if(!list.length)return;
+  const mx=Math.max.apply(null,list.map(m=>+m.t||0));
+  if(mx>0){_admDmSeen[uid]=mx;try{localStorage.setItem('ADM_DM_SEEN',JSON.stringify(_admDmSeen))}catch(e){}}
+ }
+ function onDmSnap(v){
+  const raw=v||{},next={};
+  Object.keys(raw).forEach(uid=>{
+   const obj=raw[uid]||{};
+   const all=Object.keys(obj).map(k=>Object.assign({k:k},obj[k])).sort((a,b)=>(+a.t||0)-(+b.t||0));
+   if(all.length>50){all.slice(0,all.length-50).forEach(x=>db.ref('dm/'+uid+'/'+x.k).remove().catch(()=>{}));next[uid]=all.slice(-50)}
+   else next[uid]=all;
+   if(_admDmInit){
+    const prevN=+(_admDmNotif[uid]||0);
+    const fresh=next[uid].filter(m=>(+m.t||0)>prevN&&!m.adm);
+    if(fresh.length){
+     const lm=fresh[fresh.length-1];
+     _admDmNotif[uid]=+lm.t||Date.now();
+     try{localStorage.setItem('ADM_DM_NOTIF',JSON.stringify(_admDmNotif))}catch(e){}
+     if(DM_UID!==uid||document.hidden){
+      const who=USERS[uid]?dispName(parseDev(uid,USERS[uid])):(lm.name||'Водитель');
+      admNotify(who+' (лично)',String(lm.txt||'').slice(0,140),{tag:'eurobaza-dm-'+uid,action:'OPEN_DM',uid:uid});
+     }
+    }
+   }else if(next[uid].length){
+    const mx=Math.max.apply(null,next[uid].map(m=>+m.t||0));
+    if(mx>(+(_admDmNotif[uid]||0))){_admDmNotif[uid]=mx;try{localStorage.setItem('ADM_DM_NOTIF',JSON.stringify(_admDmNotif))}catch(e){}}
+   }
+  });
+  _admDmInit=true;
+  DMS=next;
+  if(DM_UID){if(!document.hidden)markAdmDmSeen(DM_UID);renderAdmDm()}
+  if(TAB==='online')drawOnline();
  }
  function updAdmChatBdg(){
   const b=g('admChatBdg');if(!b)return;
@@ -540,6 +583,47 @@
   requestAnimationFrame(()=>{ov.classList.add('show');renderAdmChat()});
  }
 
+ function renderAdmDm(){
+  const box=g('admDmList');if(!box||!DM_UID)return;
+  const list=DMS[DM_UID]||[];
+  if(!list.length){box.innerHTML='<div class="mut" style="text-align:center;padding:24px">Сообщений пока нет. Напишите водителю первым!</div>';return}
+  box.innerHTML=list.map(m=>{
+   const d=m.t?new Date(m.t):null,tm=d?String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'';
+   return '<div class="ach-m'+(m.adm?' adm':'')+'"><div class="ach-mt"><span>'+(m.adm?'👑 Админ':esc(m.name||'Водитель'))+'</span><button type="button" class="ach-del" data-dk="'+esc(m.k)+'" aria-label="Удалить">✕</button></div><div class="ach-bd"><span class="ach-tx">'+esc(m.txt||'')+'</span><span class="ach-tm">'+tm+'</span></div></div>';
+  }).join('');
+  box.scrollTop=box.scrollHeight;
+ }
+ function openAdmDm(uid){
+  if(!uid)return;
+  reqAdmNotify();
+  const old=g('admDmOv');if(old)old.remove();
+  DM_UID=uid;markAdmDmSeen(uid);if(TAB==='online')drawOnline();
+  const who=USERS[uid]?dispName(parseDev(uid,USERS[uid])):'Водитель';
+  const ov=document.createElement('div');ov.id='admDmOv';ov.className='ov';
+  ov.innerHTML='<div class="dlg ach-box"><div class="ach-hd"><div class="ach-hd-l"><div class="ach-hd-ic">✉️</div><div><b>'+esc(who)+'</b><small>Личная переписка (до 50 сообщ.)</small></div></div><div class="ach-acts"><button type="button" id="admDmClr" class="ach-clr">Очистить</button><button type="button" id="admDmX" class="ach-x">✕</button></div></div><div id="admDmList" class="ach-list"></div><div class="ach-bar"><input id="admDmInp" maxlength="300" placeholder="Личное сообщение водителю..."><button type="button" id="admDmSnd" aria-label="Отправить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></div>';
+  document.body.appendChild(ov);
+  const close=()=>{DM_UID=null;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
+  const onK=e=>{if(e.key==='Escape')close()};
+  g('admDmX').onclick=close;ov.onclick=e=>{if(e.target===ov)close()};
+  g('admDmClr').onclick=async()=>{if(await ask('Удалить всю личную переписку с водителем «'+who+'»?',{title:'Очистка чата',okText:'Очистить',danger:true}))db.ref('dm/'+uid).remove().then(()=>toast('Переписка очищена')).catch(()=>toast('Ошибка',true))};
+  g('admDmList').onclick=e=>{const b=e.target.closest('[data-dk]');if(b)db.ref('dm/'+uid+'/'+b.dataset.dk).remove().catch(()=>{})};
+  const inp=g('admDmInp'),snd=g('admDmSnd');
+  const send=async()=>{
+   const txt=inp.value.trim();if(!txt)return;
+   inp.value='';snd.disabled=true;
+   try{
+    const dref=db.ref('dm/'+uid);
+    await dref.push({uid:'admin',name:'Админ',adm:true,txt:txt,t:firebase.database.ServerValue.TIMESTAMP});
+    const s=await dref.once('value'),av=s.val()||{},ks=Object.keys(av).sort((a,b)=>(+av[a].t||0)-(+av[b].t||0));
+    if(ks.length>50)ks.slice(0,ks.length-50).forEach(k=>dref.child(k).remove().catch(()=>{}));
+   }catch(e){inp.value=txt;toast('Не удалось отправить',true)}
+   snd.disabled=false;inp.blur();
+  };
+  snd.onclick=send;inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();send()}};
+  document.addEventListener('keydown',onK);
+  requestAnimationFrame(()=>{ov.classList.add('show');renderAdmDm()});
+ }
+ if(navigator.serviceWorker){navigator.serviceWorker.addEventListener('message',e=>{if(!e.data||g('panel').hidden)return;if(e.data.type==='OPEN_DM'&&e.data.uid)openAdmDm(e.data.uid);else if(e.data.type==='OPEN_CHAT')openAdmChat()})}
  g('admChatBtn').onclick=openAdmChat;
  g('out').onclick=async ()=>auth.signOut();
  auth.onAuthStateChanged(u=>{

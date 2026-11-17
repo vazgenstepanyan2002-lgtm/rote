@@ -1,9 +1,59 @@
+const CACHE_NAME = 'eurobaza-v20261117214628';
+const ASSETS = [
+  './',
+  'index.html',
+  'admin.html',
+  'style.css',
+  'app.js',
+  'yandex.js',
+  'ui.js',
+  'map.js',
+  'bonus.js',
+  'i18n.js',
+  'online.js',
+  'auth.js',
+  'admin.js',
+  'leaflet.min.css',
+  'leaflet.min.js',
+  'manifest.json',
+  'auto-translations.json',
+  'bg.jpg',
+  'icon-192.png',
+  'icon-512.png'
+];
+
 self.addEventListener('install', e => {
-  self.skipWaiting();
+  e.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => Promise.all(ASSETS.map(u => cache.add(u).catch(() => {}))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(self.clients.claim());
+  e.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', e => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.endsWith('version.json')) return;
+
+  e.respondWith(
+    fetch(req).then(res => {
+      if (res && res.status === 200) {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then(c => c.put(req, copy)).catch(() => {});
+      }
+      return res;
+    }).catch(() => caches.match(req, { ignoreSearch: true }))
+  );
 });
 
 self.addEventListener('message', e => {
@@ -15,6 +65,8 @@ self.addEventListener('message', e => {
     const title = e.data.title || 'EuroBaza';
     const body = e.data.body || '';
     const tag = e.data.tag || 'eurobaza-chat';
+    const act = e.data.action || 'OPEN_CHAT';
+    const uid = e.data.uid || '';
     e.waitUntil(
       self.registration.showNotification(title, {
         body: body,
@@ -23,7 +75,7 @@ self.addEventListener('message', e => {
         tag: tag,
         renotify: true,
         vibrate: new Array(180, 90, 180),
-        data: { url: e.data.url || './' }
+        data: { url: e.data.url || './', action: act, uid: uid }
       })
     );
   }
@@ -31,12 +83,13 @@ self.addEventListener('message', e => {
 
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  const targetUrl = (e.notification.data && e.notification.data.url) || './';
+  const d = e.notification.data || {};
+  const targetUrl = d.url || './';
   e.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       for (const c of list) {
         if ('focus' in c) {
-          c.postMessage({ type: 'OPEN_CHAT' });
+          c.postMessage({ type: d.action || 'OPEN_CHAT', uid: d.uid || '' });
           return c.focus();
         }
       }

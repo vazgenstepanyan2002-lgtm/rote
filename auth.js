@@ -110,7 +110,7 @@
           m.remove();
           if (window._onlineBeatNow) window._onlineBeatNow();
           if (window._onlineBeatNow) window._onlineBeatNow();
-          if (window._admPushNow) window._admPushNow();
+          bindDm(); if (window._admPushNow) window._admPushNow();
           reqNotifyPerm();
           window.toast && toast("С возвращением, " + (acc.name || rawName) + "!");
           setTimeout(() => location.reload(), 350);
@@ -154,8 +154,11 @@
     updBadges();
   }
   function updBadges(){
-    const n = unreadCount(), txt = n > 99 ? "99+" : String(n);
-    ["usrBadge", "pmChatBadge"].forEach(id => { const el = g(id); if (el){ el.textContent = txt; el.hidden = n === 0; } });
+    const cN = unreadCount(), dN = dmUnreadCount(), tot = cN + dN;
+    const setB = (id, v) => { const el = g(id); if (el){ el.textContent = v > 99 ? "99+" : String(v); el.hidden = v === 0; } };
+    setB("usrBadge", tot);
+    setB("pmChatBadge", cN);
+    setB("pmDmBadge", dN);
   }
   function renderChatRows(){
     const box = g("chatMsgs"); if (!box) return;
@@ -199,17 +202,96 @@
     m.classList.add("open"); renderChatRows();
     
   }
+  let _dmList = [], _dmOpen = false, _dmBound = false, _dmInit = false, _dmLastNotifT = +(ls("DM_NOTIF_T") || 0);
+  function dmUnreadCount(){
+    const seen = +(ls("DM_SEEN") || 0);
+    return _dmList.filter(m => (+m.t || 0) > seen && !!m.adm).length;
+  }
+  function markDmSeen(){
+    if (!_dmList.length) return;
+    const maxT = Math.max.apply(null, _dmList.map(m => +m.t || 0));
+    if (maxT > 0) lsSet("DM_SEEN", String(maxT));
+    updBadges();
+  }
+  function renderDmRows(){
+    const box = g("dmMsgs"); if (!box) return;
+    if (!_dmList.length){ box.innerHTML = '<div class="ch-empty">Личных сообщений с админом пока нет. Напишите первым!</div>'; return; }
+    box.innerHTML = _dmList.map(m => {
+      const isAdm = !!m.adm;
+      const author = isAdm ? '<div class="ch-au">👑 Админ</div>' : '';
+      return '<div class="ch-msg' + (!isAdm ? " mine" : " adm") + '">' + author + '<div class="ch-body"><span class="ch-txt">' + esc(m.txt || "") + '</span><span class="ch-tm">' + fmtTime(m.t) + '</span></div></div>';
+    }).join("");
+    box.scrollTop = box.scrollHeight;
+  }
+  function openDmChat(){
+    reqNotifyPerm();
+    _dmOpen = true; markDmSeen();
+    let m = g("dmMdl");
+    if (!m){
+      m = document.createElement("div"); m.id = "dmMdl"; m.className = "mdl";
+      m.innerHTML = '<div class="mdl-b ch-box"><div class="ch-hd"><div class="ch-hd-l"><div class="ch-hd-ic">✉️</div><div><div class="ch-hd-t">Личный чат</div><div class="ch-hd-s">Прямая связь с администратором</div></div></div><button type="button" class="ch-x" id="dmClose" aria-label="Закрыть">✕</button></div><div id="dmMsgs" class="ch-list"></div><div class="ch-bar"><input id="dmInp" maxlength="300" placeholder="Сообщение админу..."><button type="button" id="dmSend" aria-label="Отправить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></div>';
+      document.body.appendChild(m);
+      const close = () => { _dmOpen = false; m.classList.remove("open"); };
+      g("dmClose").onclick = close;
+      m.onclick = e => { if (e.target === m) close(); };
+      const inp = g("dmInp"), snd = g("dmSend");
+      const sendMsg = async () => {
+        const txt = inp.value.trim(); if (!txt) return;
+        const myUid = ls("ADM_UID") || "";
+        if (!myUid || !window.firebase || !firebase.apps || !firebase.apps.length){ window.toast && toast("Нет соединения с сервером", "err"); return; }
+        inp.value = ""; snd.disabled = true;
+        try {
+          const ref = firebase.database().ref("dm/" + myUid);
+          await ref.push({ uid: myUid, name: ls("USER_NAME") || "Водитель", adm: false, txt: txt, t: firebase.database.ServerValue.TIMESTAMP });
+          const s = await ref.once("value"), av = s.val() || {};
+          const ks = Object.keys(av).sort((a, b) => (+av[a].t || 0) - (+av[b].t || 0));
+          if (ks.length > 50) ks.slice(0, ks.length - 50).forEach(k => ref.child(k).remove().catch(() => {}));
+        } catch(e){ inp.value = txt; window.toast && toast("Не удалось отправить сообщение", "err"); }
+        snd.disabled = false; inp.blur();
+      };
+      snd.onclick = sendMsg;
+      inp.onkeydown = e => { if (e.key === "Enter"){ e.preventDefault(); sendMsg(); } };
+    }
+    m.classList.add("open"); renderDmRows();
+  }
+  function bindDm(){
+    const myUid = ls("ADM_UID") || "";
+    if (_dmBound || !myUid || !window.firebase || !firebase.apps || !firebase.apps.length) return;
+    _dmBound = true;
+    firebase.database().ref("dm/" + myUid).limitToLast(50).on("value", snap => {
+      const val = snap.val() || {};
+      const nextList = Object.keys(val).map(k => Object.assign({ k: k }, val[k])).sort((a, b) => (+a.t || 0) - (+b.t || 0));
+      if (_dmInit) {
+        const fresh = nextList.filter(m => (+m.t || 0) > _dmLastNotifT && !!m.adm);
+        if (fresh.length) {
+          const lastMsg = fresh[fresh.length - 1];
+          _dmLastNotifT = +lastMsg.t || Date.now();
+          lsSet("DM_NOTIF_T", String(_dmLastNotifT));
+          if (!_dmOpen || document.hidden) {
+            pushSysNotify("👑 Админ (лично)", String(lastMsg.txt || "").slice(0, 140), { tag: "eurobaza-dm", action: "OPEN_DM" });
+          }
+        }
+      } else if (nextList.length) {
+        const mx = Math.max.apply(null, nextList.map(m => +m.t || 0));
+        if (mx > _dmLastNotifT){ _dmLastNotifT = mx; lsSet("DM_NOTIF_T", String(_dmLastNotifT)); }
+      }
+      _dmInit = true;
+      _dmList = nextList;
+      if (_dmOpen && !document.hidden){ markDmSeen(); renderDmRows(); } else updBadges();
+    }, () => {});
+  }
   function openProfileMenu(){
     reqNotifyPerm();
     let m = g("profMdl");
     if (!m){
       m = document.createElement("div"); m.id = "profMdl"; m.className = "cm";
-      m.innerHTML = '<div class="cm-b pm-box"><button type="button" class="pm-x" id="pmX" aria-label="Закрыть">✕</button><div class="pm-top"><div class="pm-ring"><div class="pm-av"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div></div><div class="pm-info"><div class="pm-pill"><i></i>Driver Profile</div><div class="pm-nm" id="pmTitle"></div><div class="pm-sb">Профиль водителя</div></div></div><div class="pm-acts"><button type="button" class="pm-btn pm-chat" id="pmChat"><span class="pm-btn-l"><span class="pm-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="pm-tx"><b>Общий чат</b><small>Канал водителей EuroBaza</small></span></span><span class="pm-btn-r"><span id="pmChatBadge" class="pm-bdg" hidden>0</span><span class="pm-arr">›</span></span></button><button type="button" class="pm-btn pm-out" id="pmOut"><span class="pm-btn-l"><span class="pm-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span><span class="pm-tx"><b>Выйти</b><small>Сменить водителя на телефоне</small></span></span><span class="pm-arr">›</span></button></div><button type="button" class="pm-cls" id="pmCls">Закрыть</button></div>';
+      m.innerHTML = '<div class="cm-b pm-box"><button type="button" class="pm-x" id="pmX" aria-label="Закрыть">✕</button><div class="pm-top"><div class="pm-ring"><div class="pm-av"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div></div><div class="pm-info"><div class="pm-pill"><i></i>Driver Profile</div><div class="pm-nm" id="pmTitle"></div><div class="pm-sb">Профиль водителя</div></div></div><div class="pm-acts"><button type="button" class="pm-btn pm-chat" id="pmChat"><span class="pm-btn-l"><span class="pm-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="pm-tx"><b>Общий чат</b><small>Канал водителей EuroBaza</small></span></span><span class="pm-btn-r"><span id="pmChatBadge" class="pm-bdg" hidden>0</span><span class="pm-arr">›</span></span></button><button type="button" class="pm-btn pm-dm" id="pmDm"><span class="pm-btn-l"><span class="pm-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><span class="pm-tx"><b>Личный чат</b><small>Личная переписка с админом</small></span></span><span class="pm-btn-r"><span id="pmDmBadge" class="pm-bdg" hidden>0</span><span class="pm-arr">›</span></span></button><button type="button" class="pm-btn pm-out" id="pmOut"><span class="pm-btn-l"><span class="pm-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span><span class="pm-tx"><b>Выйти</b><small>Сменить водителя на телефоне</small></span></span><span class="pm-arr">›</span></button></div><button type="button" class="pm-cls" id="pmCls">Закрыть</button></div>';
       document.body.appendChild(m);
       const close = () => m.classList.remove("open");
       m.onclick = e => { if (e.target === m) close(); };
       g("pmCls").onclick = close; g("pmX").onclick = close;
       g("pmChat").onclick = () => { close(); openChat(); };
+      g("pmDm").onclick = () => { close(); openDmChat(); };
       g("pmOut").onclick = async () => {
         close(); const cur = ls("USER_NAME") || "";
         if (typeof askC === "function" && !(await askC("Выйти из профиля «" + cur + "» на этом телефоне? Данные останутся в облаке.", "Выйти", "👤"))) return;
@@ -249,7 +331,8 @@
       }
     } catch(e){}
   }
-  function pushSysNotify(title, body){
+  function pushSysNotify(title, body, opts){
+    opts = opts || {};
     try {
       if (!("Notification" in window) || Notification.permission !== "granted") return;
       if (navigator.serviceWorker && navigator.serviceWorker.controller) {
@@ -257,7 +340,9 @@
           type: "NOTIFY",
           title: title,
           body: body,
-          tag: "eurobaza-chat",
+          tag: opts.tag || "eurobaza-chat",
+          action: opts.action || "OPEN_CHAT",
+          uid: opts.uid || "",
           url: "./"
         });
         return;
@@ -269,7 +354,7 @@
               body: body,
               icon: "icon-192.png",
               badge: "icon-192.png",
-              tag: "eurobaza-chat",
+              tag: opts.tag || "eurobaza-chat",
               renotify: true,
               vibrate: new Array(180, 90, 180)
             });
@@ -277,7 +362,7 @@
         }).catch(() => {});
         return;
       }
-      new Notification(title, { body: body, icon: "icon-192.png", tag: "eurobaza-chat" });
+      new Notification(title, { body: body, icon: "icon-192.png", tag: opts.tag || "eurobaza-chat" });
     } catch(e){}
   }
   function bindChat(){
@@ -320,7 +405,7 @@
   function boot(){
     if (navigator.serviceWorker) {
       navigator.serviceWorker.addEventListener("message", e => {
-        if (e.data && e.data.type === "OPEN_CHAT" && ls("USER_NAME")) openChat();
+        if (e.data && ls("USER_NAME")) { if (e.data.type === "OPEN_DM") openDmChat(); else if (e.data.type === "OPEN_CHAT") openChat(); }
       });
     }
 
@@ -341,7 +426,7 @@
       }
     });
     window.addEventListener("pageshow", () => { if (!ls("USER_NAME")) lockBack(); });
-    let tries = 0; const w = setInterval(() => { if (++tries > 60) clearInterval(w); else if (window.firebase && firebase.apps && firebase.apps.length){ clearInterval(w); bindChat(); bindBlockWatch(); } }, 500);
+    let tries = 0; const w = setInterval(() => { if (++tries > 60) clearInterval(w); else if (window.firebase && firebase.apps && firebase.apps.length){ clearInterval(w); bindChat(); bindDm(); bindBlockWatch(); } }, 500);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })();
