@@ -295,7 +295,7 @@
           lsSet("CHAT_NOTIF_T", String(_lastNotifiedT));
           if (!_chatOpen || document.hidden) {
             const sender = lastMsg.adm ? "👑 Админ" : (lastMsg.name || "Водитель");
-            pushSysNotify("💬 Общий чат · " + sender, String(lastMsg.txt || "").slice(0, 140));
+            pushSysNotify(sender, String(lastMsg.txt || "").slice(0, 140));
           }
         }
       } else if (nextList.length) {
