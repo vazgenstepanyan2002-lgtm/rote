@@ -363,3 +363,62 @@ ol#l:not(:empty){margin:14px 0 0;padding:14px;border-radius:20px;background:rgba
 
 /* fab-c: кнопка Админ по центру снизу */
 .fab.fab-c{left:50%;right:auto;transform:translateX(-50%);padding:12px 11px;font-size:13px}
+
+/* ===== Единая нижняя панель кнопок ===== */
+body{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))!important}
+#bonFab,#admFab,#ptsFab{
+  position:fixed!important;
+  bottom:calc(14px + env(safe-area-inset-bottom,0px))!important;
+  top:auto!important;
+  transform:none!important;
+  height:46px!important;
+  width:calc((100vw - 40px) / 3)!important;
+  max-width:146px!important;
+  margin:0!important;
+  padding:0 8px!important;
+  border-radius:16px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:6px!important;
+  font-size:13.5px!important;
+  font-weight:800!important;
+  letter-spacing:-.1px!important;
+  text-decoration:none!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  box-shadow:0 10px 24px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.35)!important;
+  transition:transform .14s ease,filter .14s ease!important;
+  z-index:900!important;
+}
+#bonFab svg,#admFab svg,#ptsFab svg{flex-shrink:0}
+#bonFab:active,#admFab:active,#ptsFab:active{transform:scale(.96)!important;filter:brightness(.94)}
+
+/* Позиционирование слева, по центру и справа с ровным зазором 8px */
+#bonFab{
+  left:12px!important;
+  right:auto!important;
+  background:linear-gradient(135deg,#fde047 0%,#facc15 55%,#eab308 100%)!important;
+  color:#141102!important;
+  border:1px solid rgba(255,255,255,.4)!important;
+}
+#admFab{
+  left:50%!important;
+  right:auto!important;
+  transform:translateX(-50%)!important;
+  background:linear-gradient(180deg,rgba(24,34,52,.94) 0%,rgba(13,19,31,.98) 100%)!important;
+  color:#f8fafc!important;
+  border:1px solid rgba(255,255,255,.18)!important;
+  box-shadow:0 10px 24px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.12)!important;
+  backdrop-filter:blur(12px)!important;
+}
+#admFab svg{color:#34d399}
+#admFab:active{transform:translateX(-50%) scale(.96)!important}
+#ptsFab{
+  right:12px!important;
+  left:auto!important;
+  background:linear-gradient(135deg,#fde047 0%,#facc15 55%,#eab308 100%)!important;
+  color:#141102!important;
+  border:1px solid rgba(255,255,255,.4)!important;
+}
