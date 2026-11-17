@@ -86,13 +86,33 @@
  const devs=()=>Object.keys(USERS).map(k=>parseDev(k,USERS[k])).sort((a,b)=>(b.u.t||0)-(a.u.t||0));
  function aggMonths(list){
   const map={};
-  list.forEach(d=>Object.keys(d.hist).forEach(k=>{
-   const h=d.hist[k];if(!h)return;
-   const m=h.m||'';
-   const x=map[m]||(map[m]={m:m,sum:0,qty:0,n:0});
-   x.sum+=+h.sum||0;x.qty+=+h.qty||0;x.n++;
-  }));
-  return Object.keys(map).map(k=>map[k]).sort((a,b)=>a.m<b.m?1:a.m>b.m?-1:0);
+  list.forEach(d=>{
+   const who=dispName(d);
+   Object.keys(d.hist).forEach(k=>{
+    const h=d.hist[k];if(!h)return;
+    const m=h.m||'';
+    const x=map[m]||(map[m]={m:m,sum:0,qty:0,n:0,byDev:{}});
+    const s=+h.sum||0,q=+h.qty||0;
+    x.sum+=s;x.qty+=q;x.n++;
+    const bd=x.byDev[d.id]||(x.byDev[d.id]={id:d.id,name:who,sum:0,qty:0});
+    bd.sum+=s;bd.qty+=q;
+   });
+  });
+  return Object.keys(map).map(k=>{
+   const x=map[k];
+   x.devs=Object.keys(x.byDev).map(id=>x.byDev[id]).sort((a,b)=>b.sum-a.sum);
+   return x;
+  }).sort((a,b)=>a.m<b.m?1:a.m>b.m?-1:0);
+ }
+ function copyReport(title,items,totQty,totSum){
+  if(!items||!items.length){toast('Нет данных для копирования',true);return}
+  const lines=['📋 Ведомость EuroBaza — '+title,''];
+  items.forEach(it=>lines.push('• '+it.name+': '+fm(it.qty)+' шт — '+money(it.sum)));
+  lines.push('','Итого: '+fm(totQty)+' шт — '+money(totSum));
+  const txt=lines.join('\n');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+   navigator.clipboard.writeText(txt).then(()=>toast('Ведомость скопирована')).catch(()=>toast('Не удалось скопировать',true));
+  }else{toast('Буфер обмена недоступен',true)}
  }
  function detail(rows){
   if(!rows||!rows.length)return '<div class="mut">Пусто</div>';
@@ -250,12 +270,26 @@
   let h='<select id="sel"><option value="all">Все устройства</option>'
    +L.map(d=>'<option value="'+esc(d.id)+'"'+(SEL===d.id?' selected':'')+'>'+esc(dispName(d)+' …'+d.id.slice(-4))+'</option>').join('')+'</select>';
   if(SEL==='all'){
-   const sum=L.reduce((a,d)=>a+(+d.cur.sum||0),0),qty=L.reduce((a,d)=>a+(+d.cur.qty||0),0);
-   h+='<div class="hero"><span>Текущий месяц (не сохранён)</span><b>'+money(sum)+'</b><span>'+fm(qty)+' шт</span></div>';
+   const curList=L.map(d=>({id:d.id,name:dispName(d),sum:+d.cur.sum||0,qty:+d.cur.qty||0})).filter(x=>x.qty>0||x.sum>0).sort((a,b)=>b.sum-a.sum);
+   const sum=curList.reduce((a,x)=>a+x.sum,0),qty=curList.reduce((a,x)=>a+x.qty,0);
+   h+='<div class="hero"><span>Текущий месяц (не сохранён)</span><b>'+money(sum)+'</b><span>'+fm(qty)+' шт · водителей: '+curList.length+'</span>'
+    +(curList.length?'<button type="button" class="cp-btn" data-act="cpcur">📄 Скопировать текущую ведомость</button>':'')+'</div>';
+   if(curList.length){
+    h+='<div class="sec">По водителям (текущий месяц)</div>';
+    h+=curList.map(x=>'<div class="st-row" data-act="pickdev" data-id="'+esc(x.id)+'"><div><div class="st-nm">'+esc(x.name)+'</div><div class="st-qt">'+fm(x.qty)+' шт</div></div><div class="st-sm">'+money(x.sum)+' ›</div></div>').join('');
+   }
    const ms=aggMonths(L);
-   h+='<div class="sec">Сохранённые итоги</div>';
+   h+='<div class="sec">Сохранённые итоги по месяцам</div>';
    if(!ms.length)h+='<div class="mut box">Сохранённых итогов пока нет.</div>';
-   h+=ms.map(x=>'<div class="mr"><div class="rm"><div class="rt">'+esc(monthName(x.m))+'</div><div class="rs">'+fm(x.qty)+' шт · записей: '+x.n+'</div></div><div class="rv">'+money(x.sum)+'</div></div>').join('');
+   h+=ms.map(x=>{
+    const key='all|'+x.m,op=!!OPEN[key];
+    return '<div class="mr col" data-act="month" data-key="'+esc(key)+'"><div class="mrt"><div class="rm"><div class="rt">'+esc(monthName(x.m))+'</div><div class="rs">'+fm(x.qty)+' шт · водителей: '+x.devs.length+'</div></div><div class="rv">'+money(x.sum)+'</div><span class="ar">'+(op?'▾':'▸')+'</span></div>'
+     +(op?'<div class="dt">'
+      +x.devs.map(dv=>'<div class="st-row" data-act="pickdev" data-id="'+esc(dv.id)+'"><div><div class="st-nm">'+esc(dv.name)+'</div><div class="st-qt">'+fm(dv.qty)+' шт</div></div><div class="st-sm">'+money(dv.sum)+' ›</div></div>').join('')
+      +'<button type="button" class="cp-btn" data-act="cpmonth" data-m="'+esc(x.m)+'">📄 Скопировать ведомость за '+esc(monthName(x.m))+'</button>'
+      +'</div>':'')
+     +'</div>';
+   }).join('');
   }else{
    const d=parseDev(SEL,USERS[SEL]);
    h+='<div class="hero"><span>Текущий месяц (не сохранён)</span><b>'+money(d.cur.sum)+'</b><span>'+fm(d.cur.qty)+' шт</span></div>';
@@ -376,6 +410,9 @@
   else if(a==='rename')rename(b.dataset.id);
   else if(a==='pin'){e.stopPropagation();const k=b.dataset.key,cur=ACCOUNTS[k]&&ACCOUNTS[k].pin||'';const np=await askInput('Смена ПИН-кода','Введите новый 4-значный код для водителя',cur,'Например: 1234');if(np===null)return;const clean=np.replace(/\D/g,'');if(clean.length!==4){toast('Нужно ровно 4 цифры',true);return}try{await db.ref('accounts/'+k+'/pin').set(clean);toast('ПИН-код обновлён')}catch(err){toast('Ошибка сохранения',true)}}
   else if(a==='month'){OPEN[b.dataset.key]=!OPEN[b.dataset.key];draw()}
+  else if(a==='pickdev'){e.stopPropagation();SEL=b.dataset.id;draw()}
+  else if(a==='cpcur'){e.stopPropagation();const curList=devs().map(d=>({name:dispName(d),sum:+d.cur.sum||0,qty:+d.cur.qty||0})).filter(x=>x.qty>0||x.sum>0).sort((a,b)=>b.sum-a.sum);copyReport('Текущий месяц',curList,curList.reduce((a,x)=>a+x.qty,0),curList.reduce((a,x)=>a+x.sum,0))}
+  else if(a==='cpmonth'){e.stopPropagation();const mObj=aggMonths(devs()).find(x=>x.m===b.dataset.m);if(mObj)copyReport(monthName(mObj.m),mObj.devs,mObj.qty,mObj.sum)}
   else if(a==='mapfilter'){MAP_ONLY_ONLINE=!MAP_ONLY_ONLINE;_didFit=false;drawMap()}
   else if(a==='focus'){const mk=_markers[b.dataset.id];if(mk&&_map){_map.setView(mk.getLatLng(),16,{animate:true});mk.openPopup()}}
  });
