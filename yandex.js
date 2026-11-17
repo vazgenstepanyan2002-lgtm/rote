@@ -65,6 +65,7 @@ function choose(it){
 async function addPick(it){
  const clean=t=>String(t||'').replace(/[\s]*[\u{1F50E}\u{1F4CD}]\s*$/u,'').trim();
  let lat=it.lat,lon=it.lon,name=clean(it.name),exact=it.exact;
+ if(lat==null||lon==null){const hit=ADR_CACHE.find(x=>x.name===clean(it.text||it.name)&&x.lat!=null);if(hit){lat=hit.lat;lon=hit.lon;name=hit.name}}
  if(lat==null||lon==null){
   const q=clean(it.text||it.name);
   const l=await yan(q);
@@ -76,6 +77,7 @@ async function addPick(it){
   lat=l[0].lat;lon=l[0].lon;name=clean(l[0].name);exact=l[0].exact;
  }
  saveAdrCache({name:name,lat:lat,lon:lon});
+ if(it.text)saveAdrCache({name:clean(it.text),lat:lat,lon:lon});
  P.push({name:name,lat:lat,lon:lon});
  document.getElementById('a').value='';
  _pick=null;
