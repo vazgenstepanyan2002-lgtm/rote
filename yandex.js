@@ -50,17 +50,28 @@ function showList(list,msg){
   b.appendChild(x);
  });
 }
+let _pick=null;
 function choose(it){
+ const a=document.getElementById('a');
+ a.value=it.name.replace(/ 🔎$/,'');
+ _pick={label:a.value,name:it.name,text:it.text,lat:it.lat,lon:it.lon,exact:it.exact};
+ showList([]);
+ document.getElementById('s').textContent='';
+ a.focus();
+}
+// Добавление выбранного адреса (вызывается только по Enter или кнопке)
+async function addPick(it){
  if(it.lat==null){
-  yan(it.text||it.name).then(l=>{
-   if(l.length)choose({name:l[0].name,lat:l[0].lat,lon:l[0].lon,exact:l[0].exact});
-   else window.toast&&toast('Не удалось найти координаты этого адреса','err');
-  });
-  return;
+  const l=await yan(it.text||it.name);
+  if(!l.length){window.toast&&toast('Не удалось найти координаты этого адреса','err');return}
+  it={name:l[0].name,lat:l[0].lat,lon:l[0].lon,exact:l[0].exact};
  }
- saveAdrCache(it);window.toast&&toast('Адрес добавлен');
- P.push({name:it.name,lat:it.lat,lon:it.lon});
+ const name=it.name.replace(/ 🔎$/,'');
+ saveAdrCache({name:name,lat:it.lat,lon:it.lon});
+ window.toast&&toast('Адрес добавлен');
+ P.push({name:name,lat:it.lat,lon:it.lon});
  document.getElementById('a').value='';
+ _pick=null;
  showList([]);
  document.getElementById('s').textContent='';
  save();
@@ -69,10 +80,11 @@ window.add=async function(){
  const s=document.getElementById('s');
  const q=document.getElementById('a').value.trim();
  if(!q)return;
+ if(_pick&&q===_pick.label){addPick(_pick);return}
  s.textContent='Ищу адрес в Яндексе...';
  const l=await yan(q);
  if(!l.length){const E=l.err,m=E==='off'?'Нет интернета. Проверьте сеть и повторите':E==='net'?'Не удалось связаться с Яндексом. Проверьте сеть':E==='limit'?'Яндекс отклонил запрос (лимит или ключ API)':E==='srv'?'Яндекс временно не отвечает. Попробуйте позже':'Адрес не найден. Попробуйте написать иначе или добавьте город';s.textContent=m;window.toast&&toast(m,'err');return}
- if(l.length===1&&l[0].exact){choose(l[0]);return}
+ if(l.length===1&&l[0].exact){addPick(l[0]);return}
  s.textContent='';
  showList(l,'Выберите нужный вариант:');
 };
