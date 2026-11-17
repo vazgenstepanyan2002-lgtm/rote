@@ -14,6 +14,7 @@
     m.id = "authMdl";
     m.className = "cm open";
     m.innerHTML = '<div class="cm-b auth-box">'
+      + '<div class="au-langs"><button type="button" data-al="ru">RU</button><button type="button" data-al="hy">ՀԱՅ</button><button type="button" data-al="en">EN</button></div>'
       + '<div class="au-ring"><div class="au-in"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div></div>'
       + '<div class="au-pill"><i></i>Driver Access</div>'
       + '<div class="au-title">EuroBaza</div>'
@@ -30,6 +31,17 @@
     nm.addEventListener("keydown", e => { if (e.key === "Enter") pn.focus(); });
     pn.addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
     btn.onclick = submit;
+    const updLangBtns = () => {
+      const cur = (window.getLang && window.getLang()) || ls("LANG") || "ru";
+      m.querySelectorAll("[data-al]").forEach(b => b.classList.toggle("on", b.dataset.al === cur));
+    };
+    m.querySelectorAll("[data-al]").forEach(b => {
+      b.onclick = () => {
+        if (window.setAppLang) window.setAppLang(b.dataset.al);
+        updLangBtns();
+      };
+    });
+    updLangBtns();
 
     async function submit(){
       err.textContent = "";
