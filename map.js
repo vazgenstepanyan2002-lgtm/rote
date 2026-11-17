@@ -95,8 +95,10 @@
  function draw(cur,start,sv,tok){
   if(_map){try{_map.remove()}catch(e){}_map=null}
   const box=g('mapBox');box.innerHTML='';
-  box.style.touchAction='none';
-  const map=L.map(box,{preferCanvas:false,zoomControl:true,dragging:true,touchZoom:true,doubleClickZoom:true,scrollWheelZoom:true,tap:true,inertia:true,zoomAnimation:true,markerZoomAnimation:true,rotate:true,touchRotate:true,bearing:0,rotateControl:{closeOnZeroBearing:false}});_map=map;
+  box.style.touchAction='none';const cv=L.canvas({padding:0.5});
+  const map=L.map(box,{preferCanvas:true,renderer:cv,zoomControl:true,dragging:true,touchZoom:true,doubleClickZoom:true,scrollWheelZoom:true,tap:true,inertia:true,zoomAnimation:true,markerZoomAnimation:true,rotate:true,touchRotate:true,bearing:0,rotateControl:{closeOnZeroBearing:false}});_map=map;
+  const syncLines=()=>{if(_map===map&&cv&&cv._update)try{cv._update()}catch(e){}};
+  map.on('zoom move rotate zoomend moveend viewreset',syncLines);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   const etas=document.querySelectorAll('#o ol li .eta');
   const ll=[];let bad=0;
@@ -115,47 +117,15 @@
     if(inex)h+='<br><span style="color:#b45309">⚠️ Неточный адрес: Яндекс нашёл только район или город</span>';
     L.marker([it.lat,it.lon],{icon:icon(base?'base':inex?'bad':'ok',base?'🏁':String(k+1))}).addTo(map).bindPopup(h);
   });
-  const rCvs=document.createElement('canvas');
-  rCvs.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:450';
-  box.appendChild(rCvs);
-  let routePts=ll,routeDashed=true,curLines=[];
-  const paintRoute=()=>{
-    if(_map!==map||!map._loaded)return;
-    const w=box.clientWidth,h=box.clientHeight;
-    if(!w||!h)return;
-    const dpr=window.devicePixelRatio||1;
-    if(rCvs.width!==Math.round(w*dpr)||rCvs.height!==Math.round(h*dpr)){
-      rCvs.width=Math.round(w*dpr);
-      rCvs.height=Math.round(h*dpr);
-    }
-    const ctx=rCvs.getContext('2d');
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-    ctx.clearRect(0,0,w,h);
-    if(!routePts||routePts.length<2)return;
-    const screenPts=routePts.map(p=>map.latLngToContainerPoint(p));
-    ctx.lineCap='round';
-    ctx.lineJoin='round';
-    ctx.beginPath();
-    screenPts.forEach((pt,i)=>{if(i===0)ctx.moveTo(pt.x,pt.y);else ctx.lineTo(pt.x,pt.y);});
-    ctx.strokeStyle='rgba(2,132,199,0.32)';
-    ctx.lineWidth=10;
-    ctx.setLineDash([]);
-    ctx.stroke();
-    ctx.strokeStyle='rgba(56,189,248,0.96)';
-    ctx.lineWidth=4.5;
-    ctx.setLineDash(routeDashed?new Array(8,8):[]);
-    ctx.stroke();
-  };
   const drawRoute=(pts,dashed)=>{
-    routePts=pts;routeDashed=!!dashed;
-    paintRoute();
-    return [];
+    const glow=L.polyline(pts,{color:'#0284c7',weight:10,opacity:.32,lineCap:'round',lineJoin:'round'}).addTo(map);
+    const core=L.polyline(pts,{color:'#38bdf8',weight:4.5,opacity:.96,lineCap:'round',lineJoin:'round',dashArray:dashed?'8 8':null}).addTo(map);
+    return [glow,core];
   };
+  let curLines=drawRoute(ll,true);
   const pad=new Array(30,30);
   const _fit=()=>map.fitBounds(L.latLngBounds(ll),{padding:pad,maxZoom:16});_fit();
-  drawRoute(ll,true);
-  map.on('move zoom rotate resize viewreset zoomend moveend rotateend',paintRoute);
-  setTimeout(()=>{if(_map===map){map.invalidateSize();map.fitBounds(L.latLngBounds(ll),{padding:pad,maxZoom:16});paintRoute();}},150);
+  setTimeout(()=>{if(_map===map){map.invalidateSize();map.fitBounds(L.latLngBounds(ll),{padding:pad,maxZoom:16});}},150);
 
   let note='Линия по прямой (загружаю дороги...)';
   function info(){
@@ -178,6 +148,7 @@
   });
   loadRoad('https://project-osrm.org').catch(()=>loadRoad('https://openstreetmap.de')).then(c=>{
     if(tok!==_tok||_map!==map)return;
+    curLines.forEach(l=>map.removeLayer(l));
     curLines=drawRoute(c.map(x=>[x.at(1),x.at(0)]),false);
    note='Линия построена по дорогам';info();
   }).catch(()=>{
