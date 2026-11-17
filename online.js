@@ -38,7 +38,7 @@
     b.id = 'onlineBadge';
     b.className = 'online-badge';
     b.title = 'Сейчас в приложении';
-    b.textContent = '🟢 –';
+    b.innerHTML = '<i class="on-dot"></i><b id="onCnt">-</b>';
     const h = document.querySelector('h2 .badge');
     if (h) h.after(b);
     else document.querySelector('h2')?.appendChild(b);
@@ -47,7 +47,7 @@
 
   function setCount(n){
     const b = ensureBadge();
-    b.textContent = '🟢 ' + n;
+    b.innerHTML = '<i class="on-dot"></i><b id="onCnt">' + n + '</b>';
     b.dataset.n = n;
   }
 
