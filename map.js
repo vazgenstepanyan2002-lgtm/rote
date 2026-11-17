@@ -95,15 +95,10 @@
  function draw(cur,start,sv,tok){
   if(_map){try{_map.remove()}catch(e){}_map=null}
   const box=g('mapBox');box.innerHTML='';
-  box.style.touchAction='none';const map=L.map(box,{zoomControl:true,dragging:true,touchZoom:true,doubleClickZoom:true,scrollWheelZoom:true,tap:true,inertia:true,rotate:true,touchRotate:true,bearing:0,rotateControl:{closeOnZeroBearing:false}});_map=map;
-  let _tc=0;const op=map.getPane('overlayPane');
-  const hideL=()=>{op.style.opacity='0'};
-  const showL=()=>{if(_tc>0||_map!==map)return;map.eachLayer(l=>{if(l instanceof L.Polyline&&l.redraw)l.redraw()});op.style.opacity=''};
-  box.addEventListener('touchstart',e=>{_tc=e.touches.length;if(_tc>1)hideL()},{passive:true});
-  box.addEventListener('touchend',e=>{_tc=e.touches.length;if(_tc===0)setTimeout(showL,120)},{passive:true});
-  box.addEventListener('touchcancel',()=>{_tc=0;setTimeout(showL,120)},{passive:true});
-  map.on('zoomstart',hideL);
-  map.on('zoomend moveend',()=>setTimeout(showL,60));
+  box.style.touchAction='none';const cv=L.canvas({padding:0.5});
+  const map=L.map(box,{preferCanvas:true,renderer:cv,zoomControl:true,dragging:true,touchZoom:true,doubleClickZoom:true,scrollWheelZoom:true,tap:true,inertia:true,zoomAnimation:true,markerZoomAnimation:true,rotate:true,touchRotate:true,bearing:0,rotateControl:{closeOnZeroBearing:false}});_map=map;
+  const syncLines=()=>{if(_map===map&&cv&&cv._update)try{cv._update()}catch(e){}};
+  map.on('zoom move rotate zoomend moveend viewreset',syncLines);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   const etas=document.querySelectorAll('#o ol li .eta');
   const ll=[];let bad=0;
