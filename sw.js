@@ -1,5 +1,5 @@
 
-const C='eb-cache-20261117101826';
+const C='eb-cache-20261117102302';
 const PRE=['./','./index.html','./style.css','./app.js','./yandex.js','./ui.js','./map.js','./bonus.js','./i18n.js','./online.js','./manifest.json','./icon-192.png','./icon-512.png','./bg.jpg'];
 
 self.addEventListener('install',e=>{
@@ -35,11 +35,11 @@ self.addEventListener('fetch',e=>{
   return;
  }
  if(STATIC.test(u.pathname)){
-  e.respondWith(fetch(r).then(res=>{if(res.ok){const cl=res.clone();caches.open(C).then(c=>c.put(r,cl))}return res}).catch(()=>caches.match(r,{ignoreSearch:true})));
+  e.respondWith(fetch(r,{cache:'no-cache'}).then(res=>{if(res.ok){const cl=res.clone();caches.open(C).then(c=>c.put(r,cl))}return res}).catch(()=>caches.match(r,{ignoreSearch:true})));
   return;
  }
  if(isNav(r)){
-  e.respondWith(fetch(r).then(res=>{const cl=res.clone();caches.open(C).then(c=>c.put('./index.html',cl));return res}).catch(()=>caches.match('./index.html',{ignoreSearch:true})));
+  e.respondWith(fetch(r,{cache:'no-cache'}).then(res=>{const cl=res.clone();caches.open(C).then(c=>c.put('./index.html',cl));return res}).catch(()=>caches.match('./index.html',{ignoreSearch:true})));
   return;
  }
 });
