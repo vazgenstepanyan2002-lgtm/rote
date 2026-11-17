@@ -11,7 +11,7 @@ const SUG_KEY='7149646b-4ffe-4382-b926-544de306c692';
 async function sugList(q){
  if(SUG_KEY==='7149646b-4ffe-4382-b926-544de306c692')return yan(q);
  try{
-  const r=await fetch('https://suggest-maps.yandex.ru/v1/suggest?apikey='+SUG_KEY+'&lang=ru_RU&results=6&text='+encodeURIComponent(q),{signal:AbortSignal.timeout(9000)});
+  const r=await fetch('https://suggest-maps.yandex.ru/v1/suggest?apikey='+SUG_KEY+'&lang=ru_RU&results=6&bbox=43.4,38.8~46.7,41.3&strict_bounds=1&text='+encodeURIComponent(q),{signal:AbortSignal.timeout(9000)});
   if(!r.ok)return yan(q);
   const j=await r.json();
   return (j.results||[]).map(x=>{
