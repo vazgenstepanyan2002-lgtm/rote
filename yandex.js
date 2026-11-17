@@ -7,6 +7,20 @@ function saveAdrCache(it){
  if(ADR_CACHE.length > 500) ADR_CACHE.pop();
  localStorage.setItem("ADR_CACHE", JSON.stringify(ADR_CACHE));
 }
+const SUG_KEY='7149646b-4ffe-4382-b926-544de306c692';
+async function sugList(q){
+ if(SUG_KEY==='7149646b-4ffe-4382-b926-544de306c692')return yan(q);
+ try{
+  const r=await fetch('https://suggest-maps.yandex.ru/v1/suggest?apikey='+SUG_KEY+'&lang=ru_RU&results=6&text='+encodeURIComponent(q),{signal:AbortSignal.timeout(9000)});
+  if(!r.ok)return yan(q);
+  const j=await r.json();
+  return (j.results||[]).map(x=>{
+   const t=(x.title&&x.title.text)||'',st=(x.subtitle&&x.subtitle.text)||'';
+   const full=st?t+', '+st:t;
+   return{name:full.replace(/^Армения, /,'')+' 🔎',text:full,lat:null,lon:null,exact:false};
+  });
+ }catch(e){return yan(q)}
+}
 const YKEY='a197b5c2-1e4f-480d-abab-9ab7bd63b447';
 async function yan(q){
  let last;
@@ -37,6 +51,13 @@ function showList(list,msg){
  });
 }
 function choose(it){
+ if(it.lat==null){
+  yan(it.text||it.name).then(l=>{
+   if(l.length)choose({name:l[0].name,lat:l[0].lat,lon:l[0].lon,exact:l[0].exact});
+   else window.toast&&toast('Не удалось найти координаты этого адреса','err');
+  });
+  return;
+ }
  saveAdrCache(it);window.toast&&toast('Адрес добавлен');
  P.push({name:it.name,lat:it.lat,lon:it.lon});
  document.getElementById('a').value='';
@@ -68,7 +89,7 @@ document.getElementById("a").addEventListener("input", function(){
    showList(cached.slice(0, 5), "Из сохранённых адресов:");
   }
   if(cached.length >= 3) return;
-  const l = await yan(q);
+  const l = await sugList(q);
   const merged = cached.concat(l.filter(x => !cached.some(c => c.name === x.name))).slice(0, 5);
   if(document.getElementById("a").value.trim() === q){
    showList(merged, merged.length ? "Выберите нужный вариант:" : "");
