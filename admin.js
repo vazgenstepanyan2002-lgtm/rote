@@ -715,8 +715,9 @@
 
       const yKey = typeof YKEY !== 'undefined' ? YKEY : '';
       const sKey = typeof SUG_KEY !== 'undefined' ? SUG_KEY : '';
-      const fbKey = (typeof CFG !== 'undefined' && CFG.apiKey) ? CFG.apiKey : '';
-      const fbDb = (typeof CFG !== 'undefined' && CFG.databaseURL) ? CFG.databaseURL : '';
+      const fbOpts = (window.firebase && firebase.apps && firebase.apps.length) ? firebase.app().options : {};
+      const fbKey = fbOpts.apiKey || '';
+      const fbDb = fbOpts.databaseURL || '';
 
       const p1 = ['https:', '', '://googleapis.com', 'v1', 'accounts:lookup?key=' + fbKey].join('/');
       const p2 = ['https:', '', 'geocode-maps.yandex.ru', '1.x', '?format=json&apikey=' + yKey + '&geocode=44.4425,40.0686'].join('/');
