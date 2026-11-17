@@ -190,9 +190,6 @@
         try {
           const ref = firebase.database().ref("chat");
           await ref.push({ uid: ls("ADM_UID") || "", name: ls("USER_NAME") || "Водитель", txt: txt, t: firebase.database.ServerValue.TIMESTAMP });
-          const s = await ref.once("value"), av = s.val() || {};
-          const ks = Object.keys(av).sort((a, b) => (+av[a].t || 0) - (+av[b].t || 0));
-          if (ks.length > 50) ks.slice(0, ks.length - 50).forEach(k => ref.child(k).remove().catch(() => {}));
         } catch(e){ inp.value = txt; window.toast && toast("Не удалось отправить сообщение", "err"); }
         snd.disabled = false; inp.blur();
       };
@@ -243,9 +240,6 @@
         try {
           const ref = firebase.database().ref("dm/" + myUid);
           await ref.push({ uid: myUid, name: ls("USER_NAME") || "Водитель", adm: false, txt: txt, t: firebase.database.ServerValue.TIMESTAMP });
-          const s = await ref.once("value"), av = s.val() || {};
-          const ks = Object.keys(av).sort((a, b) => (+av[a].t || 0) - (+av[b].t || 0));
-          if (ks.length > 50) ks.slice(0, ks.length - 50).forEach(k => ref.child(k).remove().catch(() => {}));
         } catch(e){ inp.value = txt; window.toast && toast("Не удалось отправить сообщение", "err"); }
         snd.disabled = false; inp.blur();
       };
