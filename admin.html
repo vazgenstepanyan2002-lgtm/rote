@@ -99,7 +99,7 @@ body:has(#login:not([hidden])){height:100dvh;overflow:hidden;overscroll-behavior
 .fld input:-webkit-autofill,.fld input:-webkit-autofill:focus,.fld input:autofill{-webkit-box-shadow:0 0 0 100px #070b12 inset!important;box-shadow:0 0 0 100px #070b12 inset!important;-webkit-text-fill-color:#f8fafc!important;background-clip:content-box!important;filter:none!important}
 
 #cOv{z-index:600}
-.ov{position:fixed;inset:0;z-index:400;background:rgba(4,7,13,.76);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s}
+.ov{position:fixed;inset:0;z-index:550;overscroll-behavior:contain;touch-action:none;background:rgba(4,7,13,.76);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s}
 .ov.show{opacity:1;pointer-events:auto}
 .dlg{position:relative;width:100%;max-width:360px;background:linear-gradient(180deg,rgba(22,31,48,.96),rgba(11,16,26,.99));border:1px solid rgba(255,255,255,.12);border-radius:26px;padding:24px 20px 20px;box-shadow:0 28px 70px rgba(0,0,0,.85);text-align:center;transform:translateY(14px) scale(.96);transition:transform .24s cubic-bezier(.16,1,.3,1)}
 .ov.show .dlg{transform:none}
@@ -248,7 +248,7 @@ body:has(#login:not([hidden])){height:100dvh;overflow:hidden;overscroll-behavior
 .ach-acts{display:flex;align-items:center;gap:6px}
 .ach-clr{padding:7px 11px;font-size:12px;font-weight:700;border-radius:11px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.35);color:#fca5a5}
 .ach-x{width:34px;height:34px;border-radius:11px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#94a3b8;font-size:15px}
-.ach-list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:9px;padding:14px 14px 12px;background-image:radial-gradient(rgba(255,255,255,.03) 1px,transparent 1px);background-size:18px 18px}
+.ach-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:9px;padding:14px 14px 12px;background-image:radial-gradient(rgba(255,255,255,.03) 1px,transparent 1px);background-size:18px 18px}
 .ach-m{max-width:84%;align-self:flex-start;background:linear-gradient(180deg,rgba(30,41,59,.88),rgba(20,29,44,.95));border:1px solid rgba(255,255,255,.1);border-radius:18px 18px 18px 5px;padding:9px 12px 8px;box-shadow:0 4px 14px rgba(0,0,0,.28)}
 .ach-m.adm{align-self:flex-end;background:linear-gradient(135deg,rgba(250,204,21,.2) 0%,rgba(217,119,6,.16) 100%);border-color:rgba(250,204,21,.45);border-radius:18px 18px 5px 18px;box-shadow:0 6px 18px rgba(250,204,21,.12)}
 .ach-mt{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11.5px;font-weight:800;color:#38bdf8;margin-bottom:3px}
@@ -275,6 +275,7 @@ body:has(#login:not([hidden])){height:100dvh;overflow:hidden;overscroll-behavior
 .row:has(.rv) [data-act="pin"]{grid-column:4}
 .row:has(.rv) [data-act="block"]{grid-column:5}
 .row:has(.rv) [data-act="del"]{grid-column:6}
+body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behavior:none!important}
 </style></head><body>
 <a class="back" href="./"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>В приложение</a>
 <div id="login" class="auth-wrap"><div class="card">
@@ -321,8 +322,8 @@ body:has(#login:not([hidden])){height:100dvh;overflow:hidden;overscroll-behavior
   </div>
  </div>
 </div>
-<script src="yandex.js?v=20261118015600"></script>
-<script src="admin.js?v=20261118015600"></script>
+<script src="yandex.js?v=20261118020900"></script>
+<script src="admin.js?v=20261118020900"></script>
 <script>
 ['lgEm','lgPw'].forEach(id=>{
  const el=document.getElementById(id);
