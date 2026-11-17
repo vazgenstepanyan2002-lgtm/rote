@@ -104,49 +104,7 @@
  
  
  // ===== Живая карта водителей =====
- const LF_SOURCES = new Array(
-  {
-   css: "https://cloudflare.com",
-   js: "https://cloudflare.com"
-  },
-  {
-   css: "https://unpkg.com",
-   js: "https://unpkg.com"
-  }
- );
- const BASE_PT = { lat: 40.120847, lon: 44.514271, name: "База EuroBaza (Арин Берд 7)" };
- let _lfProm = null, _map = null, _markers = {}, _baseMk = null, _didFit = false;
-
- function loadScriptPair(srcObj){
-  return new Promise((res, rej) => {
-   const c = document.createElement("link");
-   c.rel = "stylesheet";
-   c.href = srcObj.css;
-   document.head.appendChild(c);
-
-   const s = document.createElement("script");
-   s.src = srcObj.js;
-   s.onload = () => res();
-   s.onerror = () => { c.remove(); s.remove(); rej(new Error("CDN error")); };
-   document.head.appendChild(s);
-  });
- }
-
- function ensureLeaflet(){
-  if(window.L && L.map) return Promise.resolve();
-  if(_lfProm) return _lfProm;
-  _lfProm = (async () => {
-   for(let i = 0; i < LF_SOURCES.length; i++){
-    try{
-     await loadScriptPair(LF_SOURCES.at(i));
-     if(window.L && L.map) return;
-    }catch(e){}
-   }
-   _lfProm = null;
-   throw new Error("Не удалось загрузить библиотеку карт");
-  })();
-  return _lfProm;
- }
+ const BASE_PT={lat:40.120847,lon:44.514271,name:"База EuroBaza (Арин Берд 7)"};let _lfProm=null,_map=null,_markers={},_baseMk=null,_didFit=false;function ensureLeaflet(){if(window.L&&L.map)return Promise.resolve();if(_lfProm)return _lfProm;_lfProm=new Promise((r,e)=>{const s=document.createElement("script");s.src="leaflet.min.js";s.onload=()=>r();s.onerror=()=>{_lfProm=null;e(new Error("Ошибка leaflet.min.js"))};document.head.appendChild(s)});return _lfProm}
 
  function destroyMap(){
   if(_map){ try{ _map.remove(); }catch(e){} _map = null; }
