@@ -146,7 +146,7 @@
     if(!c||!c.length)throw 0;
     return c;
   });
-  loadRoad('https://project-osrm.org').catch(()=>loadRoad('https://openstreetmap.de')).then(c=>{
+  loadRoad('https://router.project-osrm.org/route/v1/driving/').catch(()=>loadRoad('https://routing.openstreetmap.de/routed-car/route/v1/driving/')).then(c=>{
     if(tok!==_tok||_map!==map)return;
     curLines.forEach(l=>map.removeLayer(l));
     curLines=drawRoute(c.map(x=>x.slice().reverse()),false);
