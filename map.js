@@ -95,34 +95,44 @@
  function draw(cur,start,sv,tok){
   if(_map){try{_map.remove()}catch(e){}_map=null}
   const box=g('mapBox');box.innerHTML='';
-  box.style.touchAction='none';const svg=L.svg({padding:0.5});
-  const map=L.map(box,{preferCanvas:false,renderer:svg,zoomControl:true,dragging:true,touchZoom:true,doubleClickZoom:true,scrollWheelZoom:true,tap:true,inertia:true,zoomAnimation:false,markerZoomAnimation:false,rotate:true,touchRotate:true,bearing:0,rotateControl:{closeOnZeroBearing:false}});_map=map;
-  const syncLines=()=>{if(_map===map&&svg&&svg._update)try{svg._update()}catch(e){}};
-  map.on('rotate zoomend moveend viewreset',syncLines);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  box.style.touchAction='none';
+  const map=L.map(box,{preferCanvas:false,zoomControl:true,dragging:true,touchZoom:true,doubleClickZoom:true,scrollWheelZoom:true,tap:true,inertia:true,zoomAnimation:false,markerZoomAnimation:false,rotate:true,touchRotate:true,bearing:0,rotateControl:{closeOnZeroBearing:false}});_map=map;
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   const etas=document.querySelectorAll('#o ol li .eta');
   const ll=[];let bad=0;
   if(start){
-   ll.push([start.lat,start.lon]);
-   L.marker([start.lat,start.lon],{icon:icon('me','Вы'),zIndexOffset:500}).addTo(map).bindPopup('<b>Вы здесь</b><br>старт маршрута');
+    ll.push([start.lat,start.lon]);
+    L.marker([start.lat,start.lon],{icon:icon('me','Вы'),zIndexOffset:500}).addTo(map).bindPopup('<b>Вы здесь</b><br>Старт маршрута');
   }
   cur.forEach((it,k)=>{
-   const name=String(it.name),base=name.indexOf('🏁')===0,inex=name.indexOf('📍')>=0;
-   if(inex)bad++;
-   ll.push([it.lat,it.lon]);
-   const eta=etas[k]?etas[k].textContent:'';
-   let h='<b>'+esc(name)+'</b>';
-   if(eta)h+='<br>'+esc(eta);
-   if(it.sub)h+='<br>'+esc(it.sub);
-   if(inex)h+='<br><span style="color:#b45309">⚠ Неточный адрес: Яндекс нашёл только район или город</span>';
-   L.marker([it.lat,it.lon],{icon:icon(base?'base':inex?'bad':'ok',base?'🏁':String(k+1))}).addTo(map).bindPopup(h);
+    const name=String(it.name),base=name.indexOf('🏁')===0,inex=name.indexOf('📍')>=0;
+    if(inex)bad++;
+    ll.push([it.lat,it.lon]);
+    const eta=etas[k]?etas[k].textContent:'';
+    let h='<b>'+esc(name)+'</b>';
+    if(eta)h+='<br>'+esc(eta);
+    if(it.sub)h+='<br>'+esc(it.sub);
+    if(inex)h+='<br><span style="color:#b45309">⚠️ Неточный адрес: Яндекс нашёл только район или город</span>';
+    L.marker([it.lat,it.lon],{icon:icon(base?'base':inex?'bad':'ok',base?'🏁':String(k+1))}).addTo(map).bindPopup(h);
   });
+  let routePts=ll,routeDashed=true,curLines=[];
   const drawRoute=(pts,dashed)=>{
-   const glow=L.polyline(pts,{color:'#0284c7',weight:10,opacity:.32,lineCap:'round',lineJoin:'round'}).addTo(map);
-   const core=L.polyline(pts,{color:'#38bdf8',weight:4.5,opacity:.96,lineCap:'round',lineJoin:'round',dashArray:dashed?'8 8':null}).addTo(map);
-   return [glow,core];
+    routePts=pts;routeDashed=!!dashed;
+    curLines.forEach(l=>{try{map.removeLayer(l)}catch(e){}});
+    const r=L.svg({padding:0.5});
+    const glow=L.polyline(pts,{renderer:r,color:'#0284c7',weight:10,opacity:.32,lineCap:'round',lineJoin:'round'}).addTo(map);
+    const core=L.polyline(pts,{renderer:r,color:'#38bdf8',weight:4.5,opacity:.96,lineCap:'round',lineJoin:'round',dashArray:dashed?'8 8':null}).addTo(map);
+    curLines=[glow,core];
+    return curLines;
   };
-  let curLines=drawRoute(ll,true);
+  drawRoute(ll,true);
+  let _rtT=null;
+  const syncLines=()=>{
+    if(_map!==map||!routePts||!routePts.length)return;
+    clearTimeout(_rtT);
+    _rtT=setTimeout(()=>{if(_map===map)drawRoute(routePts,routeDashed)},16);
+  };
+  map.on('zoomend rotateend moveend viewreset',syncLines);
   _fit=()=>map.fitBounds(L.latLngBounds(ll),{padding:[30,30],maxZoom:16});_fit();
   setTimeout(()=>{if(_map===map){map.invalidateSize();map.fitBounds(L.latLngBounds(ll),{padding:[30,30],maxZoom:16})}},150);
 
