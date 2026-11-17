@@ -376,7 +376,7 @@
    ov.hidden = false;
    requestAnimationFrame(() => {
     ov.classList.add("show");
-    if(isInput){ inp.focus(); inp.select(); } else { ok.focus(); }
+    if(!isInput){ ok.focus(); }
    });
   });
  }
