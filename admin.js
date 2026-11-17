@@ -83,7 +83,9 @@
   return{id:id,u:u,cur:cur,hist:hist};
  }
  const accByUid=uid=>Object.keys(ACCOUNTS).map(k=>Object.assign({key:k},ACCOUNTS[k])).find(a=>a&&a.uid===uid)||null;
- const dispName=d=>LABELS[d.id]||d.u.uname||(accByUid(d.id)&&accByUid(d.id).name)||devName(d.u.ua);
+ const profName=d=>d.u.uname||(accByUid(d.id)&&accByUid(d.id).name)||"";
+ const dispName=d=>{const lb=LABELS[d.id],pr=profName(d);return lb&&pr&&lb!==pr?lb+" ("+pr+")":(lb||pr||devName(d.u.ua))};
+ const dispHtml=d=>{const lb=LABELS[d.id],pr=profName(d);return lb&&pr&&lb!==pr?esc(lb)+' <span style="font-size:12px;font-weight:500;color:#94a3b8">(в профиле: '+esc(pr)+')</span>':esc(lb||pr||devName(d.u.ua))};
  const devs=()=>Object.keys(USERS).map(k=>parseDev(k,USERS[k])).sort((a,b)=>(b.u.t||0)-(a.u.t||0));
  function aggMonths(list){
   const map={};
@@ -255,7 +257,7 @@
    const live=now-(d.u.t||0)<TTL,acc=accByUid(d.id);
    const pinTag=acc?' · 🔑 '+esc(acc.pin):'';
    return '<div class="row" data-act="rename" data-id="'+esc(d.id)+'"><span class="dot'+(live?' on':'')+'"></span>'
-    +'<div class="rm"><div class="rt">'+esc(dispName(d))+'</div>'
+    +'<div class="rm"><div class="rt">'+dispHtml(d)+'</div>'
     +'<div class="rs">'+esc(devInfo(d.u.ua)+' · '+(d.u.lang||'ru'))+pinTag+'</div>'
     +'<div class="rs">'+(live?'сейчас в приложении':'был(а) '+ago(d.u.t))+' · версия '+esc(verFmt(d.u.v))+(d.u.addr!=null?' · адресов: '+esc(d.u.addr):'')+'</div></div>'
     +'<div class="rv">'+money(d.cur.sum)+'</div>'
