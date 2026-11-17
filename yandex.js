@@ -71,7 +71,7 @@ window.add=async function(){
  const s=document.getElementById('s');
  const q=document.getElementById('a').value.trim();
  if(!q)return;
- if(_pick){addPick(_pick);return}
+ window.toast&&toast('Выбрано: '+(_pick?'да':'нет'),'ok');if(_pick){addPick(_pick);return}
  s.textContent='Ищу адрес в Яндексе...';
  const l=await yan(q);
  if(!l.length){const E=l.err,m=E==='off'?'Нет интернета. Проверьте сеть и повторите':E==='net'?'Не удалось связаться с Яндексом. Проверьте сеть':E==='limit'?'Яндекс отклонил запрос (лимит или ключ API)':E==='srv'?'Яндекс временно не отвечает. Попробуйте позже':'Адрес не найден. Попробуйте написать иначе или добавьте город';s.textContent=m;window.toast&&toast(m,'err');return}
