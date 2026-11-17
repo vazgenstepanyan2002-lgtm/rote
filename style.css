@@ -708,5 +708,5 @@ a.nav:active{transform:scale(.975);background:linear-gradient(135deg,rgba(250,20
 .inp-w:has(#a:placeholder-shown) .inp-x{opacity:0!important;pointer-events:none!important;transform:scale(.8)}
 .inp-w:has(#a:placeholder-shown) .inp-mic{right:10px!important}
 .inp-w:has(#a:placeholder-shown) #a{padding-right:44px!important}
-#clrBtn{transition:opacity .2s ease,filter .2s ease}
-body:has(#l:empty) #clrBtn{opacity:.4!important;pointer-events:none!important;filter:grayscale(.35)}
+#clrBtn,#clrRouteBtn{transition:opacity .2s ease,filter .2s ease}
+body:has(#l:empty) #clrBtn,body:has(#o:empty) #clrRouteBtn{opacity:.4!important;pointer-events:none!important;filter:grayscale(.35)}
