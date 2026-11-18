@@ -10,16 +10,43 @@ function pos(){return new Promise((ok,no)=>navigator.geolocation.getCurrentPosit
 $('a').onkeydown=ev=>{if(ev.key==='Enter')add()};
 draw();
 
+let _sr=null,_srTimer=null;
 function voice(){
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
  if(!SR){$('s').textContent='Голосовой ввод не поддерживается в этом браузере';return}
- const r=new SR(),m=$('mic');
- r.lang=window.LANG_SR||'ru-RU';r.interimResults=false;
+ const m=$('mic');
+ if(_sr){try{_sr.stop()}catch(e){}_sr=null;clearTimeout(_srTimer);m.classList.remove('rec');$('s').textContent='';return}
+ const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent);
+ let lang=window.LANG_SR||'ru-RU';
+ if(isIOS&&lang==='hy-AM')lang='ru-RU';
+ const r=new SR();_sr=r;
+ r.lang=lang;
+ r.interimResults=true;
+ r.continuous=isIOS;
+ let finalTxt='';
+ const stopRec=()=>{clearTimeout(_srTimer);if(_sr===r){_sr=null;try{r.stop()}catch(e){}}m.classList.remove('rec')};
  r.onstart=()=>{m.classList.add('rec');$('s').textContent='Говорите адрес...'};
- r.onend=()=>{m.classList.remove('rec')};
- r.onerror=()=>{m.classList.remove('rec');$('s').textContent='Не удалось распознать голос'};
- r.onresult=e=>{const t=e.results.item(0).item(0).transcript;$('a').value=t;$('s').textContent='';$('a').dispatchEvent(new Event('input'))};
- r.start();
+ r.onend=()=>{clearTimeout(_srTimer);if(_sr===r)_sr=null;m.classList.remove('rec');if($('a').value.trim())$('s').textContent=''};
+ r.onerror=ev=>{clearTimeout(_srTimer);if(_sr===r)_sr=null;m.classList.remove('rec');if(ev&&ev.error==='aborted')return;$('s').textContent='Не удалось распознать голос'};
+ r.onresult=e=>{
+  let interim='';
+  for(let i=e.resultIndex;i<e.results.length;i++){
+   const res=e.results.item(i);
+   if(res.isFinal)finalTxt+=res.item(0).transcript+' ';
+   else interim+=res.item(0).transcript;
+  }
+  const txt=(finalTxt+interim).trim();
+  if(txt){
+   $('a').value=txt;
+   $('s').textContent='';
+   $('a').dispatchEvent(new Event('input'));
+  }
+  if(isIOS){
+   clearTimeout(_srTimer);
+   _srTimer=setTimeout(stopRec,2200);
+  }
+ };
+ try{r.start()}catch(e){_sr=null;m.classList.remove('rec');$('s').textContent='Не удалось распознать голос'}
 }
 ;
 let SPEC_PTS=(()=>{try{const v=JSON.parse(localStorage.getItem('SPEC')||'null');if(Array.isArray(v))return v}catch(e){}return[{name:'Артак',lat:40.163019,lon:44.388218},{name:'Геворг Спайка',lat:40.127240,lon:44.490112}]})();
