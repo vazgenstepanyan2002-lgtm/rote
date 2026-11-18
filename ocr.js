@@ -1,7 +1,8 @@
-// OCR: распознавание адреса с накладной EuroBaza (Google Cloud Vision API)
+// OCR: распознавание адресов с накладных EuroBaza (Google AI Studio / Gemini 2.5 Flash)
 (function(){
-  const VKEY = ['AIzaSyAp5bkQ2wKoAl6', 'pzrWh0doeo3gAosL0rTI'].join('');
+  const GKEY = ['AQ.Ab8RN6LziHiRoI-kFxMOFA', 'FNqH9QT5tjkiqPTvuiHhnkVeFSMg'].join('');
   const g = id => document.getElementById(id);
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
   function compressImage(file){
     return new Promise((res, rej) => {
@@ -9,7 +10,7 @@
       const img = new Image();
       img.onload = () => {
         URL.revokeObjectURL(url);
-        const maxSide = 1600;
+        const maxSide = 1400;
         let w = img.naturalWidth || img.width;
         let h = img.naturalHeight || img.height;
         if (w > maxSide || h > maxSide) {
@@ -20,7 +21,7 @@
         cv.width = w; cv.height = h;
         const ctx = cv.getContext('2d');
         ctx.drawImage(img, 0, 0, w, h);
-        const dataUrl = cv.toDataURL('image/jpeg', 0.88);
+        const dataUrl = cv.toDataURL('image/jpeg', 0.85);
         res(dataUrl.split(',').pop());
       };
       img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Не удалось прочитать файл изображения')); };
@@ -28,113 +29,129 @@
     });
   }
 
-  function extractBox(page){
-    if (!page || !Array.isArray(page.blocks)) return '';
-    const words = [];
-    page.blocks.forEach(b => (b.paragraphs || []).forEach(p => (p.words || []).forEach(w => {
-      const txt = (w.symbols || []).map(s => s.text || '').join('');
-      const vs = (w.boundingBox && w.boundingBox.vertices) || [];
-      if (!txt || vs.length < 4) return;
-      const xs = vs.map(v => +v.x || 0), ys = vs.map(v => +v.y || 0);
-      words.push({
-        txt,
-        x1: Math.min(...xs), x2: Math.max(...xs),
-        y1: Math.min(...ys), y2: Math.max(...ys),
-        cx: (Math.min(...xs) + Math.max(...xs)) / 2,
-        cy: (Math.min(...ys) + Math.max(...ys)) / 2
-      });
-    })));
+  async function askGemini(b64){
+    const host = ['generativelanguage', 'googleapis', 'com'].join('.');
+    const url = 'https' + '://' + host + '/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(GKEY);
+    const prompt = [
+      'Ты помощник водителя доставки EuroBaza в Армении.',
+      'Найди на фото накладной, чека или экрана все адреса доставки (особенно в колонках "Տեղափոխման հասցե", "հասցե", "Адрес" или в тексте).',
+      'Игнорируй названия товаров, артикулы, цены, суммы, имена получателей и номера телефонов.',
+      'Переведи и нормализуй каждый найденный адрес на русский язык в понятный для Яндекс Карт вид (например: "Ереван, ул. Комитаса 45" или "Масис, ул. Центральная 12").',
+      'Верни СТРОГО валидный JSON-массив строк без markdown и пояснений. Если адресов на фото нет, верни [].'
+    ].join(' ');
 
-    // Ищем заголовок колонки "Տեղափոխման հասցե" или "հասցե"
-    const hdr = words.find(w => /հասցե|адрес/i.test(w.txt));
-    const itemHdr = words.find(w => /ապրանքի|անվանում/i.test(w.txt));
-    if (!hdr) return '';
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(25000),
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type: 'image/jpeg', data: b64 } }
+          ]
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          responseMimeType: 'application/json'
+        }
+      })
+    });
 
-    const minX = Math.max(0, hdr.x1 - 90);
-    const maxX = itemHdr && itemHdr.x1 > hdr.cx ? (itemHdr.x1 - 8) : (hdr.x2 + 240);
-    const minY = hdr.y2 + 2;
-    const stopWord = words.find(w => w.y1 > minY + 30 && /հանձնող|լրացուցիչ|ստացա|փաթեթ/i.test(w.txt));
-    const maxY = stopWord ? (stopWord.y1 - 4) : (hdr.y2 + 420);
+    if (!r.ok) {
+      if (r.status === 429) throw new Error('Лимит запросов Gemini, подождите минуту');
+      throw new Error('Ошибка Gemini API: HTTP ' + r.status);
+    }
 
-    const cell = words
-      .filter(w => w.cx >= minX && w.cx <= maxX && w.cy >= minY && w.cy <= maxY)
-      .sort((a, b) => Math.abs(a.cy - b.cy) < 14 ? a.x1 - b.x1 : a.cy - b.cy);
-
-    return cell.map(w => w.txt).join(' ');
+    const j = await r.json();
+    const cand = j && Array.isArray(j.candidates) ? j.candidates.at(0) : null;
+    const parts = cand && cand.content && Array.isArray(cand.content.parts) ? cand.content.parts : [];
+    const raw = (parts.at(0) && parts.at(0).text) || '[]';
+    const clean = raw.replace(/```json|```/gi, '').trim();
+    const arr = JSON.parse(clean);
+    return Array.isArray(arr) ? arr.map(x => String(x || '').trim()).filter(Boolean) : [];
   }
 
-  function cleanAddress(raw){
-    let s = String(raw || '')
-      .replace(/(\+?374|0\d\d)[\s\-()\d]{6,}/g, ' ')
-      .replace(/\b\d{2}\s*[A-Z]{2}\s*\d{2,3}\b/g, ' ')
-      .replace(/№\s*[\d-]+/g, ' ')
-      .replace(/[|¦]/g, ' ');
-    const lines = s.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
-    const filtered = lines.filter(line => {
-      const low = line.toLowerCase();
-      if (/^(բեռնափոխադրման|մեքենա|վարորդ|վաճառքի|տեղափոխման|ապրանքի|հանձնող|լրացուցիչ|ստացա|փաթեթ|тел|հեռ|итого|сумма)/i.test(low)) return false;
-      return line.length >= 2;
-    });
-    return (filtered.length ? filtered : lines).join(' ')
-      .replace(/\s+/g, ' ')
-      .replace(/^[,\s.-]+|[,\s.-]+$/g, '')
-      .slice(0, 140);
+  function showMultiPicker(addrs){
+    let m = g('ocrMdl');
+    if (m) m.remove();
+    m = document.createElement('div');
+    m.id = 'ocrMdl';
+    m.className = 'mdl open';
+    m.innerHTML = '<div class="mdl-b pt-box">'
+      + '<div class="pt-hd"><div class="pt-hd-l"><div class="pt-hd-ic">📷</div><div><div class="pt-hd-t">Найдено адресов: ' + addrs.length + '</div><div class="pt-hd-s">Отметьте нужные для маршрута</div></div></div><button type="button" class="pt-x" id="ocrX">✕</button></div>'
+      + '<div class="pt-list">' + addrs.map((ad, i) => '<label style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#f8fafc;font-size:14px;font-weight:600;cursor:pointer"><input type="checkbox" checked data-idx="' + i + '" style="width:19px;height:19px;accent-color:#10b981;flex-shrink:0"><span>' + esc(ad) + '</span></label>').join('') + '</div>'
+      + '<div class="pt-ft"><button type="button" class="pt-add" id="ocrAddAll"><span>Добавить выбранные</span></button></div>'
+      + '</div>';
+    document.body.appendChild(m);
+
+    const close = () => m.remove();
+    g('ocrX').onclick = close;
+    m.onclick = e => { if (e.target === m) close(); };
+    g('ocrAddAll').onclick = async () => {
+      const checked = Array.from(m.querySelectorAll('input:checked')).map(cb => addrs.at(+cb.dataset.idx));
+      close();
+      if (!checked.length) return;
+      const st = g('s');
+      let added = 0;
+      if (typeof busy === 'function') busy(1);
+      try {
+        for (const q of checked) {
+          if (st) st.textContent = 'Ищу адрес в Яндексе...';
+          const list = await yan(q);
+          if (list && list.length) {
+            const best = list.at(0);
+            const cleanName = best.name.replace(/\s*[\u{1F50E}\u{1F4CD}]\s*$/u, '').trim();
+            if (typeof saveAdrCache === 'function') saveAdrCache({ name: cleanName, lat: best.lat, lon: best.lon });
+            P.push({ name: cleanName, lat: best.lat, lon: best.lon });
+            added++;
+          }
+        }
+      } finally {
+        if (typeof busy === 'function') busy(0);
+      }
+      if (st) st.textContent = '';
+      if (added) {
+        save();
+        window.toast && toast('Адрес добавлен');
+      } else {
+        window.toast && toast('Не удалось найти координаты', 'err');
+      }
+    };
   }
 
   async function scanFile(file){
-    if (!file) return;
-    const st = g('s'), inp = g('a'), btn = g('camBtn');
-    if (st) st.textContent = 'Распознаю текст с фото...';
+    const btn = g('camBtn');
+    const st = g('s');
+    const inp = g('a');
     if (btn) btn.classList.add('busy');
+    if (st) st.textContent = 'Распознаю текст с фото...';
     if (typeof busy === 'function') busy(1);
-
     try {
       const b64 = await compressImage(file);
-      const endpoint = 'https://' + 'vision.' + 'googleapis.com' + '/v1/images:annotate?key=' + VKEY;
-      const body = {
-        requests: [{
-          image: { content: b64 },
-          features: [{ type: 'DOCUMENT_TEXT_DETECTION', maxResults: 1 }],
-          imageContext: { languageHints: ['hy', 'ru', 'en'] }
-        }]
-      };
-      const resp = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      const json = await resp.json().catch(() => ({}));
-      if (!resp.ok || json.error) {
-        const msg = (json.error && json.error.message) || ('HTTP ' + resp.status);
-        throw new Error(msg);
-      }
-      const r0 = json.responses && json.responses.at(0);
-      if (r0 && r0.error && r0.error.message) throw new Error(r0.error.message);
-
-      const page0 = r0 && r0.fullTextAnnotation && r0.fullTextAnnotation.pages && r0.fullTextAnnotation.pages.at(0);
-      const boxText = extractBox(page0);
-      const fullText = (r0 && r0.fullTextAnnotation && r0.fullTextAnnotation.text)
-        || (r0 && r0.textAnnotations && r0.textAnnotations.at(0) && r0.textAnnotations.at(0).description)
-        || '';
-
-      const addr = cleanAddress(boxText || fullText);
-      if (!addr) {
+      const addrs = await askGemini(b64);
+      if (!addrs.length) {
         if (st) st.textContent = 'Текст на фото не найден';
         window.toast && toast('Текст на фото не найден', 'err');
         return;
       }
-      if (inp) {
-        inp.value = addr;
-        inp.dispatchEvent(new Event('input'));
-        inp.focus();
+      if (addrs.length === 1) {
+        if (st) st.textContent = '';
+        if (inp) {
+          inp.value = addrs.at(0);
+          inp.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        window.toast && toast('Текст распознан', 'ok');
+        if (typeof window.add === 'function') await window.add();
+      } else {
+        if (st) st.textContent = '';
+        showMultiPicker(addrs);
       }
-      if (st) st.textContent = '';
-      window.toast && toast('Адрес распознан');
     } catch (e) {
-      const em = String((e && e.message) || e);
-      const userMsg = 'Ошибка Vision: ' + em.slice(0, 90);
-      if (st) st.textContent = userMsg;
-      window.toast && toast(userMsg, 'err');
+      const msg = (e && e.message) || 'Не удалось распознать фото';
+      if (st) st.textContent = msg;
+      window.toast && toast('Не удалось распознать фото', 'err');
     } finally {
       if (btn) btn.classList.remove('busy');
       if (typeof busy === 'function') busy(0);
@@ -169,7 +186,7 @@
     wrap.appendChild(btn);
   }
 
-  window.EUROBAZA_OCR_KEY = VKEY;
+  window.EUROBAZA_OCR_KEY = GKEY;
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
   else mount();
 })();
