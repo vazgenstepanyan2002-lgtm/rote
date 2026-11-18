@@ -177,13 +177,24 @@ function setDep(v){if(v)localStorage.setItem('DEP',v);else{localStorage.removeIt
 function updEta(){return;const c=window.CUR;if(!c)return;const i=$('dep');if(i&&document.activeElement!==i)i.value=localStorage.getItem('DEP')||'';const els=document.querySelectorAll('#o ol li .eta');const ok=c.every(x=>typeof x.st==='number');let t=etaBase()-600000;c.forEach((it,k)=>{t+=(it.st||0)*1000;if(els[k])els[k].textContent=ok?'🕒 '+hm(t):''})}
 function fmtT(s){const m=Math.round(s/60);return m<60?m+' мин':Math.floor(m/60)+' ч '+(m%60)+' мин'}
 function buildNav(arr){const to=arr.at(-1),via=arr.slice(0,-1);let u='yandexnavi://build_route_on_map?lat_to='+to.lat+'&lon_to='+to.lon;via.forEach((p,i)=>u+='&lat_via_'+i+'='+p.lat+'&lon_via_'+i+'='+p.lon);return u}
+// Точный внутренний периметр Покр Кентрона (строго внутри кольца Московян-Корюна-Ханджяна-Гр.Лусаворича-Сарьяна)
 const KENTRON_POLY=[
-  [40.1938,44.5042],[40.1912,44.5165],[40.1916,44.5258],[40.1842,44.5295],
-  [40.1748,44.5245],[40.1688,44.5172],[40.1715,44.5055],[40.1785,44.5015],[40.1865,44.5018]
+  [40.1881,44.5094], // внутри угла Московян / Баграмяна
+  [40.1891,44.5152], // внутри угла Московян / Исаакяна
+  [40.1877,44.5221], // внутри угла Корюна / Налбандяна
+  [40.1826,44.5238], // внутри угла Ханджяна / Саят-Нова
+  [40.1759,44.5202], // внутри угла Ханджяна / Тиграна Меца
+  [40.1731,44.5155], // внутри угла Гр. Лусаворича / Агатангехоса
+  [40.1748,44.5081], // внутри угла Гр. Лусаворича / Маштоца
+  [40.1795,44.5061], // внутри угла Сарьяна / Амиряна
+  [40.1846,44.5068]  // внутри угла Сарьяна / Пушкина
 ];
+// Разрешённые точки объезда по внешнему кольцу (без заезда под камеры)
 const KENTRON_BYPASS=[
-  {name:"🔄 Объезд Кентрона (Сараланджи)",lat:40.1955,lon:44.5235},
-  {name:"🔄 Объезд Кентрона (Мост Победы / Атенки)",lat:40.1695,lon:44.4985}
+  {name:"🔄 Объезд по ул. Ханджяна / Саят-Нова",lat:40.1829,lon:44.5253},
+  {name:"🔄 Объезд по ул. Сарьяна / Пароняна",lat:40.1794,lon:44.5046},
+  {name:"🔄 Объезд по ул. Гр. Лусаворича (Цирк)",lat:40.1719,lon:44.5155},
+  {name:"🔄 Объезд по ул. Московян / Корюна",lat:40.1899,lon:44.5155}
 ];
 function inKentron(lat,lon){
   let ins=false;
@@ -196,12 +207,13 @@ function inKentron(lat,lon){
 function segCrossesKentron(a,b){
   if(!a||!b)return false;
   if(inKentron(a.lat,a.lon)||inKentron(b.lat,b.lon))return true;
-  for(let k=1;k<=9;k++){const t=k/10;if(inKentron(a.lat+(b.lat-a.lat)*t,a.lon+(b.lon-a.lon)*t))return true;}
+  for(let k=1;k<=11;k++){const t=k/12;if(inKentron(a.lat+(b.lat-a.lat)*t,a.lon+(b.lon-a.lon)*t))return true;}
   return false;
 }
 function pickBypass(a,b){
   let best=KENTRON_BYPASS[0],bestD=Infinity;
   for(const bp of KENTRON_BYPASS){
+    if(segCrossesKentron(a,bp)||segCrossesKentron(bp,b))continue;
     const d=Math.hypot((a.lat-bp.lat)*111,(a.lon-bp.lon)*85)+Math.hypot((bp.lat-b.lat)*111,(bp.lon-b.lon)*85);
     if(d<bestD){bestD=d;best=bp;}
   }
@@ -214,7 +226,7 @@ function setShift(mode){
   const dBtn=$("shDay"),nBtn=$("shNight");
   if(dBtn)dBtn.classList.toggle("on",m==="day");
   if(nBtn)nBtn.classList.toggle("on",m==="night");
-  window.toast&&toast(m==="day"?"☀️ Дневная смена: объезд Кентрона до 21:00":"🌙 Ночная смена: въезд в Кентрон разрешён");
+  window.toast&&toast(m==="day"?"☀️ Дневная смена: объезд Покр Кентрона до 21:00":"🌙 Ночная смена: въезд в Покр Кентрон разрешён");
 }
 setShift(getShift());
 async function go(){
@@ -226,11 +238,11 @@ async function go(){
   if(isDay){blocked=activeP.filter(p=>inKentron(p.lat,p.lon));activeP=activeP.filter(p=>!inKentron(p.lat,p.lon));}
   if(!activeP.length){
     $("s").textContent="";
-    $("o").innerHTML='<div class="k-warn">⛔ Все адреса находятся в Кентроне. До 21:00 въезд запрещён. Выберите «Ночная смена» или добавьте адреса вне центра.</div>';
-    window.toast&&toast("Въезд в Кентрон днём запрещён","err");return;
+    $("o").innerHTML='<div class="k-warn">⛔ Все адреса находятся в Покр Кентроне (камеры до 21:00). Выберите «Ночная смена» или добавьте адреса вне Малого центра.</div>';
+    window.toast&&toast("Въезд в Покр Кентрон днём запрещён","err");return;
   }
   const pts=back?[me,...activeP,BASE]:[me,...activeP],bIdx=back?pts.length-1:0;
-  $("s").textContent=isDay?"Считаю маршрут в объезд Кентрона...":"Считаю лучший порядок...";
+  $("s").textContent=isDay?"Считаю маршрут в объезд Покр Кентрона...":"Считаю лучший порядок...";
   let D,approx=false;
   try{
     const r=await fT("https://project-osrm.org"+pts.map(p=>p.lon+","+p.lat).join(";")+"?annotations=duration");
@@ -264,7 +276,7 @@ async function go(){
   renderOut(curOrder,pts[0],totT,totD,approx);
   if(blocked.length){
     const w=document.createElement("div");w.className="k-warn";
-    w.textContent="⛔ Исключены адреса в Кентроне (до 21:00 запрещено): "+blocked.map(x=>x.name).join("; ");
+    w.textContent="⛔ Исключены адреса в Покр Кентроне (камеры до 21:00): "+blocked.map(x=>x.name).join("; ");
     $("o").prepend(w);
   }
   window.toast&&toast(approx?"Маршрут построен (время приблизительно)":"Маршрут построен",approx?"err":"ok");
