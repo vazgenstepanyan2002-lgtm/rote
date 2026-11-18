@@ -152,7 +152,7 @@
      const cls=z.l==='Район'?'reg':(z.l?'city':'one');
      return '<div class="sum-r" data-zone="'+esc(z.l||'Шт')+'"><span class="tg '+cls+'">'+esc(z.l||'Шт')+'</span><span class="sum-f"><b>'+fm(z.n)+'</b> × '+fm(z.p)+' '+CUR+'</span><b class="sum-v">'+money(z.v)+'</b></div>';
     }).join('')+'</div>').join('');
-   return '<div class="sum-cat open"><div class="sum-cat-h" data-atog="1"><div class="sum-cat-l"><span class="sum-chv">▾</span><div><div class="sum-cat-n">'+esc(nm(c.name))+'</div><div class="sum-cat-s">'+fm(cq)+' шт · '+pct+'% от суммы</div></div></div><div class="sum-cat-r">'+money(c.sum)+'</div></div><div class="sum-cat-b">'+body+'</div></div>';
+   return '<div class="sum-cat"><div class="sum-cat-h" data-atog="1"><div class="sum-cat-l"><span class="sum-chv">▸</span><div><div class="sum-cat-n">'+esc(nm(c.name))+'</div><div class="sum-cat-s">'+fm(cq)+' шт · '+pct+'% от суммы</div></div></div><div class="sum-cat-r">'+money(c.sum)+'</div></div><div class="sum-cat-b">'+body+'</div></div>';
   }).join('')+'</div>';
   return h;
  }
@@ -350,6 +350,62 @@
    }).join('');
   }else{
    const d=parseDev(SEL,USERS[SEL]);
+   const curRows=(d.cur.cats||[]).map(c=>({name:c.n,sum:+c.s||0,items:[{name:c.n,parts:[{l:'',n:+c.q||0,p:c.q?Math.round((+c.s||0)/(+c.q||1)):0,v:+c.s||0}]}]}));
+   const subKey=OPEN['sub|'+SEL];
+   if(subKey){
+    const isCur=subKey==='cur';
+    const rec=isCur?null:d.hist[subKey];
+    const rows=isCur?curRows:(rec&&rec.rows)||[];
+    const title=isCur?'Текущий месяц':monthName((rec&&rec.m)||subKey);
+    const sub=isCur?'не сохранён':('сохранено '+ago(rec&&rec.t));
+    const totS=isCur?(+d.cur.sum||0):(+rec.sum||0);
+    const totQ=isCur?(+d.cur.qty||0):(+rec.qty||0);
+    h+='<button type="button" class="adm-back" data-act="subback">← Все итоги</button>'
+     +'<div class="sum-dash"><div class="sum-top"><div><div class="sum-lbl">'+esc(title)+' · '+esc(sub)+'</div><div class="sum-val">'+fm(totS)+' <span>'+CUR+'</span></div></div>'
+     +'<div class="sum-kpis"><div class="sum-kpi"><b>'+fm(totQ)+'</b><span>штук</span></div><div class="sum-kpi"><b>'+rows.length+'</b><span>катег.</span></div></div></div></div>'
+     +detail(rows);
+   }else{
+    h+='<div class="sum-dash sum-dash-btn" data-act="subopen" data-sub="cur"><div class="sum-top"><div><div class="sum-lbl">Текущий месяц · открыть ›</div><div class="sum-val">'+fm(d.cur.sum)+' <span>'+CUR+'</span></div></div><div class="sum-kpis"><div class="sum-kpi"><b>'+fm(d.cur.qty)+'</b><span>штук</span></div></div></div></div>';
+    h+='<div class="sec">Сохранённые итоги</div>';
+    const ks=Object.keys(d.hist).filter(k=>d.hist[k]).sort((a,b)=>{const x=d.hist[a],y=d.hist[b];return (y.m||'')<(x.m||'')?-1:(y.m||'')>(x.m||'')?1:(y.t||0)-(x.t||0)});
+    if(!ks.length)h+='<div class="mut box">У этого устройства нет сохранённых итогов.</div>';
+    h+=ks.map(k=>{
+     const x=d.hist[k];
+     return '<div class="mr" style="cursor:pointer" data-act="subopen" data-sub="'+esc(k)+'"><div class="rm"><div class="rt">'+esc(monthName(x.m))+'</div><div class="rs">'+fm(x.qty)+' шт · сохранено '+esc(ago(x.t))+'</div></div><div class="rv">'+money(x.sum)+'</div><span class="ar">›</span></div>';
+    }).join('');
+   }
+  }
+  g('view').innerHTML=h;
+ }
+ function drawTotals(){
+  const L=devs();
+  if(SEL!=='all'&&!USERS[SEL])SEL='all';
+  const curSelObj=SEL==='all'?null:L.find(x=>x.id===SEL);
+  const curSelLabel=curSelObj?dispName(curSelObj):'Все устройства';
+  let h='<button type="button" class="sel-btn" data-act="opensel"><span class="sel-btn-l"><span class="sel-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span><span class="sel-btn-t">'+esc(curSelLabel)+'</span></span><svg class="sel-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>';
+  if(SEL==='all'){
+   const curList=L.map(d=>({id:d.id,name:dispName(d),sum:+d.cur.sum||0,qty:+d.cur.qty||0})).filter(x=>x.qty>0||x.sum>0).sort((a,b)=>b.sum-a.sum);
+   const sum=curList.reduce((a,x)=>a+x.sum,0),qty=curList.reduce((a,x)=>a+x.qty,0);
+   h+='<div class="hero"><span>Текущий месяц (не сохранён)</span><b>'+money(sum)+'</b><span>'+fm(qty)+' шт · водителей: '+curList.length+'</span>'
+    +(curList.length?'<button type="button" class="cp-btn" data-act="cpcur">📄 Скопировать текущую ведомость</button>':'')+'</div>';
+   if(curList.length){
+    h+='<div class="sec">По водителям (текущий месяц)</div>';
+    h+=curList.map(x=>'<div class="st-row" data-act="pickdev" data-id="'+esc(x.id)+'"><div><div class="st-nm">'+esc(x.name)+'</div><div class="st-qt">'+fm(x.qty)+' шт</div></div><div class="st-sm">'+money(x.sum)+' ›</div></div>').join('');
+   }
+   const ms=aggMonths(L);
+   h+='<div class="sec">Сохранённые итоги по месяцам</div>';
+   if(!ms.length)h+='<div class="mut box">Сохранённых итогов пока нет.</div>';
+   h+=ms.map(x=>{
+    const key='all|'+x.m,op=!!OPEN[key];
+    return '<div class="mr col" data-act="month" data-key="'+esc(key)+'"><div class="mrt"><div class="rm"><div class="rt">'+esc(monthName(x.m))+'</div><div class="rs">'+fm(x.qty)+' шт · водителей: '+x.devs.length+'</div></div><div class="rv">'+money(x.sum)+'</div><span class="ar">'+(op?'▾':'▸')+'</span></div>'
+     +(op?'<div class="dt">'
+      +x.devs.map(dv=>'<div class="st-row" data-act="pickdev" data-id="'+esc(dv.id)+'"><div><div class="st-nm">'+esc(dv.name)+'</div><div class="st-qt">'+fm(dv.qty)+' шт</div></div><div class="st-sm">'+money(dv.sum)+' ›</div></div>').join('')
+      +'<button type="button" class="cp-btn" data-act="cpmonth" data-m="'+esc(x.m)+'">📄 Скопировать ведомость за '+esc(monthName(x.m))+'</button>'
+      +'</div>':'')
+     +'</div>';
+   }).join('');
+  }else{
+   const d=parseDev(SEL,USERS[SEL]);
    h+='<div class="hero"><span>Текущий месяц (не сохранён)</span><b>'+money(d.cur.sum)+'</b><span>'+fm(d.cur.qty)+' шт</span></div>';
    if((d.cur.cats||[]).length)h+=d.cur.cats.map(c=>'<div class="mr"><div class="rm"><div class="rt">'+esc(nm(c.n))+'</div><div class="rs">'+fm(c.q)+' шт</div></div><div class="rv">'+money(c.s)+'</div></div>').join('');
    h+='<div class="sec">Сохранённые итоги</div>';
@@ -501,7 +557,9 @@
   else if(a==='block'){e.stopPropagation();const id=b.dataset.id,k=b.dataset.key,isBlk=b.dataset.blk==='1',du=USERS[id]||{};const who=dispName(parseDev(id,du));const ok=await ask(isBlk?'Разблокировать водителя и телефон «'+who+'»?':'Заблокировать водителя и этот телефон («'+who+'»)? Он сразу выйдет и не сможет войти даже под новым именем.',{title:isBlk?'Разблокировка':'Блокировка',okText:isBlk?'Разблокировать':'Заблокировать',danger:!isBlk});if(!ok)return;try{const nv=isBlk?null:true;await db.ref('users/'+id+'/blocked').set(nv);if(k)await db.ref('accounts/'+k+'/blocked').set(nv);if(du.devId)await db.ref('accounts/__dev_'+du.devId).set(isBlk?null:{blocked:true});if(!isBlk)await db.ref('online/'+id).remove();toast(isBlk?'Разблокировано':'Заблокировано')}catch(err){toast('Ошибка сохранения',true)}}
   else if(a==='pin'){e.stopPropagation();const k=b.dataset.key,cur=ACCOUNTS[k]&&ACCOUNTS[k].pin||'';const np=await askInput('Смена ПИН-кода','Введите новый 4-значный код для водителя',cur,'Например: 1234');if(np===null)return;const clean=np.replace(/\D/g,'');if(clean.length!==4){toast('Нужно ровно 4 цифры',true);return}try{await db.ref('accounts/'+k+'/pin').set(clean);toast('ПИН-код обновлён')}catch(err){toast('Ошибка сохранения',true)}}
   else if(a==='month'){OPEN[b.dataset.key]=!OPEN[b.dataset.key];draw()}
-  else if(a==='pickdev'){e.stopPropagation();SEL=b.dataset.id;draw()}
+  else if(a==='subopen'){OPEN['sub|'+SEL]=b.dataset.sub;draw()}
+  else if(a==='subback'){delete OPEN['sub|'+SEL];draw()}
+  else if(a==='pickdev'){e.stopPropagation();delete OPEN['sub|'+b.dataset.id];SEL=b.dataset.id;draw()}
   else if(a==='opensel'){e.stopPropagation();openSelectModal()}
   else if(a==='cpcur'){e.stopPropagation();const curList=devs().map(d=>({name:dispName(d),sum:+d.cur.sum||0,qty:+d.cur.qty||0})).filter(x=>x.qty>0||x.sum>0).sort((a,b)=>b.sum-a.sum);copyReport('Текущий месяц',curList,curList.reduce((a,x)=>a+x.qty,0),curList.reduce((a,x)=>a+x.sum,0))}
   else if(a==='cpmonth'){e.stopPropagation();const mObj=aggMonths(devs()).find(x=>x.m===b.dataset.m);if(mObj)copyReport(monthName(mObj.m),mObj.devs,mObj.qty,mObj.sum)}
