@@ -89,17 +89,12 @@
   }
 
   async function resolveBestYandex(item){
-    const cleanQ = t => String(t || '')
-      .replace(/\s*[\u{1F4CD}\u{1F50E}]\s*$/gu, '')
-      .replace(/(\d+(?:\/\d+)?)\s*(?:շենք|շ\.?|տուն|տ\.?|դ\.?)(?=\s|,|$)/giu, '$1')
-      .replace(/[,\s]+(?:\d+\s*)?(?:բն\.?|բնակարան|մուտք|հարկ|հ\.?|կվ\.?|кв\.?|подъезд|этаж).*$/iu, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-
+    const cleanQ = t => String(t || "").replace(/\s*[\u{1F4CD}\u{1F50E}]\s*$/gu, "").replace(/(\d+(?:\/\d+)?)\s*(?:շենք|շ\.?|տուն|տ\.?|դ\.?)(?=\s|,|$)/giu, "$1").replace(/,\s*(?:\d+\s*)?(?:բն\.?|բնակարան|մուտք|հարկ|կվ\.?|кв\.?|подъезд|этаж).*$/iu, "").replace(/\s+/g, " ").trim();
     const origClean = cleanQ(item.orig);
     const ruClean = cleanQ(item.ru);
-    const queries = Array.from(new Set([ruClean, origClean].filter(Boolean)));
-
+    const shortRu = ruClean.replace(/^[^,]+область,\s*/i, "").trim();
+    const shortOrig = origClean.replace(/^[^,]+մարզ,\s*/i, "").trim();
+    const queries = Array.from(new Set([shortRu, ruClean, shortOrig, origClean].filter(Boolean)));
     const hm = (ruClean + ' ' + origClean).match(/(?:^|[,\s])(\d+(?:\/\d+)?)(?=\s|,|$)/);
     const houseNum = hm ? hm.at(1).toLowerCase() : '';
     const hasSlash = houseNum.includes('/');
