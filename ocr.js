@@ -44,7 +44,7 @@
 
   async function askGemini(b64){
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
-    const prompt = 'Извлеки все адреса доставки в Армении с фото накладной (колонка Տեղափոխման հասցե / հասցե / Адрес). В армянском адресе «շ.» / «շենք» / «տ.» / «տուն» / «դ.» — это НОМЕР ДОМА (его ОБЯЗАТЕЛЬНО сохранить, например «38 շ.» -> дом «38»), а «բն.» / «բնակարան» / «մուտք» / «հարկ» / «кв.» — это квартира, подъезд и этаж (их ОБЯЗАТЕЛЬНО удалить, например «Ռոստովյան փ. 38 շ., բն. 1հ» -> orig: «Երևան, Ռոստովյան 38», ru: «Ереван, улица Ростовян, 38»). Удали также имена, товары, цены и телефоны. Если город не указан для ереванской улицы — добавь Ереван. Верни строго JSON-массив [{"orig":"оригинал без квартиры","ru":"Город, улица, дом"}] или [].';
+    const prompt = 'Извлеки все адреса доставки в Армении с фото накладной (колонка Տեղափոխման հասցե / հասցե / Адрес). В армянском адресе «շ.» / «շենք» / «տ.» / «տուն» / «դ.» — это НОМЕР ДОМА (его ОБЯЗАТЕЛЬНО сохранить, например «36 շ.» -> дом «36»), а «բն.» / «բնակարան» / «մուտք» / «հարկ» / «кв.» — это квартира и этаж (их ОБЯЗАТЕЛЬНО полностью удалить и НИКОГДА не писать через дробь! Например «Ռոստովյան փ. 36 շ., բն. 1հ» -> orig: «Երևան, Ռոստովյան 36», ru: «Ереван, улица Ростовян, 36»). Удали имена, товары, цены и телефоны. Если город не указан для ереванской улицы — добавь Ереван. Верни строго JSON-массив [{"orig":"оригинал без квартиры","ru":"Город, улица, дом"}] или [].';
     const bodyStr = JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mime_type: 'image/jpeg', data: b64 } }] }],
       generationConfig: { temperature: 0, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } }
@@ -66,29 +66,45 @@
   }
 
   async function resolveBestYandex(item){
-    const cleanQ = t => String(t || '').replace(/\s*[\u{1F4CD}\u{1F50E}]\s*$/gu, '').trim();
-    const queries = Array.from(new Set([item.orig, item.ru].map(cleanQ).filter(Boolean)));
-    const houseMatch = (item.ru + ' ' + item.orig).match(/(?:^|[,\s])(\d+[ա-ֆа-яa-z0-9\/-]*)/i);
-    const houseNum = houseMatch ? houseMatch[1].toLowerCase() : '';
-    const hasHouse = txt => !houseNum || new RegExp('(^|[^0-9])' + houseNum.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^0-9]|$)', 'i').test(String(txt || ''));
+    const cleanQ = t => String(t || '')
+      .replace(/\s*[\u{1F4CD}\u{1F50E}]\s*$/gu, '')
+      .replace(/[,\s]+(?:բն\.?|բնակարան|մուտք|հարկ|կվ\.?|кв\.?|подъезд|этаж).*$/iu, '')
+      .trim();
+    const origClean = cleanQ(item.orig);
+    const ruClean = cleanQ(item.ru);
+    const queries = Array.from(new Set([ruClean, origClean].filter(Boolean)));
+
+    const hm = (ruClean + ' ' + origClean).match(/(?:^|[,\s])(\d+[ա-ֆа-яa-z0-9\/-]*)/i);
+    const houseNum = hm ? hm[1].toLowerCase() : '';
+    const escRe = v => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const exactHouse = txt => !houseNum || new RegExp('(^|[^0-9\/])' + escRe(houseNum) + '([^0-9\/]|$)', 'i').test(String(txt || ''));
+    const baseHouse = txt => !houseNum || new RegExp('(^|[^0-9])' + escRe(houseNum.split('/')[0]) + '([^0-9]|$)', 'i').test(String(txt || ''));
+
     let fallbackHit = null, fallbackList = [];
 
-    // 1. Ищем через Яндекс Саджест -> затем координаты через Яндекс Геокодер с проверкой номера дома
+    // 1. Поиск через Яндекс Саджест -> координаты через Яндекс Геокодер
     if (typeof sugList === 'function') {
       for (const q of queries) {
         const sugs = await sugList(q);
-        const orderedSugs = (sugs || []).slice().sort((a, b) => (hasHouse(b.text || b.name) ? 1 : 0) - (hasHouse(a.text || a.name) ? 1 : 0));
+        const orderedSugs = (sugs || []).slice().sort((a, b) => {
+          const sa = exactHouse(a.text || a.name) ? 2 : (baseHouse(a.text || a.name) ? 1 : 0);
+          const sb = exactHouse(b.text || b.name) ? 2 : (baseHouse(b.text || b.name) ? 1 : 0);
+          return sb - sa;
+        });
         for (const sg of orderedSugs.slice(0, 4)) {
           const sugTitle = cleanQ(sg.name || sg.text);
           const sq = cleanQ(sg.text || sg.name);
           if (!sq) continue;
           const list = await yan(sq);
           if (list && list.length) {
-            const matched = list.find(x => x.exact && hasHouse(x.name)) || list.find(x => hasHouse(x.name));
+            const matched = list.find(x => x.exact && exactHouse(x.name))
+              || list.find(x => exactHouse(x.name))
+              || list.find(x => x.exact && baseHouse(x.name))
+              || list.find(x => baseHouse(x.name));
             const picked = matched || list.find(x => x.exact) || list.at(0);
-            const finalName = sugTitle && hasHouse(sugTitle) ? sugTitle : cleanQ(picked.name);
+            const finalName = sugTitle && exactHouse(sugTitle) ? sugTitle : cleanQ(picked.name);
             const candidate = { name: finalName, lat: picked.lat, lon: picked.lon, exact: picked.exact };
-            if (matched && hasHouse(finalName)) {
+            if (matched && exactHouse(finalName)) {
               return { hit: candidate, list: list };
             }
             if (!fallbackHit) { fallbackHit = candidate; fallbackList = list; }
@@ -97,13 +113,16 @@
       }
     }
 
-    // 2. Резерв: прямой поиск через Яндекс Геокодер
+    // 2. Резервный поиск напрямую через Яндекс Геокодер
     for (const q of queries) {
       const list = await yan(q);
       if (list && list.length) {
-        const exactHit = list.find(x => x.exact && hasHouse(x.name)) || list.find(x => x.exact);
-        if (exactHit && hasHouse(exactHit.name)) return { hit: exactHit, list: list };
-        if (!fallbackHit) { fallbackHit = exactHit || list.at(0); fallbackList = list; }
+        const hit = list.find(x => x.exact && exactHouse(x.name))
+          || list.find(x => exactHouse(x.name))
+          || list.find(x => x.exact && baseHouse(x.name))
+          || list.find(x => x.exact);
+        if (hit && exactHouse(hit.name)) return { hit: hit, list: list };
+        if (!fallbackHit) { fallbackHit = hit || list.at(0); fallbackList = list; }
       }
     }
     return { hit: fallbackHit, list: fallbackList };
