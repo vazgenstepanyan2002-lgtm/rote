@@ -116,7 +116,9 @@
  function updCarBadge(){
   const sub = document.querySelector("#bnMdl .bn-hd-s");
   if (!sub) return;
-  if (CAR_CODE) {
+  if (CAR_CODE === "ADMIN") {
+   sub.textContent = "Расчёт по категориям мебели";
+  } else if (CAR_CODE) {
    sub.innerHTML = '<span style="display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:99px;background:rgba(16,185,129,.18);border:1px solid rgba(52,211,153,.4);color:#6ee7b7;font-weight:700;font-size:11.5px">🚚 Экипаж ' + esc(CAR_CODE) + '</span>';
   } else {
    sub.innerHTML = '<span style="color:#fbbf24;font-weight:600">⚠️ Машина не назначена администратором</span>';
@@ -251,7 +253,7 @@
 
  async function resetQty(){
   if(!CAR_CODE){tst('Машина не назначена администратором','err');return}
-  if(!await askC('Обнулить все количества экипажа '+CAR_CODE+'?','Обнулить','🔄'))return;
+  if(!await askC(CAR_CODE==='ADMIN'?'Обнулить все количества?':'Обнулить все количества экипажа '+CAR_CODE+'?','Обнулить','🔄'))return;
   B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));
   firebase.database().ref('cars/'+CAR_CODE+'/qty').remove().catch(()=>{});
   render();tst('Количества обнулены');

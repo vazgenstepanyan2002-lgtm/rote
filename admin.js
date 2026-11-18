@@ -317,10 +317,10 @@
    const delBtn=sub?'':'<button class="xb" data-act="del" data-id="'+esc(d.id)+'" aria-label="Удалить">✕</button>';
 
    return '<div class="row"'+rowStyle+(sub?' style="cursor:default"':' data-act="rename" data-id="'+esc(d.id)+'"')+'><span class="dot'+(live&&!blk?' on':'')+'"></span>'
-    +'<div class="rm"><div class="rt" style="margin-bottom:6px;display:flex;align-items:center;gap:8px"><div style="min-width:0;flex:1">'+dispHtml(d)+blkBadge+'</div>'+(car?'<button type="button" data-act="setcar" data-id="'+esc(d.id)+'" style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:11px;background:linear-gradient(135deg,rgba(16,185,129,.24),rgba(5,150,105,.12));border:1px solid rgba(52,211,153,.5);box-shadow:0 2px 10px rgba(16,185,129,.16);color:#6ee7b7;font-size:12.5px;font-weight:800;letter-spacing:.4px;cursor:pointer;line-height:1"><span style="font-size:14px">🚚</span><span>'+esc(car)+'</span><span style="opacity:.65;font-size:10px">▾</span></button>':'<button type="button" data-act="setcar" data-id="'+esc(d.id)+'" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:11px;background:rgba(245,158,11,.13);border:1px dashed rgba(251,191,36,.45);color:#fbbf24;font-size:11.5px;font-weight:700;cursor:pointer;line-height:1"><span>🚚</span><span>Экипаж</span><span style="opacity:.7;font-size:10px">▾</span></button>')+'</div>'
+    +'<div class="rm"><div class="rt" style="margin-bottom:6px;display:flex;align-items:center;gap:8px"><div style="min-width:0;flex:1">'+dispHtml(d)+blkBadge+'</div>'+(car==="ADMIN"?'<button type="button" data-act="setcar" data-id="'+esc(d.id)+'" style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:11px;background:linear-gradient(135deg,rgba(167,139,250,.24),rgba(124,58,237,.12));border:1px solid rgba(167,139,250,.5);box-shadow:0 2px 10px rgba(139,92,246,.16);color:#c4b5fd;font-size:12.5px;font-weight:800;letter-spacing:.3px;cursor:pointer;line-height:1"><span style="font-size:13px">🛡️</span><span>Админ</span><span style="opacity:.65;font-size:10px">▾</span></button>':car?'<button type="button" data-act="setcar" data-id="'+esc(d.id)+'" style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:11px;background:linear-gradient(135deg,rgba(16,185,129,.24),rgba(5,150,105,.12));border:1px solid rgba(52,211,153,.5);box-shadow:0 2px 10px rgba(16,185,129,.16);color:#6ee7b7;font-size:12.5px;font-weight:800;letter-spacing:.4px;cursor:pointer;line-height:1"><span style="font-size:14px">🚚</span><span>'+esc(car)+'</span><span style="opacity:.65;font-size:10px">▾</span></button>':'<button type="button" data-act="setcar" data-id="'+esc(d.id)+'" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:11px;background:rgba(245,158,11,.13);border:1px dashed rgba(251,191,36,.45);color:#fbbf24;font-size:11.5px;font-weight:700;cursor:pointer;line-height:1"><span>🚚</span><span>Экипаж</span><span style="opacity:.7;font-size:10px">▾</span></button>')+'</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">'+row1.join('')+'</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:4px">'+row2.join('')+'</div></div>'
-    +'<div class="rv">'+money(car ? parseCar(car).sum : d.cur.sum)+'</div>'
+    +'<div class="rv">'+money(car && car !== "ADMIN" ? parseCar(car).sum : (car === "ADMIN" ? 0 : d.cur.sum))+'</div>'
     +dmBtn+pinBtn+blkBtn+delBtn+'</div>';
   }).join('');
   if(L.length&&!isSubAdm())h+='<div class="mut hint">Нажмите на устройство, чтобы задать ему имя.</div>';
@@ -517,6 +517,7 @@ function openCarModal(uid){
    const on=curCar===c,crew=crewOf(c);
    return '<div class="sel-it'+(on?' on':'')+'" data-c="'+c+'"><div class="sel-it-l"><span class="sel-ic">🚚</span><div><div class="sel-it-nm">Машина '+c+'</div><div class="sel-it-sb">'+(crew?esc(crew):'Экипаж свободен')+'</div></div></div><div class="sel-it-r"><span class="sel-chk">✓</span></div></div>';
   }).join('');
+  items+='<div class="sel-it'+(curCar==="ADMIN"?' on':'')+'" data-c="ADMIN"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(167,139,250,.15);border-color:rgba(167,139,250,.4);color:#c4b5fd">🛡️</span><div><div class="sel-it-nm">Админ</div><div class="sel-it-sb">Открыть бонусы (скрыто из списков)</div></div></div><div class="sel-it-r"><span class="sel-chk">✓</span></div></div>';
   ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>🚚 Машина: '+esc(dispName(d))+'</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'+items+'</div></div>';
   document.body.appendChild(ov);
   const close=()=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),180)};
@@ -528,13 +529,13 @@ function openCarModal(uid){
    try{
     await db.ref('users/'+uid+'/car').set(nc||null);
     let moved = false;
-    if (nc) {
+    if (nc && nc !== "ADMIN") {
      const hasOld = (+d.cur.sum > 0) || (d.hist && Object.keys(d.hist).length > 0);
      if (hasOld && await ask("У водителя есть личные бонусы (" + money(d.cur.sum) + "). Перенести их в общий котёл машины " + nc + "?", { title: "Перенос бонусов", okText: "Перенести" })) {
       moved = await migrateDevToCar(uid, nc);
      }
     }
-    toast(nc ? ('Назначена машина ' + nc + (moved ? ' · бонусы перенесены' : '')) : 'Машина снята');
+    toast(nc === "ADMIN" ? "Включён режим Админ" : (nc ? ('Назначена машина ' + nc + (moved ? ' · бонусы перенесены' : '')) : 'Машина снята'));
    }catch(err){toast('Ошибка сохранения',true)}
   };
   requestAnimationFrame(()=>ov.classList.add('show'));
