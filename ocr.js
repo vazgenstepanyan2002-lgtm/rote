@@ -44,7 +44,25 @@
 
   async function askGemini(b64){
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
-    const prompt = 'Извлеки все адреса доставки в Армении с фото накладной (колонка Տեղափոխման հասցե / հասցե / Адрес). В армянском адресе «շ.» / «շենք» / «տ.» / «տուն» / «դ.» — это НОМЕР ДОМА (его ОБЯЗАТЕЛЬНО сохранить, например «36 շ.» -> дом «36»), а «բն.» / «բնակարան» / «մուտք» / «հարկ» / «кв.» — это квартира и этаж (их ОБЯЗАТЕЛЬНО полностью удалить и НИКОГДА не писать через дробь! Например «Ռոստովյան փ. 36 շ., բն. 1հ» -> orig: «Երևան, Ռոստովյան 36», ru: «Ереван, улица Ростовян, 36»). Удали имена, товары, цены и телефоны. Если город не указан для ереванской улицы — добавь Ереван. Верни строго JSON-массив [{"orig":"оригинал без квартиры","ru":"Город, улица, дом"}] или [].';
+    const prompt = [
+      'Ты извлекаешь адреса доставки в Армении с фото накладных («Բեռնափոխադրման թերթիկ» или «ՎԱՃԱՌՔԻ ՓԱՍՏԱԹՈՒՂԹ»).',
+      'Где искать адрес:',
+      '1) Колонка «Տեղափոխման հասցե» или «Հասցե».',
+      '2) В документе «ՎԱՃԱՌՔԻ ՓԱՍՏԱԹՈՒՂԹ» адрес находится в блоке покупателя сразу под ФИО (например: «Կոտայք գյուղ Նուռնուս Այգեգործների 45տ»).',
+      'Правила обработки каждого адреса:',
+      '- «շ.», «շ», «շենք», «տ.», «տ», «տուն», «դ.» сразу после числа (в том числе слитно: «30տ», «3շ», «36շ», «45տ», «82 տուն», «42/12») — это НОМЕР ДОМА. Обязательно оставь только само число/дробь дома без букв «շ» и «տ» (пример: «30տ» -> «30», «36շ» -> «36», «42/12» -> «42/12»).',
+      '- «բն.», «բն», «բնակարան», «մուտք», «հարկ», «հ», «բ.» и цифры рядом с ними (в том числе слитно: «1բն», «16բն», «48բն», «5բն», «2 մուտք», «1 հ», «5հ», «Վ-06») — это квартира, подъезд, этаж или домофон. УДАЛИ их полностью! Никогда не добавляй квартиру через дробь к номеру дома.',
+      '- Сохраняй область (մարզ), город (ք.), административный район Еревана (Շենգավիթ, Աջափնյակ, Նոր Նորք, Էրեբունի и др.), массив (Ջրվեժ, Ավան и др.) и село (գ. / գյուղ: Փարաքար, Վանանդ, Նուռնուս и др.). Если указана ереванская улица или район без города — добавь Ереван.',
+      '- Полностью игнорируй номера телефонов (055..., 093..., 094..., 098..., 099..., 077..., 091..., 096..., 044...), ФИО, номера машин, коды товаров и суммы.',
+      '- Примеры эталонного разбора:',
+      '  • «Արմավիրի մ, Գ. Փարաքար, Տիգրան Մեծ 30տ» -> {"orig":"Արմավիրի մարզ, գ. Փարաքար, Տիգրան Մեծի 30","ru":"Армавирская область, село Паракар, улица Тиграна Меца, 30"}',
+      '  • «Ք. Երևան, Շենգավիթ, Արշակունյաց 42/12 1բն, 1 հ» -> {"orig":"Երևան, Արշակունյաց 42/12","ru":"Ереван, проспект Аршакуняц, 42/12"}',
+      '  • «ք Երևան Աջափնյակ Լուկաշինի 3շ 16բն 2 մուտք 1հ» -> {"orig":"Երևան, Լուկաշինի 3","ru":"Ереван, улица Лукашина, 3"}',
+      '  • «Ք. Երևան, Նոր Նորք, Ջրվեժ Մայակ 2շ 48բն, 5հ» -> {"orig":"Երևան, Ջրվեժ, Մայակ 2","ru":"Ереван, Джрвеж, квартал Маяк, 2"}',
+      '  • «Կոտայք գյուղ Նուռնուս Այգեգործների 45տ» -> {"orig":"Կոտայքի մարզ, գ. Նուռնուս, Այգեգործների 45","ru":"Котайкская область, село Нурнус, улица Айгегорцнери, 45"}',
+      'Верни ТОЛЬКО валидный JSON-массив объектов [{"orig":"...","ru":"..."}] или [].'
+    ].join('\n');
+
     const bodyStr = JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mime_type: 'image/jpeg', data: b64 } }] }],
       generationConfig: { temperature: 0, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } }
@@ -62,27 +80,32 @@
     const raw = (ansPart && ansPart.text) || '[]';
     const arr = JSON.parse(raw.replace(/```json|```/gi, '').trim());
     if (!Array.isArray(arr)) return [];
-    return arr.map(x => typeof x === 'string' ? { orig: x.trim(), ru: x.trim() } : { orig: String((x && x.orig) || '').trim(), ru: String((x && x.ru) || (x && x.orig) || '').trim() }).filter(x => x.ru || x.orig);
+    return arr.map(x => typeof x === 'string'
+      ? { orig: x.trim(), ru: x.trim() }
+      : { orig: String((x && x.orig) || '').trim(), ru: String((x && x.ru) || (x && x.orig) || '').trim() }
+    ).filter(x => x.ru || x.orig);
   }
 
   async function resolveBestYandex(item){
     const cleanQ = t => String(t || '')
       .replace(/\s*[\u{1F4CD}\u{1F50E}]\s*$/gu, '')
-      .replace(/[,\s]+(?:բն\.?|բնակարան|մուտք|հարկ|կվ\.?|кв\.?|подъезд|этаж).*$/iu, '')
+      .replace(/(\d+(?:\/\d+)?)\s*(?:շենք|շ\.?|տուն|տ\.?|դ\.?)(?=\s|,|$)/giu, '$1')
+      .replace(/[,\s]+(?:\d+\s*)?(?:բն\.?|բնակարան|մուտք|հարկ|հ\.?|կվ\.?|кв\.?|подъезд|этаж).*$/iu, '')
+      .replace(/\s+/g, ' ')
       .trim();
+
     const origClean = cleanQ(item.orig);
     const ruClean = cleanQ(item.ru);
     const queries = Array.from(new Set([ruClean, origClean].filter(Boolean)));
 
-    const hm = (ruClean + ' ' + origClean).match(/(?:^|[,\s])(\d+[ա-ֆа-яa-z0-9\/-]*)/i);
-    const houseNum = hm ? hm[1].toLowerCase() : '';
+    const hm = (ruClean + ' ' + origClean).match(/(?:^|[,\s])(\d+(?:\/\d+)?)(?=\s|,|$)/);
+    const houseNum = hm ? hm.at(1).toLowerCase() : '';
     const escRe = v => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const exactHouse = txt => !houseNum || new RegExp('(^|[^0-9\/])' + escRe(houseNum) + '([^0-9\/]|$)', 'i').test(String(txt || ''));
-    const baseHouse = txt => !houseNum || new RegExp('(^|[^0-9])' + escRe(houseNum.split('/')[0]) + '([^0-9]|$)', 'i').test(String(txt || ''));
+    const exactHouse = txt => !houseNum || new RegExp('(^|[^0-9/])' + escRe(houseNum) + '([^0-9/]|$)').test(String(txt || ''));
+    const baseHouse = txt => !houseNum || new RegExp('(^|[^0-9])' + escRe(houseNum.split('/').at(0)) + '([^0-9]|$)').test(String(txt || ''));
 
     let fallbackHit = null, fallbackList = [];
 
-    // 1. Поиск через Яндекс Саджест -> координаты через Яндекс Геокодер
     if (typeof sugList === 'function') {
       for (const q of queries) {
         const sugs = await sugList(q);
@@ -104,16 +127,13 @@
             const picked = matched || list.find(x => x.exact) || list.at(0);
             const finalName = sugTitle && exactHouse(sugTitle) ? sugTitle : cleanQ(picked.name);
             const candidate = { name: finalName, lat: picked.lat, lon: picked.lon, exact: picked.exact };
-            if (matched && exactHouse(finalName)) {
-              return { hit: candidate, list: list };
-            }
+            if (matched && exactHouse(finalName)) return { hit: candidate, list: list };
             if (!fallbackHit) { fallbackHit = candidate; fallbackList = list; }
           }
         }
       }
     }
 
-    // 2. Резервный поиск напрямую через Яндекс Геокодер
     for (const q of queries) {
       const list = await yan(q);
       if (list && list.length) {
