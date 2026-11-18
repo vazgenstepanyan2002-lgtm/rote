@@ -10,7 +10,7 @@
       const img = new Image();
       img.onload = () => {
         URL.revokeObjectURL(url);
-        const maxSide = 1400;
+        const maxSide = 1024;
         let w = img.naturalWidth || img.width;
         let h = img.naturalHeight || img.height;
         if (w > maxSide || h > maxSide) {
@@ -21,7 +21,7 @@
         cv.width = w; cv.height = h;
         const ctx = cv.getContext('2d');
         ctx.drawImage(img, 0, 0, w, h);
-        const dataUrl = cv.toDataURL('image/jpeg', 0.85);
+        const dataUrl = cv.toDataURL('image/jpeg', 0.78);
         res(dataUrl.split(',').pop());
       };
       img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Не удалось прочитать файл изображения')); };
@@ -43,7 +43,7 @@
     const r = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(25000),
+      signal: AbortSignal.timeout(45000),
       body: JSON.stringify({
         contents: [{
           role: 'user',
@@ -54,7 +54,8 @@
         }],
         generationConfig: {
           temperature: 0.1,
-          responseMimeType: 'application/json'
+          responseMimeType: 'application/json',
+          thinkingConfig: { thinkingBudget: 0 }
         }
       })
     });
@@ -149,7 +150,7 @@
         showMultiPicker(addrs);
       }
     } catch (e) {
-      const msg = (e && e.message) || 'Не удалось распознать фото';
+      const msg = (e && (e.name === 'TimeoutError' || /timed out/i.test(e.message))) ? 'Сервер долго отвечает, проверьте интернет' : ((e && e.message) || 'Не удалось распознать фото');
       if (st) st.textContent = msg;
       window.toast && toast('Не удалось распознать фото', 'err');
     } finally {
