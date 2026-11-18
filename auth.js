@@ -197,9 +197,9 @@
     const myUid = ls("ADM_UID") || "";
     if (!_chatList.length){ box.innerHTML = '<div class="ch-empty">Сообщений пока нет. Напишите первым!</div>'; return; }
     box.innerHTML = _chatList.map(m => {
-      const mine = m.uid && m.uid === myUid, isAdm = !!m.adm;
-      const author = isAdm ? '<div class="ch-au">👑 Админ</div>' : (!mine ? '<div class="ch-au">' + esc(m.name || "Водитель") + '</div>' : '');
-      return '<div class="ch-msg' + (mine ? " mine" : "") + (isAdm ? " adm" : "") + '">' + author + '<div class="ch-body"><span class="ch-txt">' + esc(m.txt || "") + '</span><span class="ch-tm">' + fmtTime(m.t) + '</span></div></div>';
+      const mine = m.uid && m.uid === myUid, isAdm = !!m.adm, isDeliv = isAdm && (m.role === "delivery" || m.name === "Доставка");
+      const author = isAdm ? ('<div class="ch-au">' + (isDeliv ? '👩‍💼 Доставка' : '👑 Админ') + '</div>') : (!mine ? '<div class="ch-au">' + esc(m.name || "Водитель") + '</div>' : '');
+      return '<div class="ch-msg' + (mine ? " mine" : "") + (isAdm ? (isDeliv ? " dlv" : " adm") : "") + '">' + author + '<div class="ch-body"><span class="ch-txt">' + esc(m.txt || "") + '</span><span class="ch-tm">' + fmtTime(m.t) + '</span></div></div>';
     }).join("");
     box.scrollTop = box.scrollHeight;
   }
@@ -405,7 +405,7 @@
           _lastNotifiedT = +lastMsg.t || Date.now();
           lsSet("CHAT_NOTIF_T", String(_lastNotifiedT));
           if (!_chatOpen || document.hidden) {
-            const sender = lastMsg.adm ? "👑 Админ" : (lastMsg.name || "Водитель");
+            const sender = lastMsg.adm ? ((lastMsg.role === "delivery" || lastMsg.name === "Доставка") ? "👩‍💼 Доставка" : "👑 Админ") : (lastMsg.name || "Водитель");
             pushSysNotify(sender, String(lastMsg.txt || "").slice(0, 140));
           }
         }

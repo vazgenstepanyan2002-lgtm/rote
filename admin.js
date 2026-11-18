@@ -44,6 +44,10 @@
  const auth=firebase.auth(),db=firebase.database();
 
  let USERS={},LABELS={},ACCOUNTS={},CHAT=[],CHAT_OPEN=false,DMS={},DM_UID=null,FU=0,PUB=undefined,TAB='online',SEL='all';
+ const SUB_EMAIL='diannakirakosyan@gmail.com';
+ const isSubAdm=()=>((auth.currentUser&&auth.currentUser.email)||'').toLowerCase()===SUB_EMAIL;
+ const admRawName=()=>isSubAdm()?'Доставка':'Админ';
+ const admTag=()=>isSubAdm()?'delivery':'admin';
  const OPEN={};
  let offs=[],tick=null,_tt=null;
 
@@ -64,7 +68,7 @@
   listen('users',v=>{USERS=v||{};showErr('');draw()});
   listen('labels',v=>{LABELS=v||{};draw()});
   listen('accounts',v=>{ACCOUNTS=v||{};draw()});
-  listen('dm',onDmSnap);
+  if(!isSubAdm())listen('dm',onDmSnap);
   listen('config/forceUpdate',v=>{FU=+v||0;draw()});
   listen('chat',v=>{const obj=v||{};const all=Object.keys(obj).map(k=>Object.assign({k:k},obj[k])).sort((a,b)=>(+a.t||0)-(+b.t||0));const list=all.length>50?(all.slice(0,all.length-50).forEach(x=>db.ref('chat/'+x.k).remove().catch(()=>{})),all.slice(-50)):all;if(_admChatInit){const fresh=list.filter(m=>(+m.t||0)>_admLastNotifT&&!m.adm);if(fresh.length){const lm=fresh[fresh.length-1];_admLastNotifT=+lm.t||Date.now();localStorage.setItem('ADM_CHAT_NOTIF_T',String(_admLastNotifT));if(!CHAT_OPEN||document.hidden)admNotify((lm.name||'Водитель'),String(lm.txt||'').slice(0,140))}}else if(list.length){const mx=Math.max.apply(null,list.map(m=>+m.t||0));if(mx>_admLastNotifT){_admLastNotifT=mx;localStorage.setItem('ADM_CHAT_NOTIF_T',String(_admLastNotifT))}}_admChatInit=true;CHAT=list;if(CHAT_OPEN&&!document.hidden){markAdmChatSeen();renderAdmChat()}else updAdmChatBdg()});
   loadPub();
@@ -276,22 +280,23 @@
 
    const blkBadge=blk?' <span style="display:inline-block;background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.45);color:#fca5a5;font-size:10px;font-weight:800;padding:1px 6px;border-radius:99px;vertical-align:middle;margin-left:4px">🚫 БЛОК</span>':'';
    const rowStyle=blk?' style="border-color:rgba(239,68,68,.45);background:linear-gradient(180deg,rgba(45,18,24,.88) 0%,rgba(22,12,16,.95) 100%)"':'';
-   const un=dmUnread(d.id);
-   const dmBtn='<button class="dm-btn" data-act="dm" data-id="'+esc(d.id)+'" aria-label="Личный чат">✉️'+(un?'<span class="dm-bdg">'+(un>99?'99+':un)+'</span>':'')+'</button>';
-   const pinBtn=acc?'<button class="xb" style="background:rgba(250,204,21,.14);border-color:rgba(250,204,21,.35);color:#fde047" data-act="pin" data-key="'+esc(acc.key)+'" aria-label="ПИН">🔑</button>':'';
-   const blkBtn=blk
+   const sub=isSubAdm();
+   const un=sub?0:dmUnread(d.id);
+   const dmBtn=sub?'':'<button class="dm-btn" data-act="dm" data-id="'+esc(d.id)+'" aria-label="Личный чат">✉️'+(un?'<span class="dm-bdg">'+(un>99?'99+':un)+'</span>':'')+'</button>';
+   const pinBtn=(!sub&&acc)?'<button class="xb" style="background:rgba(250,204,21,.14);border-color:rgba(250,204,21,.35);color:#fde047" data-act="pin" data-key="'+esc(acc.key)+'" aria-label="ПИН">🔑</button>':'';
+   const blkBtn=sub?'':(blk
     ?'<button class="xb" style="background:rgba(16,185,129,.18);border-color:rgba(52,211,153,.4);color:#34d399" data-act="block" data-id="'+esc(d.id)+'" data-key="'+esc(acc?acc.key:'')+'" data-blk="1" aria-label="Разблокировать">✅</button>'
-    :'<button class="xb" style="background:rgba(249,115,22,.16);border-color:rgba(249,115,22,.38);color:#fb923c" data-act="block" data-id="'+esc(d.id)+'" data-key="'+esc(acc?acc.key:'')+'" data-blk="0" aria-label="Заблокировать">🚫</button>';
-   const delBtn='<button class="xb" data-act="del" data-id="'+esc(d.id)+'" aria-label="Удалить">✕</button>';
+    :'<button class="xb" style="background:rgba(249,115,22,.16);border-color:rgba(249,115,22,.38);color:#fb923c" data-act="block" data-id="'+esc(d.id)+'" data-key="'+esc(acc?acc.key:'')+'" data-blk="0" aria-label="Заблокировать">🚫</button>');
+   const delBtn=sub?'':'<button class="xb" data-act="del" data-id="'+esc(d.id)+'" aria-label="Удалить">✕</button>';
 
-   return '<div class="row"'+rowStyle+' data-act="rename" data-id="'+esc(d.id)+'"><span class="dot'+(live&&!blk?' on':'')+'"></span>'
+   return '<div class="row"'+rowStyle+(sub?' style="cursor:default"':' data-act="rename" data-id="'+esc(d.id)+'"')+'><span class="dot'+(live&&!blk?' on':'')+'"></span>'
     +'<div class="rm"><div class="rt" style="margin-bottom:5px">'+dispHtml(d)+blkBadge+'</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">'+row1.join('')+'</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:4px">'+row2.join('')+'</div></div>'
     +'<div class="rv">'+money(d.cur.sum)+'</div>'
     +dmBtn+pinBtn+blkBtn+delBtn+'</div>';
   }).join('');
-  if(L.length)h+='<div class="mut hint">Нажмите на устройство, чтобы задать ему имя.</div>';
+  if(L.length&&!isSubAdm())h+='<div class="mut hint">Нажмите на устройство, чтобы задать ему имя.</div>';
   g('view').innerHTML=h;
  }
  function drawTotals(){
@@ -354,6 +359,12 @@
  }
  function draw(){
   if(g('panel').hidden)return;
+  const sub=isSubAdm();
+  const tabsEl=document.querySelector('.tabs');
+  if(tabsEl)tabsEl.style.gridTemplateColumns=sub?'repeat(3,1fr)':'repeat(4,1fr)';
+  const mapTab=document.querySelector('.tabs button[data-tab="map"]');
+  if(mapTab)mapTab.hidden=sub;
+  if(sub&&TAB==='map')TAB='online';
   document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===TAB));
   const st=window.scrollY;
   if(TAB!=='map'&&_map)destroyMap();
@@ -462,9 +473,9 @@
   const a=b.dataset.act;
   if(a==='pub'){e.preventDefault();PUB=undefined;draw();loadPub()}
   else if(a==='force')force();
-  else if(a==='del'){e.stopPropagation();del(b.dataset.id)}
-  else if(a==='rename')rename(b.dataset.id);
-  else if(a==='dm'){e.stopPropagation();openAdmDm(b.dataset.id)}
+  else if(a==='del'){e.stopPropagation();if(!isSubAdm())del(b.dataset.id)}
+  else if(a==='rename'){if(!isSubAdm())rename(b.dataset.id)}
+  else if(a==='dm'){e.stopPropagation();if(!isSubAdm())openAdmDm(b.dataset.id)}
   else if(a==='block'){e.stopPropagation();const id=b.dataset.id,k=b.dataset.key,isBlk=b.dataset.blk==='1',du=USERS[id]||{};const who=dispName(parseDev(id,du));const ok=await ask(isBlk?'Разблокировать водителя и телефон «'+who+'»?':'Заблокировать водителя и этот телефон («'+who+'»)? Он сразу выйдет и не сможет войти даже под новым именем.',{title:isBlk?'Разблокировка':'Блокировка',okText:isBlk?'Разблокировать':'Заблокировать',danger:!isBlk});if(!ok)return;try{const nv=isBlk?null:true;await db.ref('users/'+id+'/blocked').set(nv);if(k)await db.ref('accounts/'+k+'/blocked').set(nv);if(du.devId)await db.ref('accounts/__dev_'+du.devId).set(isBlk?null:{blocked:true});if(!isBlk)await db.ref('online/'+id).remove();toast(isBlk?'Разблокировано':'Заблокировано')}catch(err){toast('Ошибка сохранения',true)}}
   else if(a==='pin'){e.stopPropagation();const k=b.dataset.key,cur=ACCOUNTS[k]&&ACCOUNTS[k].pin||'';const np=await askInput('Смена ПИН-кода','Введите новый 4-значный код для водителя',cur,'Например: 1234');if(np===null)return;const clean=np.replace(/\D/g,'');if(clean.length!==4){toast('Нужно ровно 4 цифры',true);return}try{await db.ref('accounts/'+k+'/pin').set(clean);toast('ПИН-код обновлён')}catch(err){toast('Ошибка сохранения',true)}}
   else if(a==='month'){OPEN[b.dataset.key]=!OPEN[b.dataset.key];draw()}
@@ -571,7 +582,9 @@
   if(!CHAT.length){box.innerHTML='<div class="mut" style="text-align:center;padding:24px">Сообщений пока нет</div>';return}
   box.innerHTML=CHAT.map(m=>{
    const d=m.t?new Date(m.t):null,tm=d?String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'';
-   return '<div class="ach-m'+(m.adm?' adm':'')+'"><div class="ach-mt"><span>'+(m.adm?'👑 Админ':esc(m.name||'Водитель'))+'</span><button type="button" class="ach-del" data-ck="'+esc(m.k)+'" aria-label="Удалить">✕</button></div><div class="ach-bd"><span class="ach-tx">'+esc(m.txt||'')+'</span><span class="ach-tm">'+tm+'</span></div></div>';
+   const isDeliv=m.adm&&(m.role==='delivery'||m.name==='Доставка');
+   const who=m.adm?(isDeliv?'👩‍💼 Доставка':'👑 Админ'):esc(m.name||'Водитель');
+   return '<div class="ach-m'+(m.adm?(isDeliv?' dlv':' adm'):'')+'"><div class="ach-mt"><span>'+who+'</span>'+(isSubAdm()?'':'<button type="button" class="ach-del" data-ck="'+esc(m.k)+'" aria-label="Удалить">✕</button>')+'</div><div class="ach-bd"><span class="ach-tx">'+esc(m.txt||'')+'</span><span class="ach-tm">'+tm+'</span></div></div>';
   }).join('');
   box.scrollTop=box.scrollHeight;
  }
@@ -584,15 +597,16 @@
   const close=()=>{CHAT_OPEN=false;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
   const onK=e=>{if(e.key==='Escape')close()};
   g('achX').onclick=close;ov.onclick=e=>{if(e.target===ov)close()};
-  g('achClr').onclick=async()=>{if(await ask('Удалить всю переписку в общем чате?',{title:'Очистка чата',okText:'Очистить',danger:true}))db.ref('chat').remove().then(()=>toast('Чат очищен')).catch(()=>toast('Ошибка',true))};
-  g('achList').onclick=e=>{const b=e.target.closest('[data-ck]');if(b)db.ref('chat/'+b.dataset.ck).remove().catch(()=>{})};
+  if(isSubAdm())g('achClr').hidden=true;
+  g('achClr').onclick=async()=>{if(!isSubAdm()&&await ask('Удалить всю переписку в общем чате?',{title:'Очистка чата',okText:'Очистить',danger:true}))db.ref('chat').remove().then(()=>toast('Чат очищен')).catch(()=>toast('Ошибка',true))};
+  g('achList').onclick=e=>{if(isSubAdm())return;const b=e.target.closest('[data-ck]');if(b)db.ref('chat/'+b.dataset.ck).remove().catch(()=>{})};
   const inp=g('achInp'),snd=g('achSnd');
   const send=async()=>{
    const txt=inp.value.trim();if(!txt)return;
    inp.value='';snd.disabled=true;
    try{
     const cref=db.ref('chat');
-    await cref.push({uid:'admin',name:'Админ',adm:true,txt:txt,t:firebase.database.ServerValue.TIMESTAMP});
+    await cref.push({uid:admTag(),name:admRawName(),role:admTag(),adm:true,txt:txt,t:firebase.database.ServerValue.TIMESTAMP});
     const s=await cref.once('value'),av=s.val()||{},ks=Object.keys(av).sort((a,b)=>(+av[a].t||0)-(+av[b].t||0));
     if(ks.length>50)ks.slice(0,ks.length-50).forEach(k=>cref.child(k).remove().catch(()=>{}));
    }catch(e){inp.value=txt;toast('Не удалось отправить',true)}
@@ -648,7 +662,7 @@
  g('out').onclick=async ()=>auth.signOut();
  auth.onAuthStateChanged(u=>{
   if(u){
-   g('login').hidden=true;g('panel').hidden=false;g('who').textContent=u.email||'';
+   g('login').hidden=true;g('panel').hidden=false;g('who').textContent=(isSubAdm()?'Доставка · ':'')+(u.email||'');
    start();draw();
   }else{
    stop();USERS={};LABELS={};ACCOUNTS={};
