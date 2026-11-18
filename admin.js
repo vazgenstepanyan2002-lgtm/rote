@@ -43,7 +43,8 @@
  firebase.initializeApp(CFG);
  const auth=firebase.auth(),db=firebase.database();
 
- let USERS={},LABELS={},ACCOUNTS={},CHAT=[],CHAT_OPEN=false,DMS={},DM_UID=null,FU=0,PUB=undefined,TAB='online',SEL='all';
+ const CARS_LIST=['BB','CC','EE','XX','ZZ','RR','VV','GG'];
+ let USERS={},LABELS={},ACCOUNTS={},CARS={},CHAT=[],CHAT_OPEN=false,DMS={},DM_UID=null,FU=0,PUB=undefined,TAB='online',SEL='all';
  const SUB_EMAIL='diannakirakosyan@gmail.com';
  const isSubAdm=()=>((auth.currentUser&&auth.currentUser.email)||'').toLowerCase()===SUB_EMAIL;
  const admRawName=()=>isSubAdm()?'Доставка':'Админ';
@@ -66,6 +67,7 @@
  function start(){
   stop();
   listen('users',v=>{USERS=v||{};showErr('');draw()});
+  listen('cars',v=>{CARS=v||{};draw()});
   listen('labels',v=>{LABELS=v||{};draw()});
   listen('accounts',v=>{ACCOUNTS=v||{};draw()});
   if(!isSubAdm())listen('dm',onDmSnap);
@@ -294,11 +296,14 @@
    );
    if(acc&&acc.pin)row1.push(pill('🔑 '+esc(acc.pin),pPin));
 
+   const car=String(d.u.car||'').toUpperCase();
+   const pCar=car?'background:rgba(16,185,129,.18);border:1px solid rgba(52,211,153,.45);color:#6ee7b7;font-weight:800;':'background:rgba(245,158,11,.14);border:1px solid rgba(245,158,11,.35);color:#fbbf24;font-weight:700;';
    const row2=new Array(
     pill(live?'🟢 В сети':'🕒 '+esc(ago(d.u.t)),live?pOn:pBase),
     pill('📦 '+esc(verFmt(d.u.v)),pBase)
    );
    if(d.u.addr!=null)row2.push(pill('📍 '+esc(d.u.addr),pAdr));
+   row1.push('<span data-act="setcar" data-id="'+esc(d.id)+'" style="cursor:pointer;display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:7px;font-size:11px;line-height:1.2;white-space:nowrap;'+pCar+'">🚚 '+(car?esc(car):'Без машины')+'</span>');
 
    const blkBadge=blk?' <span style="display:inline-block;background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.45);color:#fca5a5;font-size:10px;font-weight:800;padding:1px 6px;border-radius:99px;vertical-align:middle;margin-left:4px">🚫 БЛОК</span>':'';
    const rowStyle=blk?' style="border-color:rgba(239,68,68,.45);background:linear-gradient(180deg,rgba(45,18,24,.88) 0%,rgba(22,12,16,.95) 100%)"':'';
@@ -322,136 +327,67 @@
   g('view').innerHTML=h;
  }
  
-function openAdmSumModal(uid, subKey) {
-  if (!uid || !USERS[uid]) return;
-  const old = g("admSumOv"); if (old) old.remove();
-  const d = parseDev(uid, USERS[uid]), isCur = subKey === "cur", rec = isCur ? null : d.hist[subKey];
-  if (!isCur && !rec) return;
-  let rows = isCur ? [] : (rec.rows || []);
-  if (isCur) {
-    try {
-      const raw = JSON.parse(d.u.bonRaw || "[]");
-      if (Array.isArray(raw)) raw.forEach(c => {
-        if (!c || !Array.isArray(c.subs)) return;
-        const items = []; let cs = 0;
-        c.subs.forEach(x => {
-          const parts = [], q1 = +x.qty || 0, p1 = +x.price || 0, q2 = +x.qty2 || 0, p2 = +x.price2 || 0;
-          if (q1 > 0) parts.push({ l: x.one ? "" : "Город", n: q1, p: p1, v: q1 * p1 });
-          if (!x.one && q2 > 0) parts.push({ l: "Район", n: q2, p: p2, v: q2 * p2 });
-          if (parts.length) { items.push({ name: x.name, parts }); parts.forEach(z => cs += z.v); }
-        });
-        if (items.length) rows.push({ name: c.name, sum: cs, items });
-      });
-    } catch (e) {}
-  }
-  const title = isCur ? "Текущий месяц" : monthName(rec.m || subKey);
-  const sub = isCur ? "не сохранён" : ("сохранено " + ago(rec.t));
-  const totS = isCur ? (+d.cur.sum || 0) : (+rec.sum || 0), totQ = isCur ? (+d.cur.qty || 0) : (+rec.qty || 0);
-  const head = "<div class=\"sum-dash\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">" + esc(title) + " · " + esc(sub) + "</div><div class=\"sum-val\">" + fm(totS) + " <span>" + CUR + "</span></div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b>" + fm(totQ) + "</b><span>штук</span></div><div class=\"sum-kpi\"><b>" + rows.length + "</b><span>катег.</span></div></div></div></div>";
-  const ov = document.createElement("div"); ov.id = "admSumOv"; ov.className = "ov";
-  ov.innerHTML = "<div class=\"dlg ach-box\" style=\"max-width:440px;height:88vh\"><div class=\"ach-hd\"><div class=\"ach-hd-l\"><div class=\"ach-hd-ic\">📋</div><div><b>" + esc(dispName(d)) + "</b><small>Сводка начислений</small></div></div><button type=\"button\" id=\"admSumX\" class=\"ach-x\">✕</button></div><div id=\"admSumB\" class=\"ach-list\" style=\"background-image:none;padding:12px\">" + head + detail(rows) + "</div></div>";
-  document.body.appendChild(ov);
-  const close = () => { ov.classList.remove("show"); setTimeout(() => ov.remove(), 180); };
-  g("admSumX").onclick = close; ov.onclick = e => { if (e.target === ov) close(); };
-  const root = g("admSumB"); let flt = "all", q = "";
-  const apply = () => root.querySelectorAll(".sum-cat").forEach(cat => {
-    let vc = 0;
-    cat.querySelectorAll(".sum-it").forEach(it => {
-      const mn = !q || (it.dataset.name || "").includes(q); let vr = 0;
-      it.querySelectorAll(".sum-r").forEach(r => { const ok = mn && (flt === "all" || r.dataset.zone === flt); r.style.display = ok ? "" : "none"; if (ok) vr++; });
-      it.style.display = vr ? "" : "none"; if (vr) vc++;
-    });
-    cat.style.display = vc ? "" : "none";
-  });
-  root.addEventListener("click", e => {
-    const fb = e.target.closest("[data-aseg] button");
-    if (fb) { flt = fb.dataset.f; root.querySelectorAll("[data-aseg] button").forEach(b => b.classList.toggle("on", b === fb)); apply(); return; }
-    const tg = e.target.closest("[data-atog]");
-    if (tg) { const c = tg.closest(".sum-cat"); if (c) { c.classList.toggle("open"); const ch = c.querySelector(".sum-chv"); if (ch) ch.textContent = c.classList.contains("open") ? "▾" : "▸"; } }
-  });
-  root.addEventListener("input", e => { if (e.target && e.target.matches("[data-asrch]")) { q = e.target.value.trim().toLowerCase(); apply(); } });
-  requestAnimationFrame(() => ov.classList.add("show"));
+
+const CAR_CATALOG=[
+ {pk:"other",name:"Այլ",subs:[{sk:"a",name:"Աթոռ, դարակաշար",one:1,p1:50},{sk:"b",name:"Աթոռ սեղաններ",one:1,p1:100},{sk:"c",name:"Լվացարան",p1:300,p2:390},{sk:"d",name:"Կոմոդներ",p1:500,p2:650},{sk:"e",name:"Մահճակալ",p1:500,p2:650},{sk:"f",name:"Մոդուլներ",p1:250,p2:325},{sk:"g",name:"Ներքնակներ",p1:250,p2:325},{sk:"h",name:"Պահոցներ",p1:500,p2:650},{sk:"i",name:"դուռ",one:1,p1:500},{sk:"j",name:"Պուֆիկներ",p1:50,p2:65},{sk:"k",name:"Տումբաներ",p1:50,p2:65}]},
+ {pk:"sofas",name:"Բազմոցներ",subs:[{sk:"a",name:"Բազկաթոռ",p1:500,p2:650},{sk:"b",name:"Բազմոց",p1:1000,p2:1300},{sk:"c",name:"Հավաքածու",p1:1500,p2:1950}]},
+ {pk:"recep",name:"Ընդունարան",subs:[{sk:"a",name:"Մինչև 1,6",p1:700,p2:910},{sk:"b",name:"1,6 ից ավել",p1:1200,p2:1560}]},
+ {pk:"kitchen",name:"Խոհանոցներ",subs:[{sk:"a",name:"1,6 մ",p1:1000,p2:1300},{sk:"b",name:"2-3 մ",p1:2500,p2:3250}]},
+ {pk:"living",name:"Հյուրասրահ",subs:[{sk:"a",name:"մինչև 1,7",p1:1000,p2:1300},{sk:"b",name:"1,7 ից ավել",p1:2000,p2:2600},{sk:"c",name:"Էքսկլ.",p1:3000,p2:3900}]},
+ {pk:"bedroom",name:"Ննջասենյակներ",subs:[{sk:"a",name:"2 դուռ",p1:1050,p2:1365},{sk:"b",name:"3 դուռ առանց կոմոդ",p1:1550,p2:2015},{sk:"c",name:"3 դուռ կոմոդով",p1:2050,p2:2665},{sk:"d",name:"4 դուռ",p1:2600,p2:3380},{sk:"e",name:"5 դուռ",p1:3100,p2:4030},{sk:"f",name:"6 դուռ",p1:3600,p2:4680},{sk:"g",name:"0,9*2",p1:3100,p2:4030}]},
+ {pk:"wardrobe",name:"Պահարաններ",subs:[{sk:"a",name:"2 դուռ",p1:500,p2:650},{sk:"b",name:"3 դուռ",p1:1000,p2:1300},{sk:"c",name:"4 դուռ",p1:1500,p2:1950},{sk:"d",name:"5 դուռ",p1:2000,p2:2600},{sk:"e",name:"6 դուռ",p1:2500,p2:3250}]}
+];
+function parseCar(code){
+ const raw=(CARS&&CARS[code])||{},qmap=raw.qty||{},hist=raw.hist||{};let sum=0,qty=0;const rows=[];
+ CAR_CATALOG.forEach(c=>{const items=[];let cs=0;c.subs.forEach(x=>{const k1=c.pk+"_"+x.sk,k2=k1+"_2",q1=+qmap[k1]||0,q2=x.one?0:(+qmap[k2]||0),parts=[];if(q1>0)parts.push({l:x.one?"":"Город",n:q1,p:x.p1,v:q1*x.p1});if(q2>0)parts.push({l:"Район",n:q2,p:x.p2,v:q2*x.p2});if(parts.length){items.push({name:x.name,parts});parts.forEach(z=>{cs+=z.v;qty+=z.n})}});if(items.length){rows.push({name:c.name,sum:cs,items});sum+=cs}});
+ const crew=devs().filter(d=>String(d.u.car||"").toUpperCase()===code).map(d=>dispName(d));
+ return{code,sum,qty,rows,hist,crew,t:+raw.t||0};
+}
+const allCars=()=>CARS_LIST.map(parseCar);
+function aggCarMonths(list){
+ const map={};list.forEach(c=>Object.keys(c.hist).forEach(k=>{const h=c.hist[k];if(!h)return;const m=h.m||"",x=map[m]||(map[m]={m,sum:0,qty:0,byCar:{}});const sv=+h.sum||0,qv=+h.qty||0;x.sum+=sv;x.qty+=qv;const bc=x.byCar[c.code]||(x.byCar[c.code]={code:c.code,name:"Машина "+c.code,crew:c.crew,sum:0,qty:0});bc.sum+=sv;bc.qty+=qv}));
+ return Object.keys(map).map(k=>{const x=map[k];x.cars=Object.keys(x.byCar).map(id=>x.byCar[id]).sort((a,b)=>b.sum-a.sum);return x}).sort((a,b)=>a.m<b.m?1:a.m>b.m?-1:0);
 }
 
+function openAdmSumModal(code,subKey){
+ if(!CARS_LIST.includes(code))return;const old=g("admSumOv");if(old)old.remove();
+ const c=parseCar(code),isCur=subKey==="cur",rec=isCur?null:c.hist[subKey];if(!isCur&&!rec)return;
+ const rows=isCur?c.rows:(rec.rows||[]),title=isCur?"Текущий месяц":monthName(rec.m||subKey),sub=isCur?"не сохранён":("сохранено "+ago(rec.t)),totS=isCur?c.sum:(+rec.sum||0),totQ=isCur?c.qty:(+rec.qty||0);
+ const head="<div class=\"sum-dash\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">"+esc(title)+" · "+esc(sub)+"</div><div class=\"sum-val\">"+fm(totS)+" <span>"+CUR+"</span></div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b>"+fm(totQ)+"</b><span>штук</span></div><div class=\"sum-kpi\"><b>"+rows.length+"</b><span>катег.</span></div></div></div></div>";
+ const subHd=c.crew.length?"Экипаж: "+c.crew.join(", "):"Экипаж не назначен";
+ const ov=document.createElement("div");ov.id="admSumOv";ov.className="ov";
+ ov.innerHTML="<div class=\"dlg ach-box\" style=\"max-width:440px;height:88vh\"><div class=\"ach-hd\"><div class=\"ach-hd-l\"><div class=\"ach-hd-ic\">🚚</div><div><b>Машина "+esc(code)+"</b><small>"+esc(subHd)+"</small></div></div><button type=\"button\" id=\"admSumX\" class=\"ach-x\">✕</button></div><div id=\"admSumB\" class=\"ach-list\" style=\"background-image:none;padding:12px\">"+head+detail(rows)+"</div></div>";
+ document.body.appendChild(ov);
+ const close=()=>{ov.classList.remove("show");setTimeout(()=>ov.remove(),180)};
+ g("admSumX").onclick=close;ov.onclick=e=>{if(e.target===ov)close()};
+ const root=g("admSumB");let flt="all",q="";
+ const apply=()=>root.querySelectorAll(".sum-cat").forEach(cat=>{let vc=0;cat.querySelectorAll(".sum-it").forEach(it=>{const mn=!q||(it.dataset.name||"").includes(q);let vr=0;it.querySelectorAll(".sum-r").forEach(r=>{const ok=mn&&(flt==="all"||r.dataset.zone===flt);r.style.display=ok?"":"none";if(ok)vr++});it.style.display=vr?"":"none";if(vr)vc++});cat.style.display=vc?"":"none"});
+ root.addEventListener("click",e=>{const fb=e.target.closest("[data-aseg] button");if(fb){flt=fb.dataset.f;root.querySelectorAll("[data-aseg] button").forEach(b=>b.classList.toggle("on",b===fb));apply();return}const tg=e.target.closest("[data-atog]");if(tg){const card=tg.closest(".sum-cat");if(card){card.classList.toggle("open");const ch=card.querySelector(".sum-chv");if(ch)ch.textContent=card.classList.contains("open")?"▾":"▸"}}});
+ root.addEventListener("input",e=>{if(e.target&&e.target.matches("[data-asrch]")){q=e.target.value.trim().toLowerCase();apply()}});
+ requestAnimationFrame(()=>ov.classList.add("show"));
+}
 function drawTotals(){
-  const L=devs();
-  if(SEL!=='all'&&!USERS[SEL])SEL='all';
-  const curSelObj=SEL==='all'?null:L.find(x=>x.id===SEL);
-  const curSelLabel=curSelObj?dispName(curSelObj):'Все устройства';
-  let h='<button type="button" class="sel-btn" data-act="opensel"><span class="sel-btn-l"><span class="sel-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span><span class="sel-btn-t">'+esc(curSelLabel)+'</span></span><svg class="sel-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>';
-  if(SEL==='all'){
-   const curList=L.map(d=>({id:d.id,name:dispName(d),sum:+d.cur.sum||0,qty:+d.cur.qty||0})).filter(x=>x.qty>0||x.sum>0).sort((a,b)=>b.sum-a.sum);
-   const sum=curList.reduce((a,x)=>a+x.sum,0),qty=curList.reduce((a,x)=>a+x.qty,0);
-   const av=n=>'<span style="width:34px;height:34px;border-radius:11px;background:rgba(16,185,129,.14);border:1px solid rgba(52,211,153,.3);color:#6ee7b7;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+esc(String(n||'?').trim().charAt(0).toUpperCase())+'</span>';
-   h+='<div class="sum-dash"><div class="sum-top"><div><div class="sum-lbl" style="display:flex;align-items:center;gap:6px"><i style="width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;display:inline-block"></i>Текущий месяц · открыт</div><div class="sum-val">'+fm(sum)+' <span>'+CUR+'</span></div></div>'
-    +'<div class="sum-kpis"><div class="sum-kpi"><b>'+fm(qty)+'</b><span>штук</span></div><div class="sum-kpi"><b>'+curList.length+'</b><span>водит.</span></div></div></div>'
-    +(curList.length?'<button type="button" class="cp-btn" style="margin-top:12px" data-act="cpcur">📄 Скопировать общую ведомость</button>':'')+'</div>';
-   if(curList.length){
-    h+='<div class="sec">Текущий месяц · по водителям ('+curList.length+')</div>';
-    h+=curList.map(x=>'<div class="st-row" data-act="open-dev-sum" data-id="'+esc(x.id)+'" data-sub="cur"><div style="display:flex;align-items:center;gap:10px;min-width:0">'+av(x.name)+'<div style="min-width:0"><div class="st-nm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(x.name)+'</div><div class="st-qt">'+fm(x.qty)+' шт · детализация</div></div></div><div class="rv" style="font-size:13.5px">'+money(x.sum)+' ›</div></div>').join('');
-   }
-   const ms=aggMonths(L);
-   h+='<div class="sec">Архив сохранённых месяцев ('+ms.length+')</div>';
-   if(!ms.length)h+='<div class="mut box">Сохранённых итогов пока нет.</div>';
-   h+=ms.map(x=>{
-    const key='all|'+x.m,op=!!OPEN[key];
-    return '<div class="mr col" data-act="month" data-key="'+esc(key)+'"><div class="mrt"><div class="rm"><div class="rt" style="display:flex;align-items:center;gap:7px"><span>📅</span><span>'+esc(monthName(x.m))+'</span></div><div class="rs">'+fm(x.qty)+' шт · водителей: '+x.devs.length+'</div></div><div class="rv">'+money(x.sum)+'</div><span class="ar">'+(op?'▾':'▸')+'</span></div>'
-     +(op?'<div class="dt" onclick="event.stopPropagation()">'
-      +x.devs.map(dv=>'<div class="st-row" data-act="open-dev-month" data-id="'+esc(dv.id)+'" data-m="'+esc(x.m)+'"><div style="display:flex;align-items:center;gap:10px;min-width:0">'+av(dv.name)+'<div style="min-width:0"><div class="st-nm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(dv.name)+'</div><div class="st-qt">'+fm(dv.qty)+' шт · отчёт за месяц</div></div></div><div class="rv" style="font-size:13.5px">'+money(dv.sum)+' ›</div></div>').join('')
-      +'<button type="button" class="cp-btn" data-act="cpmonth" data-m="'+esc(x.m)+'">📄 Скопировать ведомость за '+esc(monthName(x.m))+'</button>'
-      +'</div>':'')
-     +'</div>';
-   }).join('');
-  }else{
-   const d=parseDev(SEL,USERS[SEL]);
-   let curRows=[];
-   try{
-    const raw=JSON.parse(d.u.bonRaw||'[]');
-    if(Array.isArray(raw)){
-     raw.forEach(c=>{
-      if(!c||!Array.isArray(c.subs))return;
-      const items=[];let cs=0;
-      c.subs.forEach(s=>{
-       const parts=[];
-       const q1=+s.qty||0,p1=+s.price||0,q2=+s.qty2||0,p2=+s.price2||0;
-       if(q1>0)parts.push({l:s.one?'':'Город',n:q1,p:p1,v:q1*p1});
-       if(!s.one&&q2>0)parts.push({l:'Район',n:q2,p:p2,v:q2*p2});
-       if(parts.length){items.push({name:s.name,parts:parts});parts.forEach(z=>{cs+=z.v})}
-      });
-      if(items.length)curRows.push({name:c.name,sum:cs,items:items});
-     });
-    }
-   }catch(e){}
-   if(!curRows.length&&(d.cur.cats||[]).length){
-    curRows=(d.cur.cats||[]).map(c=>({name:c.n,sum:+c.s||0,items:[{name:c.n,parts:[{l:'',n:+c.q||0,p:c.q?Math.round((+c.s||0)/(+c.q||1)):0,v:+c.s||0}]}]}));
-   }
-   const subKey=OPEN['sub|'+SEL];
-   if(subKey){
-    const isCur=subKey==='cur';
-    const rec=isCur?null:d.hist[subKey];
-    const rows=isCur?curRows:(rec&&rec.rows)||[];
-    const title=isCur?'Текущий месяц':monthName((rec&&rec.m)||subKey);
-    const sub=isCur?'не сохранён':('сохранено '+ago(rec&&rec.t));
-    const totS=isCur?(+d.cur.sum||0):(+rec.sum||0);
-    const totQ=isCur?(+d.cur.qty||0):(+rec.qty||0);
-    h+='<button type="button" class="adm-back" data-act="subback">← Все итоги</button>'
-     +'<div class="sum-dash"><div class="sum-top"><div><div class="sum-lbl">'+esc(title)+' · '+esc(sub)+'</div><div class="sum-val">'+fm(totS)+' <span>'+CUR+'</span></div></div>'
-     +'<div class="sum-kpis"><div class="sum-kpi"><b>'+fm(totQ)+'</b><span>штук</span></div><div class="sum-kpi"><b>'+rows.length+'</b><span>катег.</span></div></div></div></div>'
-     +detail(rows);
-   }else{
-    h+='<div class="sum-dash sum-dash-btn" data-act="subopen" data-sub="cur"><div class="sum-top"><div><div class="sum-lbl">Текущий месяц · открыть ›</div><div class="sum-val">'+fm(d.cur.sum)+' <span>'+CUR+'</span></div></div>'
-     +'<div class="sum-kpis"><div class="sum-kpi"><b>'+fm(d.cur.qty)+'</b><span>штук</span></div></div></div></div>';
-    h+='<div class="sec">Сохранённые итоги</div>';
-    const ks=Object.keys(d.hist).filter(k=>d.hist[k]).sort((a,b)=>{const x=d.hist[a],y=d.hist[b];return (y.m||"")<(x.m||"")?-1:(y.m||"")>(x.m||"")?1:(y.t||0)-(x.t||0)});
-    if(!ks.length)h+='<div class="mut box">У этого устройства нет сохранённых итогов.</div>';
-    h+=ks.map(k=>{
-     const x=d.hist[k];
-     return '<div class="mr" style="cursor:pointer" data-act="subopen" data-sub="'+esc(k)+'"><div class="rm"><div class="rt">'+esc(monthName(x.m))+'</div><div class="rs">'+fm(x.qty)+' шт · сохранено '+esc(ago(x.t))+'</div></div><div class="rv">'+money(x.sum)+'</div><span class="ar">›</span></div>';
-    }).join('');
-   }
-  }
-  g('view').innerHTML=h;
+ const CL=allCars();if(SEL!=="all"&&!CARS_LIST.includes(SEL))SEL="all";
+ const curSelLabel=SEL==="all"?"Все машины":("Машина "+SEL);
+ let h="<button type=\"button\" class=\"sel-btn\" data-act=\"opensel\"><span class=\"sel-btn-l\"><span class=\"sel-ic\">🚚</span><span class=\"sel-btn-t\">"+esc(curSelLabel)+"</span></span><svg class=\"sel-chev\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m6 9 6 6 6-6\"/></svg></button>";
+ const badge=cd=>"<span style=\"min-width:36px;height:34px;padding:0 6px;border-radius:11px;background:rgba(16,185,129,.16);border:1px solid rgba(52,211,153,.35);color:#6ee7b7;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0\">"+esc(cd)+"</span>";
+ if(SEL==="all"){
+  const curList=CL.filter(c=>c.qty>0||c.sum>0||c.crew.length>0).sort((a,b)=>b.sum-a.sum);
+  const sum=curList.reduce((a,x)=>a+x.sum,0),qty=curList.reduce((a,x)=>a+x.qty,0);
+  h+="<div class=\"sum-dash\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">Текущий месяц · по машинам</div><div class=\"sum-val\">"+fm(sum)+" <span>"+CUR+"</span></div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b>"+fm(qty)+"</b><span>штук</span></div><div class=\"sum-kpi\"><b>"+curList.length+"</b><span>машин</span></div></div></div>"+(curList.length?"<button type=\"button\" class=\"cp-btn\" style=\"margin-top:12px\" data-act=\"cpcur\">📄 Скопировать ведомость по машинам</button>":"")+"</div>";
+  if(curList.length){h+="<div class=\"sec\">Экипажи в текущем месяце ("+curList.length+")</div>"+curList.map(x=>"<div class=\"st-row\" data-act=\"open-car-sum\" data-id=\""+esc(x.code)+"\" data-sub=\"cur\"><div style=\"display:flex;align-items:center;gap:10px;min-width:0\">"+badge(x.code)+"<div style=\"min-width:0\"><div class=\"st-nm\">Машина "+esc(x.code)+"</div><div class=\"st-qt\">"+fm(x.qty)+" шт"+(x.crew.length?" · "+esc(x.crew.join(", ")):"")+"</div></div></div><div class=\"rv\" style=\"font-size:13.5px\">"+money(x.sum)+" ›</div></div>").join("")}
+  const ms=aggCarMonths(CL);h+="<div class=\"sec\">Архив сохранённых месяцев ("+ms.length+")</div>";
+  if(!ms.length)h+="<div class=\"mut box\">Сохранённых итогов по машинам пока нет.</div>";
+  h+=ms.map(x=>{const key="all|"+x.m,op=!!OPEN[key];return"<div class=\"mr col\" data-act=\"month\" data-key=\""+esc(key)+"\"><div class=\"mrt\"><div class=\"rm\"><div class=\"rt\">📅 "+esc(monthName(x.m))+"</div><div class=\"rs\">"+fm(x.qty)+" шт · машин: "+x.cars.length+"</div></div><div class=\"rv\">"+money(x.sum)+"</div><span class=\"ar\">"+(op?"▾":"▸")+"</span></div>"+(op?"<div class=\"dt\" onclick=\"event.stopPropagation()\">"+x.cars.map(cv=>"<div class=\"st-row\" data-act=\"open-car-month\" data-id=\""+esc(cv.code)+"\" data-m=\""+esc(x.m)+"\"><div style=\"display:flex;align-items:center;gap:10px;min-width:0\">"+badge(cv.code)+"<div style=\"min-width:0\"><div class=\"st-nm\">Машина "+esc(cv.code)+"</div><div class=\"st-qt\">"+fm(cv.qty)+" шт"+(cv.crew&&cv.crew.length?" · "+esc(cv.crew.join(", ")):"")+"</div></div></div><div class=\"rv\" style=\"font-size:13.5px\">"+money(cv.sum)+" ›</div></div>").join("")+"<button type=\"button\" class=\"cp-btn\" data-act=\"cpmonth\" data-m=\""+esc(x.m)+"\">📄 Скопировать ведомость за "+esc(monthName(x.m))+"</button></div>":"")+"</div>"}).join("");
+ }else{
+  const c=parseCar(SEL);
+  h+="<div class=\"sum-dash sum-dash-btn\" data-act=\"subopen\" data-sub=\"cur\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">Текущий месяц · открыть ›</div><div class=\"sum-val\">"+fm(c.sum)+" <span>"+CUR+"</span></div><div style=\"font-size:12px;color:#8b9bb4;margin-top:4px\">"+(c.crew.length?"Экипаж: "+esc(c.crew.join(", ")):"Экипаж не назначен")+"</div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b>"+fm(c.qty)+"</b><span>штук</span></div></div></div></div><div class=\"sec\">Сохранённые итоги</div>";
+  const ks=Object.keys(c.hist).filter(k=>c.hist[k]).sort((a,b)=>{const x=c.hist[a],y=c.hist[b];return(y.m||"")<(x.m||"")?-1:(y.m||"")>(x.m||"")?1:(y.t||0)-(x.t||0)});
+  if(!ks.length)h+="<div class=\"mut box\">У машины "+esc(SEL)+" нет сохранённых итогов.</div>";
+  h+=ks.map(k=>{const x=c.hist[k];return"<div class=\"mr\" style=\"cursor:pointer\" data-act=\"subopen\" data-sub=\""+esc(k)+"\"><div class=\"rm\"><div class=\"rt\">"+esc(monthName(x.m))+"</div><div class=\"rs\">"+fm(x.qty)+" шт · сохранено "+esc(ago(x.t))+"</div></div><div class=\"rv\">"+money(x.sum)+"</div><span class=\"ar\">›</span></div>"}).join("");
  }
+ g("view").innerHTML=h;
+}
  function drawVer(){
   const L=devs(),by={};
   L.forEach(d=>{const v=d.u.v||'';by[v]=(by[v]||0)+1});
@@ -535,7 +471,34 @@ function drawTotals(){
  const askInput = (title, msg, inputVal, placeholder) => openDialog({ title, msg, inputVal, placeholder });
 
  
- function openSelectModal(){
+ 
+ function openCarModal(uid){
+  if(!uid||!USERS[uid])return;
+  const d=parseDev(uid,USERS[uid]),curCar=String(d.u.car||'').toUpperCase();
+  const ov=document.createElement('div');ov.className='ov';
+  const crewOf=c=>devs().filter(x=>String(x.u.car||'').toUpperCase()===c).map(x=>dispName(x)).join(', ');
+  let items='<div class="sel-it'+(!curCar?' on':'')+'" data-c=""><div class="sel-it-l"><span class="sel-ic" style="background:rgba(245,158,11,.14);border-color:rgba(245,158,11,.35);color:#fbbf24">🚫</span><div><div class="sel-it-nm">Без машины</div><div class="sel-it-sb">Начисление бонусов заблокировано</div></div></div><div class="sel-it-r"><span class="sel-chk">✓</span></div></div>';
+  items+=CARS_LIST.map(c=>{
+   const on=curCar===c,crew=crewOf(c);
+   return '<div class="sel-it'+(on?' on':'')+'" data-c="'+c+'"><div class="sel-it-l"><span class="sel-ic">🚚</span><div><div class="sel-it-nm">Машина '+c+'</div><div class="sel-it-sb">'+(crew?esc(crew):'Экипаж свободен')+'</div></div></div><div class="sel-it-r"><span class="sel-chk">✓</span></div></div>';
+  }).join('');
+  ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>🚚 Машина: '+esc(dispName(d))+'</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'+items+'</div></div>';
+  document.body.appendChild(ov);
+  const close=()=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),180)};
+  ov.querySelector('.sel-x').onclick=close;
+  ov.onclick=async e=>{
+   if(e.target===ov){close();return}
+   const it=e.target.closest('.sel-it');if(!it)return;
+   const nc=it.dataset.c;close();
+   try{
+    await db.ref('users/'+uid+'/car').set(nc||null);
+    toast(nc?'Назначена машина '+nc:'Машина снята');
+   }catch(err){toast('Ошибка сохранения',true)}
+  };
+  requestAnimationFrame(()=>ov.classList.add('show'));
+ }
+
+function openSelectModal(){
   const L=devs(),now=Date.now();
   const ov=document.createElement('div');
   ov.className='ov';
@@ -585,6 +548,7 @@ function drawTotals(){
   if(a==='pub'){e.preventDefault();PUB=undefined;draw();loadPub()}
   else if(a==='force')force();
   else if(a==='del'){e.stopPropagation();if(!isSubAdm())del(b.dataset.id)}
+  else if(a==='setcar'){e.stopPropagation();if(!isSubAdm())openCarModal(b.dataset.id)}
   else if(a==='rename'){if(!isSubAdm())rename(b.dataset.id)}
   else if(a==='dm'){e.stopPropagation();if(!isSubAdm())openAdmDm(b.dataset.id)}
   else if(a==='block'){e.stopPropagation();const id=b.dataset.id,k=b.dataset.key,isBlk=b.dataset.blk==='1',du=USERS[id]||{};const who=dispName(parseDev(id,du));const ok=await ask(isBlk?'Разблокировать водителя и телефон «'+who+'»?':'Заблокировать водителя и этот телефон («'+who+'»)? Он сразу выйдет и не сможет войти даже под новым именем.',{title:isBlk?'Разблокировка':'Блокировка',okText:isBlk?'Разблокировать':'Заблокировать',danger:!isBlk});if(!ok)return;try{const nv=isBlk?null:true;await db.ref('users/'+id+'/blocked').set(nv);if(k)await db.ref('accounts/'+k+'/blocked').set(nv);if(du.devId)await db.ref('accounts/__dev_'+du.devId).set(isBlk?null:{blocked:true});if(!isBlk)await db.ref('online/'+id).remove();toast(isBlk?'Разблокировано':'Заблокировано')}catch(err){toast('Ошибка сохранения',true)}}
@@ -592,12 +556,11 @@ function drawTotals(){
   else if(a==='month'){OPEN[b.dataset.key]=!OPEN[b.dataset.key];draw()}
   else if(a==='subopen'){openAdmSumModal(SEL,b.dataset.sub)}
   else if(a==='subback'){delete OPEN['sub|'+SEL];draw()}
-  else if(a==='open-dev-sum'){e.stopPropagation();openAdmSumModal(b.dataset.id,b.dataset.sub||"cur")}
-  else if(a==='open-dev-month'){e.stopPropagation();const dv=parseDev(b.dataset.id,USERS[b.dataset.id]);const hk=Object.keys(dv.hist).find(k=>dv.hist[k]&&dv.hist[k].m===b.dataset.m);if(hk)openAdmSumModal(b.dataset.id,hk);else{SEL=b.dataset.id;draw()}}
-  else if(a==='pickdev'){e.stopPropagation();delete OPEN['sub|'+b.dataset.id];SEL=b.dataset.id;draw()}
+  else if(a==='open-car-sum'){e.stopPropagation();openAdmSumModal(b.dataset.id,b.dataset.sub||"cur")}
+  else if(a==='open-car-month'){e.stopPropagation();const cv=parseCar(b.dataset.id);const hk=Object.keys(cv.hist).find(k=>cv.hist[k]&&cv.hist[k].m===b.dataset.m);if(hk)openAdmSumModal(b.dataset.id,hk);else{SEL=b.dataset.id;draw()}}
   else if(a==='opensel'){e.stopPropagation();openSelectModal()}
-  else if(a==='cpcur'){e.stopPropagation();const curList=devs().map(d=>({name:dispName(d),sum:+d.cur.sum||0,qty:+d.cur.qty||0})).filter(x=>x.qty>0||x.sum>0).sort((a,b)=>b.sum-a.sum);copyReport('Текущий месяц',curList,curList.reduce((a,x)=>a+x.qty,0),curList.reduce((a,x)=>a+x.sum,0))}
-  else if(a==='cpmonth'){e.stopPropagation();const mObj=aggMonths(devs()).find(x=>x.m===b.dataset.m);if(mObj)copyReport(monthName(mObj.m),mObj.devs,mObj.qty,mObj.sum)}
+  else if(a==='cpcur'){e.stopPropagation();const curList=allCars().filter(c=>c.qty>0||c.sum>0).map(c=>({name:'Машина '+c.code+(c.crew.length?' ('+c.crew.join(', ')+')':''),sum:c.sum,qty:c.qty})).sort((a,b)=>b.sum-a.sum);copyReport('Текущий месяц (по машинам)',curList,curList.reduce((a,x)=>a+x.qty,0),curList.reduce((a,x)=>a+x.sum,0))}
+  else if(a==='cpmonth'){e.stopPropagation();const mObj=aggCarMonths(allCars()).find(x=>x.m===b.dataset.m);if(mObj)copyReport(monthName(mObj.m),mObj.cars,mObj.qty,mObj.sum)}
   else if(a==='mapfilter'){MAP_ONLY_ONLINE=!MAP_ONLY_ONLINE;_didFit=false;drawMap()}
   else if(a==='focus'){const mk=_markers[b.dataset.id];if(mk&&_map){_map.setView(mk.getLatLng(),16,{animate:true});mk.openPopup()}}
  });

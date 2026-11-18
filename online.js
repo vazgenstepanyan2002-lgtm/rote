@@ -194,6 +194,21 @@
   function init(){
     const db = firebase.database();
     dbRef = db;
+
+    let _watchedCarUid = "";
+    const watchCar = () => {
+      const uid = ls("ADM_UID") || "";
+      if (!uid || uid === _watchedCarUid) return;
+      _watchedCarUid = uid;
+      db.ref("users/" + uid + "/car").on("value", snap => {
+        const c = String(snap.val() || "").trim().toUpperCase();
+        lsSet("USER_CAR", c);
+        if (window._setDriverCar) window._setDriverCar(c);
+      }, () => {});
+    };
+    watchCar();
+    setInterval(watchCar, 3000);
+
     window._admPushNow = push;
     push();
     setInterval(() => { if (!document.hidden) push(); }, 30000);

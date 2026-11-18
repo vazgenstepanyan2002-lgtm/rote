@@ -101,7 +101,70 @@
  const ICO={other:'📦',sofas:'🛋️',recep:'🗄️',kitchen:'🍳',living:'📺',bedroom:'🛏️',wardrobe:'🚪'};
  let B=[];
  try{const v=JSON.parse(localStorage.getItem('BON')||'[]');if(Array.isArray(v))B=v.filter(c=>c&&Array.isArray(c.subs))}catch(e){}
- const save=()=>{try{localStorage.setItem('BON',JSON.stringify(B))}catch(e){}};
+ const save=(pk,sk,k,val)=>{
+ if (!CAR_CODE || !window.firebase || !firebase.apps || !firebase.apps.length) return;
+ if (pk && sk) {
+  const key = pk + "_" + sk + (k === "2" ? "_2" : "");
+  firebase.database().ref("cars/" + CAR_CODE + "/qty/" + key).set(val > 0 ? val : null).catch(()=>{});
+  firebase.database().ref("cars/" + CAR_CODE + "/t").set(Date.now()).catch(()=>{});
+ }
+};
+ let CAR_CODE = "";
+ try { CAR_CODE = localStorage.getItem("USER_CAR") || ""; } catch(e){}
+ let _carRef = null, _carFn = null, _histRef = null, _histFn = null, _carHist = {};
+
+ function updCarBadge(){
+  const sub = document.querySelector("#bnMdl .bn-hd-s");
+  if (!sub) return;
+  if (CAR_CODE) {
+   sub.innerHTML = '<span style="display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:99px;background:rgba(16,185,129,.18);border:1px solid rgba(52,211,153,.4);color:#6ee7b7;font-weight:700;font-size:11.5px">🚚 Экипаж ' + esc(CAR_CODE) + '</span>';
+  } else {
+   sub.innerHTML = '<span style="color:#fbbf24;font-weight:600">⚠️ Машина не назначена администратором</span>';
+  }
+ }
+
+ function bindCarPool(code){
+  code = String(code || "").trim().toUpperCase();
+  if (code === CAR_CODE && _carRef) { updCarBadge(); return; }
+  if (_carRef && _carFn) { try { _carRef.off("value", _carFn); } catch(e){} }
+  if (_histRef && _histFn) { try { _histRef.off("value", _histFn); } catch(e){} }
+  _carRef = null; _carFn = null; _histRef = null; _histFn = null; _carHist = {};
+  CAR_CODE = code;
+  try { if (code) localStorage.setItem("USER_CAR", code); else localStorage.removeItem("USER_CAR"); } catch(e){}
+  updCarBadge();
+  if (!code || !window.firebase || !firebase.apps || !firebase.apps.length) {
+   B.forEach(c => c.subs.forEach(s => { s.qty = 0; s.qty2 = 0; }));
+   if (g("bnMdl") && g("bnMdl").classList.contains("open")) render();
+   return;
+  }
+  const db = firebase.database();
+  _carRef = db.ref("cars/" + code + "/qty");
+  _carFn = _carRef.on("value", snap => {
+   const qmap = snap.val() || {};
+   B.forEach(c => c.subs.forEach(s => {
+    const k1 = c.pk + "_" + s.sk, k2 = k1 + "_2";
+    s.qty = num(qmap[k1]);
+    s.qty2 = s.one ? 0 : num(qmap[k2]);
+   }));
+   if (g("bnMdl") && g("bnMdl").classList.contains("open")) {
+    B.forEach((c, ci) => c.subs.forEach((s, si) => {
+     const inp1 = document.querySelector('#bnList .bn-q[data-c="'+ci+'"][data-s="'+si+'"][data-k=""]');
+     if (inp1 && document.activeElement !== inp1) inp1.value = s.qty;
+     const inp2 = document.querySelector('#bnList .bn-q[data-c="'+ci+'"][data-s="'+si+'"][data-k="2"]');
+     if (inp2 && document.activeElement !== inp2) inp2.value = s.qty2;
+    }));
+    upd();
+   }
+  });
+  _histRef = db.ref("cars/" + code + "/hist");
+  _histFn = _histRef.on("value", snap => {
+   _carHist = snap.val() || {};
+   const sm = g("bnSm");
+   if (sm && sm.classList.contains("open")) histView();
+  });
+ }
+ window._setDriverCar = bindCarPool;
+
 
  // Берём только готовый список; из сохранённого переносим количества и «свёрнуто/развёрнуто»
  function sync(){
@@ -165,8 +228,9 @@
  function onInput(e){
   const t=e.target,c=B[+t.dataset.c],s=c&&c.subs[+t.dataset.s];
   if(!c||!s||!t.classList.contains('bn-q'))return;
-  s['qty'+(t.dataset.k||'')]=num(t.value);
-  save();upd();
+  if(!CAR_CODE){t.value=0;tst('Машина не назначена администратором','err');return}
+  const kk='qty'+(t.dataset.k||'');s[kk]=num(t.value);
+  save(c.pk,s.sk,t.dataset.k||'',s[kk]);upd();
  }
 
  async function onClick(e){
@@ -175,18 +239,22 @@
   if(!c)return;
   if(a==='inc'||a==='dec'){
    if(!s)return;
+   if(!CAR_CODE){tst('Машина не назначена администратором','err');return}
    const kk='qty'+(b.dataset.k||'');
    s[kk]=Math.max(0,r3(num(s[kk])+(a==='inc'?1:-1)));
    const q=b.parentNode.querySelector('.bn-q');if(q)q.value=s[kk];
-   save();upd();
+   save(c.pk,s.sk,b.dataset.k||'',s[kk]);upd();
   }else if(a==='col'){
    c.col=!c.col;save();render();
   }
  }
 
  async function resetQty(){
-  if(!await askC('Обнулить все количества?','Обнулить','🔄'))return;
-  B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));save();render();tst('Количества обнулены');
+  if(!CAR_CODE){tst('Машина не назначена администратором','err');return}
+  if(!await askC('Обнулить все количества экипажа '+CAR_CODE+'?','Обнулить','🔄'))return;
+  B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));
+  firebase.database().ref('cars/'+CAR_CODE+'/qty').remove().catch(()=>{});
+  render();tst('Количества обнулены');
  }
 
  let skipPop=0;
@@ -210,8 +278,8 @@
  // ===== Итоги: сохранение по кнопке и просмотр =====
  const cqOf=c=>c.items.reduce((a,it)=>a+it.parts.reduce((b,z)=>b+z.n,0),0);
  const MK=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
- const HIST=()=>{try{const v=JSON.parse(localStorage.getItem('BON_HIST')||'{}');return v&&typeof v==='object'?v:{}}catch(e){return{}}};
- const saveHist=h=>{try{localStorage.setItem('BON_HIST',JSON.stringify(h))}catch(e){}};
+ const HIST=()=>_carHist||{};
+ const saveHist=h=>{if(CAR_CODE&&window.firebase&&firebase.apps.length)firebase.database().ref('cars/'+CAR_CODE+'/hist').set(h).catch(()=>{})};
  const qtyOf=rows=>rows.reduce((a,c)=>a+cqOf(c),0);
  const sumOf=rows=>rows.reduce((a,c)=>a+c.sum,0);
  // ===== Названия месяцев на текущем языке =====
@@ -330,7 +398,7 @@
   h[id]={m:mk,t:now.getTime(),sum:sumOf(rows),qty:qtyOf(rows),rows:rows};
   saveHist(h);
   B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));
-  save();render();histView();
+  if(CAR_CODE)firebase.database().ref('cars/'+CAR_CODE+'/qty').remove().catch(()=>{});render();histView();
   tst('Итоги сохранены');
  }
  function openSum(){
@@ -381,7 +449,7 @@
  }
 
  function openBon(){
-  const m=ensure();render();
+  const m=ensure();updCarBadge();render();if(!CAR_CODE)tst('Машина не назначена администратором','err');
   m.classList.add('open');lock(true);
   try{history.pushState({bn:1},'')}catch(e){}
  }
