@@ -721,7 +721,7 @@
         probe('Яндекс Подсказки', maskKey(sKey), async () => { const r = await fetch(p3); return { ok: r.ok, detail: r.ok ? 'HTTP 200' : 'HTTP ' + r.status }; }),
         probe('OSRM Основной', 'project-osrm', async () => { const r = await fetch(p4); const d = await r.json().catch(() => ({})); return { ok: r.ok && d.code === 'Ok', detail: (r.ok && d.code === 'Ok') ? 'Маршрут ОК' : 'HTTP ' + r.status }; }),
         probe('OSRM Резервный', 'osm.de', async () => { const r = await fetch(p5); const d = await r.json().catch(() => ({})); return { ok: r.ok && d.code === 'Ok', detail: (r.ok && d.code === 'Ok') ? 'Маршрут ОК' : 'HTTP ' + r.status }; }),
-        probe('Vision OCR', maskKey('AIzaSyAp5bkQ2wKoAl6pzrWh0doeo3gAosL0rTI'), async () => { const u = ['https:', '', '://googleapis.com', 'v1', 'images:annotate?key=AIzaSyAp5bkQ2wKoAl6pzrWh0doeo3gAosL0rTI'].join('/'); const r = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requests: [] }) }); return { ok: r.ok, detail: r.ok ? 'HTTP 200' : 'HTTP ' + r.status }; })
+        probe('Vision OCR', maskKey('AIzaSyAp5bkQ2wKoAl6pzrWh0doeo3gAosL0rTI'), async () => { const u = 'https://' + 'vision.' + '://googleapis.comAIzaSyAp5bkQ2wKoAl6pzrWh0doeo3gAosL0rTI'; const r = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requests: [] }) }); return { ok: r.ok, detail: r.ok ? 'HTTP 200' : 'HTTP ' + r.status }; })
       ]);
       let swInfo = 'Нет', cacheList = 'пусто';
       if ('serviceWorker' in navigator) { const reg = await navigator.serviceWorker.getRegistration(); swInfo = reg && reg.active ? reg.active.state : 'не активен'; }
