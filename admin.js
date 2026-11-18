@@ -303,7 +303,7 @@
     pill('📦 '+esc(verFmt(d.u.v)),pBase)
    );
    if(d.u.addr!=null)row2.push(pill('📍 '+esc(d.u.addr),pAdr));
-   row1.push('<span data-act="setcar" data-id="'+esc(d.id)+'" style="cursor:pointer;display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:7px;font-size:11px;line-height:1.2;white-space:nowrap;'+pCar+'">🚚 '+(car?esc(car):'Без машины')+'</span>');
+
 
    const blkBadge=blk?' <span style="display:inline-block;background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.45);color:#fca5a5;font-size:10px;font-weight:800;padding:1px 6px;border-radius:99px;vertical-align:middle;margin-left:4px">🚫 БЛОК</span>':'';
    const rowStyle=blk?' style="border-color:rgba(239,68,68,.45);background:linear-gradient(180deg,rgba(45,18,24,.88) 0%,rgba(22,12,16,.95) 100%)"':'';
@@ -317,7 +317,7 @@
    const delBtn=sub?'':'<button class="xb" data-act="del" data-id="'+esc(d.id)+'" aria-label="Удалить">✕</button>';
 
    return '<div class="row"'+rowStyle+(sub?' style="cursor:default"':' data-act="rename" data-id="'+esc(d.id)+'"')+'><span class="dot'+(live&&!blk?' on':'')+'"></span>'
-    +'<div class="rm"><div class="rt" style="margin-bottom:5px">'+dispHtml(d)+blkBadge+'</div>'
+    +'<div class="rm"><div class="rt" style="margin-bottom:6px;display:flex;align-items:center;gap:8px"><div style="min-width:0;flex:1">'+dispHtml(d)+blkBadge+'</div>'+(car?'<button type="button" data-act="setcar" data-id="'+esc(d.id)+'" style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:11px;background:linear-gradient(135deg,rgba(16,185,129,.24),rgba(5,150,105,.12));border:1px solid rgba(52,211,153,.5);box-shadow:0 2px 10px rgba(16,185,129,.16);color:#6ee7b7;font-size:12.5px;font-weight:800;letter-spacing:.4px;cursor:pointer;line-height:1"><span style="font-size:14px">🚚</span><span>'+esc(car)+'</span><span style="opacity:.65;font-size:10px">▾</span></button>':'<button type="button" data-act="setcar" data-id="'+esc(d.id)+'" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:11px;background:rgba(245,158,11,.13);border:1px dashed rgba(251,191,36,.45);color:#fbbf24;font-size:11.5px;font-weight:700;cursor:pointer;line-height:1"><span>🚚</span><span>Экипаж</span><span style="opacity:.7;font-size:10px">▾</span></button>')+'</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">'+row1.join('')+'</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:4px">'+row2.join('')+'</div></div>'
     +'<div class="rv">'+money(car ? parseCar(car).sum : d.cur.sum)+'</div>'
