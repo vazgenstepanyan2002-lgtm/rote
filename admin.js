@@ -541,30 +541,20 @@ function openCarModal(uid){
  }
 
 function openSelectModal(){
-  const L=devs(),now=Date.now();
-  const ov=document.createElement('div');
-  ov.className='ov';
-  const totSum=L.reduce((a,d)=>a+(+d.cur.sum||0),0);
-  let items='<div class="sel-it'+(SEL==='all'?' on':'')+'" data-val="all"><div class="sel-it-l"><span class="sel-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><div><div class="sel-it-nm">Все устройства</div><div class="sel-it-sb">Устройств: '+L.length+'</div></div></div><div class="sel-it-r"><span class="sel-it-sm">'+money(totSum)+'</span><span class="sel-chk">✓</span></div></div>';
-  items+=L.map(d=>{
-   const live=now-(d.u.t||0)<TTL;
-   const on=SEL===d.id;
-   return '<div class="sel-it'+(on?' on':'')+'" data-val="'+esc(d.id)+'"><div class="sel-it-l"><span class="dot'+(live?' on':'')+'"></span><div><div class="sel-it-nm">'+esc(dispName(d))+'</div><div class="sel-it-sb">'+(live?'сейчас в сети':'был(а) '+ago(d.u.t))+'</div></div></div><div class="sel-it-r"><span class="sel-it-sm">'+money(d.cur.sum)+'</span><span class="sel-chk">✓</span></div></div>';
+  const CL=allCars(),ov=document.createElement('div');ov.className='ov';
+  const totSum=CL.reduce((a,c)=>a+c.sum,0);
+  let items='<div class="sel-it'+(SEL==='all'?' on':'')+'" data-val="all"><div class="sel-it-l"><span class="sel-ic">🚚</span><div><div class="sel-it-nm">Все машины</div><div class="sel-it-sb">Экипажей: '+CARS_LIST.length+'</div></div></div><div class="sel-it-r"><span class="sel-it-sm">'+money(totSum)+'</span><span class="sel-chk">✓</span></div></div>';
+  items+=CL.map(c=>{
+   const on=SEL===c.code;
+   return '<div class="sel-it'+(on?' on':'')+'" data-val="'+c.code+'"><div class="sel-it-l"><span class="sel-ic" style="font-weight:800;font-size:13px">'+c.code+'</span><div><div class="sel-it-nm">Машина '+c.code+'</div><div class="sel-it-sb">'+(c.crew.length?esc(c.crew.join(', ')):'Экипаж не назначен')+'</div></div></div><div class="sel-it-r"><span class="sel-it-sm">'+money(c.sum)+'</span><span class="sel-chk">✓</span></div></div>';
   }).join('');
-  ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>Выберите водителя</b><button type="button" class="sel-x" aria-label="Закрыть">✕</button></div><div class="sel-list">'+items+'</div></div>';
+  ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>Выберите машину</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'+items+'</div></div>';
   document.body.appendChild(ov);
-  const close=()=>{ov.classList.remove('show');document.removeEventListener('keydown',onKey);setTimeout(()=>ov.remove(),180)};
-  const onKey=e=>{if(e.key==='Escape')close()};
+  const close=()=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),180)};
   ov.querySelector('.sel-x').onclick=close;
-  ov.onclick=e=>{
-   if(e.target===ov){close();return}
-   const it=e.target.closest('.sel-it');
-   if(it){SEL=it.dataset.val;close();draw()}
-  };
-  document.addEventListener('keydown',onKey);
+  ov.onclick=e=>{if(e.target===ov){close();return}const it=e.target.closest('.sel-it');if(it){SEL=it.dataset.val;close();draw()}};
   requestAnimationFrame(()=>ov.classList.add('show'));
  }
-
  // ===== Действия =====
  async function force(){
   if(!(await ask('Отправить всем устройствам команду обновления?', { title: 'Обновление приложения', okText: 'Обновить' })))return;
