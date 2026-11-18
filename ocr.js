@@ -44,26 +44,24 @@
 
   async function askGemini(b64){
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
-    const url = 'https' + '://' + host + '/v1beta/models/gemini-flash-latest:generateContent?key=' + encodeURIComponent(GKEY);
-    const prompt = [
-      'Ты эксперт по адресам Армении и накладным доставки EuroBaza.',
-      'Найди на фото все адреса доставки (смотри колонки "Տեղափոխման հասցե", "հասցե", "Адрес").',
-      'Игнорируй мебель, цены, суммы, имена и телефоны.',
-      'ОБЯЗАТЕЛЬНО удаляй квартиру, подъезд и этаж (բն., բնակարան, մուտք, հարկ, кв., под., эт.), оставляй только город/село, улицу/проспект/квартал и номер дома (включая дробь/букву, напр. 12/4, 15ա).',
-      'Если город не указан, но улица ереванская — добавь Ереван (Երևան).',
-      'Верни СТРОГО JSON-массив объектов {"orig":"адрес на языке оригинала","ru":"перевод на русский: Город, улица, дом"}. Если адресов нет, верни [].'
-    ].join(' ');
-
-    const r = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(45000),
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }, { inline_data: { mime_type: 'image/jpeg', data: b64 } }] }],
-        generationConfig: { temperature: 0.05, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } }
-      })
+    const models = ['gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.6-flash'];
+    const bodyStr = JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }, { inline_data: { mime_type: 'image/jpeg', data: b64 } }] }],
+      generationConfig: { temperature: 0.05, responseMimeType: 'application/json' }
     });
-    if (!r.ok) throw new Error(r.status === 429 ? 'Лимит запросов Gemini, подождите минуту' : 'Ошибка Gemini API: HTTP ' + r.status);
+    let r = null, lastErr = '';
+    for (const mdl of models) {
+      const url = 'https' + '://' + host + '/v1beta/models/' + mdl + ':generateContent?key=' + encodeURIComponent(GKEY);
+      try {
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(16000), body: bodyStr });
+        if (res.ok) { r = res; break; }
+        lastErr = res.status === 429 ? 'Лимит запросов Gemini, подождите минуту' : 'Ошибка Gemini (' + mdl + '): HTTP ' + res.status;
+        if (res.status !== 503 && res.status !== 429 && res.status !== 404) break;
+      } catch (e) {
+        lastErr = 'Сервер долго отвечает, перепробую...';
+      }
+    }
+    if (!r) throw new Error(lastErr || 'Серверы распознавания перегружены, попробуйте через минуту');
     const j = await r.json();
     const cand = j && Array.isArray(j.candidates) ? j.candidates.at(0) : null;
     const parts = cand && cand.content && Array.isArray(cand.content.parts) ? cand.content.parts : [];
