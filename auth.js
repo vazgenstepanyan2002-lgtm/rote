@@ -65,7 +65,9 @@
         ib.hidden = true;
         box.hidden = false;
       } else {
-        box.hidden = true;
+        txt.innerHTML = 'Для установки: откройте в <b>Chrome</b> → меню <b>⋮</b> → <b>На главный экран</b>';
+        ib.hidden = true;
+        box.hidden = false;
       }
     };
     window._updAuthInst = syncAuthInst;
