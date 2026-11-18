@@ -6,7 +6,7 @@
   const stripPin = s => String(s || '').replace(/\s*[\u{1F50E}\u{1F4CD}]\s*$/u, '').trim();
 
   async function compressImage(file){
-    const maxSide = 1080;
+    const maxSide = 1600;
     try {
       if (typeof createImageBitmap === 'function') {
         const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
@@ -46,8 +46,8 @@
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
     const prompt = 'Извлеки все адреса доставки в Армении с фото накладной (колонка Տեղափոխման հասցե / հասցե / Адрес). Удали квартиры, подъезды, этажи, имена, товары, цены и телефоны. Оставь только город/село, улицу и дом (напр. 12/4, 15ա). Если город не указан для ереванской улицы — добавь Ереван. Верни строго JSON-массив [{"orig":"оригинал","ru":"Город, улица, дом"}] или [].';
     const bodyStr = JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: prompt }, { inline_data: { mime_type: 'image/jpeg', data: b64 } }] }],
-      generationConfig: { temperature: 0, responseMimeType: 'application/json' }
+      contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mime_type: 'image/jpeg', data: b64 } }] }],
+      generationConfig: { temperature: 0, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } }
     });
     const runModel = async mdl => {
       const url = 'https' + '://' + host + '/v1beta/models/' + mdl + ':generateContent?key=' + encodeURIComponent(GKEY);
@@ -58,7 +58,8 @@
     const j = await Promise.any(['gemini-flash-lite-latest', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'].map(runModel));
     const cand = j && Array.isArray(j.candidates) ? j.candidates.at(0) : null;
     const parts = cand && cand.content && Array.isArray(cand.content.parts) ? cand.content.parts : [];
-    const raw = (parts.at(0) && parts.at(0).text) || '[]';
+    const ansPart = parts.find(p => p && !p.thought && typeof p.text === 'string') || parts.at(-1);
+    const raw = (ansPart && ansPart.text) || '[]';
     const arr = JSON.parse(raw.replace(/```json|```/gi, '').trim());
     if (!Array.isArray(arr)) return [];
     return arr.map(x => typeof x === 'string' ? { orig: x.trim(), ru: x.trim() } : { orig: String((x && x.orig) || '').trim(), ru: String((x && x.ru) || (x && x.orig) || '').trim() }).filter(x => x.ru || x.orig);
@@ -143,7 +144,7 @@
         } else if (typeof window.add === 'function') await window.add();
       } else { if (st) st.textContent = ''; showMultiPicker(items); }
     } catch (e) {
-      if (st) st.textContent = (e && (e.name === 'TimeoutError' || /timed out/i.test(e.message))) ? 'Сервер долго отвечает, проверьте интернет' : ((e && e.message) || 'Не удалось распознать фото');
+      if (st) st.textContent = (e && (e.name === 'TimeoutError' || /timed out/i.test(e.message))) ? 'Сервер долго отвечает, проверьте интернет' : (e && e.errors ? e.errors.map(x => x.message).join('; ') : (e && e.errors ? e.errors.map(x => x.message).join('; ') : ((e && e.message) || 'Не удалось распознать фото')));
       window.toast && toast('Не удалось распознать фото', 'err');
     } finally { if (btn) btn.classList.remove('busy'); if (typeof busy === 'function') busy(0); }
   }
