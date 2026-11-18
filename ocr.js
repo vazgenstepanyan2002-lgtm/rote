@@ -273,20 +273,8 @@
     } finally { if (btn) btn.classList.remove('busy'); if (typeof busy === 'function') busy(0); }
   }
 
-  function mount(){
-    const inp = g('a');
-    if (!inp || g('camBtn')) return;
-    const wrap = inp.closest('.inp-w');
-    if (!wrap) return;
-    const fileInp = document.createElement('input');
-    fileInp.type = 'file'; fileInp.id = 'camFile'; fileInp.accept = 'image/*'; fileInp.hidden = true;
-    fileInp.onchange = () => { const f = fileInp.files && fileInp.files.item(0); fileInp.value = ''; if (f) scanFile(f); };
-    const btn = document.createElement('span');
-    btn.id = 'camBtn'; btn.className = 'inp-cam'; btn.title = 'Сканировать адрес с фото';
-    btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>';
-    btn.onclick = () => fileInp.click();
-    wrap.appendChild(fileInp); wrap.appendChild(btn);
-  }
+  function openSourcePicker(camInp,galInp){let m=g("ocrSrcMdl");if(m)m.remove();m=document.createElement("div");m.id="ocrSrcMdl";m.className="cm open";m.innerHTML="<div class=\"cm-b\" style=\"max-width:340px\"><div class=\"cm-i\">📷</div><div class=\"cm-t\">Сканировать адрес с фото</div><div style=\"display:flex;flex-direction:column;gap:10px;margin-bottom:12px\"><button type=\"button\" id=\"ocrPickCam\" style=\"margin:0;height:48px;background:rgba(16,185,129,.22);color:#34d399;border:1.5px solid #10b981;font-size:15px;font-weight:700\">📸 Открыть камеру</button><button type=\"button\" id=\"ocrPickGal\" style=\"margin:0;height:48px;background:rgba(56,189,248,.18);color:#7dd3fc;border:1.5px solid #38bdf8;font-size:15px;font-weight:700\">🖼️ Выбрать из галереи</button></div><button type=\"button\" id=\"ocrPickNo\" style=\"margin:0;height:42px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#94a3b8;font-size:14px\">Отмена</button></div>";document.body.appendChild(m);const close=()=>m.remove();g("ocrPickNo").onclick=close;m.onclick=e=>{if(e.target===m)close()};g("ocrPickCam").onclick=()=>{close();camInp.click()};g("ocrPickGal").onclick=()=>{close();galInp.click()}}
+  function mount(){const inp=g("a");if(!inp||g("camBtn"))return;const wrap=inp.closest(".inp-w");if(!wrap)return;const makeInp=(id,cap)=>{const el=document.createElement("input");el.type="file";el.id=id;el.accept="image/*";el.hidden=true;if(cap)el.setAttribute("capture","environment");el.onchange=()=>{const f=el.files&&el.files.item(0);el.value="";if(f)scanFile(f)};return el};const camInp=makeInp("camFile",true),galInp=makeInp("galFile",false);const btn=document.createElement("span");btn.id="camBtn";btn.className="inp-cam";btn.title="Сканировать адрес с фото";btn.innerHTML="<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.1\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z\"/><circle cx=\"12\" cy=\"13\" r=\"3\"/></svg>";btn.onclick=()=>openSourcePicker(camInp,galInp);wrap.appendChild(camInp);wrap.appendChild(galInp);wrap.appendChild(btn)}
 
   window.EUROBAZA_OCR_KEY = GKEY;
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
