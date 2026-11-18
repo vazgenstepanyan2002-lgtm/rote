@@ -24,6 +24,7 @@
       + '<div class="au-fld"><svg class="au-ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><input id="auName" maxlength="32" autocomplete="name" placeholder="Ваше имя (например: Артак)"></div>'
       + '<div class="au-fld"><svg class="au-ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><input id="auPin" class="au-pin" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="4-значный ПИН-код"></div>'
       + '<div id="auErr" class="auth-err"></div>'
+      + '<div id="auInst" class="au-inst" hidden><div class="au-inst-l"><span class="au-inst-ic">📲</span><span id="auInstTxt"></span></div><button type="button" id="auInstBtn" class="au-inst-btn" hidden>Установить</button></div>'
       + '<button id="auGo" class="auth-ok"><span>Продолжить</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg></button>'
       + '</div>';
     document.body.appendChild(m);
@@ -41,6 +42,35 @@
       b.onclick = () => {
         if (window.setAppLang) window.setAppLang(b.dataset.al);
         updLangBtns();
+
+    const syncAuthInst = () => {
+      const box = g("auInst"), txt = g("auInstTxt"), ib = g("auInstBtn");
+      if (!box || !txt || !ib) return;
+      const isSt = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+      if (isSt){ box.hidden = true; return; }
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      if (window._pwaPrompt){
+        txt.textContent = "Установите приложение на экран для быстрого входа";
+        ib.hidden = false;
+        box.hidden = false;
+        ib.onclick = async () => {
+          const p = window._pwaPrompt;
+          if (!p) return;
+          p.prompt();
+          const r = await p.userChoice.catch(() => ({}));
+          if (r && r.outcome === "accepted"){ window._pwaPrompt = null; box.hidden = true; }
+        };
+      } else if (isIOS){
+        txt.innerHTML = 'Для установки: нажмите <b>Поделиться</b> (□↑) → <b>На экран «Домой»</b>';
+        ib.hidden = true;
+        box.hidden = false;
+      } else {
+        box.hidden = true;
+      }
+    };
+    window._updAuthInst = syncAuthInst;
+    syncAuthInst();
+
       };
     });
     updLangBtns();

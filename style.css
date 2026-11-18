@@ -712,3 +712,12 @@ a.nav:active{transform:scale(.975);background:linear-gradient(135deg,rgba(250,20
 body:has(#l:empty) #clrBtn,body:has(#o:empty) #clrRouteBtn{opacity:.4!important;pointer-events:none!important;filter:grayscale(.35)}
 
 body:has(.mdl.open),html:has(.mdl.open){overflow:hidden!important;overscroll-behavior:none!important}
+
+/* AUTH-INSTALL-BANNER */
+.au-inst{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:10px 12px;border-radius:14px;background:linear-gradient(135deg,rgba(56,189,248,.14) 0%,rgba(16,185,129,.12) 100%);border:1px solid rgba(56,189,248,.34);text-align:left}
+.au-inst[hidden]{display:none!important}
+.au-inst-l{display:flex;align-items:center;gap:9px;min-width:0;flex:1;font-size:12px;line-height:1.35;color:#e0f2fe}
+.au-inst-l b{color:#7dd3fc;font-weight:700}
+.au-inst-ic{font-size:18px;flex-shrink:0}
+.au-inst-btn{width:auto!important;height:32px!important;margin:0!important;padding:0 11px!important;border-radius:10px!important;font-size:12px!important;font-weight:700!important;color:#042414!important;background:linear-gradient(135deg,#6ee7b7,#10b981)!important;border:none!important;white-space:nowrap;flex-shrink:0;box-shadow:0 4px 12px rgba(16,185,129,.25)!important}
+.au-inst-btn:active{transform:scale(.95)}

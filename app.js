@@ -143,12 +143,12 @@ async function openPts(){
  }catch(e){}
 }
 ;
-let _defPrompt=null;
+let _defPrompt=null;window._pwaPrompt=null;window._updAuthInst=null;
 const isStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
 if(!isStandalone&&!localStorage.getItem('INST_HIDE')){
  window.addEventListener('beforeinstallprompt',e=>{
   e.preventDefault();
-  _defPrompt=e;
+  _defPrompt=e;window._pwaPrompt=e;if(window._updAuthInst)window._updAuthInst();
   $('instTxt').textContent='📲 Установить EuroBaza на главный экран';
   $('instBtn').style.display='block';
   $('instBar').style.display='flex';
@@ -164,9 +164,9 @@ async function runInstall(){
  _defPrompt.prompt();
  const res=await _defPrompt.userChoice;
  if(res.outcome==='accepted')$('instBar').style.display='none';
- _defPrompt=null;
+ _defPrompt=null;window._pwaPrompt=null;if(window._updAuthInst)window._updAuthInst();
 }
-window.addEventListener('appinstalled',()=>{$('instBar').style.display='none'});
+window.addEventListener('appinstalled',()=>{window._pwaPrompt=null;$('instBar').style.display='none';if(window._updAuthInst)window._updAuthInst()});
 ;
 const fT=async u=>{let last;for(let i=0;i<2;i++){try{return await fetch(u,{signal:AbortSignal.timeout(9000)})}catch(e){last=e;if(!navigator.onLine)throw e;await new Promise(r=>setTimeout(r,400*(i+1)))}}throw last};
 const BASE={name:'🏁 Возврат на базу (Арин Берд 7)',lat:40.120847,lon:44.514271};
