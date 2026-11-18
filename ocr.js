@@ -31,7 +31,7 @@
 
   async function askGemini(b64){
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
-    const url = 'https' + '://' + host + '/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(GKEY);
+    const url = 'https' + '://' + host + '/v1beta/models/gemini-3.1-flash-lite:generateContent?key=' + encodeURIComponent(GKEY);
     const prompt = [
       'Ты помощник водителя доставки EuroBaza в Армении.',
       'Найди на фото накладной, чека или экрана все адреса доставки (особенно в колонках "Տեղափոխման հասցե", "հասցե", "Адрес" или в тексте).',
