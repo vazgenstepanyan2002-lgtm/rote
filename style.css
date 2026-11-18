@@ -782,3 +782,17 @@ body{min-height:100dvh;padding:clamp(10px, 3vw, 16px)!important;padding-bottom:c
   .auth-ok{height:46px!important}
   .ch-box{height:90dvh!important;max-height:90dvh!important}
 }
+
+/* IOS-BOTTOM-DOCK-OFFSET */
+@supports (-webkit-touch-callout: none){
+  body{padding-bottom:calc(96px + env(safe-area-inset-bottom, 20px))!important}
+  .fab,.fab-l,.fab-c,.fab-r{
+    bottom:calc(28px + env(safe-area-inset-bottom, 20px))!important;
+  }
+  #ft{
+    bottom:calc(12px + env(safe-area-inset-bottom, 20px))!important;
+  }
+  #toast{
+    bottom:calc(82px + env(safe-area-inset-bottom, 20px))!important;
+  }
+}
