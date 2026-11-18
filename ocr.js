@@ -112,7 +112,6 @@
     fileInp.type = 'file';
     fileInp.id = 'camFile';
     fileInp.accept = 'image/*';
-    fileInp.setAttribute('capture', 'environment');
     fileInp.hidden = true;
     fileInp.onchange = () => {
       const f = fileInp.files && fileInp.files.item(0);
