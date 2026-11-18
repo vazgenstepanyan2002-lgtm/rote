@@ -70,24 +70,28 @@
     const queries = Array.from(new Set([item.orig, item.ru].map(cleanQ).filter(Boolean)));
     let fallbackList = [];
 
-    // 1. Сначала ищем через Яндекс Геосаджест (sugList) -> затем точные координаты через yan
+    // 1. Ищем точное название через Яндекс Саджест -> затем координаты через Яндекс Геокодер
     if (typeof sugList === 'function') {
       for (const q of queries) {
         const sugs = await sugList(q);
         for (const sg of (sugs || []).slice(0, 3)) {
+          const sugTitle = cleanQ(sg.name || sg.text);
           const sq = cleanQ(sg.text || sg.name);
           if (!sq) continue;
           const list = await yan(sq);
           if (list && list.length) {
-            const exactHit = list.find(x => x.exact);
-            if (exactHit) return { hit: exactHit, list: list };
-            if (!fallbackList.length) fallbackList = list;
+            const picked = list.find(x => x.exact) || list.at(0);
+            const finalName = sugTitle || cleanQ(picked.name);
+            return {
+              hit: { name: finalName, lat: picked.lat, lon: picked.lon, exact: picked.exact },
+              list: list
+            };
           }
         }
       }
     }
 
-    // 2. Резервный прямой поиск через Геокодер (yan)
+    // 2. Резерв: прямой поиск через Яндекс Геокодер, если Саджест не вернул вариантов
     for (const q of queries) {
       const list = await yan(q);
       if (list && list.length) {
@@ -119,7 +123,7 @@
       if (typeof busy === 'function') busy(1);
       try {
         for (const it of checked) {
-          if (st) st.textContent = 'Ищу: ' + it.ru + '...';
+          if (st) st.textContent = 'Ищу через Саджест: ' + it.ru + '...';
           const res = await resolveBestYandex(it);
           if (res.hit) {
             const cleanName = stripPin(res.hit.name);
@@ -147,24 +151,24 @@
       if (!items.length) { if (st) st.textContent = 'Текст на фото не найден'; window.toast && toast('Текст на фото не найден', 'err'); return; }
       if (items.length === 1) {
         const one = items.at(0);
-        if (st) st.textContent = 'Проверяю точный дом в Яндексе...';
+        if (st) st.textContent = 'Ищу в Яндекс Саджесте...';
         const res = await resolveBestYandex(one);
         if (st) st.textContent = '';
-        if (inp) { inp.value = one.ru; inp.dispatchEvent(new Event('input', { bubbles: true })); }
-        if (res.hit && res.hit.exact) {
+        if (res.hit) {
           const cleanName = stripPin(res.hit.name);
           if (typeof saveAdrCache === 'function') saveAdrCache({ name: cleanName, lat: res.hit.lat, lon: res.hit.lon });
-          P.push({ name: cleanName, lat: res.hit.lat, lon: res.hit.lon });
+          P.push({ name: cleanName + (res.hit.exact ? '' : ' 📍'), lat: res.hit.lat, lon: res.hit.lon });
           if (inp) inp.value = '';
           if (typeof showList === 'function') showList(new Array());
-          save(); window.toast && toast('Адрес добавлен', 'ok');
-        } else if (res.list && res.list.length && typeof showList === 'function') {
-          window.toast && toast('Выберите адрес из списка, чтобы добавить', 'err');
-          showList(res.list, 'Уточните дом по фото («' + one.ru + '»):');
-        } else if (typeof window.add === 'function') await window.add();
+          save();
+          window.toast && toast(res.hit.exact ? 'Адрес добавлен' : 'Адрес добавлен (неточный дом)', res.hit.exact ? 'ok' : 'err');
+        } else {
+          if (inp) { inp.value = one.ru; inp.dispatchEvent(new Event('input', { bubbles: true })); }
+          window.toast && toast('Адрес не найден. Попробуйте написать иначе или добавьте город', 'err');
+        }
       } else { if (st) st.textContent = ''; showMultiPicker(items); }
     } catch (e) {
-      if (st) st.textContent = (e && (e.name === 'TimeoutError' || /timed out/i.test(e.message))) ? 'Сервер долго отвечает, проверьте интернет' : (e && e.errors ? e.errors.map(x => x.message).join('; ') : (e && e.errors ? e.errors.map(x => x.message).join('; ') : ((e && e.message) || 'Не удалось распознать фото')));
+      if (st) st.textContent = (e && (e.name === 'TimeoutError' || /timed out/i.test(e.message))) ? 'Сервер долго отвечает, проверьте интернет' : (e && e.errors ? e.errors.map(x => x.message).join('; ') : ((e && e.message) || 'Не удалось распознать фото'));
       window.toast && toast('Не удалось распознать фото', 'err');
     } finally { if (btn) btn.classList.remove('busy'); if (typeof busy === 'function') busy(0); }
   }
