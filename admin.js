@@ -350,7 +350,27 @@
    }).join('');
   }else{
    const d=parseDev(SEL,USERS[SEL]);
-   const curRows=(d.cur.cats||[]).map(c=>({name:c.n,sum:+c.s||0,items:[{name:c.n,parts:[{l:'',n:+c.q||0,p:c.q?Math.round((+c.s||0)/(+c.q||1)):0,v:+c.s||0}]}]}));
+   let curRows=[];
+   try{
+    const raw=JSON.parse(d.u.bonRaw||'[]');
+    if(Array.isArray(raw)){
+     raw.forEach(c=>{
+      if(!c||!Array.isArray(c.subs))return;
+      const items=[];let cs=0;
+      c.subs.forEach(s=>{
+       const parts=[];
+       const q1=+s.qty||0,p1=+s.price||0,q2=+s.qty2||0,p2=+s.price2||0;
+       if(q1>0)parts.push({l:s.one?'':'Город',n:q1,p:p1,v:q1*p1});
+       if(!s.one&&q2>0)parts.push({l:'Район',n:q2,p:p2,v:q2*p2});
+       if(parts.length){items.push({name:s.name,parts:parts});parts.forEach(z=>{cs+=z.v})}
+      });
+      if(items.length)curRows.push({name:c.name,sum:cs,items:items});
+     });
+    }
+   }catch(e){}
+   if(!curRows.length&&(d.cur.cats||[]).length){
+    curRows=(d.cur.cats||[]).map(c=>({name:c.n,sum:+c.s||0,items:[{name:c.n,parts:[{l:'',n:+c.q||0,p:c.q?Math.round((+c.s||0)/(+c.q||1)):0,v:+c.s||0}]}]}));
+   }
    const subKey=OPEN['sub|'+SEL];
    if(subKey){
     const isCur=subKey==='cur';
@@ -365,57 +385,16 @@
      +'<div class="sum-kpis"><div class="sum-kpi"><b>'+fm(totQ)+'</b><span>штук</span></div><div class="sum-kpi"><b>'+rows.length+'</b><span>катег.</span></div></div></div></div>'
      +detail(rows);
    }else{
-    h+='<div class="sum-dash sum-dash-btn" data-act="subopen" data-sub="cur"><div class="sum-top"><div><div class="sum-lbl">Текущий месяц · открыть ›</div><div class="sum-val">'+fm(d.cur.sum)+' <span>'+CUR+'</span></div></div><div class="sum-kpis"><div class="sum-kpi"><b>'+fm(d.cur.qty)+'</b><span>штук</span></div></div></div></div>';
+    h+='<div class="sum-dash sum-dash-btn" data-act="subopen" data-sub="cur"><div class="sum-top"><div><div class="sum-lbl">Текущий месяц · открыть ›</div><div class="sum-val">'+fm(d.cur.sum)+' <span>'+CUR+'</span></div></div>'
+     +'<div class="sum-kpis"><div class="sum-kpi"><b>'+fm(d.cur.qty)+'</b><span>штук</span></div></div></div></div>';
     h+='<div class="sec">Сохранённые итоги</div>';
-    const ks=Object.keys(d.hist).filter(k=>d.hist[k]).sort((a,b)=>{const x=d.hist[a],y=d.hist[b];return (y.m||'')<(x.m||'')?-1:(y.m||'')>(x.m||'')?1:(y.t||0)-(x.t||0)});
+    const ks=Object.keys(d.hist).filter(k=>d.hist[k]).sort((a,b)=>{const x=d.hist[a],y=d.hist[b];return (y.m||"")<(x.m||"")?-1:(y.m||"")>(x.m||"")?1:(y.t||0)-(x.t||0)});
     if(!ks.length)h+='<div class="mut box">У этого устройства нет сохранённых итогов.</div>';
     h+=ks.map(k=>{
      const x=d.hist[k];
      return '<div class="mr" style="cursor:pointer" data-act="subopen" data-sub="'+esc(k)+'"><div class="rm"><div class="rt">'+esc(monthName(x.m))+'</div><div class="rs">'+fm(x.qty)+' шт · сохранено '+esc(ago(x.t))+'</div></div><div class="rv">'+money(x.sum)+'</div><span class="ar">›</span></div>';
     }).join('');
    }
-  }
-  g('view').innerHTML=h;
- }
- function drawTotals(){
-  const L=devs();
-  if(SEL!=='all'&&!USERS[SEL])SEL='all';
-  const curSelObj=SEL==='all'?null:L.find(x=>x.id===SEL);
-  const curSelLabel=curSelObj?dispName(curSelObj):'Все устройства';
-  let h='<button type="button" class="sel-btn" data-act="opensel"><span class="sel-btn-l"><span class="sel-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span><span class="sel-btn-t">'+esc(curSelLabel)+'</span></span><svg class="sel-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>';
-  if(SEL==='all'){
-   const curList=L.map(d=>({id:d.id,name:dispName(d),sum:+d.cur.sum||0,qty:+d.cur.qty||0})).filter(x=>x.qty>0||x.sum>0).sort((a,b)=>b.sum-a.sum);
-   const sum=curList.reduce((a,x)=>a+x.sum,0),qty=curList.reduce((a,x)=>a+x.qty,0);
-   h+='<div class="hero"><span>Текущий месяц (не сохранён)</span><b>'+money(sum)+'</b><span>'+fm(qty)+' шт · водителей: '+curList.length+'</span>'
-    +(curList.length?'<button type="button" class="cp-btn" data-act="cpcur">📄 Скопировать текущую ведомость</button>':'')+'</div>';
-   if(curList.length){
-    h+='<div class="sec">По водителям (текущий месяц)</div>';
-    h+=curList.map(x=>'<div class="st-row" data-act="pickdev" data-id="'+esc(x.id)+'"><div><div class="st-nm">'+esc(x.name)+'</div><div class="st-qt">'+fm(x.qty)+' шт</div></div><div class="st-sm">'+money(x.sum)+' ›</div></div>').join('');
-   }
-   const ms=aggMonths(L);
-   h+='<div class="sec">Сохранённые итоги по месяцам</div>';
-   if(!ms.length)h+='<div class="mut box">Сохранённых итогов пока нет.</div>';
-   h+=ms.map(x=>{
-    const key='all|'+x.m,op=!!OPEN[key];
-    return '<div class="mr col" data-act="month" data-key="'+esc(key)+'"><div class="mrt"><div class="rm"><div class="rt">'+esc(monthName(x.m))+'</div><div class="rs">'+fm(x.qty)+' шт · водителей: '+x.devs.length+'</div></div><div class="rv">'+money(x.sum)+'</div><span class="ar">'+(op?'▾':'▸')+'</span></div>'
-     +(op?'<div class="dt">'
-      +x.devs.map(dv=>'<div class="st-row" data-act="pickdev" data-id="'+esc(dv.id)+'"><div><div class="st-nm">'+esc(dv.name)+'</div><div class="st-qt">'+fm(dv.qty)+' шт</div></div><div class="st-sm">'+money(dv.sum)+' ›</div></div>').join('')
-      +'<button type="button" class="cp-btn" data-act="cpmonth" data-m="'+esc(x.m)+'">📄 Скопировать ведомость за '+esc(monthName(x.m))+'</button>'
-      +'</div>':'')
-     +'</div>';
-   }).join('');
-  }else{
-   const d=parseDev(SEL,USERS[SEL]);
-   h+='<div class="hero"><span>Текущий месяц (не сохранён)</span><b>'+money(d.cur.sum)+'</b><span>'+fm(d.cur.qty)+' шт</span></div>';
-   if((d.cur.cats||[]).length)h+=d.cur.cats.map(c=>'<div class="mr"><div class="rm"><div class="rt">'+esc(nm(c.n))+'</div><div class="rs">'+fm(c.q)+' шт</div></div><div class="rv">'+money(c.s)+'</div></div>').join('');
-   h+='<div class="sec">Сохранённые итоги</div>';
-   const ks=Object.keys(d.hist).filter(k=>d.hist[k]).sort((a,b)=>{const x=d.hist[a],y=d.hist[b];return (y.m||'')<(x.m||'')?-1:(y.m||'')>(x.m||'')?1:(y.t||0)-(x.t||0)});
-   if(!ks.length)h+='<div class="mut box">У этого устройства нет сохранённых итогов.</div>';
-   h+=ks.map(k=>{
-    const x=d.hist[k],key=SEL+'|'+k,op=!!OPEN[key];
-    return '<div class="mr col" data-act="month" data-key="'+esc(key)+'"><div class="mrt"><div class="rm"><div class="rt">'+esc(monthName(x.m))+'</div><div class="rs">'+fm(x.qty)+' шт · сохранено '+esc(ago(x.t))+'</div></div><div class="rv">'+money(x.sum)+'</div><span class="ar">'+(op?'▾':'▸')+'</span></div>'
-     +(op?'<div class="dt">'+detail(x.rows)+'</div>':'')+'</div>';
-   }).join('');
   }
   g('view').innerHTML=h;
  }
