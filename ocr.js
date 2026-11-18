@@ -90,7 +90,7 @@
 
     try {
       const b64 = await compressImage(file);
-      const endpoint = 'https://' + 'vision.' + '://googleapis.com' + VKEY;
+      const endpoint = 'https://' + 'vision.' + 'googleapis.com' + '/v1/images:annotate?key=' + VKEY;
       const body = {
         requests: [{
           image: { content: b64 },
