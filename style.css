@@ -880,3 +880,10 @@ body{min-height:100dvh;padding:clamp(10px, 3vw, 16px)!important;padding-bottom:c
 .sum-f{font-size:12.5px;color:#94a3b8;font-variant-numeric:tabular-nums}
 .sum-f b{color:#f1f5f9;font-weight:700}
 .sum-v{font-size:13.5px;font-weight:700;color:#fde047;font-variant-numeric:tabular-nums;text-align:right}
+
+/* SHIFT-SWITCH */
+.sh-seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:5px;margin-bottom:10px;border-radius:14px;background:rgba(11,16,26,.85);border:1px solid rgba(255,255,255,.14)}
+.sh-seg button{height:40px!important;margin:0!important;padding:0 8px!important;border-radius:10px!important;font-size:13.5px!important;font-weight:700!important;background:transparent!important;border:1px solid transparent!important;color:#94a3b8!important;box-shadow:none!important;display:flex!important;align-items:center;justify-content:center;gap:5px;transition:.16s}
+.sh-seg button#shDay.on{background:linear-gradient(135deg,rgba(250,204,21,.24),rgba(234,179,8,.14))!important;border-color:rgba(250,204,21,.5)!important;color:#fde047!important;box-shadow:0 4px 12px rgba(234,179,8,.18)!important}
+.sh-seg button#shNight.on{background:linear-gradient(135deg,rgba(99,102,241,.28),rgba(56,189,248,.16))!important;border-color:rgba(129,140,248,.55)!important;color:#c7d2fe!important;box-shadow:0 4px 12px rgba(99,102,241,.22)!important}
+.k-warn{margin-top:8px;padding:9px 12px;border-radius:11px;background:rgba(239,68,68,.16);border:1px solid rgba(239,68,68,.42);color:#fecaca;font-size:12.5px;line-height:1.4;font-weight:600}

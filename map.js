@@ -100,6 +100,7 @@
   const syncLines=()=>{if(_map===map&&cv&&cv._update)try{cv._update()}catch(e){}};
   map.on('zoom move rotate zoomend moveend viewreset',syncLines);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  if(typeof KENTRON_POLY!=='undefined'&&typeof getShift==='function'&&getShift()==='day'){L.polygon(KENTRON_POLY,{color:'#ef4444',weight:2,fillColor:'#ef4444',fillOpacity:0.12,dashArray:'6 6'}).addTo(map).bindPopup('<b>⛔ Зона Кентрон</b><br>Въезд грузовым машинам до 21:00 запрещён');}
   const etas=document.querySelectorAll('#o ol li .eta');
   const ll=[];let bad=0;
   if(start){
