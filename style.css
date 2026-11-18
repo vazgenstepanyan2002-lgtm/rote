@@ -785,14 +785,14 @@ body{min-height:100dvh;padding:clamp(10px, 3vw, 16px)!important;padding-bottom:c
 
 /* IOS-BOTTOM-DOCK-OFFSET */
 @supports (-webkit-touch-callout: none){
-  body{padding-bottom:calc(76px + env(safe-area-inset-bottom, 0px))!important}
+  body{padding-bottom:calc(62px + max(0px, env(safe-area-inset-bottom, 0px) - 14px))!important}
   .fab,.fab-l,.fab-c,.fab-r{
-    bottom:calc(14px + env(safe-area-inset-bottom, 0px))!important;
+    bottom:max(12px, calc(env(safe-area-inset-bottom, 0px) - 14px))!important;
   }
   #ft{
-    bottom:calc(2px + env(safe-area-inset-bottom, 0px))!important;
+    bottom:max(2px, calc(env(safe-area-inset-bottom, 0px) - 24px))!important;
   }
   #toast{
-    bottom:calc(66px + env(safe-area-inset-bottom, 0px))!important;
+    bottom:max(58px, calc(env(safe-area-inset-bottom, 0px) + 32px))!important;
   }
 }
