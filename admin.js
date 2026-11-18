@@ -382,20 +382,22 @@ function drawTotals(){
   if(SEL==='all'){
    const curList=L.map(d=>({id:d.id,name:dispName(d),sum:+d.cur.sum||0,qty:+d.cur.qty||0})).filter(x=>x.qty>0||x.sum>0).sort((a,b)=>b.sum-a.sum);
    const sum=curList.reduce((a,x)=>a+x.sum,0),qty=curList.reduce((a,x)=>a+x.qty,0);
-   h+='<div class="hero"><span>Текущий месяц (не сохранён)</span><b>'+money(sum)+'</b><span>'+fm(qty)+' шт · водителей: '+curList.length+'</span>'
-    +(curList.length?'<button type="button" class="cp-btn" data-act="cpcur">📄 Скопировать текущую ведомость</button>':'')+'</div>';
+   const av=n=>'<span style="width:34px;height:34px;border-radius:11px;background:rgba(16,185,129,.14);border:1px solid rgba(52,211,153,.3);color:#6ee7b7;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+esc(String(n||'?').trim().charAt(0).toUpperCase())+'</span>';
+   h+='<div class="sum-dash"><div class="sum-top"><div><div class="sum-lbl" style="display:flex;align-items:center;gap:6px"><i style="width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;display:inline-block"></i>Текущий месяц · открыт</div><div class="sum-val">'+fm(sum)+' <span>'+CUR+'</span></div></div>'
+    +'<div class="sum-kpis"><div class="sum-kpi"><b>'+fm(qty)+'</b><span>штук</span></div><div class="sum-kpi"><b>'+curList.length+'</b><span>водит.</span></div></div></div>'
+    +(curList.length?'<button type="button" class="cp-btn" style="margin-top:12px" data-act="cpcur">📄 Скопировать общую ведомость</button>':'')+'</div>';
    if(curList.length){
-    h+='<div class="sec">По водителям (текущий месяц)</div>';
-    h+=curList.map(x=>'<div class="st-row" data-act="pickdev" data-id="'+esc(x.id)+'"><div><div class="st-nm">'+esc(x.name)+'</div><div class="st-qt">'+fm(x.qty)+' шт</div></div><div class="st-sm">'+money(x.sum)+' ›</div></div>').join('');
+    h+='<div class="sec">Текущий месяц · по водителям ('+curList.length+')</div>';
+    h+=curList.map(x=>'<div class="st-row" data-act="open-dev-sum" data-id="'+esc(x.id)+'" data-sub="cur"><div style="display:flex;align-items:center;gap:10px;min-width:0">'+av(x.name)+'<div style="min-width:0"><div class="st-nm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(x.name)+'</div><div class="st-qt">'+fm(x.qty)+' шт · детализация</div></div></div><div class="rv" style="font-size:13.5px">'+money(x.sum)+' ›</div></div>').join('');
    }
    const ms=aggMonths(L);
-   h+='<div class="sec">Сохранённые итоги по месяцам</div>';
+   h+='<div class="sec">Архив сохранённых месяцев ('+ms.length+')</div>';
    if(!ms.length)h+='<div class="mut box">Сохранённых итогов пока нет.</div>';
    h+=ms.map(x=>{
     const key='all|'+x.m,op=!!OPEN[key];
-    return '<div class="mr col" data-act="month" data-key="'+esc(key)+'"><div class="mrt"><div class="rm"><div class="rt">'+esc(monthName(x.m))+'</div><div class="rs">'+fm(x.qty)+' шт · водителей: '+x.devs.length+'</div></div><div class="rv">'+money(x.sum)+'</div><span class="ar">'+(op?'▾':'▸')+'</span></div>'
-     +(op?'<div class="dt">'
-      +x.devs.map(dv=>'<div class="st-row" data-act="pickdev" data-id="'+esc(dv.id)+'"><div><div class="st-nm">'+esc(dv.name)+'</div><div class="st-qt">'+fm(dv.qty)+' шт</div></div><div class="st-sm">'+money(dv.sum)+' ›</div></div>').join('')
+    return '<div class="mr col" data-act="month" data-key="'+esc(key)+'"><div class="mrt"><div class="rm"><div class="rt" style="display:flex;align-items:center;gap:7px"><span>📅</span><span>'+esc(monthName(x.m))+'</span></div><div class="rs">'+fm(x.qty)+' шт · водителей: '+x.devs.length+'</div></div><div class="rv">'+money(x.sum)+'</div><span class="ar">'+(op?'▾':'▸')+'</span></div>'
+     +(op?'<div class="dt" onclick="event.stopPropagation()">'
+      +x.devs.map(dv=>'<div class="st-row" data-act="open-dev-month" data-id="'+esc(dv.id)+'" data-m="'+esc(x.m)+'"><div style="display:flex;align-items:center;gap:10px;min-width:0">'+av(dv.name)+'<div style="min-width:0"><div class="st-nm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(dv.name)+'</div><div class="st-qt">'+fm(dv.qty)+' шт · отчёт за месяц</div></div></div><div class="rv" style="font-size:13.5px">'+money(dv.sum)+' ›</div></div>').join('')
       +'<button type="button" class="cp-btn" data-act="cpmonth" data-m="'+esc(x.m)+'">📄 Скопировать ведомость за '+esc(monthName(x.m))+'</button>'
       +'</div>':'')
      +'</div>';
@@ -590,6 +592,8 @@ function drawTotals(){
   else if(a==='month'){OPEN[b.dataset.key]=!OPEN[b.dataset.key];draw()}
   else if(a==='subopen'){openAdmSumModal(SEL,b.dataset.sub)}
   else if(a==='subback'){delete OPEN['sub|'+SEL];draw()}
+  else if(a==='open-dev-sum'){e.stopPropagation();openAdmSumModal(b.dataset.id,b.dataset.sub||"cur")}
+  else if(a==='open-dev-month'){e.stopPropagation();const dv=parseDev(b.dataset.id,USERS[b.dataset.id]);const hk=Object.keys(dv.hist).find(k=>dv.hist[k]&&dv.hist[k].m===b.dataset.m);if(hk)openAdmSumModal(b.dataset.id,hk);else{SEL=b.dataset.id;draw()}}
   else if(a==='pickdev'){e.stopPropagation();delete OPEN['sub|'+b.dataset.id];SEL=b.dataset.id;draw()}
   else if(a==='opensel'){e.stopPropagation();openSelectModal()}
   else if(a==='cpcur'){e.stopPropagation();const curList=devs().map(d=>({name:dispName(d),sum:+d.cur.sum||0,qty:+d.cur.qty||0})).filter(x=>x.qty>0||x.sum>0).sort((a,b)=>b.sum-a.sum);copyReport('Текущий месяц',curList,curList.reduce((a,x)=>a+x.qty,0),curList.reduce((a,x)=>a+x.sum,0))}
