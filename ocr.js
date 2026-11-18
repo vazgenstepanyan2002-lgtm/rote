@@ -129,13 +129,26 @@
       }
     };
 
-    // 1. Для дробных домов (42/1) сначала проверяем прямой Геокодер, чтобы не потерять дробь
+    // 1. Для дробных домов (42/1) проверяем прямой Геокодер (включая /1 при ошибке распознавания 42/12)
     if (hasSlash) {
-      for (const q of queries) {
+      const baseNum = houseNum.split('/').at(0);
+      const slashQueries = queries.slice();
+      if (houseNum !== baseNum + '/1') {
+        for (const q of queries) {
+          if (q.includes(houseNum)) slashQueries.push(q.replace(houseNum, baseNum + '/1'));
+        }
+      }
+      for (const q of slashQueries) {
         const list = await yan(q);
         if (list && list.length) {
-          for (const x of list) consider({ name: cleanQ(x.name), lat: x.lat, lon: x.lon, exact: x.exact }, list);
-          if (bestHit && exactHouse(bestHit.name) && bestHit.exact) return { hit: bestHit, list: bestList };
+          for (const x of list) {
+            const cn = cleanQ(x.name);
+            const hasAnySlash = new RegExp('(^|[^0-9/])' + escRe(baseNum) + '/\\d+([^0-9/]|$)').test(cn);
+            if (hasAnySlash && x.exact) {
+              return { hit: { name: cn, lat: x.lat, lon: x.lon, exact: true }, list: list };
+            }
+            consider({ name: cn, lat: x.lat, lon: x.lon, exact: x.exact }, list);
+          }
         }
       }
     }
