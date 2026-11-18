@@ -6,7 +6,7 @@
   const stripPin = s => String(s || '').replace(/\s*[\u{1F50E}\u{1F4CD}]\s*$/u, '').trim();
 
   async function compressImage(file){
-    const maxSide = 1280;
+    const maxSide = 1080;
     try {
       if (typeof createImageBitmap === 'function') {
         const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
@@ -19,7 +19,7 @@
         cv.width = w; cv.height = h;
         cv.getContext('2d').drawImage(bmp, 0, 0, w, h);
         bmp.close && bmp.close();
-        return cv.toDataURL('image/jpeg', 0.80).split(',').pop();
+        return cv.toDataURL('image/jpeg', 0.74).split(',').pop();
       }
     } catch (e) {}
     return new Promise((res, rej) => {
@@ -35,7 +35,7 @@
         const cv = document.createElement('canvas');
         cv.width = w; cv.height = h;
         cv.getContext('2d').drawImage(img, 0, 0, w, h);
-        res(cv.toDataURL('image/jpeg', 0.80).split(',').pop());
+        res(cv.toDataURL('image/jpeg', 0.74).split(',').pop());
       };
       img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Ошибка чтения фото')); };
       img.src = url;
@@ -44,25 +44,23 @@
 
   async function askGemini(b64){
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
-    const models = ['gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.6-flash'];
+    const prompt = 'Извлеки все адреса доставки в Армении с фото накладной (колонка Տեղափոխման հասցե / հասցե / Адрес). Удали квартиры, подъезды, этажи, имена, товары, цены и телефоны. Оставь только город/село, улицу и дом (напр. 12/4, 15ա). Если город не указан для ереванской улицы — добавь Ереван. Верни строго JSON-массив [{"orig":"оригинал","ru":"Город, улица, дом"}] или [].';
     const bodyStr = JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: prompt }, { inline_data: { mime_type: 'image/jpeg', data: b64 } }] }],
-      generationConfig: { temperature: 0.05, responseMimeType: 'application/json' }
+      generationConfig: { temperature: 0, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } }
     });
-    let r = null, lastErr = '';
-    for (const mdl of models) {
+    const runModel = async mdl => {
       const url = 'https' + '://' + host + '/v1beta/models/' + mdl + ':generateContent?key=' + encodeURIComponent(GKEY);
-      try {
-        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(16000), body: bodyStr });
-        if (res.ok) { r = res; break; }
-        lastErr = res.status === 429 ? 'Лимит запросов Gemini, подождите минуту' : 'Ошибка Gemini (' + mdl + '): HTTP ' + res.status;
-        if (res.status !== 503 && res.status !== 429 && res.status !== 404) break;
-      } catch (e) {
-        lastErr = 'Сервер долго отвечает, перепробую...';
-      }
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(14000), body: bodyStr });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    };
+    let j;
+    try {
+      j = await Promise.any(['gemini-flash-lite-latest', 'gemini-3.8-flash'].map(runModel));
+    } catch (e) {
+      j = await runModel('gemini-flash-latest');
     }
-    if (!r) throw new Error(lastErr || 'Серверы распознавания перегружены, попробуйте через минуту');
-    const j = await r.json();
     const cand = j && Array.isArray(j.candidates) ? j.candidates.at(0) : null;
     const parts = cand && cand.content && Array.isArray(cand.content.parts) ? cand.content.parts : [];
     const raw = (parts.at(0) && parts.at(0).text) || '[]';
