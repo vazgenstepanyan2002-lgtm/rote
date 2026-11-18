@@ -124,22 +124,38 @@
  }
  function detail(rows){
   if(!rows||!rows.length)return '<div class="mut">Пусто</div>';
-  return rows.map(c=>{
+  let totS=0,totQ=0,cityS=0,regS=0,oneS=0;
+  rows.forEach(c=>(c.items||[]).forEach(it=>(it.parts||[]).forEach(z=>{
+   const v=+z.v||0,n=+z.n||0;totS+=v;totQ+=n;
+   if(z.l==='Район')regS+=v;else if(z.l==='Город')cityS+=v;else oneS+=v;
+  })));
+  const pCity=totS?Math.round(cityS*100/totS):0,pReg=totS?Math.round(regS*100/totS):0,pOne=Math.max(0,100-pCity-pReg);
+  let h='<div class="adm-sum" onclick="event.stopPropagation()">';
+  if(totS>0&&((cityS>0&&regS>0)||oneS>0)){
+   h+='<div class="sum-bar-w" style="margin-top:0;padding-top:0;border:none;margin-bottom:10px"><div class="sum-bar">'
+    +(pCity?'<i style="width:'+pCity+'%;background:#38bdf8"></i>':'')
+    +(pReg?'<i style="width:'+pReg+'%;background:#a78bfa"></i>':'')
+    +(pOne?'<i style="width:'+pOne+'%;background:#34d399"></i>':'')
+    +'</div><div class="sum-leg">'
+    +(cityS?'<span><i style="background:#38bdf8"></i>Город '+pCity+'% ('+fm(cityS)+')</span>':'')
+    +(regS?'<span><i style="background:#a78bfa"></i>Район '+pReg+'% ('+fm(regS)+')</span>':'')
+    +(oneS?'<span><i style="background:#34d399"></i>Фикс '+pOne+'% ('+fm(oneS)+')</span>':'')
+    +'</div></div>';
+  }
+  h+='<div class="sum-tools"><div class="sum-seg" data-aseg="1"><button type="button" class="on" data-f="all">Все</button><button type="button" data-f="Город">Город</button><button type="button" data-f="Район">Район</button></div>'
+   +'<input class="sum-srch" data-asrch="1" type="search" placeholder="Поиск позиции..."></div>';
+  h+=rows.map(c=>{
    const cq=(c.items||[]).reduce((a,it)=>a+(it.parts||[]).reduce((b,z)=>b+(+z.n||0),0),0);
-   return '<div class="cat"><div class="cath"><span>'+esc(nm(c.name))+'<i class="catq">'+fm(cq)+' шт</i></span><b>'+money(c.sum)+'</b></div>'
-    +(c.items||[]).map(it=>'<div class="it"><div class="itn">'+esc(nm(it.name))+'</div>'
-     +(it.parts||[]).map(z=>{
-      const cls=z.l==='Район'?'reg':(z.l?'city':'one');
-      return '<div class="pt"><span class="tg '+cls+'">'+esc(z.l||'Шт')+'</span><span class="ptc"><b>'+fm(z.n)+' шт</b> × '+fm(z.p)+' '+CUR+'</span><b>'+money(z.v)+'</b></div>';
-     }).join('')
-     +'</div>').join('')+'</div>';
-  }).join('');
+   const pct=totS?Math.round((+c.sum||0)*100/totS):0;
+   const body=(c.items||[]).map(it=>'<div class="sum-it" data-name="'+esc(nm(it.name).toLowerCase())+'"><div class="sum-it-t">'+esc(nm(it.name))+'</div>'
+    +(it.parts||[]).map(z=>{
+     const cls=z.l==='Район'?'reg':(z.l?'city':'one');
+     return '<div class="sum-r" data-zone="'+esc(z.l||'Шт')+'"><span class="tg '+cls+'">'+esc(z.l||'Шт')+'</span><span class="sum-f"><b>'+fm(z.n)+'</b> × '+fm(z.p)+' '+CUR+'</span><b class="sum-v">'+money(z.v)+'</b></div>';
+    }).join('')+'</div>').join('');
+   return '<div class="sum-cat open"><div class="sum-cat-h" data-atog="1"><div class="sum-cat-l"><span class="sum-chv">▾</span><div><div class="sum-cat-n">'+esc(nm(c.name))+'</div><div class="sum-cat-s">'+fm(cq)+' шт · '+pct+'% от суммы</div></div></div><div class="sum-cat-r">'+money(c.sum)+'</div></div><div class="sum-cat-b">'+body+'</div></div>';
+  }).join('')+'</div>';
+  return h;
  }
-
- 
- 
- 
- 
  // ===== Живая карта водителей =====
  const BASE_PT = { lat: 40.120847, lon: 44.514271, name: "База EuroBaza (Арин Берд 7)" };
  let _lfProm = null, _map = null, _markers = {}, _baseMk = null, _didFit = false, MAP_ONLY_ONLINE = true;
@@ -761,5 +777,57 @@
 
   document.addEventListener('click', e => {
     if (e.target && e.target.closest('#diagBtn')) openDiag();
+  });
+})();
+
+;(function(){
+  const v = document.getElementById('view');
+  if (!v) return;
+  const apply = box => {
+    const flt = box.dataset.flt || 'all';
+    const q = (box.dataset.q || '').toLowerCase();
+    box.querySelectorAll('.sum-cat').forEach(cat => {
+      let vc = 0;
+      cat.querySelectorAll('.sum-it').forEach(it => {
+        const mn = !q || (it.dataset.name || '').includes(q);
+        let vr = 0;
+        it.querySelectorAll('.sum-r').forEach(r => {
+          const ok = mn && (flt === 'all' || r.dataset.zone === flt);
+          r.style.display = ok ? '' : 'none';
+          if (ok) vr++;
+        });
+        it.style.display = vr ? '' : 'none';
+        if (vr) vc++;
+      });
+      cat.style.display = vc ? '' : 'none';
+    });
+  };
+  v.addEventListener('click', e => {
+    const fb = e.target.closest('[data-aseg] button');
+    if (fb) {
+      e.stopPropagation();
+      const box = fb.closest('.adm-sum');
+      box.dataset.flt = fb.dataset.f;
+      box.querySelectorAll('[data-aseg] button').forEach(b => b.classList.toggle('on', b === fb));
+      apply(box);
+      return;
+    }
+    const tg = e.target.closest('[data-atog]');
+    if (tg) {
+      e.stopPropagation();
+      const card = tg.closest('.sum-cat');
+      if (card) {
+        card.classList.toggle('open');
+        const ch = card.querySelector('.sum-chv');
+        if (ch) ch.textContent = card.classList.contains('open') ? '▾' : '▸';
+      }
+    }
+  });
+  v.addEventListener('input', e => {
+    if (e.target && e.target.matches('[data-asrch]')) {
+      const box = e.target.closest('.adm-sum');
+      box.dataset.q = e.target.value.trim();
+      apply(box);
+    }
   });
 })();

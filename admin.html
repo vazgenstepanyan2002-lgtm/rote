@@ -324,6 +324,35 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
 .ptc{font-size:13px!important;color:#94a3b8!important;font-variant-numeric:tabular-nums}
 .ptc b{color:#f1f5f9!important;font-weight:700!important}
 .pt>b{font-size:14px!important;font-weight:700!important;color:#fde047!important;font-variant-numeric:tabular-nums;text-align:right}
+
+/* MODERN-ADMIN-SUMMARY-DASHBOARD */
+.sum-bar-w{margin-bottom:10px}
+.sum-bar{display:flex;height:6px;border-radius:99px;overflow:hidden;background:rgba(255,255,255,.08);gap:2px}
+.sum-bar i{display:block;height:100%;border-radius:99px}
+.sum-leg{display:flex;flex-wrap:wrap;gap:10px;margin-top:7px;font-size:11.5px;color:#cbd5e1}
+.sum-leg span{display:inline-flex;align-items:center;gap:5px}
+.sum-leg i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.sum-tools{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.sum-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;background:rgba(7,11,18,.85);border:1px solid rgba(255,255,255,.1);border-radius:13px}
+.sum-seg button{height:32px;margin:0;padding:0 6px;border-radius:9px;font-size:12.5px;font-weight:700;background:transparent;border:none;color:#94a3b8}
+.sum-seg button.on{background:rgba(56,189,248,.18);color:#7dd3fc;border:1px solid rgba(56,189,248,.35)}
+.sum-srch{width:100%;height:38px!important;margin:0!important;padding:0 12px!important;border-radius:12px!important;background:rgba(7,11,18,.85)!important;border:1px solid rgba(255,255,255,.12)!important;font-size:13.5px!important;color:#f8fafc!important}
+.sum-cat{background:rgba(11,16,26,.88);border:1px solid rgba(255,255,255,.1);border-radius:16px;margin-bottom:9px;overflow:hidden}
+.sum-cat-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 13px;cursor:pointer;background:rgba(255,255,255,.02)}
+.sum-cat-l{display:flex;align-items:center;gap:9px;min-width:0}
+.sum-chv{color:#64748b;font-size:13px;width:14px;text-align:center;flex-shrink:0}
+.sum-cat-n{font-size:14px;font-weight:700;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sum-cat-s{font-size:11.5px;color:#8b9bb4;margin-top:1px}
+.sum-cat-r{font-size:14.5px;font-weight:800;color:#34d399;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sum-cat-b{display:none;padding:4px 13px 11px;border-top:1px solid rgba(255,255,255,.07)}
+.sum-cat.open .sum-cat-b{display:block}
+.sum-it{padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.sum-it:last-child{border-bottom:none;padding-bottom:0}
+.sum-it-t{font-size:13.5px;font-weight:600;color:#e2e8f0;margin-bottom:5px}
+.sum-r{display:grid;grid-template-columns:56px 1fr auto;align-items:center;gap:8px;padding:3px 0}
+.sum-f{font-size:12.5px;color:#94a3b8;font-variant-numeric:tabular-nums}
+.sum-f b{color:#f1f5f9;font-weight:700}
+.sum-v{font-size:13.5px;font-weight:700;color:#fde047;font-variant-numeric:tabular-nums;text-align:right}
 </style></head><body>
 <a class="back" href="./" onclick="event.preventDefault();if(document.referrer&&document.referrer.indexOf(location.origin)===0&&history.length>1)history.back();else location.replace('./')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>В приложение</a>
 <div id="login" class="auth-wrap"><div class="card">
@@ -370,8 +399,8 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
   </div>
  </div>
 </div>
-<script src="yandex.js?v=20261119005840"></script>
-<script src="admin.js?v=20261119005840"></script>
+<script src="yandex.js?v=20261119010403"></script>
+<script src="admin.js?v=20261119010403"></script>
 <script>
 ['lgEm','lgPw'].forEach(id=>{
  const el=document.getElementById(id);

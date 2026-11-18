@@ -261,43 +261,63 @@
    +'<span class="bn-mtx"><span class="bn-mn">'+esc(name)+'</span><span class="bn-mq">'+fm(qty)+' шт'+(sub?' · '+esc(sub):'')+'</span></span>'
    +'<span class="bn-mv">'+fm(sum)+' '+CUR+'</span><span class="bn-mc">›</span></div>';
  }
+ function buildModernDetail(rows,title,sub,withBack){
+  let totS=0,totQ=0,cityS=0,regS=0,oneS=0;
+  rows.forEach(c=>c.items.forEach(it=>it.parts.forEach(z=>{
+   totS+=z.v;totQ+=z.n;
+   if(z.l==='Район')regS+=z.v;else if(z.l==='Город')cityS+=z.v;else oneS+=z.v;
+  })));
+  const pCity=totS?Math.round(cityS*100/totS):0,pReg=totS?Math.round(regS*100/totS):0,pOne=Math.max(0,100-pCity-pReg);
+  let html=(withBack?'<div class="bn-back" data-m="back">← Все итоги</div>':'')
+   +'<div class="sum-dash"><div class="sum-top"><div><div class="sum-lbl">'+esc(title)+(sub?' · '+esc(sub):'')+'</div><div class="sum-val">'+fm(totS)+' <span>'+CUR+'</span></div></div>'
+   +'<div class="sum-kpis"><div class="sum-kpi"><b>'+fm(totQ)+'</b><span>штук</span></div><div class="sum-kpi"><b>'+rows.length+'</b><span>катег.</span></div></div></div>'
+   +(totS>0&&((cityS>0&&regS>0)||oneS>0)?'<div class="sum-bar-w"><div class="sum-bar">'
+    +(pCity?'<i style="width:'+pCity+'%;background:#38bdf8"></i>':'')+(pReg?'<i style="width:'+pReg+'%;background:#a78bfa"></i>':'')+(pOne?'<i style="width:'+pOne+'%;background:#34d399"></i>':'')
+    +'</div><div class="sum-leg">'
+    +(cityS?'<span><i style="background:#38bdf8"></i>Город '+pCity+'% ('+fm(cityS)+')</span>':'')
+    +(regS?'<span><i style="background:#a78bfa"></i>Район '+pReg+'% ('+fm(regS)+')</span>':'')
+    +(oneS?'<span><i style="background:#34d399"></i>Фикс '+pOne+'% ('+fm(oneS)+')</span>':'')
+    +'</div></div>':'')+'</div>';
+  if(!rows.length)return html+'<div class="bn-empty">Ничего не выбрано.</div>';
+  html+='<div class="sum-tools"><div class="sum-seg" id="bnSeg"><button type="button" class="on" data-f="all">Все</button><button type="button" data-f="Город">Город</button><button type="button" data-f="Район">Район</button></div><input id="bnSrch" class="sum-srch" type="search" placeholder="Поиск позиции..."></div>';
+  html+='<div id="bnCats">'+rows.map((c,idx)=>{
+   const cq=cqOf(c),pct=totS?Math.round(c.sum*100/totS):0;
+   const body=c.items.map(it=>'<div class="sum-it" data-name="'+esc(furnitureName(it.name).toLowerCase())+'"><div class="sum-it-t">'+esc(furnitureName(it.name))+'</div>'
+    +it.parts.map(z=>{const cls=z.l==='Район'?'reg':(z.l?'city':'one');return '<div class="sum-r" data-zone="'+esc(z.l||'Шт')+'"><span class="bn-tag '+cls+'">'+(z.l||'Шт')+'</span><span class="sum-f"><b>'+fm(z.n)+'</b> × '+fm(z.p)+' '+CUR+'</span><b class="sum-v">'+fm(z.v)+' '+CUR+'</b></div>';}).join('')+'</div>').join('');
+   return '<div class="sum-cat open" data-ci="'+idx+'"><div class="sum-cat-h" data-tog="1"><div class="sum-cat-l"><span class="sum-chv">▾</span><div><div class="sum-cat-n">'+esc(furnitureName(c.name))+'</div><div class="sum-cat-s">'+fm(cq)+' шт · '+pct+'% от суммы</div></div></div><div class="sum-cat-r">'+fm(c.sum)+' '+CUR+'</div></div><div class="sum-cat-b">'+body+'</div></div>';
+  }).join('')+'</div>';
+  return html;
+ }
+ function bindSumTools(root){
+  if(!root||root._sumBound)return;root._sumBound=true;
+  let flt='all',q='';
+  const apply=()=>{root.querySelectorAll('.sum-cat').forEach(cat=>{let vc=0;cat.querySelectorAll('.sum-it').forEach(it=>{const mn=!q||(it.dataset.name||'').includes(q);let vr=0;it.querySelectorAll('.sum-r').forEach(r=>{const ok=mn&&(flt==='all'||r.dataset.zone===flt);r.style.display=ok?'':'none';if(ok)vr++});it.style.display=vr?'':'none';if(vr)vc++});cat.style.display=vc?'':'none'})};
+  root.addEventListener('click',e=>{
+   const fb=e.target.closest('#bnSeg button');if(fb){flt=fb.dataset.f;root.querySelectorAll('#bnSeg button').forEach(b=>b.classList.toggle('on',b===fb));apply();return}
+   const tg=e.target.closest('[data-tog]');if(tg){const card=tg.closest('.sum-cat');if(card){card.classList.toggle('open');const ch=card.querySelector('.sum-chv');if(ch)ch.textContent=card.classList.contains('open')?'▾':'▸'}}
+  });
+  root.addEventListener('input',e=>{if(e.target&&e.target.id==='bnSrch'){q=e.target.value.trim().toLowerCase();apply()}});
+ }
  function histView(){setFoot();
   const h=HIST(),ks=Object.keys(h).sort((a,b)=>(h[b].t||0)-(h[a].t||0));
   const cr=sumRows(),cs=sumOf(cr),cq=qtyOf(cr);
-  let html='<div class="bn-hero bn-hero-btn" data-m="cur"><span class="bn-hero-l">Текущий месяц</span><b class="bn-hero-v">'+fm(cs)+' '+CUR+'</b><span class="bn-hero-q">'+fm(cq)+' шт</span></div>';
-  html+='<div class="bn-sec">Сохранённые итоги</div>';
-  ks.forEach(k=>{
-   const d=h[k];
-   html+=rowHtml(k,monthName(d.m||k),new Date(d.t||0).toLocaleDateString('ru-RU',{day:'numeric',month:'short'}),d.sum,d.qty,false);
-  });
+  let html='<div class="sum-dash sum-dash-btn" data-m="cur"><div class="sum-top"><div><div class="sum-lbl">Текущий месяц · открыть ›</div><div class="sum-val">'+fm(cs)+' <span>'+CUR+'</span></div></div><div class="sum-kpis"><div class="sum-kpi"><b>'+fm(cq)+'</b><span>штук</span></div></div></div></div>';
+  html+='<div class="bn-sec">Архив по месяцам ('+ks.length+')</div>';
+  ks.forEach(k=>{const d=h[k];html+=rowHtml(k,monthName(d.m||k),new Date(d.t||0).toLocaleDateString('ru-RU',{day:'numeric',month:'short'}),d.sum,d.qty,false)});
   if(!ks.length)html+='<div class="bn-tip">Нажмите «💾 Сохранить», когда захотите зафиксировать итоги. Количества тогда обнулятся.</div>';
-  g('bnSmList').innerHTML=html;
+  const box=g('bnSmList');box.innerHTML=html;bindSumTools(box);
   g('bnSmTot').textContent=fm(cs)+' '+CUR;g('bnSmQty').textContent=fm(cq);
  }
  function detailView(rows,title,sub){
-  const q=qtyOf(rows);
-  let html='<div class="bn-back" data-m="back">← Все итоги</div>'
-   +'<div class="bn-hero"><span class="bn-hero-l">'+esc(title)+'</span><b class="bn-hero-v">'+fm(sumOf(rows))+' '+CUR+'</b><span class="bn-hero-q">'+fm(q)+' шт'+(sub?' · '+esc(sub):'')+'</span></div>';
-  if(!rows.length)html+='<div class="bn-empty">Ничего не выбрано.</div>';
-  else html+=rows.map(c=>'<div class="bn-sc"><div class="bn-sch"><span>'+esc(furnitureName(c.name))+'<i class="bn-cq">'+fm(cqOf(c))+' шт</i></span><b>'+fm(c.sum)+' '+CUR+'</b></div>'
-   +c.items.map(it=>'<div class="bn-si"><div class="bn-sin">'+esc(furnitureName(it.name))+'</div>'
-    +it.parts.map(z=>{
-      const reg=z.l==='Район';
-      const cls=reg?'bn-reg':(z.l?'bn-city':'bn-one');
-      return '<div class="bn-pr"><span class="bn-tag '+cls+'">'+(z.l||'Шт')+'</span>'
-       +'<span class="bn-calc"><b>'+fm(z.n)+' шт</b> × '+fm(z.p)+' '+CUR+'</span>'
-       +'<b>'+fm(z.v)+' '+CUR+'</b></div>';
-    }).join('')
-    +'</div>').join('')+'</div>').join('');
-  g('bnSmList').innerHTML=html;
+  const q=qtyOf(rows),box=g('bnSmList');
+  box.innerHTML=buildModernDetail(rows,title,sub,true);bindSumTools(box);
   g('bnSmTot').textContent=fm(sumOf(rows))+' '+CUR;g('bnSmQty').textContent=fm(q);
  }
  function showMonth(k){
   if(k==='back')return histView();
-  if(k==='cur'){setFoot();return detailView(sumRows(),'Текущий месяц')}
+  if(k==='cur'){setFoot();return detailView(sumRows(),'Текущий месяц','')}
   const d=HIST()[k];if(!d)return;
-  setFoot(k);
-  detailView(d.rows,monthName(d.m||k),new Date(d.t||0).toLocaleDateString('ru-RU',{day:'numeric',month:'long'}));
+  setFoot(k);detailView(d.rows,monthName(d.m||k),new Date(d.t||0).toLocaleDateString('ru-RU',{day:'numeric',month:'long'}));
  }
  async function saveMonth(){
   const rows=sumRows();

@@ -840,3 +840,43 @@ body{min-height:100dvh;padding:clamp(10px, 3vw, 16px)!important;padding-bottom:c
 .bn-calc{font-size:13px!important;color:#94a3b8!important;font-variant-numeric:tabular-nums}
 .bn-calc b{color:#f1f5f9!important;font-weight:700!important}
 .bn-pr>b{font-size:14px!important;font-weight:700!important;color:#fde047!important;font-variant-numeric:tabular-nums;text-align:right}
+
+/* MODERN-SUMMARY-DASHBOARD */
+.sum-dash{background:linear-gradient(145deg,rgba(22,33,52,.95),rgba(12,18,30,.98));border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:14px 15px;margin-bottom:12px;box-shadow:0 10px 26px rgba(0,0,0,.3)}
+.sum-dash-btn{cursor:pointer;border-color:rgba(52,211,153,.35);transition:transform .14s}
+.sum-dash-btn:active{transform:scale(.985)}
+.sum-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sum-lbl{font-size:11.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.sum-val{font-size:25px;font-weight:800;color:#fff;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.sum-val span{font-size:17px;color:#fde047}
+.sum-kpis{display:flex;gap:7px;flex-shrink:0}
+.sum-kpi{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:12px;padding:7px 10px;text-align:center;min-width:54px}
+.sum-kpi b{display:block;font-size:15px;font-weight:800;color:#34d399;font-variant-numeric:tabular-nums}
+.sum-kpi span{font-size:10.5px;color:#8b9bb4}
+.sum-bar-w{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)}
+.sum-bar{display:flex;height:6px;border-radius:99px;overflow:hidden;background:rgba(255,255,255,.08);gap:2px}
+.sum-bar i{display:block;height:100%;border-radius:99px}
+.sum-leg{display:flex;flex-wrap:wrap;gap:10px;margin-top:7px;font-size:11.5px;color:#cbd5e1}
+.sum-leg span{display:inline-flex;align-items:center;gap:5px}
+.sum-leg i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.sum-tools{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.sum-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;background:rgba(11,16,26,.85);border:1px solid rgba(255,255,255,.1);border-radius:13px}
+.sum-seg button{height:32px!important;margin:0!important;padding:0 6px!important;border-radius:9px!important;font-size:12.5px!important;font-weight:700!important;background:transparent!important;border:none!important;color:#94a3b8!important;box-shadow:none!important}
+.sum-seg button.on{background:rgba(56,189,248,.18)!important;color:#7dd3fc!important;border:1px solid rgba(56,189,248,.35)!important}
+.sum-srch{width:100%;height:38px!important;padding:0 12px!important;border-radius:12px!important;background:rgba(11,16,26,.85)!important;border:1px solid rgba(255,255,255,.12)!important;font-size:13.5px!important;color:#f8fafc!important}
+.sum-cat{background:rgba(15,23,36,.88);border:1px solid rgba(255,255,255,.1);border-radius:16px;margin-bottom:9px;overflow:hidden}
+.sum-cat-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 13px;cursor:pointer;background:rgba(255,255,255,.02)}
+.sum-cat-l{display:flex;align-items:center;gap:9px;min-width:0}
+.sum-chv{color:#64748b;font-size:13px;width:14px;text-align:center;flex-shrink:0}
+.sum-cat-n{font-size:14px;font-weight:700;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sum-cat-s{font-size:11.5px;color:#8b9bb4;margin-top:1px}
+.sum-cat-r{font-size:14.5px;font-weight:800;color:#34d399;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sum-cat-b{display:none;padding:4px 13px 11px;border-top:1px solid rgba(255,255,255,.07)}
+.sum-cat.open .sum-cat-b{display:block}
+.sum-it{padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.sum-it:last-child{border-bottom:none;padding-bottom:0}
+.sum-it-t{font-size:13.5px;font-weight:600;color:#e2e8f0;margin-bottom:5px}
+.sum-r{display:grid;grid-template-columns:56px 1fr auto;align-items:center;gap:8px;padding:3px 0}
+.sum-f{font-size:12.5px;color:#94a3b8;font-variant-numeric:tabular-nums}
+.sum-f b{color:#f1f5f9;font-weight:700}
+.sum-v{font-size:13.5px;font-weight:700;color:#fde047;font-variant-numeric:tabular-nums;text-align:right}
