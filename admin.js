@@ -124,10 +124,16 @@
  }
  function detail(rows){
   if(!rows||!rows.length)return '<div class="mut">Пусто</div>';
-  return rows.map(c=>'<div class="cat"><div class="cath"><span>'+esc(nm(c.name))+'</span><b>'+money(c.sum)+'</b></div>'
-   +(c.items||[]).map(it=>'<div class="it"><div class="itn">'+esc(nm(it.name))+'</div>'
-    +(it.parts||[]).map(z=>'<div class="pt"><span class="tg">'+esc(z.l||'Шт')+'</span><span>'+fm(z.n)+' × '+fm(z.p)+'</span><b>'+money(z.v)+'</b></div>').join('')
-    +'</div>').join('')+'</div>').join('');
+  return rows.map(c=>{
+   const cq=(c.items||[]).reduce((a,it)=>a+(it.parts||[]).reduce((b,z)=>b+(+z.n||0),0),0);
+   return '<div class="cat"><div class="cath"><span>'+esc(nm(c.name))+'<i class="catq">'+fm(cq)+' шт</i></span><b>'+money(c.sum)+'</b></div>'
+    +(c.items||[]).map(it=>'<div class="it"><div class="itn">'+esc(nm(it.name))+'</div>'
+     +(it.parts||[]).map(z=>{
+      const cls=z.l==='Район'?'reg':(z.l?'city':'one');
+      return '<div class="pt"><span class="tg '+cls+'">'+esc(z.l||'Шт')+'</span><span class="ptc"><b>'+fm(z.n)+' шт</b> × '+fm(z.p)+' '+CUR+'</span><b>'+money(z.v)+'</b></div>';
+     }).join('')
+     +'</div>').join('')+'</div>';
+  }).join('');
  }
 
  

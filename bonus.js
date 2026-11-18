@@ -285,8 +285,8 @@
       const reg=z.l==='Район';
       const cls=reg?'bn-reg':(z.l?'bn-city':'bn-one');
       return '<div class="bn-pr"><span class="bn-tag '+cls+'">'+(z.l||'Шт')+'</span>'
-       +'<span class="bn-qb">'+fm(z.n)+'<small>шт</small></span>'
-       +'<span class="bn-pp">× '+fm(z.p)+' '+CUR+'</span><b>'+fm(z.v)+' '+CUR+'</b></div>';
+       +'<span class="bn-calc"><b>'+fm(z.n)+' шт</b> × '+fm(z.p)+' '+CUR+'</span>'
+       +'<b>'+fm(z.v)+' '+CUR+'</b></div>';
     }).join('')
     +'</div>').join('')+'</div>').join('');
   g('bnSmList').innerHTML=html;

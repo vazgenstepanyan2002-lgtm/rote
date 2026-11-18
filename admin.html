@@ -306,6 +306,24 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
   #admMap{height:46dvh!important;min-height:240px!important}
   .ach-box{height:90dvh!important}
 }
+
+/* ELEGANT-ADMIN-SUMMARY */
+.cat{background:rgba(11,16,26,.85)!important;border:1px solid rgba(255,255,255,.1)!important;border-radius:16px!important;padding:12px 14px!important;margin-bottom:10px!important}
+.cath{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;padding-bottom:9px!important;margin-bottom:4px!important;border-bottom:1px solid rgba(255,255,255,.08)!important;font-size:14.5px!important;font-weight:700!important;color:#f8fafc!important}
+.cath>span{display:flex;align-items:center;gap:7px;min-width:0}
+.catq{font-style:normal;padding:2px 7px;border-radius:6px;background:rgba(255,255,255,.07);color:#94a3b8;font-size:11.5px;font-weight:600}
+.cath b{color:#34d399!important;font-size:15px!important;font-weight:800!important;font-variant-numeric:tabular-nums}
+.it{padding:8px 0!important;border-bottom:1px solid rgba(255,255,255,.05)!important}
+.it:last-child{border-bottom:none!important;padding-bottom:0!important}
+.itn{font-size:13.5px!important;font-weight:600!important;color:#e2e8f0!important;margin-bottom:5px!important}
+.pt{display:grid!important;grid-template-columns:56px 1fr auto!important;align-items:center!important;gap:8px!important;padding:3px 0!important}
+.tg{display:inline-flex!important;align-items:center!important;justify-content:center!important;padding:2px 6px!important;border-radius:6px!important;font-size:11px!important;font-weight:600!important}
+.tg.city{background:rgba(56,189,248,.11)!important;border:1px solid rgba(56,189,248,.24)!important;color:#7dd3fc!important}
+.tg.reg{background:rgba(167,139,250,.11)!important;border:1px solid rgba(167,139,250,.24)!important;color:#c4b5fd!important}
+.tg.one{background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.12)!important;color:#94a3b8!important}
+.ptc{font-size:13px!important;color:#94a3b8!important;font-variant-numeric:tabular-nums}
+.ptc b{color:#f1f5f9!important;font-weight:700!important}
+.pt>b{font-size:14px!important;font-weight:700!important;color:#fde047!important;font-variant-numeric:tabular-nums;text-align:right}
 </style></head><body>
 <a class="back" href="./" onclick="event.preventDefault();if(document.referrer&&document.referrer.indexOf(location.origin)===0&&history.length>1)history.back();else location.replace('./')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>В приложение</a>
 <div id="login" class="auth-wrap"><div class="card">
@@ -352,8 +370,8 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
   </div>
  </div>
 </div>
-<script src="yandex.js?v=20261119003911"></script>
-<script src="admin.js?v=20261119003911"></script>
+<script src="yandex.js?v=20261119005840"></script>
+<script src="admin.js?v=20261119005840"></script>
 <script>
 ['lgEm','lgPw'].forEach(id=>{
  const el=document.getElementById(id);
