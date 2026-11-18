@@ -796,3 +796,15 @@ body{min-height:100dvh;padding:clamp(10px, 3vw, 16px)!important;padding-bottom:c
     bottom:max(58px, calc(env(safe-area-inset-bottom, 0px) + 32px))!important;
   }
 }
+
+/* OCR-CAM-BTN */
+.inp-w input{padding-right:104px!important}
+.inp-mic{right:70px!important}
+.inp-cam{position:absolute;right:38px;top:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;color:#38bdf8;border-radius:8px;transition:.2s}
+.inp-cam:active{transform:scale(.9);background:rgba(56,189,248,.18)}
+.inp-cam.busy{background:rgba(56,189,248,.22);box-shadow:0 0 0 2px #38bdf8;animation:pulse 1s infinite}
+.inp-w:has(#a:placeholder-shown) .inp-cam{right:10px!important}
+.inp-w:has(#a:placeholder-shown) .inp-mic{right:42px!important}
+.inp-w:has(#a:placeholder-shown) #a{padding-right:76px!important}
+@media (max-width:380px){.inp-cam{top:5px!important}}
+@media (max-height:700px){.inp-cam{top:4px!important}}
