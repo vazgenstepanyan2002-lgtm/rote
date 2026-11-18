@@ -12,41 +12,56 @@ draw();
 
 let _sr=null,_srTimer=null;
 function voice(){
+ const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+ const isPWA=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
- if(!SR){$('s').textContent='Голосовой ввод не поддерживается в этом браузере';return}
- const m=$('mic');
- if(_sr){try{_sr.stop()}catch(e){}_sr=null;clearTimeout(_srTimer);m.classList.remove('rec');$('s').textContent='';return}
- const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent);
+ const inp=$('a'),m=$('mic'),st=$('s');
+ if(!SR||(isIOS&&isPWA)){
+  inp.focus();
+  st.textContent='Нажмите микрофон 🎙 на клавиатуре iPhone и продиктуйте';
+  return;
+ }
+ if(_sr){
+  try{_sr.stop()}catch(e){}
+  _sr=null;clearTimeout(_srTimer);m.classList.remove('rec');st.textContent='';
+  return;
+ }
  let lang=window.LANG_SR||'ru-RU';
  if(isIOS&&lang==='hy-AM')lang='ru-RU';
  const r=new SR();_sr=r;
  r.lang=lang;
  r.interimResults=true;
- r.continuous=isIOS;
- let finalTxt='';
+ r.continuous=false;
  const stopRec=()=>{clearTimeout(_srTimer);if(_sr===r){_sr=null;try{r.stop()}catch(e){}}m.classList.remove('rec')};
- r.onstart=()=>{m.classList.add('rec');$('s').textContent='Говорите адрес...'};
- r.onend=()=>{clearTimeout(_srTimer);if(_sr===r)_sr=null;m.classList.remove('rec');if($('a').value.trim())$('s').textContent=''};
- r.onerror=ev=>{clearTimeout(_srTimer);if(_sr===r)_sr=null;m.classList.remove('rec');if(ev&&ev.error==='aborted')return;$('s').textContent='Не удалось распознать голос'};
+ r.onstart=()=>{m.classList.add('rec');st.textContent=isIOS?'Говорите адрес (или нажмите 🎙 на клавиатуре)...':'Говорите адрес...'};
+ r.onend=()=>{clearTimeout(_srTimer);if(_sr===r)_sr=null;m.classList.remove('rec');if(inp.value.trim())st.textContent=''};
+ r.onerror=ev=>{
+  clearTimeout(_srTimer);if(_sr===r)_sr=null;m.classList.remove('rec');
+  if(ev&&ev.error==='aborted')return;
+  if(isIOS){inp.focus();st.textContent='Нажмите микрофон 🎙 на клавиатуре iPhone и продиктуйте';}
+  else st.textContent='Не удалось распознать голос';
+ };
  r.onresult=e=>{
-  let interim='';
-  for(let i=e.resultIndex;i<e.results.length;i++){
-   const res=e.results.item(i);
-   if(res.isFinal)finalTxt+=res.item(0).transcript+' ';
-   else interim+=res.item(0).transcript;
+  let full='';
+  for(let i=0;i<e.results.length;i++){
+   full+=e.results.item(i).item(0).transcript;
   }
-  const txt=(finalTxt+interim).trim();
+  const txt=full.trim();
   if(txt){
-   $('a').value=txt;
-   $('s').textContent='';
-   $('a').dispatchEvent(new Event('input'));
+   inp.value=txt;
+   st.textContent='';
+   inp.dispatchEvent(new Event('input'));
   }
   if(isIOS){
    clearTimeout(_srTimer);
-   _srTimer=setTimeout(stopRec,2200);
+   _srTimer=setTimeout(stopRec,2000);
   }
  };
- try{r.start()}catch(e){_sr=null;m.classList.remove('rec');$('s').textContent='Не удалось распознать голос'}
+ try{r.start()}catch(e){
+  _sr=null;m.classList.remove('rec');
+  if(isIOS){inp.focus();st.textContent='Нажмите микрофон 🎙 на клавиатуре iPhone и продиктуйте';}
+  else st.textContent='Не удалось распознать голос';
+ }
 }
 ;
 let SPEC_PTS=(()=>{try{const v=JSON.parse(localStorage.getItem('SPEC')||'null');if(Array.isArray(v))return v}catch(e){}return[{name:'Артак',lat:40.163019,lon:44.388218},{name:'Геворг Спайка',lat:40.127240,lon:44.490112}]})();
