@@ -48,17 +48,18 @@
       'Ты извлекаешь адреса доставки в Армении с фото накладных («Բեռնափոխադրման թերթիկ» или «ՎԱՃԱՌՔԻ ՓԱՍՏԱԹՈՒՂԹ»).',
       'Где искать адрес:',
       '1) Колонка «Տեղափոխման հասցե» или «Հասցե».',
-      '2) В документе «ՎԱՃԱՌՔԻ ՓԱՍՏԱԹՈՒՂԹ» адрес находится в блоке покупателя сразу под ФИО (например: «Կոտայք գյուղ Նուռնուս Այգեգործների 45տ»).',
+      '2) В документе «ՎԱՃԱՌՔԻ ՓԱՍՏԱԹՈՒՂԹ» адрес находится в блоке покупателя сразу под ФИО.',
       'Правила обработки каждого адреса:',
-      '- «շ.», «շ», «շենք», «տ.», «տ», «տուն», «դ.» сразу после числа (в том числе слитно: «30տ», «3շ», «36շ», «45տ», «82 տուն», «42/12») — это НОМЕР ДОМА. Обязательно оставь только само число/дробь дома без букв «շ» и «տ» (пример: «30տ» -> «30», «36շ» -> «36», «42/12» -> «42/12»).',
+      '- «շ.», «շ», «շենք», «տ.», «տ», «տուն», «դ.» сразу после числа (в том числе слитно: «30տ», «3շ», «36շ», «45տ», «82 տուն», «42/12») — это НОМЕР ДОМА, а НЕ номер улицы! Никогда не превращай «Լուկաշինի 3շ» в «3-ю улицу Лукашина»: «Լուկաշինի 3շ» означает основную улицу Лукашина, дом 3 («Երևան, Աջափնյակ, Լուկաշինի փողոց, 3» / «Ереван, Ачапняк, улица Лукашина, 3»). Номерную улицу пиши только если в тексте явно есть «-րդ», «փողոց 3» или «3-я».',
+      '- Дробный номер дома (например «42/12») ОБЯЗАТЕЛЬНО сохраняй целиком с дробью («42/12»), не обрезай до «42». Буквы «շ» и «տ» после числа удаляй.',
       '- «բն.», «բն», «բնակարան», «մուտք», «հարկ», «հ», «բ.» и цифры рядом с ними (в том числе слитно: «1բն», «16բն», «48բն», «5բն», «2 մուտք», «1 հ», «5հ», «Վ-06») — это квартира, подъезд, этаж или домофон. УДАЛИ их полностью! Никогда не добавляй квартиру через дробь к номеру дома.',
       '- Сохраняй область (մարզ), город (ք.), административный район Еревана (Շենգավիթ, Աջափնյակ, Նոր Նորք, Էրեբունի и др.), массив (Ջրվեժ, Ավան и др.) и село (գ. / գյուղ: Փարաքար, Վանանդ, Նուռնուս и др.). Если указана ереванская улица или район без города — добавь Ереван.',
       '- Полностью игнорируй номера телефонов (055..., 093..., 094..., 098..., 099..., 077..., 091..., 096..., 044...), ФИО, номера машин, коды товаров и суммы.',
       '- Примеры эталонного разбора:',
       '  • «Արմավիրի մ, Գ. Փարաքար, Տիգրան Մեծ 30տ» -> {"orig":"Արմավիրի մարզ, գ. Փարաքար, Տիգրան Մեծի 30","ru":"Армавирская область, село Паракар, улица Тиграна Меца, 30"}',
-      '  • «Ք. Երևան, Շենգավիթ, Արշակունյաց 42/12 1բն, 1 հ» -> {"orig":"Երևան, Արշակունյաց 42/12","ru":"Ереван, проспект Аршакуняц, 42/12"}',
-      '  • «ք Երևան Աջափնյակ Լուկաշինի 3շ 16բն 2 մուտք 1հ» -> {"orig":"Երևան, Լուկաշինի 3","ru":"Ереван, улица Лукашина, 3"}',
-      '  • «Ք. Երևան, Նոր Նորք, Ջրվեժ Մայակ 2շ 48բն, 5հ» -> {"orig":"Երևան, Ջրվեժ, Մայակ 2","ru":"Ереван, Джрвеж, квартал Маяк, 2"}',
+      '  • «Ք. Երևան, Շենգավիթ, Արշակունյաց 42/12 1բն, 1 հ» -> {"orig":"Երևան, Շենգավիթ, Արշակունյաց պողոտա, 42/12","ru":"Ереван, проспект Аршакуняц, 42/12"}',
+      '  • «ք Երևան Աջափնյակ Լուկաշինի 3շ 16բն 2 մուտք 1հ» -> {"orig":"Երևան, Աջափնյակ, Լուկաշինի փողոց, 3","ru":"Ереван, Ачапняк, улица Лукашина, 3"}',
+      '  • «Ք. Երևան, Նոր Նորք, Ջրվեժ Մայակ 2շ 48բն, 5հ» -> {"orig":"Երևան, Ջրվեժ, Մայակ թաղամաս, 2","ru":"Ереван, Джрвеж, квартал Маяк, 2"}',
       '  • «Կոտայք գյուղ Նուռնուս Այգեգործների 45տ» -> {"orig":"Կոտայքի մարզ, գ. Նուռնուս, Այգեգործների 45","ru":"Котайкская область, село Нурнус, улица Айгегорцнери, 45"}',
       'Верни ТОЛЬКО валидный JSON-массив объектов [{"orig":"...","ru":"..."}] или [].'
     ].join('\n');
@@ -100,18 +101,52 @@
 
     const hm = (ruClean + ' ' + origClean).match(/(?:^|[,\s])(\d+(?:\/\d+)?)(?=\s|,|$)/);
     const houseNum = hm ? hm.at(1).toLowerCase() : '';
+    const hasSlash = houseNum.includes('/');
+    const wantOrdStreet = /(?:^|\s|\d)(?:-րդ|-я|-й|-е|переулок|тупик|նրբ|փակ)/i.test(ruClean + ' ' + origClean);
+    const isOrdStreet = txt => /(?:^|\s)\d+(?:-րդ|-я|-й|-е)\s+(?:улица|переулок|проезд|փողոց|նրբ)/i.test(String(txt || ''));
+
     const escRe = v => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const exactHouse = txt => !houseNum || new RegExp('(^|[^0-9/])' + escRe(houseNum) + '([^0-9/]|$)').test(String(txt || ''));
     const baseHouse = txt => !houseNum || new RegExp('(^|[^0-9])' + escRe(houseNum.split('/').at(0)) + '([^0-9]|$)').test(String(txt || ''));
 
-    let fallbackHit = null, fallbackList = [];
+    const scoreCandidate = (name, exactFlag) => {
+      let sc = 0;
+      if (exactFlag) sc += 20;
+      if (exactHouse(name)) sc += 50;
+      else if (baseHouse(name)) sc += 10;
+      if (!wantOrdStreet && isOrdStreet(name)) sc -= 40;
+      return sc;
+    };
 
+    let bestHit = null, bestScore = -999, bestList = [];
+    const consider = (cand, list) => {
+      if (!cand) return;
+      const sc = scoreCandidate(cand.name, cand.exact);
+      if (sc > bestScore) {
+        bestScore = sc;
+        bestHit = cand;
+        bestList = list || [];
+      }
+    };
+
+    // 1. Для дробных домов (42/12) сначала проверяем прямой Геокодер, чтобы не потерять дробь
+    if (hasSlash) {
+      for (const q of queries) {
+        const list = await yan(q);
+        if (list && list.length) {
+          for (const x of list) consider({ name: cleanQ(x.name), lat: x.lat, lon: x.lon, exact: x.exact }, list);
+          if (bestHit && exactHouse(bestHit.name) && bestHit.exact) return { hit: bestHit, list: bestList };
+        }
+      }
+    }
+
+    // 2. Поиск через Яндекс Саджест с ранжированием (штраф за ложную номерную улицу и бонус за точный дом)
     if (typeof sugList === 'function') {
       for (const q of queries) {
         const sugs = await sugList(q);
         const orderedSugs = (sugs || []).slice().sort((a, b) => {
-          const sa = exactHouse(a.text || a.name) ? 2 : (baseHouse(a.text || a.name) ? 1 : 0);
-          const sb = exactHouse(b.text || b.name) ? 2 : (baseHouse(b.text || b.name) ? 1 : 0);
+          const sa = scoreCandidate(a.text || a.name, false);
+          const sb = scoreCandidate(b.text || b.name, false);
           return sb - sa;
         });
         for (const sg of orderedSugs.slice(0, 4)) {
@@ -120,32 +155,32 @@
           if (!sq) continue;
           const list = await yan(sq);
           if (list && list.length) {
-            const matched = list.find(x => x.exact && exactHouse(x.name))
-              || list.find(x => exactHouse(x.name))
-              || list.find(x => x.exact && baseHouse(x.name))
-              || list.find(x => baseHouse(x.name));
-            const picked = matched || list.find(x => x.exact) || list.at(0);
-            const finalName = sugTitle && exactHouse(sugTitle) ? sugTitle : cleanQ(picked.name);
-            const candidate = { name: finalName, lat: picked.lat, lon: picked.lon, exact: picked.exact };
-            if (matched && exactHouse(finalName)) return { hit: candidate, list: list };
-            if (!fallbackHit) { fallbackHit = candidate; fallbackList = list; }
+            for (const picked of list) {
+              const finalName = sugTitle && exactHouse(sugTitle) && (!isOrdStreet(sugTitle) || wantOrdStreet)
+                ? sugTitle
+                : cleanQ(picked.name);
+              consider({ name: finalName, lat: picked.lat, lon: picked.lon, exact: picked.exact }, list);
+            }
+            if (bestHit && exactHouse(bestHit.name) && bestHit.exact && (wantOrdStreet || !isOrdStreet(bestHit.name))) {
+              return { hit: bestHit, list: bestList };
+            }
           }
         }
       }
     }
 
+    // 3. Прямой поиск через Яндекс Геокодер
     for (const q of queries) {
       const list = await yan(q);
       if (list && list.length) {
-        const hit = list.find(x => x.exact && exactHouse(x.name))
-          || list.find(x => exactHouse(x.name))
-          || list.find(x => x.exact && baseHouse(x.name))
-          || list.find(x => x.exact);
-        if (hit && exactHouse(hit.name)) return { hit: hit, list: list };
-        if (!fallbackHit) { fallbackHit = hit || list.at(0); fallbackList = list; }
+        for (const x of list) consider({ name: cleanQ(x.name), lat: x.lat, lon: x.lon, exact: x.exact }, list);
+        if (bestHit && exactHouse(bestHit.name) && bestHit.exact && (wantOrdStreet || !isOrdStreet(bestHit.name))) {
+          return { hit: bestHit, list: bestList };
+        }
       }
     }
-    return { hit: fallbackHit, list: fallbackList };
+
+    return { hit: bestHit, list: bestList };
   }
 
   function showMultiPicker(items){
