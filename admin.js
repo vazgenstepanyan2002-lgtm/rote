@@ -129,8 +129,8 @@
    const v=+z.v||0,n=+z.n||0;totS+=v;totQ+=n;
    if(z.l==='Район')regS+=v;else if(z.l==='Город')cityS+=v;else oneS+=v;
   })));
-  const pCity=totS?Math.round(cityS*100/totS):0,pReg=totS?Math.round(regS*100/totS):0,pOne=Math.max(0,100-pCity-pReg);
-  let h='<div class="adm-sum" onclick="event.stopPropagation()">';
+  const pCity=cityS>0?Math.max(1,Math.round(cityS*100/totS)):0,pReg=regS>0?Math.max(1,Math.round(regS*100/totS)):0,pOne=oneS>0?Math.max(1,100-pCity-pReg):0;
+  let h='<div class="adm-sum">';
   if(totS>0&&((cityS>0&&regS>0)||oneS>0)){
    h+='<div class="sum-bar-w" style="margin-top:0;padding-top:0;border:none;margin-bottom:10px"><div class="sum-bar">'
     +(pCity?'<i style="width:'+pCity+'%;background:#38bdf8"></i>':'')
@@ -321,7 +321,59 @@
   if(L.length&&!isSubAdm())h+='<div class="mut hint">Нажмите на устройство, чтобы задать ему имя.</div>';
   g('view').innerHTML=h;
  }
- function drawTotals(){
+ 
+function openAdmSumModal(uid, subKey) {
+  if (!uid || !USERS[uid]) return;
+  const old = g("admSumOv"); if (old) old.remove();
+  const d = parseDev(uid, USERS[uid]), isCur = subKey === "cur", rec = isCur ? null : d.hist[subKey];
+  if (!isCur && !rec) return;
+  let rows = isCur ? [] : (rec.rows || []);
+  if (isCur) {
+    try {
+      const raw = JSON.parse(d.u.bonRaw || "[]");
+      if (Array.isArray(raw)) raw.forEach(c => {
+        if (!c || !Array.isArray(c.subs)) return;
+        const items = []; let cs = 0;
+        c.subs.forEach(x => {
+          const parts = [], q1 = +x.qty || 0, p1 = +x.price || 0, q2 = +x.qty2 || 0, p2 = +x.price2 || 0;
+          if (q1 > 0) parts.push({ l: x.one ? "" : "Город", n: q1, p: p1, v: q1 * p1 });
+          if (!x.one && q2 > 0) parts.push({ l: "Район", n: q2, p: p2, v: q2 * p2 });
+          if (parts.length) { items.push({ name: x.name, parts }); parts.forEach(z => cs += z.v); }
+        });
+        if (items.length) rows.push({ name: c.name, sum: cs, items });
+      });
+    } catch (e) {}
+  }
+  const title = isCur ? "Текущий месяц" : monthName(rec.m || subKey);
+  const sub = isCur ? "не сохранён" : ("сохранено " + ago(rec.t));
+  const totS = isCur ? (+d.cur.sum || 0) : (+rec.sum || 0), totQ = isCur ? (+d.cur.qty || 0) : (+rec.qty || 0);
+  const head = "<div class=\"sum-dash\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">" + esc(title) + " · " + esc(sub) + "</div><div class=\"sum-val\">" + fm(totS) + " <span>" + CUR + "</span></div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b>" + fm(totQ) + "</b><span>штук</span></div><div class=\"sum-kpi\"><b>" + rows.length + "</b><span>катег.</span></div></div></div></div>";
+  const ov = document.createElement("div"); ov.id = "admSumOv"; ov.className = "ov";
+  ov.innerHTML = "<div class=\"dlg ach-box\" style=\"max-width:440px;height:88vh\"><div class=\"ach-hd\"><div class=\"ach-hd-l\"><div class=\"ach-hd-ic\">📋</div><div><b>" + esc(dispName(d)) + "</b><small>Сводка начислений</small></div></div><button type=\"button\" id=\"admSumX\" class=\"ach-x\">✕</button></div><div id=\"admSumB\" class=\"ach-list\" style=\"background-image:none;padding:12px\">" + head + detail(rows) + "</div></div>";
+  document.body.appendChild(ov);
+  const close = () => { ov.classList.remove("show"); setTimeout(() => ov.remove(), 180); };
+  g("admSumX").onclick = close; ov.onclick = e => { if (e.target === ov) close(); };
+  const root = g("admSumB"); let flt = "all", q = "";
+  const apply = () => root.querySelectorAll(".sum-cat").forEach(cat => {
+    let vc = 0;
+    cat.querySelectorAll(".sum-it").forEach(it => {
+      const mn = !q || (it.dataset.name || "").includes(q); let vr = 0;
+      it.querySelectorAll(".sum-r").forEach(r => { const ok = mn && (flt === "all" || r.dataset.zone === flt); r.style.display = ok ? "" : "none"; if (ok) vr++; });
+      it.style.display = vr ? "" : "none"; if (vr) vc++;
+    });
+    cat.style.display = vc ? "" : "none";
+  });
+  root.addEventListener("click", e => {
+    const fb = e.target.closest("[data-aseg] button");
+    if (fb) { flt = fb.dataset.f; root.querySelectorAll("[data-aseg] button").forEach(b => b.classList.toggle("on", b === fb)); apply(); return; }
+    const tg = e.target.closest("[data-atog]");
+    if (tg) { const c = tg.closest(".sum-cat"); if (c) { c.classList.toggle("open"); const ch = c.querySelector(".sum-chv"); if (ch) ch.textContent = c.classList.contains("open") ? "▾" : "▸"; } }
+  });
+  root.addEventListener("input", e => { if (e.target && e.target.matches("[data-asrch]")) { q = e.target.value.trim().toLowerCase(); apply(); } });
+  requestAnimationFrame(() => ov.classList.add("show"));
+}
+
+function drawTotals(){
   const L=devs();
   if(SEL!=='all'&&!USERS[SEL])SEL='all';
   const curSelObj=SEL==='all'?null:L.find(x=>x.id===SEL);
@@ -536,7 +588,7 @@
   else if(a==='block'){e.stopPropagation();const id=b.dataset.id,k=b.dataset.key,isBlk=b.dataset.blk==='1',du=USERS[id]||{};const who=dispName(parseDev(id,du));const ok=await ask(isBlk?'Разблокировать водителя и телефон «'+who+'»?':'Заблокировать водителя и этот телефон («'+who+'»)? Он сразу выйдет и не сможет войти даже под новым именем.',{title:isBlk?'Разблокировка':'Блокировка',okText:isBlk?'Разблокировать':'Заблокировать',danger:!isBlk});if(!ok)return;try{const nv=isBlk?null:true;await db.ref('users/'+id+'/blocked').set(nv);if(k)await db.ref('accounts/'+k+'/blocked').set(nv);if(du.devId)await db.ref('accounts/__dev_'+du.devId).set(isBlk?null:{blocked:true});if(!isBlk)await db.ref('online/'+id).remove();toast(isBlk?'Разблокировано':'Заблокировано')}catch(err){toast('Ошибка сохранения',true)}}
   else if(a==='pin'){e.stopPropagation();const k=b.dataset.key,cur=ACCOUNTS[k]&&ACCOUNTS[k].pin||'';const np=await askInput('Смена ПИН-кода','Введите новый 4-значный код для водителя',cur,'Например: 1234');if(np===null)return;const clean=np.replace(/\D/g,'');if(clean.length!==4){toast('Нужно ровно 4 цифры',true);return}try{await db.ref('accounts/'+k+'/pin').set(clean);toast('ПИН-код обновлён')}catch(err){toast('Ошибка сохранения',true)}}
   else if(a==='month'){OPEN[b.dataset.key]=!OPEN[b.dataset.key];draw()}
-  else if(a==='subopen'){OPEN['sub|'+SEL]=b.dataset.sub;draw()}
+  else if(a==='subopen'){openAdmSumModal(SEL,b.dataset.sub)}
   else if(a==='subback'){delete OPEN['sub|'+SEL];draw()}
   else if(a==='pickdev'){e.stopPropagation();delete OPEN['sub|'+b.dataset.id];SEL=b.dataset.id;draw()}
   else if(a==='opensel'){e.stopPropagation();openSelectModal()}
