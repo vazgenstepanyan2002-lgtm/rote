@@ -276,6 +276,34 @@ body:has(#login:not([hidden])){height:100dvh;overflow:hidden;overscroll-behavior
 .row:has(.rv) [data-act="block"]{grid-column:5}
 .row:has(.rv) [data-act="del"]{grid-column:6}
 body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behavior:none!important}
+
+/* ADMIN-ADAPTIVE */
+@media (max-width: 380px){
+  body{padding:10px 10px 28px!important}
+  #panel h2{padding:10px!important;border-radius:18px!important}
+  .tabs{gap:3px!important;padding:4px!important}
+  .tabs button{font-size:11px!important;padding:8px 2px!important;gap:2px!important}
+  .tabs button svg{width:13px!important;height:13px!important}
+  .tiles{gap:6px!important}
+  .tile{padding:10px 4px!important;border-radius:14px!important}
+  .tile b{font-size:21px!important}
+  .tile span{font-size:10.5px!important}
+  .row,.mr{padding:10px!important;border-radius:14px!important}
+  .rt{font-size:14px!important}
+  .rv{font-size:13px!important;padding:4px 7px!important}
+  .hero{padding:12px 14px!important}
+  .hero b{font-size:21px!important}
+}
+@media (max-height: 700px){
+  .card{padding:20px 16px 18px!important}
+  .brand{margin-bottom:14px!important}
+  .logo-ring{width:50px!important;height:50px!important;margin-bottom:8px!important}
+  .fld{margin-bottom:10px!important}
+  .fld input{height:48px!important}
+  .go-btn{height:46px!important}
+  #admMap{height:46dvh!important;min-height:240px!important}
+  .ach-box{height:90dvh!important}
+}
 </style></head><body>
 <a class="back" href="./" onclick="event.preventDefault();if(document.referrer&&document.referrer.indexOf(location.origin)===0&&history.length>1)history.back();else location.replace('./')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>В приложение</a>
 <div id="login" class="auth-wrap"><div class="card">
@@ -322,8 +350,8 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
   </div>
  </div>
 </div>
-<script src="yandex.js?v=20261118110242"></script>
-<script src="admin.js?v=20261118110242"></script>
+<script src="yandex.js?v=20261118111539"></script>
+<script src="admin.js?v=20261118111539"></script>
 <script>
 ['lgEm','lgPw'].forEach(id=>{
  const el=document.getElementById(id);
