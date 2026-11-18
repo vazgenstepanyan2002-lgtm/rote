@@ -66,8 +66,28 @@
   }
 
   async function resolveBestYandex(item){
-    const queries = Array.from(new Set([item.orig, item.ru].filter(Boolean)));
+    const cleanQ = t => String(t || '').replace(/\s*[\u{1F4CD}\u{1F50E}]\s*$/gu, '').trim();
+    const queries = Array.from(new Set([item.orig, item.ru].map(cleanQ).filter(Boolean)));
     let fallbackList = [];
+
+    // 1. Сначала ищем через Яндекс Геосаджест (sugList) -> затем точные координаты через yan
+    if (typeof sugList === 'function') {
+      for (const q of queries) {
+        const sugs = await sugList(q);
+        for (const sg of (sugs || []).slice(0, 3)) {
+          const sq = cleanQ(sg.text || sg.name);
+          if (!sq) continue;
+          const list = await yan(sq);
+          if (list && list.length) {
+            const exactHit = list.find(x => x.exact);
+            if (exactHit) return { hit: exactHit, list: list };
+            if (!fallbackList.length) fallbackList = list;
+          }
+        }
+      }
+    }
+
+    // 2. Резервный прямой поиск через Геокодер (yan)
     for (const q of queries) {
       const list = await yan(q);
       if (list && list.length) {
