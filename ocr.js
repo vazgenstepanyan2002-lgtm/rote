@@ -109,11 +109,15 @@
     const exactHouse = txt => !houseNum || new RegExp('(^|[^0-9/])' + escRe(houseNum) + '([^0-9/]|$)').test(String(txt || ''));
     const baseHouse = txt => !houseNum || new RegExp('(^|[^0-9])' + escRe(houseNum.split('/').at(0)) + '([^0-9]|$)').test(String(txt || ''));
 
+    const hasAnyHouse = txt => /(?:^|,\s*)(?:дом\s+|դ\.\s*)?\d+(?:\/\d+)?(?:\s*[ա-ֆa-zа-я])?\s*$/i.test(String(txt || '').trim());
     const scoreCandidate = (name, exactFlag) => {
       let sc = 0;
       if (exactFlag) sc += 20;
-      if (exactHouse(name)) sc += 50;
-      else if (baseHouse(name)) sc += 10;
+      if (houseNum) {
+        if (exactHouse(name)) sc += 60;
+        else if (baseHouse(name)) sc += 10;
+        else if (hasAnyHouse(name)) sc -= 80;
+      }
       if (!wantOrdStreet && isOrdStreet(name)) sc -= 40;
       return sc;
     };
@@ -175,7 +179,10 @@
               consider({ name: finalName, lat: picked.lat, lon: picked.lon, exact: picked.exact }, list);
             }
             if (bestHit && exactHouse(bestHit.name) && bestHit.exact && (wantOrdStreet || !isOrdStreet(bestHit.name))) {
-              return { hit: bestHit, list: bestList };
+              if (bestHit && houseNum && !exactHouse(bestHit.name) && ruClean) {
+      bestHit = { name: ruClean, lat: bestHit.lat, lon: bestHit.lon, exact: false };
+    }
+    return { hit: bestHit, list: bestList };
             }
           }
         }
