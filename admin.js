@@ -320,7 +320,7 @@
     +'<div class="rm"><div class="rt" style="margin-bottom:5px">'+dispHtml(d)+blkBadge+'</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">'+row1.join('')+'</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:4px">'+row2.join('')+'</div></div>'
-    +'<div class="rv">'+money(d.cur.sum)+'</div>'
+    +'<div class="rv">'+money(car ? parseCar(car).sum : d.cur.sum)+'</div>'
     +dmBtn+pinBtn+blkBtn+delBtn+'</div>';
   }).join('');
   if(L.length&&!isSubAdm())h+='<div class="mut hint">Нажмите на устройство, чтобы задать ему имя.</div>';
@@ -472,7 +472,42 @@ function drawTotals(){
 
  
  
- function openCarModal(uid){
+ 
+ async function migrateDevToCar(uid, carCode){
+  if(!uid || !carCode || !USERS[uid]) return false;
+  const u = USERS[uid];
+  let raw = [];
+  try { raw = JSON.parse(u.bonRaw || "[]"); } catch(e){}
+  const qtyPatch = {};
+  const curQ = (CARS && CARS[carCode] && CARS[carCode].qty) || {};
+  if (Array.isArray(raw)) {
+   raw.forEach(c => {
+    if (!c || !Array.isArray(c.subs)) return;
+    c.subs.forEach(sub => {
+     const q1 = +sub.qty || 0, q2 = sub.one ? 0 : (+sub.qty2 || 0);
+     const k1 = c.pk + "_" + sub.sk, k2 = k1 + "_2";
+     if (q1 > 0) qtyPatch[k1] = (+curQ[k1] || 0) + q1;
+     if (q2 > 0) qtyPatch[k2] = (+curQ[k2] || 0) + q2;
+    });
+   });
+  }
+  let histObj = {};
+  try { histObj = JSON.parse(u.hist || "{}"); } catch(e){}
+  const hasQty = Object.keys(qtyPatch).length > 0;
+  const hasHist = histObj && typeof histObj === "object" && Object.keys(histObj).length > 0;
+  if (!hasQty && !hasHist) return false;
+  if (hasQty) {
+   await db.ref("cars/" + carCode + "/qty").update(qtyPatch);
+   await db.ref("cars/" + carCode + "/t").set(Date.now());
+  }
+  if (hasHist) {
+   await db.ref("cars/" + carCode + "/hist").update(histObj);
+  }
+  await db.ref("users/" + uid).update({ bonRaw: "[]", cur: JSON.stringify({ sum: 0, qty: 0, cats: [] }), hist: "{}" });
+  return true;
+ }
+
+function openCarModal(uid){
   if(!uid||!USERS[uid])return;
   const d=parseDev(uid,USERS[uid]),curCar=String(d.u.car||'').toUpperCase();
   const ov=document.createElement('div');ov.className='ov';
@@ -492,7 +527,14 @@ function drawTotals(){
    const nc=it.dataset.c;close();
    try{
     await db.ref('users/'+uid+'/car').set(nc||null);
-    toast(nc?'Назначена машина '+nc:'Машина снята');
+    let moved = false;
+    if (nc) {
+     const hasOld = (+d.cur.sum > 0) || (d.hist && Object.keys(d.hist).length > 0);
+     if (hasOld && await ask("У водителя есть личные бонусы (" + money(d.cur.sum) + "). Перенести их в общий котёл машины " + nc + "?", { title: "Перенос бонусов", okText: "Перенести" })) {
+      moved = await migrateDevToCar(uid, nc);
+     }
+    }
+    toast(nc ? ('Назначена машина ' + nc + (moved ? ' · бонусы перенесены' : '')) : 'Машина снята');
    }catch(err){toast('Ошибка сохранения',true)}
   };
   requestAnimationFrame(()=>ov.classList.add('show'));
