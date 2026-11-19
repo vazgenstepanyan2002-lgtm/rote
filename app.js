@@ -217,24 +217,35 @@ setShift(getShift());
 async function go(){
   if(!P.length)return;
   const isDay=getShift()==="day",back=$("ret").checked;
+  let activeP=P.slice(),allowKentron=false;
+  if(isDay){
+    const blocked=activeP.filter(p=>inKentron(p.lat,p.lon));
+    if(blocked.length){
+      const names=blocked.map(x=>x.name).join("; ");
+      const msg="⛔ В дневную смену (до 21:00) въезд грузовым в Покр Кентрон запрещён (камеры).\n\nАдреса в зоне: "+names+"\n\nПродолжить с этими адресами или удалить их?";
+      const keep=await askC(msg,"Продолжить","⛔","Удалить");
+      if(keep){
+        allowKentron=true;
+      }else{
+        P=P.filter(p=>!inKentron(p.lat,p.lon));
+        save();
+        activeP=P.slice();
+        window.toast&&toast("Адреса в Покр Кентроне удалены");
+        if(!activeP.length){$("o").innerHTML="";$("s").textContent="";return}
+      }
+    }
+  }
   $("o").innerHTML="";$("s").textContent="Определяю местоположение...";
   let me;try{me=await pos()}catch(e){$("s").textContent="Разрешите доступ к геолокации для Chrome";window.toast&&toast("Нет доступа к геолокации","err");return}
-  let activeP=P.slice(),blocked=[];
-  if(isDay){blocked=activeP.filter(p=>inKentron(p.lat,p.lon));activeP=activeP.filter(p=>!inKentron(p.lat,p.lon));}
-  if(!activeP.length){
-    $("s").textContent="";
-    $("o").innerHTML='<div class="k-warn">⛔ Все адреса находятся в Покр Кентроне (камеры до 21:00). Выберите «Ночная смена» или добавьте адреса вне Малого центра.</div>';
-    window.toast&&toast("Въезд в Покр Кентрон днём запрещён","err");return;
-  }
   const pts=back?[me,...activeP,BASE]:[me,...activeP],bIdx=back?pts.length-1:0;
-  $("s").textContent=isDay?"Считаю порядок в обход Покр Кентрона...":"Считаю лучший порядок...";
+  $("s").textContent=(isDay&&!allowKentron)?"Считаю порядок в обход Покр Кентрона...":"Считаю лучший порядок...";
   let D,approx=false;
   try{
     const r=await fT("https://project-osrm.org"+pts.map(p=>p.lon+","+p.lat).join(";")+"?annotations=duration");
     D=(await r.json()).durations;if(!D)throw 0;
     D=D.map((row,i)=>row.map((v,j)=>{if(v==null){approx=true;return Math.hypot((pts[i].lat-pts[j].lat)*111,(pts[i].lon-pts[j].lon)*85)*90}return v}));
   }catch(e){approx=true;D=pts.map(a=>pts.map(b=>Math.hypot((a.lat-b.lat)*111,(a.lon-b.lon)*85)*90))}
-  if(isDay)for(let i=0;i<pts.length;i++)for(let j=0;j<pts.length;j++)if(i!==j&&segCrossesKentron(pts[i],pts[j]))D[i][j]+=3600;
+  if(isDay&&!allowKentron)for(let i=0;i<pts.length;i++)for(let j=0;j<pts.length;j++)if(i!==j&&segCrossesKentron(pts[i],pts[j]))D[i][j]+=3600;
   let Dist=pts.map(a=>pts.map(b=>Math.hypot((a.lat-b.lat)*111000,(a.lon-b.lon)*85000)*1.35));
   const origP=P;P=activeP;const idx=solve(D,activeP.length,bIdx);P=origP;
   if(back)idx.push(bIdx);
@@ -250,11 +261,6 @@ async function go(){
   });
   $("s").textContent="";localStorage.removeItem("DEP");localStorage.setItem("R_T0",Date.now());
   renderOut(curOrder,pts.at(0),totT,totD,approx);
-  if(blocked.length){
-    const w=document.createElement("div");w.className="k-warn";
-    w.textContent="⛔ Исключены адреса в Покр Кентроне (камеры до 21:00): "+blocked.map(x=>x.name).join("; ");
-    $("o").prepend(w);
-  }
   window.toast&&toast(approx?"Маршрут построен (время приблизительно)":"Маршрут построен",approx?"err":"ok");
 }
 function toggleDone(k){
@@ -318,10 +324,11 @@ try{const sv=JSON.parse(localStorage.getItem('R_SAVE')||'null');if(sv&&sv.curOrd
  upd();
 })();
 ;
-function askC(text,ok,icon){return new Promise(res=>{
+function askC(text,ok,icon,noText){return new Promise(res=>{
  const g=id=>document.getElementById(id),m=g('cm'),y=g('cmOk'),n=g('cmNo');
- g('cmT').textContent=text;g('cmI').textContent=icon||'🗑️';y.textContent=ok||'OK';m.classList.add('open');
- const done=v=>{m.classList.remove('open');y.onclick=n.onclick=m.onclick=null;res(v)};
+ g('cmT').style.whiteSpace="pre-line";
+ g('cmT').textContent=text;g('cmI').textContent=icon||'🗑️';y.textContent=ok||'OK';n.textContent=noText||'Отмена';m.classList.add('open');
+ const done=v=>{m.classList.remove('open');g('cmT').style.whiteSpace="";n.textContent='Отмена';y.onclick=n.onclick=m.onclick=null;res(v)};
  y.onclick=()=>done(true);n.onclick=()=>done(false);m.onclick=e=>{if(e.target===m)done(false)};
 })}
 
