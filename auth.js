@@ -389,7 +389,7 @@
   return new Promise(res=>{
     const i=document.createElement("input");i.type="file";i.accept="image/*";
     i.onchange=()=>{
-      const f=i.files&&i.files;if(!f)return res(null);
+      const f=i.files&&i.files.item(0);if(!f)return res(null);
       const u=URL.createObjectURL(f),img=new Image();
       img.onload=()=>{
         URL.revokeObjectURL(u);
