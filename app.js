@@ -178,6 +178,7 @@ function updEta(){return;const c=window.CUR;if(!c)return;const i=$('dep');if(i&&
 function fmtT(s){const m=Math.round(s/60);return m<60?m+' мин':Math.floor(m/60)+' ч '+(m%60)+' мин'}
 function buildNav(arr){const to=arr.at(-1),via=arr.slice(0,-1);let u='yandexnavi://build_route_on_map?lat_to='+to.lat+'&lon_to='+to.lon;via.forEach((p,i)=>u+='&lat_via_'+i+'='+p.lat+'&lon_via_'+i+'='+p.lon);return u}
 // Точный внутренний периметр Покр Кентрона (строго внутри кольца Московян-Корюна-Ханджяна-Гр.Лусаворича-Сарьяна)
+// Точный внутренний периметр Покр Кентрона (камеры фиксации для грузовых до 21:00)
 const KENTRON_POLY=[
   [40.1881,44.5094], // внутри угла Московян / Баграмяна
   [40.1891,44.5152], // внутри угла Московян / Исаакяна
@@ -189,17 +190,10 @@ const KENTRON_POLY=[
   [40.1795,44.5061], // внутри угла Сарьяна / Амиряна
   [40.1846,44.5068]  // внутри угла Сарьяна / Пушкина
 ];
-// Разрешённые точки объезда по внешнему кольцу (без заезда под камеры)
-const KENTRON_BYPASS=[
-  {name:"🔄 Объезд по ул. Ханджяна / Саят-Нова",lat:40.1829,lon:44.5253},
-  {name:"🔄 Объезд по ул. Сарьяна / Пароняна",lat:40.1794,lon:44.5046},
-  {name:"🔄 Объезд по ул. Гр. Лусаворича (Цирк)",lat:40.1719,lon:44.5155},
-  {name:"🔄 Объезд по ул. Московян / Корюна",lat:40.1899,lon:44.5155}
-];
 function inKentron(lat,lon){
   let ins=false;
   for(let i=0,j=KENTRON_POLY.length-1;i<KENTRON_POLY.length;j=i++){
-    const yi=KENTRON_POLY[i][0],xi=KENTRON_POLY[i][1],yj=KENTRON_POLY[j][0],xj=KENTRON_POLY[j][1];
+    const yi=KENTRON_POLY[i],xi=KENTRON_POLY[i],yj=KENTRON_POLY[j],xj=KENTRON_POLY[j];
     if(((yi>lat)!==(yj>lat))&&(lon<(xj-xi)*(lat-yi)/((yj-yi)||1e-12)+xi))ins=!ins;
   }
   return ins;
@@ -210,15 +204,6 @@ function segCrossesKentron(a,b){
   for(let k=1;k<=11;k++){const t=k/12;if(inKentron(a.lat+(b.lat-a.lat)*t,a.lon+(b.lon-a.lon)*t))return true;}
   return false;
 }
-function pickBypass(a,b){
-  let best=KENTRON_BYPASS[0],bestD=Infinity;
-  for(const bp of KENTRON_BYPASS){
-    if(segCrossesKentron(a,bp)||segCrossesKentron(bp,b))continue;
-    const d=Math.hypot((a.lat-bp.lat)*111,(a.lon-bp.lon)*85)+Math.hypot((bp.lat-b.lat)*111,(bp.lon-b.lon)*85);
-    if(d<bestD){bestD=d;best=bp;}
-  }
-  return best;
-}
 function getShift(){try{return localStorage.getItem("SHIFT_MODE")==="night"?"night":"day"}catch(e){return"day"}}
 function setShift(mode){
   const m=mode==="night"?"night":"day";
@@ -226,7 +211,7 @@ function setShift(mode){
   const dBtn=$("shDay"),nBtn=$("shNight");
   if(dBtn)dBtn.classList.toggle("on",m==="day");
   if(nBtn)nBtn.classList.toggle("on",m==="night");
-  window.toast&&toast(m==="day"?"☀️ Дневная смена: объезд Покр Кентрона до 21:00":"🌙 Ночная смена: въезд в Покр Кентрон разрешён");
+  window.toast&&toast(m==="day"?"☀️ Дневная смена: порядок в обход Покр Кентрона до 21:00":"🌙 Ночная смена: въезд в Покр Кентрон разрешён");
 }
 setShift(getShift());
 async function go(){
@@ -242,38 +227,29 @@ async function go(){
     window.toast&&toast("Въезд в Покр Кентрон днём запрещён","err");return;
   }
   const pts=back?[me,...activeP,BASE]:[me,...activeP],bIdx=back?pts.length-1:0;
-  $("s").textContent=isDay?"Считаю маршрут в объезд Покр Кентрона...":"Считаю лучший порядок...";
+  $("s").textContent=isDay?"Считаю порядок в обход Покр Кентрона...":"Считаю лучший порядок...";
   let D,approx=false;
   try{
     const r=await fT("https://project-osrm.org"+pts.map(p=>p.lon+","+p.lat).join(";")+"?annotations=duration");
     D=(await r.json()).durations;if(!D)throw 0;
     D=D.map((row,i)=>row.map((v,j)=>{if(v==null){approx=true;return Math.hypot((pts[i].lat-pts[j].lat)*111,(pts[i].lon-pts[j].lon)*85)*90}return v}));
   }catch(e){approx=true;D=pts.map(a=>pts.map(b=>Math.hypot((a.lat-b.lat)*111,(a.lon-b.lon)*85)*90))}
-  if(isDay)for(let i=0;i<pts.length;i++)for(let j=0;j<pts.length;j++)if(i!==j&&segCrossesKentron(pts[i],pts[j]))D[i][j]+=2400;
+  if(isDay)for(let i=0;i<pts.length;i++)for(let j=0;j<pts.length;j++)if(i!==j&&segCrossesKentron(pts[i],pts[j]))D[i][j]+=3600;
   let Dist=pts.map(a=>pts.map(b=>Math.hypot((a.lat-b.lat)*111000,(a.lon-b.lon)*85000)*1.35));
   const origP=P;P=activeP;const idx=solve(D,activeP.length,bIdx);P=origP;
   if(back)idx.push(bIdx);
-  const seqPts=[];let prevPt=pts[0];
-  for(const i of idx){
-    const nextPt=pts[i];
-    if(isDay&&segCrossesKentron(prevPt,nextPt)){const bp=pickBypass(prevPt,nextPt);seqPts.push({name:bp.name,lat:bp.lat,lon:bp.lon,isBypass:true});}
-    seqPts.push(nextPt);prevPt=nextPt;
-  }
-  let segDurs=seqPts.map((_,k)=>{const a=k===0?pts[0]:seqPts[k-1],b=seqPts[k];return Math.hypot((a.lat-b.lat)*111,(a.lon-b.lon)*85)*90});
-  let segDists=seqPts.map((_,k)=>{const a=k===0?pts[0]:seqPts[k-1],b=seqPts[k];return Math.hypot((a.lat-b.lat)*111000,(a.lon-b.lon)*85000)*1.35});
   try{
-    const rPts=[pts[0],...seqPts],rr=await fT("https://project-osrm.org"+rPts.map(p=>p.lon+","+p.lat).join(";")+"?overview=false");
-    const legs=(await rr.json()).routes.at(0).legs;
-    if(legs&&legs.length===seqPts.length)legs.forEach((leg,k)=>{segDurs[k]=leg.duration;segDists[k]=leg.distance});
+    const rPts=[pts.at(0),...idx.map(i=>pts.at(i))],rr=await fT("https://project-osrm.org"+rPts.map(p=>p.lon+","+p.lat).join(";")+"?overview=false"),legs=(await rr.json()).routes.at(0).legs;
+    if(legs)legs.forEach((leg,k)=>{const a=k===0?0:idx.at(k-1),b=idx.at(k);D[a][b]=leg.duration;Dist[a][b]=leg.distance});
   }catch(e){approx=true}
-  let totT=0,totD=0;
-  let curOrder=seqPts.map((pt,k)=>{
-    const sT=(pt.isBypass?0:600)+segDurs[k],sD=segDists[k];totT+=sT;totD+=sD;
+  let prev=0,totT=0,totD=0;
+  let curOrder=idx.map(i=>{
+    const sT=600+D.at(prev).at(i),sD=Dist.at(prev).at(i);totT+=sT;totD+=sD;prev=i;
     const sKm=sD?" • "+(sD<10000?(sD/1000).toFixed(1):Math.round(sD/1000))+" км":"";
-    return{name:pt.name,lat:pt.lat,lon:pt.lon,st:sT,sub:"+"+fmtT(sT)+sKm,bypass:!!pt.isBypass};
+    return{name:pts.at(i).name,lat:pts.at(i).lat,lon:pts.at(i).lon,st:sT,sub:"+"+fmtT(sT)+sKm};
   });
   $("s").textContent="";localStorage.removeItem("DEP");localStorage.setItem("R_T0",Date.now());
-  renderOut(curOrder,pts[0],totT,totD,approx);
+  renderOut(curOrder,pts.at(0),totT,totD,approx);
   if(blocked.length){
     const w=document.createElement("div");w.className="k-warn";
     w.textContent="⛔ Исключены адреса в Покр Кентроне (камеры до 21:00): "+blocked.map(x=>x.name).join("; ");
@@ -281,7 +257,7 @@ async function go(){
   }
   window.toast&&toast(approx?"Маршрут построен (время приблизительно)":"Маршрут построен",approx?"err":"ok");
 }
-function renderOut(curOrder,startPt,totT,totD,approx){syncGoGrp();window.CUR=curOrder;localStorage.setItem('R_SAVE',JSON.stringify({curOrder:curOrder,startPt:startPt,totT:totT,totD:totD,approx:!!approx}));const km=totD?' • '+Math.round(totD/1000)+' км':'',liHtml=curOrder.filter(it=>!it.bypass).map(it=>`<li><span style="flex:1">${it.name}<span class="t-tag">(${it.sub})</span></span><span class="dh">☰</span></li>`).join('');$('o').innerHTML=`<h3>Порядок (потяните ☰):</h3><div class="stat">⏱ Весь путь: ~${fmtT(totT)}${km}${approx?' ⚠ приблизительно':''}</div><ol>${liHtml}</ol><a class="nav" href="${buildNav(curOrder)}"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg><span>Открыть в навигаторе</span></a>`;updEta();const ol=$('o').querySelector('ol');let dragEl=null;ol.addEventListener('touchstart',ev=>{const h=ev.target.closest('.dh');if(!h)return;dragEl=h.closest('li');dragEl.classList.add('drag')},{passive:true});ol.addEventListener('touchmove',ev=>{if(!dragEl)return;ev.preventDefault();const over=document.elementFromPoint(ev.touches.item(0).clientX,ev.touches.item(0).clientY),target=over&&over.closest('#o ol li');if(target&&target!==dragEl){const items=Array.from(ol.children),fromI=items.indexOf(dragEl),toI=items.indexOf(target);if(fromI<toI)target.after(dragEl);else target.before(dragEl);curOrder.splice(toI,0,curOrder.splice(fromI,1).at(0))}},{passive:false});ol.addEventListener('touchend',async()=>{if(!dragEl)return;dragEl.classList.remove('drag');dragEl=null;const navA=document.querySelector('#o a.nav');if(navA)navA.href=buildNav(curOrder);let tT=totT,tD=totD,ap=!!approx;try{const rPts=new Array(startPt).concat(curOrder),rr=await fT('https://router.project-osrm.org/route/v1/driving/'+rPts.map(p=>p.lon+','+p.lat).join(';')+'?overview=false'),legs=(await rr.json()).routes.at(0).legs;if(legs){ap=false;tT=0;tD=0;const lis=ol.querySelectorAll('li');legs.forEach((leg,k)=>{const sT=600+leg.duration,sD=leg.distance;tT+=sT;tD+=sD;const sKm=sD?' • '+(sD<10000?(sD/1000).toFixed(1):Math.round(sD/1000))+' км':'',sub='+'+fmtT(sT)+sKm;curOrder.at(k).sub=sub;curOrder.at(k).st=sT;const tag=lis.item(k)&&lis.item(k).querySelector('.t-tag');if(tag)tag.textContent='('+sub+')'});const st=document.querySelector('#o .stat');if(st)st.textContent='⏱ Весь путь: ~'+fmtT(tT)+(tD?' • '+Math.round(tD/1000)+' км':'')+(ap?' ⚠ приблизительно':'')}}catch(e){ap=true}localStorage.setItem('R_SAVE',JSON.stringify({curOrder:curOrder,startPt:startPt,totT:tT,totD:tD,approx:ap}));updEta()})}
+function renderOut(curOrder,startPt,totT,totD,approx){syncGoGrp();window.CUR=curOrder;localStorage.setItem('R_SAVE',JSON.stringify({curOrder:curOrder,startPt:startPt,totT:totT,totD:totD,approx:!!approx}));const km=totD?' • '+Math.round(totD/1000)+' км':'',liHtml=curOrder.map(it=>`<li><span style="flex:1">${it.name}<span class="t-tag">(${it.sub})</span></span><span class="dh">☰</span></li>`).join('');$('o').innerHTML=`<h3>Порядок (потяните ☰):</h3><div class="stat">⏱ Весь путь: ~${fmtT(totT)}${km}${approx?' ⚠ приблизительно':''}</div><ol>${liHtml}</ol><a class="nav" href="${buildNav(curOrder)}"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg><span>Открыть в навигаторе</span></a>`;updEta();const ol=$('o').querySelector('ol');let dragEl=null;ol.addEventListener('touchstart',ev=>{const h=ev.target.closest('.dh');if(!h)return;dragEl=h.closest('li');dragEl.classList.add('drag')},{passive:true});ol.addEventListener('touchmove',ev=>{if(!dragEl)return;ev.preventDefault();const over=document.elementFromPoint(ev.touches.item(0).clientX,ev.touches.item(0).clientY),target=over&&over.closest('#o ol li');if(target&&target!==dragEl){const items=Array.from(ol.children),fromI=items.indexOf(dragEl),toI=items.indexOf(target);if(fromI<toI)target.after(dragEl);else target.before(dragEl);curOrder.splice(toI,0,curOrder.splice(fromI,1).at(0))}},{passive:false});ol.addEventListener('touchend',async()=>{if(!dragEl)return;dragEl.classList.remove('drag');dragEl=null;const navA=document.querySelector('#o a.nav');if(navA)navA.href=buildNav(curOrder);let tT=totT,tD=totD,ap=!!approx;try{const rPts=new Array(startPt).concat(curOrder),rr=await fT('https://router.project-osrm.org/route/v1/driving/'+rPts.map(p=>p.lon+','+p.lat).join(';')+'?overview=false'),legs=(await rr.json()).routes.at(0).legs;if(legs){ap=false;tT=0;tD=0;const lis=ol.querySelectorAll('li');legs.forEach((leg,k)=>{const sT=600+leg.duration,sD=leg.distance;tT+=sT;tD+=sD;const sKm=sD?' • '+(sD<10000?(sD/1000).toFixed(1):Math.round(sD/1000))+' км':'',sub='+'+fmtT(sT)+sKm;curOrder.at(k).sub=sub;curOrder.at(k).st=sT;const tag=lis.item(k)&&lis.item(k).querySelector('.t-tag');if(tag)tag.textContent='('+sub+')'});const st=document.querySelector('#o .stat');if(st)st.textContent='⏱ Весь путь: ~'+fmtT(tT)+(tD?' • '+Math.round(tD/1000)+' км':'')+(ap?' ⚠ приблизительно':'')}}catch(e){ap=true}localStorage.setItem('R_SAVE',JSON.stringify({curOrder:curOrder,startPt:startPt,totT:tT,totD:tD,approx:ap}));updEta()})}
 try{const sv=JSON.parse(localStorage.getItem('R_SAVE')||'null');if(sv&&sv.curOrder&&sv.curOrder.length)renderOut(sv.curOrder,sv.startPt,sv.totT,sv.totD,sv.approx)}catch(e){}
 ;
 (function(){
