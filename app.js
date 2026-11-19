@@ -239,9 +239,24 @@ async function go(){
   const pts=back?[me,...activeP,BASE]:[me,...activeP],bIdx=back?pts.length-1:0;
   $("s").textContent=(isDay&&!allowKentron)?"Считаю порядок в обход Покр Кентрона...":"Считаю лучший порядок...";
   let D,approx=false;
+  const osrmJson=async(kind,coords,qs)=>{
+    const urls=[
+      "https://project-osrm.org/"+kind+"/v1/driving/"+coords+qs,
+      "https://openstreetmap.de"+kind+"/v1/driving/"+coords+qs
+    ];
+    for(const u of urls){
+      try{
+        const r=await fT(u);
+        if(!r.ok)continue;
+        const j=await r.json();
+        if(j&&j.code==="Ok")return j;
+      }catch(e){}
+    }
+    throw 0;
+  };
   try{
-    const r=await fT("https://project-osrm.org"+pts.map(p=>p.lon+","+p.lat).join(";")+"?annotations=duration");
-    D=(await r.json()).durations;if(!D)throw 0;
+    const j=await osrmJson("table",pts.map(p=>p.lon+","+p.lat).join(";"),"?annotations=duration");
+    D=j.durations;if(!D)throw 0;
     D=D.map((row,i)=>row.map((v,j)=>{if(v==null){approx=true;return Math.hypot((pts[i].lat-pts[j].lat)*111,(pts[i].lon-pts[j].lon)*85)*90}return v}));
   }catch(e){approx=true;D=pts.map(a=>pts.map(b=>Math.hypot((a.lat-b.lat)*111,(a.lon-b.lon)*85)*90))}
   if(isDay&&!allowKentron)for(let i=0;i<pts.length;i++)for(let j=0;j<pts.length;j++)if(i!==j&&segCrossesKentron(pts[i],pts[j]))D[i][j]+=3600;
@@ -249,8 +264,13 @@ async function go(){
   const origP=P;P=activeP;const idx=solve(D,activeP.length,bIdx);P=origP;
   if(back)idx.push(bIdx);
   try{
-    const rPts=[pts.at(0),...idx.map(i=>pts.at(i))],rr=await fT("https://project-osrm.org"+rPts.map(p=>p.lon+","+p.lat).join(";")+"?overview=false"),legs=(await rr.json()).routes.at(0).legs;
-    if(legs)legs.forEach((leg,k)=>{const a=k===0?0:idx.at(k-1),b=idx.at(k);D[a][b]=leg.duration;Dist[a][b]=leg.distance});
+    const rPts=[pts.at(0),...idx.map(i=>pts.at(i))];
+    const j2=await osrmJson("route",rPts.map(p=>p.lon+","+p.lat).join(";"),"?overview=false");
+    const legs=j2.routes&&j2.routes.at(0)&&j2.routes.at(0).legs;
+    if(legs){
+      approx=false;
+      legs.forEach((leg,k)=>{const a=k===0?0:idx.at(k-1),b=idx.at(k);D[a][b]=leg.duration;Dist[a][b]=leg.distance});
+    }else approx=true;
   }catch(e){approx=true}
   let prev=0,totT=0,totD=0;
   let curOrder=idx.map(i=>{
