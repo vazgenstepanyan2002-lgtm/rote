@@ -769,6 +769,42 @@ function openSelectModal(){
   requestAnimationFrame(()=>{ov.classList.add('show');renderAdmDm()});
  }
  if(navigator.serviceWorker){navigator.serviceWorker.addEventListener('message',e=>{if(!e.data||g('panel').hidden)return;if(e.data.type==='OPEN_DM'&&e.data.uid)openAdmDm(e.data.uid);else if(e.data.type==='OPEN_CHAT')openAdmChat()})}
+ function openChangePw(){
+  const u=auth.currentUser;
+  if(!u||!u.email){toast('Нет активной сессии',true);return}
+  const old=g('pwOv');if(old)old.remove();
+  const ov=document.createElement('div');ov.id='pwOv';ov.className='ov';
+  ov.innerHTML='<div class="dlg" style="max-width:380px;text-align:left"><div class="dlg-ic" style="background:rgba(250,204,21,.14);border-color:rgba(250,204,21,.38);color:#fde047">🔑</div><div class="dlg-t" style="text-align:center">Смена пароля</div><div class="dlg-m" style="text-align:center;margin-bottom:14px">'+esc(u.email)+'</div><input id="pwOld" class="dlg-inp" type="password" autocomplete="current-password" placeholder="Текущий пароль" style="margin-bottom:10px"><input id="pwNew1" class="dlg-inp" type="password" autocomplete="new-password" placeholder="Новый пароль (минимум 6 символов)" style="margin-bottom:10px"><input id="pwNew2" class="dlg-inp" type="password" autocomplete="new-password" placeholder="Повторите новый пароль" style="margin-bottom:10px"><div id="pwErr" style="color:#f87171;font-size:12.5px;min-height:18px;margin-bottom:10px;text-align:center"></div><div class="dlg-act"><button type="button" id="pwNo" class="dlg-no">Отмена</button><button type="button" id="pwOk" class="dlg-ok">Сохранить</button></div></div>';
+  document.body.appendChild(ov);
+  const close=()=>{ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
+  const onK=e=>{if(e.key==='Escape')close()};
+  g('pwNo').onclick=close;ov.onclick=e=>{if(e.target===ov)close()};
+  const ok=g('pwOk'),err=g('pwErr'),p0=g('pwOld'),p1=g('pwNew1'),p2=g('pwNew2');
+  ok.onclick=async()=>{
+   err.textContent='';
+   const v0=p0.value,v1=p1.value,v2=p2.value;
+   if(!v0){err.textContent='Введите текущий пароль';p0.focus();return}
+   if(v1.length<6){err.textContent='Новый пароль должен быть не короче 6 символов';p1.focus();return}
+   if(v1!==v2){err.textContent='Новые пароли не совпадают';p2.focus();return}
+   if(v0===v1){err.textContent='Новый пароль совпадает со старым';p1.focus();return}
+   ok.disabled=true;ok.textContent='Сохраняю...';
+   try{
+    const cred=firebase.auth.EmailAuthProvider.credential(u.email,v0);
+    await u.reauthenticateWithCredential(cred);
+    await u.updatePassword(v1);
+    close();
+    toast('Пароль успешно изменён');
+   }catch(e){
+    const c=e&&e.code;
+    err.textContent=(c==='auth/wrong-password'||c==='auth/invalid-credential')?'Неверный текущий пароль':(c==='auth/weak-password'?'Слишком простой пароль (минимум 6 символов)':(c==='auth/too-many-requests'?'Слишком много попыток, попробуйте позже':('Ошибка: '+((e&&e.message)||e))));
+    ok.disabled=false;ok.textContent='Сохранить';
+   }
+  };
+  p2.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();ok.click()}};
+  document.addEventListener('keydown',onK);
+  requestAnimationFrame(()=>{ov.classList.add('show');p0.focus()});
+ }
+ if(g('chgPwBtn'))g('chgPwBtn').onclick=openChangePw;
  g('admChatBtn').onclick=openAdmChat;
  g('out').onclick=async ()=>auth.signOut();
  auth.onAuthStateChanged(u=>{
