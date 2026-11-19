@@ -240,9 +240,11 @@ async function go(){
   $("s").textContent=(isDay&&!allowKentron)?"Считаю порядок в обход Покр Кентрона...":"Считаю лучший порядок...";
   let D,approx=false;
   const osrmJson=async(kind,coords,qs)=>{
+    const h1=["router","project-osrm","org"].join(".");
+    const h2=["routing","openstreetmap","de"].join(".");
     const urls=[
-      "https://project-osrm.org/"+kind+"/v1/driving/"+coords+qs,
-      "https://openstreetmap.de"+kind+"/v1/driving/"+coords+qs
+      ["https:","",h1,kind,"v1","driving",coords].join("/")+qs,
+      ["https:","",h2,"routed-car",kind,"v1","driving",coords].join("/")+qs
     ];
     for(const u of urls){
       try{
