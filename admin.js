@@ -956,3 +956,35 @@ function openSelectModal(){
     }
   });
 })();
+
+/* ADM-MODAL-BACK */
+;(function(){
+  const getOpenOvs = () => Array.from(document.querySelectorAll(".ov")).filter(el => !el.hidden && (el.classList.contains("show") || getComputedStyle(el).display !== "none"));
+  let depth = 0, fromPop = false;
+  const sync = () => {
+    const cur = getOpenOvs().length;
+    if (cur > depth) {
+      for (let i = depth; i < cur; i++) {
+        try { history.pushState({ admOv: i + 1 }, "", location.href); } catch (e) {}
+      }
+    } else if (cur < depth && !fromPop) {
+      const diff = depth - cur;
+      for (let i = 0; i < diff; i++) {
+        try { if (history.state && history.state.admOv) history.back(); } catch (e) {}
+      }
+    }
+    depth = cur;
+  };
+  window.addEventListener("popstate", () => {
+    const list = getOpenOvs();
+    if (!list.length) return;
+    window._admSkipBack = true;
+    fromPop = true;
+    const top = list[list.length - 1];
+    const btn = top.querySelector("#cNo, #admSumX, #achX, #admDmX, #dgClose, #pwNo, .sel-x, .ach-x");
+    if (btn) btn.click();
+    else top.click();
+    setTimeout(() => { fromPop = false; depth = getOpenOvs().length; }, 220);
+  }, true);
+  new MutationObserver(sync).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "hidden"] });
+})();

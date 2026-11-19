@@ -413,8 +413,8 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
   </div>
  </div>
 </div>
-<script src="yandex.js?v=20261119041752"></script>
-<script src="admin.js?v=20261119041752"></script>
+<script src="yandex.js?v=20261119042000"></script>
+<script src="admin.js?v=20261119042000"></script>
 <script>
 ['lgEm','lgPw'].forEach(id=>{
  const el=document.getElementById(id);
@@ -437,7 +437,7 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
   var fromApp = document.referrer && document.referrer.indexOf(location.origin) === 0;
   if (!fromApp) {
     try { history.replaceState({ admRoot: 1 }, '', location.href); history.pushState({ admPage: 1 }, '', location.href); } catch (e) {}
-    window.addEventListener('popstate', function(){ location.replace('./'); });
+    window.addEventListener('popstate', function(){ if (window._admSkipBack) { window._admSkipBack = false; return; } location.replace('./'); });
   }
 })();</script>
 </body></html>
