@@ -802,7 +802,7 @@ function openSelectModal(){
   };
   p2.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();ok.click()}};
   document.addEventListener('keydown',onK);
-  requestAnimationFrame(()=>{ov.classList.add('show');p0.focus()});
+  requestAnimationFrame(()=>{ov.classList.add('show');});
  }
  if(g('chgPwBtn'))g('chgPwBtn').onclick=openChangePw;
  g('admChatBtn').onclick=openAdmChat;
