@@ -1,6 +1,29 @@
 window.addEventListener('error',e=>{window.toast&&toast('Ошибка: '+(e.message||'неизвестно'),'err')});
 window.addEventListener('unhandledrejection',e=>{window.toast&&toast('Ошибка: '+((e.reason&&e.reason.message)||e.reason||'неизвестно'),'err')});
-function vib(p){try{if(localStorage.getItem('NO_VIB')==='1')return;navigator.vibrate&&navigator.vibrate(p)}catch(e){}}
+let _iosSw=null;
+function iosHaptic(){
+ try{
+  if(!_iosSw){
+   const lb=document.createElement('label');
+   lb.style.cssText='position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none';
+   const cb=document.createElement('input');
+   cb.type='checkbox';cb.setAttribute('switch','');
+   lb.appendChild(cb);document.body.appendChild(lb);
+   _iosSw=lb;
+  }
+  _iosSw.click();
+ }catch(e){}
+}
+function vib(p){
+ try{
+  if(localStorage.getItem('NO_VIB')==='1')return;
+  if(navigator.vibrate){navigator.vibrate(p);return;}
+  if(/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)){
+   iosHaptic();
+   if(Array.isArray(p)&&p.length>1)setTimeout(iosHaptic,90);
+  }
+ }catch(e){}
+}
 function toast(msg,type){
  let t=document.getElementById('toast');
  if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t)}

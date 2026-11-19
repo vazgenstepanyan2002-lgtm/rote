@@ -52,7 +52,35 @@
  const OPEN={};
  let offs=[],tick=null,_tt=null;
 
- function toast(m,err){const t=g('toast');t.textContent=m;t.className='show'+(err?' err':'');clearTimeout(_tt);_tt=setTimeout(()=>{t.className=''},2600)}
+ let _admIosSw=null;
+ function admIosHaptic(){
+  try{
+   if(!_admIosSw){
+    const lb=document.createElement('label');
+    lb.style.cssText='position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none';
+    const cb=document.createElement('input');
+    cb.type='checkbox';cb.setAttribute('switch','');
+    lb.appendChild(cb);document.body.appendChild(lb);
+    _admIosSw=lb;
+   }
+   _admIosSw.click();
+  }catch(e){}
+ }
+ function admVib(p){
+  try{
+   if(localStorage.getItem('NO_VIB')==='1')return;
+   if(navigator.vibrate){navigator.vibrate(p);return;}
+   if(/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)){
+    admIosHaptic();
+    if(Array.isArray(p)&&p.length>1)setTimeout(admIosHaptic,90);
+   }
+  }catch(e){}
+ }
+ document.addEventListener('click',e=>{
+  const t=e.target&&e.target.closest&&e.target.closest('button,a,.row,.mr,.st-row,.sel-it,.sum-cat-h');
+  if(t)admVib(40);
+ },true);
+ function toast(m,err){if(err)admVib([60,40,60]);const t=g('toast');t.textContent=m;t.className='show'+(err?' err':'');clearTimeout(_tt);_tt=setTimeout(()=>{t.className=''},2600)}
  function showErr(m){const e=g('err');e.textContent=m||'';e.hidden=!m}
  function denied(e){
   const d=(e&&e.code==='PERMISSION_DENIED')||/permission_denied/i.test((e&&e.message)||'');
