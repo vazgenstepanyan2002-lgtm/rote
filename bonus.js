@@ -121,7 +121,7 @@
   } else if (CAR_CODE) {
    sub.innerHTML = '<span style="display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:99px;background:rgba(16,185,129,.18);border:1px solid rgba(52,211,153,.4);color:#6ee7b7;font-weight:700;font-size:11.5px">🚚 Экипаж ' + esc(CAR_CODE) + '</span>';
   } else {
-   sub.innerHTML = '<span style="color:#fbbf24;font-weight:600">⚠️ Машина не назначена администратором</span>';
+   sub.innerHTML = '<span style="color:#fbbf24;font-weight:600">⚠️ Экипаж не назначен администратором</span>';
   }
  }
 
@@ -230,7 +230,7 @@
  function onInput(e){
   const t=e.target,c=B[+t.dataset.c],s=c&&c.subs[+t.dataset.s];
   if(!c||!s||!t.classList.contains('bn-q'))return;
-  if(!CAR_CODE){t.value=0;tst('Машина не назначена администратором','err');return}
+  if(!CAR_CODE){t.value=0;tst('Экипаж не назначен администратором','err');return}
   const kk='qty'+(t.dataset.k||'');s[kk]=num(t.value);
   save(c.pk,s.sk,t.dataset.k||'',s[kk]);upd();
  }
@@ -241,7 +241,7 @@
   if(!c)return;
   if(a==='inc'||a==='dec'){
    if(!s)return;
-   if(!CAR_CODE){tst('Машина не назначена администратором','err');return}
+   if(!CAR_CODE){tst('Экипаж не назначен администратором','err');return}
    const kk='qty'+(b.dataset.k||'');
    s[kk]=Math.max(0,r3(num(s[kk])+(a==='inc'?1:-1)));
    const q=b.parentNode.querySelector('.bn-q');if(q)q.value=s[kk];
@@ -252,7 +252,7 @@
  }
 
  async function resetQty(){
-  if(!CAR_CODE){tst('Машина не назначена администратором','err');return}
+  if(!CAR_CODE){tst('Экипаж не назначен администратором','err');return}
   if(!await askC(CAR_CODE==='ADMIN'?'Обнулить все количества?':'Обнулить все количества экипажа '+CAR_CODE+'?','Обнулить','🔄'))return;
   B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));
   firebase.database().ref('cars/'+CAR_CODE+'/qty').remove().catch(()=>{});
@@ -451,7 +451,7 @@
  }
 
  function openBon(){
-  const m=ensure();updCarBadge();render();if(!CAR_CODE)tst('Машина не назначена администратором','err');
+  const m=ensure();updCarBadge();render();if(!CAR_CODE)tst('Экипаж не назначен администратором','err');
   m.classList.add('open');lock(true);
   try{history.pushState({bn:1},'')}catch(e){}
  }
