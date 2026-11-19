@@ -306,18 +306,97 @@
       if (_dmOpen && !document.hidden){ markDmSeen(); renderDmRows(); } else updBadges();
     }, () => {});
   }
+  function openUserSettings(){
+    let m = g("setMdl");
+    if (m) m.remove();
+    const curNav = ls("NAV") === "ya" ? "ya" : "sys";
+    const curShift = ls("SHIFT_MODE") === "night" ? "night" : "day";
+    const curLang = (window.getLang && window.getLang()) || ls("LANG") || "ru";
+    const vibOn = ls("NO_VIB") !== "1";
+
+    m = document.createElement("div");
+    m.id = "setMdl";
+    m.className = "cm open";
+    m.innerHTML = '<div class="cm-b st-box">'
+      + '<div class="ch-hd"><div class="ch-hd-l"><div class="ch-hd-ic" style="background:rgba(168,85,247,.2);border-color:rgba(192,132,252,.42);color:#c084fc">⚙️</div><div><div class="ch-hd-t">Настройки</div><div class="ch-hd-s">Персональные параметры</div></div></div><button type="button" class="ch-x" id="stX" aria-label="Закрыть">✕</button></div>'
+      + '<div class="st-list">'
+      + '<div class="st-card"><div class="st-lbl">🧭 Навигатор по умолчанию</div><div class="st-seg" id="stNav"><button type="button" data-v="sys" class="'+(curNav==="sys"?"on":"")+'">По умолчанию</button><button type="button" data-v="ya" class="'+(curNav==="ya"?"on":"")+'">Яндекс</button></div></div>'
+      + '<div class="st-card"><div class="st-lbl">🕒 Смена по умолчанию</div><div class="st-seg" id="stShift"><button type="button" data-v="day" class="'+(curShift==="day"?"on":"")+'">☀️ Дневная</button><button type="button" data-v="night" class="'+(curShift==="night"?"on":"")+'">🌙 Ночная</button></div></div>'
+      + '<div class="st-card"><div class="st-lbl">🌐 Язык / Լեզու / Language</div><div class="st-seg tri" id="stLang"><button type="button" data-v="ru" class="'+(curLang==="ru"?"on":"")+'">RU</button><button type="button" data-v="hy" class="'+(curLang==="hy"?"on":"")+'">ՀԱՅ</button><button type="button" data-v="en" class="'+(curLang==="en"?"on":"")+'">EN</button></div></div>'
+      + '<div class="st-card"><div class="st-row"><div><b>Вибрация при нажатиях</b><small>Тактильный отклик кнопок</small></div><div id="stVib" class="st-sw '+(vibOn?"on":"")+'" role="switch"></div></div></div>'
+      + '<div class="st-card"><div class="st-lbl">🔑 Смена ПИН-кода</div><div class="st-pin-r"><input id="stOldPin" type="tel" inputmode="numeric" maxlength="4" placeholder="Старый"><input id="stNewPin" type="tel" inputmode="numeric" maxlength="4" placeholder="Новый"><button type="button" id="stSavePin">OK</button></div></div>'
+      + '<button type="button" class="st-upd" id="stUpdBtn">🔄 Обновить приложение</button>'
+      + '</div></div>';
+    document.body.appendChild(m);
+
+    const close = () => m.remove();
+    g("stX").onclick = close;
+    m.onclick = e => { if (e.target === m) close(); };
+
+    m.querySelectorAll("#stNav button").forEach(b => b.onclick = () => {
+      lsSet("NAV", b.dataset.v);
+      m.querySelectorAll("#stNav button").forEach(x => x.classList.toggle("on", x === b));
+      if (window.mountNavSwitch) window.mountNavSwitch();
+      window.toast && toast(b.dataset.v === "ya" ? "Откроется Яндекс Навигатор" : "Откроется навигатор по умолчанию");
+    });
+
+    m.querySelectorAll("#stShift button").forEach(b => b.onclick = () => {
+      if (window.setShift) window.setShift(b.dataset.v);
+      else lsSet("SHIFT_MODE", b.dataset.v);
+      m.querySelectorAll("#stShift button").forEach(x => x.classList.toggle("on", x === b));
+    });
+
+    m.querySelectorAll("#stLang button").forEach(b => b.onclick = () => {
+      if (window.setAppLang) window.setAppLang(b.dataset.v);
+      m.querySelectorAll("#stLang button").forEach(x => x.classList.toggle("on", x === b));
+    });
+
+    const sw = g("stVib");
+    sw.onclick = () => {
+      const next = !sw.classList.contains("on");
+      sw.classList.toggle("on", next);
+      if (next) lsDel("NO_VIB"); else lsSet("NO_VIB", "1");
+      if (next && navigator.vibrate) try { navigator.vibrate(40); } catch(e){}
+    };
+
+    const p1 = g("stOldPin"), p2 = g("stNewPin");
+    [p1, p2].forEach(el => el.addEventListener("input", () => { el.value = el.value.replace(/D/g, "").slice(0, 4); }));
+    g("stSavePin").onclick = async () => {
+      const key = ls("USER_KEY"), oldV = p1.value.trim(), newV = p2.value.trim();
+      if (!key) return;
+      if (!/^d{4}$/.test(oldV) || !/^d{4}$/.test(newV)) { window.toast && toast("Введите 4 цифры старого и нового ПИН-кода", "err"); return; }
+      if (!window.firebase || !firebase.apps || !firebase.apps.length) { window.toast && toast("Нет соединения с сервером", "err"); return; }
+      try {
+        const ref = firebase.database().ref("accounts/" + key + "/pin");
+        const snap = await ref.once("value");
+        if (String(snap.val() || "") !== oldV) { window.toast && toast("Неверный старый ПИН-код", "err"); p1.focus(); return; }
+        await ref.set(newV);
+        p1.value = ""; p2.value = "";
+        window.toast && toast("ПИН-код успешно изменён");
+      } catch(e) { window.toast && toast("Ошибка сохранения", "err"); }
+    };
+
+    g("stUpdBtn").onclick = async () => {
+      try {
+        if ("caches" in window) { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); }
+        if ("serviceWorker" in navigator) { const rs = await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r => r.update().catch(()=>{}))); }
+      } catch(e) {}
+      location.reload();
+    };
+  }
   function openProfileMenu(){
     reqNotifyPerm();
     let m = g("profMdl");
     if (!m){
       m = document.createElement("div"); m.id = "profMdl"; m.className = "cm";
-      m.innerHTML = '<div class="cm-b pm-box"><button type="button" class="pm-x" id="pmX" aria-label="Закрыть">✕</button><div class="pm-top"><div class="pm-ring"><div class="pm-av"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div></div><div class="pm-info"><div class="pm-pill"><i></i>Driver Profile</div><div class="pm-nm" id="pmTitle"></div><div class="pm-sb">Профиль водителя</div></div></div><div class="pm-acts"><button type="button" class="pm-btn pm-chat" id="pmChat"><span class="pm-btn-l"><span class="pm-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="pm-tx"><b>Общий чат</b><small>Канал водителей EuroBaza</small></span></span><span class="pm-btn-r"><span id="pmChatBadge" class="pm-bdg" hidden>0</span><span class="pm-arr">›</span></span></button><button type="button" class="pm-btn pm-dm" id="pmDm"><span class="pm-btn-l"><span class="pm-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><span class="pm-tx"><b>Личный чат</b><small>Личная переписка с админом</small></span></span><span class="pm-btn-r"><span id="pmDmBadge" class="pm-bdg" hidden>0</span><span class="pm-arr">›</span></span></button><button type="button" class="pm-btn pm-out" id="pmOut"><span class="pm-btn-l"><span class="pm-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span><span class="pm-tx"><b>Выйти</b><small>Сменить водителя на телефоне</small></span></span><span class="pm-arr">›</span></button></div><button type="button" class="pm-cls" id="pmCls">Закрыть</button></div>';
+      m.innerHTML = '<div class="cm-b pm-box"><button type="button" class="pm-x" id="pmX" aria-label="Закрыть">✕</button><div class="pm-top"><div class="pm-ring"><div class="pm-av"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div></div><div class="pm-info"><div class="pm-pill"><i></i>Driver Profile</div><div class="pm-nm" id="pmTitle"></div><div class="pm-sb">Профиль водителя</div></div></div><div class="pm-acts"><button type="button" class="pm-btn pm-chat" id="pmChat"><span class="pm-btn-l"><span class="pm-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="pm-tx"><b>Общий чат</b><small>Канал водителей EuroBaza</small></span></span><span class="pm-btn-r"><span id="pmChatBadge" class="pm-bdg" hidden>0</span><span class="pm-arr">›</span></span></button><button type="button" class="pm-btn pm-dm" id="pmDm"><span class="pm-btn-l"><span class="pm-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><span class="pm-tx"><b>Личный чат</b><small>Личная переписка с админом</small></span></span><span class="pm-btn-r"><span id="pmDmBadge" class="pm-bdg" hidden>0</span><span class="pm-arr">›</span></span></button><button type="button" class="pm-btn pm-set" id="pmSet"><span class="pm-btn-l"><span class="pm-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="pm-tx"><b>Настройки</b><small>Навигатор, смена, язык и ПИН-код</small></span></span><span class="pm-arr">›</span></button><button type="button" class="pm-btn pm-out" id="pmOut"><span class="pm-btn-l"><span class="pm-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span><span class="pm-tx"><b>Выйти</b><small>Сменить водителя на телефоне</small></span></span><span class="pm-arr">›</span></button></div><button type="button" class="pm-cls" id="pmCls">Закрыть</button></div>';
       document.body.appendChild(m);
       const close = () => m.classList.remove("open");
       m.onclick = e => { if (e.target === m) close(); };
       g("pmCls").onclick = close; g("pmX").onclick = close;
       g("pmChat").onclick = () => { close(); openChat(); };
       g("pmDm").onclick = () => { close(); openDmChat(); };
+      g("pmSet").onclick = () => { close(); openUserSettings(); };
       g("pmOut").onclick = async () => {
         close(); const cur = ls("USER_NAME") || "";
         if (typeof askC === "function" && !(await askC("Выйти из профиля «" + cur + "» на этом телефоне? Данные останутся в облаке.", "Выйти", "👤"))) return;
