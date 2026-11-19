@@ -192,16 +192,30 @@
     setB("pmChatBadge", cN);
     setB("pmDmBadge", dN);
   }
+  function dayLabel(ms){
+    if(!ms)return"";const d=new Date(ms),n=new Date();
+    const sd=(x,y)=>x.getFullYear()===y.getFullYear()&&x.getMonth()===y.getMonth()&&x.getDate()===y.getDate();
+    if(sd(d,n))return"Сегодня";const y=new Date(n);y.setDate(n.getDate()-1);if(sd(d,y))return"Вчера";
+    return d.toLocaleDateString("ru-RU",{day:"numeric",month:"long"});
+  }
+  function avColor(s){
+    const c=["#2563eb","#0891b2","#059669","#7c3aed","#db2777","#d97706","#4f46e5"];let h=0;
+    for(let i=0;i<String(s).length;i++)h=(h*31+String(s).charCodeAt(i))|0;
+    return c[Math.abs(h)%c.length];
+  }
   function renderChatRows(){
-    const box = g("chatMsgs"); if (!box) return;
-    const myUid = ls("ADM_UID") || "";
-    if (!_chatList.length){ box.innerHTML = '<div class="ch-empty">Сообщений пока нет. Напишите первым!</div>'; return; }
-    box.innerHTML = _chatList.map(m => {
-      const mine = m.uid && m.uid === myUid, isAdm = !!m.adm, isDeliv = isAdm && (m.role === "delivery" || m.name === "Доставка");
-      const author = isAdm ? ('<div class="ch-au">' + (isDeliv ? '👩‍💼 Доставка' : '👑 Админ') + '</div>') : (!mine ? '<div class="ch-au">' + esc(m.name || "Водитель") + '</div>' : '');
-      return '<div class="ch-msg' + (mine ? " mine" : "") + (isAdm ? (isDeliv ? " dlv" : " adm") : "") + '">' + author + '<div class="ch-body"><span class="ch-txt">' + esc(m.txt || "") + '</span><span class="ch-tm">' + fmtTime(m.t) + '</span></div></div>';
-    }).join("");
-    box.scrollTop = box.scrollHeight;
+    const box=g("chatMsgs");if(!box)return;const my=ls("ADM_UID")||"";
+    if(!_chatList.length){box.innerHTML='<div class="ch-empty">Сообщений пока нет</div>';return}
+    let ld="",h="";
+    _chatList.forEach(m=>{
+      const dl=dayLabel(m.t);if(dl&&dl!==ld){ld=dl;h+='<div class="ch-day">'+esc(dl)+'</div>'}
+      const mine=m.uid&&m.uid===my,adm=!!m.adm,dlv=adm&&(m.role==="delivery"||m.name==="Доставка");
+      const rn=adm?(dlv?"Доставка":"Админ"):(m.name||"Водитель");
+      const av=!mine?'<div class="ch-av" style="background:'+(adm?(dlv?"#0284c7":"#ca8a04"):avColor(rn))+'">'+esc(rn.trim().slice(0,2).toUpperCase())+'</div>':'';
+      const au=adm?('<div class="ch-au">'+(dlv?'Доставка':'Администратор')+'</div>'):(!mine?'<div class="ch-au">'+esc(rn)+'</div>':'');
+      h+='<div class="ch-row'+(mine?" mine":"")+'">'+av+'<div class="ch-msg'+(mine?" mine":"")+(adm?(dlv?" dlv":" adm"):"")+'">'+au+'<div class="ch-body"><span class="ch-txt">'+esc(m.txt||"")+'</span><span class="ch-tm">'+fmtTime(m.t)+'</span></div></div></div>';
+    });
+    box.innerHTML=h;box.scrollTop=box.scrollHeight;
   }
   function openChat(){
     reqNotifyPerm();
@@ -243,14 +257,15 @@
     updBadges();
   }
   function renderDmRows(){
-    const box = g("dmMsgs"); if (!box) return;
-    if (!_dmList.length){ box.innerHTML = '<div class="ch-empty">Личных сообщений с админом пока нет. Напишите первым!</div>'; return; }
-    box.innerHTML = _dmList.map(m => {
-      const isAdm = !!m.adm;
-      const author = isAdm ? '<div class="ch-au">👑 Админ</div>' : '';
-      return '<div class="ch-msg' + (!isAdm ? " mine" : " adm") + '">' + author + '<div class="ch-body"><span class="ch-txt">' + esc(m.txt || "") + '</span><span class="ch-tm">' + fmtTime(m.t) + '</span></div></div>';
-    }).join("");
-    box.scrollTop = box.scrollHeight;
+    const box=g("dmMsgs");if(!box)return;
+    if(!_dmList.length){box.innerHTML='<div class="ch-empty">Сообщений пока нет</div>';return}
+    let ld="",h="";
+    _dmList.forEach(m=>{
+      const dl=dayLabel(m.t);if(dl&&dl!==ld){ld=dl;h+='<div class="ch-day">'+esc(dl)+'</div>'}
+      const adm=!!m.adm,au=adm?'<div class="ch-au">Администратор</div>':'';
+      h+='<div class="ch-row'+(!adm?" mine":"")+'"><div class="ch-msg'+(!adm?" mine":" adm")+'">'+au+'<div class="ch-body"><span class="ch-txt">'+esc(m.txt||"")+'</span><span class="ch-tm">'+fmtTime(m.t)+'</span></div></div></div>';
+    });
+    box.innerHTML=h;box.scrollTop=box.scrollHeight;
   }
   function openDmChat(){
     reqNotifyPerm();
