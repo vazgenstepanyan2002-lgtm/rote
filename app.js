@@ -221,12 +221,11 @@ async function go(){
   if(isDay){
     const blocked=activeP.filter(p=>inKentron(p.lat,p.lon));
     if(blocked.length){
-      const names=blocked.map(x=>x.name).join("; ");
-      const msg="⛔ В дневную смену (до 21:00) въезд грузовым в Покр Кентрон запрещён (камеры).\n\nАдреса в зоне: "+names+"\n\nПродолжить с этими адресами или удалить их?";
-      const keep=await askC(msg,"Продолжить","⛔","Удалить");
-      if(keep){
+      const act=await askKentron(blocked);
+      if(!act)return;
+      if(act==="keep"){
         allowKentron=true;
-      }else{
+      }else if(act==="del"){
         P=P.filter(p=>!inKentron(p.lat,p.lon));
         save();
         activeP=P.slice();
@@ -345,3 +344,30 @@ function askC(text,ok,icon,noText){return new Promise(res=>{
  }).observe(m,{attributes:true,attributeFilter:['class']});
  window.addEventListener('popstate',()=>{const am=document.getElementById('ptAddMdl');if(am&&am.classList.contains('open')){am.classList.remove('open');return}if(m.classList.contains('open'))m.classList.remove('open')});
 })();
+
+function askKentron(list){
+  return new Promise(res=>{
+    let m=$("kzMdl");if(m)m.remove();
+    m=document.createElement("div");
+    m.id="kzMdl";
+    m.className="cm open";
+    const items=list.map(x=>'<div class="kz-it"><span>📍</span><b>'+esc(x.name)+'</b></div>').join("");
+    m.innerHTML='<div class="cm-b kz-box">'
+      +'<button type="button" class="pm-x" id="kzX" aria-label="Закрыть">✕</button>'
+      +'<div class="kz-ring"><div class="kz-in"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div></div>'
+      +'<div class="kz-pill"><i></i>Покр Кентрон · до 21:00</div>'
+      +'<div class="kz-t">Въезд грузовым запрещён</div>'
+      +'<div class="kz-s">В дневную смену в Малом центре работают камеры фиксации для грузового транспорта.</div>'
+      +'<div class="kz-list">'+items+'</div>'
+      +'<div class="kz-acts">'
+      +'<button type="button" class="kz-del" id="kzDel">🗑️ Удалить</button>'
+      +'<button type="button" class="kz-go" id="kzGo">Продолжить</button>'
+      +'</div></div>';
+    document.body.appendChild(m);
+    const done=v=>{m.remove();res(v)};
+    $("kzX").onclick=()=>done(null);
+    $("kzDel").onclick=()=>done("del");
+    $("kzGo").onclick=()=>done("keep");
+    m.onclick=e=>{if(e.target===m)done(null)};
+  });
+}
