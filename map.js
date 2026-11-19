@@ -78,7 +78,7 @@
   return L.divIcon({className:'mkw',html:'<div class="mk '+cls+'">'+label+'</div>',iconSize:[32,32],iconAnchor:[16,16],popupAnchor:[0,-16]});
  }
  async function openMap(){
-  const cur=window.CUR;
+  const cur=(window.CUR||[]).filter(x=>!x.done);
   if(!cur||!cur.length){window.toast&&toast('Сначала постройте маршрут','err');return}
   let sv={};try{sv=JSON.parse(localStorage.getItem('R_SAVE')||'{}')||{}}catch(e){}
   const start=sv.startPt&&isFinite(sv.startPt.lat)&&isFinite(sv.startPt.lon)?sv.startPt:null;
