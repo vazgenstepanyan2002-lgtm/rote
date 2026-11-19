@@ -922,3 +922,9 @@ body{min-height:100dvh;padding:clamp(10px, 3vw, 16px)!important;padding-bottom:c
 .st-pin-r input:focus{border-color:#10b981}
 .st-pin-r button{width:auto!important;height:42px!important;margin:0!important;padding:0 13px!important;border-radius:11px!important;background:linear-gradient(135deg,#6ee7b7,#10b981)!important;color:#042414!important;border:none!important;font-size:13.5px!important;font-weight:700!important}
 .st-upd{width:100%!important;height:42px!important;margin:0!important;border-radius:12px!important;background:rgba(56,189,248,.14)!important;border:1px solid rgba(56,189,248,.35)!important;color:#7dd3fc!important;font-size:13.5px!important;font-weight:700!important;box-shadow:none!important}
+
+/* LOCK-CM-SCROLL */
+html:has(.cm.open),body:has(.cm.open){overflow:hidden!important;overscroll-behavior:none!important;touch-action:none!important}
+body:has(.cm.open)>*:not(.cm):not(#toast):not(#busy){pointer-events:none!important;user-select:none!important}
+#setMdl{touch-action:none!important;overscroll-behavior:contain!important}
+#setMdl .st-list{touch-action:pan-y!important;overscroll-behavior:contain!important;-webkit-overflow-scrolling:touch}

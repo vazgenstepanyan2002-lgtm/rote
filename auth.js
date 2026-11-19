@@ -330,6 +330,7 @@
     document.body.appendChild(m);
 
     const close = () => m.remove();
+    m.addEventListener("touchmove", e => { if (!e.target.closest(".st-list")) e.preventDefault(); }, { passive: false });
     g("stX").onclick = close;
     m.onclick = e => { if (e.target === m) close(); };
 
