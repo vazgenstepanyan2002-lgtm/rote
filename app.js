@@ -2,7 +2,7 @@ const $=id=>document.getElementById(id);
 let P=JSON.parse(localStorage.getItem('P')||'[]');
 function save(){localStorage.setItem('P',JSON.stringify(P));draw()}
 function syncGoGrp(){const g=$('goGrp');if(g)g.classList.toggle('show',P.length>0||!!($('o')&&$('o').innerHTML.trim()))}
-function draw(){if($('cnt'))$('cnt').textContent=P.length;syncGoGrp();$('l').innerHTML=P.map((p,i)=>`<li class="${p.pin?'pin':''}"><span style="flex:1">${p.name}</span><div class="cbtns"><a class="st ${p.pin?'on':''}" href="#" onclick="pin(${i});return false">${p.pin?'⭐':'☆'}</a><a class="x" href="#" onclick="del(${i});return false">✕</a></div></li>`).join('')}
+function draw(){if($('cnt'))$('cnt').textContent=P.length;syncGoGrp();$('l').innerHTML=P.map((p,i)=>{const kz=inKentron(p.lat,p.lon)?' <span style="color:#fca5a5;font-size:12px;font-weight:700">⛔ Покр Кентрон</span>':'';return`<li class="${p.pin?'pin':''}"><span style="flex:1">${p.name}${kz}</span><div class="cbtns"><a class="st ${p.pin?'on':''}" href="#" onclick="pin(${i});return false">${p.pin?'⭐':'☆'}</a><a class="x" href="#" onclick="del(${i});return false">✕</a></div></li>`}).join('')}
 function del(i){P.splice(i,1);save();window.toast&&toast('Адрес удалён')}
 function pin(i){const v=!P[i].pin;P.forEach(x=>x.pin=false);P[i].pin=v;save()}
 
@@ -193,7 +193,7 @@ const KENTRON_POLY=[
 function inKentron(lat,lon){
   let ins=false;
   for(let i=0,j=KENTRON_POLY.length-1;i<KENTRON_POLY.length;j=i++){
-    const yi=KENTRON_POLY[i],xi=KENTRON_POLY[i],yj=KENTRON_POLY[j],xj=KENTRON_POLY[j];
+    const yi=KENTRON_POLY[i][0],xi=KENTRON_POLY[i][1],yj=KENTRON_POLY[j][0],xj=KENTRON_POLY[j][1];
     if(((yi>lat)!==(yj>lat))&&(lon<(xj-xi)*(lat-yi)/((yj-yi)||1e-12)+xi))ins=!ins;
   }
   return ins;
