@@ -1,3 +1,23 @@
+const KENTRON_POLY=[
+  [40.1881,44.5094],
+  [40.1891,44.5152],
+  [40.1877,44.5221],
+  [40.1826,44.5238],
+  [40.1759,44.5202],
+  [40.1731,44.5155],
+  [40.1748,44.5081],
+  [40.1795,44.5061],
+  [40.1846,44.5068]
+];
+function inKentron(lat,lon){
+  let ins=false;
+  for(let i=0,j=KENTRON_POLY.length-1;i<KENTRON_POLY.length;j=i++){
+    const a=KENTRON_POLY[i],b=KENTRON_POLY[j];
+    const yi=a[0],xi=a[1],yj=b[0],xj=b[1];
+    if(((yi>lat)!==(yj>lat))&&(lon<(xj-xi)*(lat-yi)/((yj-yi)||1e-12)+xi))ins=!ins;
+  }
+  return ins;
+}
 const $=id=>document.getElementById(id);
 let P=JSON.parse(localStorage.getItem('P')||'[]');
 function save(){localStorage.setItem('P',JSON.stringify(P));draw()}
@@ -177,27 +197,7 @@ function setDep(v){if(v)localStorage.setItem('DEP',v);else{localStorage.removeIt
 function updEta(){return;const c=window.CUR;if(!c)return;const i=$('dep');if(i&&document.activeElement!==i)i.value=localStorage.getItem('DEP')||'';const els=document.querySelectorAll('#o ol li .eta');const ok=c.every(x=>typeof x.st==='number');let t=etaBase()-600000;c.forEach((it,k)=>{t+=(it.st||0)*1000;if(els[k])els[k].textContent=ok?'🕒 '+hm(t):''})}
 function fmtT(s){const m=Math.round(s/60);return m<60?m+' мин':Math.floor(m/60)+' ч '+(m%60)+' мин'}
 function buildNav(arr){const active=arr.filter(x=>!x.done);if(!active.length)return"#";const to=active.at(-1),via=active.slice(0,-1);let u='yandexnavi://build_route_on_map?lat_to='+to.lat+'&lon_to='+to.lon;via.forEach((p,i)=>u+='&lat_via_'+i+'='+p.lat+'&lon_via_'+i+'='+p.lon);return u}
-// Точный внутренний периметр Покр Кентрона (строго внутри кольца Московян-Корюна-Ханджяна-Гр.Лусаворича-Сарьяна)
-// Точный внутренний периметр Покр Кентрона (камеры фиксации для грузовых до 21:00)
-const KENTRON_POLY=[
-  [40.1881,44.5094], // внутри угла Московян / Баграмяна
-  [40.1891,44.5152], // внутри угла Московян / Исаакяна
-  [40.1877,44.5221], // внутри угла Корюна / Налбандяна
-  [40.1826,44.5238], // внутри угла Ханджяна / Саят-Нова
-  [40.1759,44.5202], // внутри угла Ханджяна / Тиграна Меца
-  [40.1731,44.5155], // внутри угла Гр. Лусаворича / Агатангехоса
-  [40.1748,44.5081], // внутри угла Гр. Лусаворича / Маштоца
-  [40.1795,44.5061], // внутри угла Сарьяна / Амиряна
-  [40.1846,44.5068]  // внутри угла Сарьяна / Пушкина
-];
-function inKentron(lat,lon){
-  let ins=false;
-  for(let i=0,j=KENTRON_POLY.length-1;i<KENTRON_POLY.length;j=i++){
-    const yi=KENTRON_POLY[i][0],xi=KENTRON_POLY[i][1],yj=KENTRON_POLY[j][0],xj=KENTRON_POLY[j][1];
-    if(((yi>lat)!==(yj>lat))&&(lon<(xj-xi)*(lat-yi)/((yj-yi)||1e-12)+xi))ins=!ins;
-  }
-  return ins;
-}
+
 function segCrossesKentron(a,b){
   if(!a||!b)return false;
   if(inKentron(a.lat,a.lon)||inKentron(b.lat,b.lon))return true;
