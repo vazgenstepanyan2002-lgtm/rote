@@ -975,3 +975,33 @@ body:has(.cm.open)>*:not(.cm):not(#toast):not(#busy){pointer-events:none!importa
 .sh-lbl{flex:1;font-size:15px;font-weight:600;color:#f1f5f9}
 .sh-chev{font-size:19px;color:#64748b;line-height:1}
 .sh-danger .sh-lbl{color:#f87171}
+
+/* IOS-SETTINGS-SHEET */
+#setMdl{align-items:flex-end!important;padding:0!important;background:rgba(2,5,10,.78)!important;backdrop-filter:blur(8px)!important;-webkit-backdrop-filter:blur(8px)!important}
+.ios-set{position:relative;width:100%;max-width:480px;max-height:88dvh;display:flex;flex-direction:column;background:#111827;border-top:1px solid rgba(255,255,255,.12);border-radius:26px 26px 0 0;padding:10px 0 0;box-shadow:0 -18px 50px rgba(0,0,0,.85);animation:shUp .2s cubic-bezier(.16,1,.3,1);text-align:left!important;overflow:hidden}
+.ios-set-hd{display:flex;align-items:center;justify-content:center;position:relative;padding:2px 16px 14px;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0}
+.ios-set-hd b{font-size:17px;font-weight:700;color:#fff;letter-spacing:-.2px}
+.ios-set-x{position:absolute;right:14px;top:-2px;width:30px!important;height:30px!important;margin:0!important;padding:0!important;border-radius:50%!important;background:rgba(255,255,255,.08)!important;border:none!important;color:#94a3b8!important;font-size:13px!important;display:flex!important;align-items:center;justify-content:center;box-shadow:none!important}
+.ios-set-body{flex:1;min-height:0;overflow-y:auto;padding:14px 16px calc(24px + env(safe-area-inset-bottom,0px));touch-action:pan-y!important;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.ios-sec-t{font-size:11.5px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin:0 0 6px 12px}
+.ios-grp{background:#182234;border:1px solid rgba(255,255,255,.07);border-radius:15px;overflow:hidden;margin-bottom:16px}
+.ios-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:8px 14px;border-bottom:1px solid rgba(255,255,255,.06)}
+.ios-row:last-child{border-bottom:none}
+.ios-row-t{font-size:14.5px;font-weight:500;color:#f1f5f9}
+.ios-row-s{font-size:11.5px;color:#64748b;margin-top:1px}
+.ios-seg{display:inline-flex;background:#0d1320;padding:3px;border-radius:10px;border:1px solid rgba(255,255,255,.08);flex-shrink:0}
+.ios-seg button{height:30px!important;margin:0!important;padding:0 11px!important;border-radius:7px!important;font-size:12.5px!important;font-weight:600!important;background:transparent!important;border:none!important;color:#94a3b8!important;box-shadow:none!important;transition:.15s}
+.ios-seg button.on{background:#263349!important;color:#fff!important;box-shadow:0 2px 6px rgba(0,0,0,.35)!important}
+.ios-lang-seg{display:grid;grid-template-columns:repeat(3,1fr);background:#0d1320;padding:3px;border-radius:11px;border:1px solid rgba(255,255,255,.08);margin:8px 12px 10px}
+.ios-lang-seg button{height:32px!important;margin:0!important;padding:0!important;border-radius:8px!important;font-size:13px!important;font-weight:600!important;background:transparent!important;border:none!important;color:#94a3b8!important;box-shadow:none!important}
+.ios-lang-seg button.on{background:#263349!important;color:#fff!important}
+.ios-sw{width:46px;height:27px;border-radius:99px;background:#263349;position:relative;cursor:pointer;flex-shrink:0;transition:.2s}
+.ios-sw::after{content:"";position:absolute;top:2.5px;left:2.5px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.35);transition:.2s}
+.ios-sw.on{background:#10b981}
+.ios-sw.on::after{transform:translateX(19px)}
+.ios-pin-box{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;padding:10px 12px}
+.ios-pin-box input{height:38px;padding:0 10px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:#0d1320;color:#fff;font-size:14.5px;font-weight:600;text-align:center;letter-spacing:2px;outline:none;min-width:0}
+.ios-pin-box input::placeholder{letter-spacing:normal;font-size:12.5px;font-weight:400;color:#64748b}
+.ios-pin-box input:focus{border-color:#38bdf8}
+.ios-pin-box button{width:auto!important;height:38px!important;margin:0!important;padding:0 14px!important;border-radius:10px!important;background:#263349!important;border:1px solid rgba(255,255,255,.12)!important;color:#fff!important;font-size:13px!important;font-weight:600!important;box-shadow:none!important}
+.ios-act-btn{width:100%!important;height:46px!important;margin:0!important;padding:0 14px!important;border:none!important;border-radius:0!important;background:transparent!important;color:#38bdf8!important;font-size:14.5px!important;font-weight:600!important;text-align:center;box-shadow:none!important}

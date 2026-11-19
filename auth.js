@@ -317,22 +317,30 @@
     m = document.createElement("div");
     m.id = "setMdl";
     m.className = "cm open";
-    m.innerHTML = '<div class="cm-b st-box">'
-      + '<div class="ch-hd"><div class="ch-hd-l"><div class="ch-hd-ic" style="background:rgba(168,85,247,.2);border-color:rgba(192,132,252,.42);color:#c084fc">⚙️</div><div><div class="ch-hd-t">Настройки</div><div class="ch-hd-s">Персональные параметры</div></div></div><button type="button" class="ch-x" id="stX" aria-label="Закрыть">✕</button></div>'
-      + '<div class="st-list">'
-      + '<div class="st-card"><div class="st-lbl">🧭 Навигатор по умолчанию</div><div class="st-seg" id="stNav"><button type="button" data-v="sys" class="'+(curNav==="sys"?"on":"")+'">По умолчанию</button><button type="button" data-v="ya" class="'+(curNav==="ya"?"on":"")+'">Яндекс</button></div></div>'
-      + '<div class="st-card"><div class="st-lbl">🕒 Смена по умолчанию</div><div class="st-seg" id="stShift"><button type="button" data-v="day" class="'+(curShift==="day"?"on":"")+'">☀️ Дневная</button><button type="button" data-v="night" class="'+(curShift==="night"?"on":"")+'">🌙 Ночная</button></div></div>'
-      + '<div class="st-card"><div class="st-lbl">🌐 Язык / Լեզու / Language</div><div class="st-seg tri" id="stLang"><button type="button" data-v="ru" class="'+(curLang==="ru"?"on":"")+'">RU</button><button type="button" data-v="hy" class="'+(curLang==="hy"?"on":"")+'">ՀԱՅ</button><button type="button" data-v="en" class="'+(curLang==="en"?"on":"")+'">EN</button></div></div>'
-      + '<div class="st-card"><div class="st-row"><div><b>Вибрация при нажатиях</b><small>Тактильный отклик кнопок</small></div><div id="stVib" class="st-sw '+(vibOn?"on":"")+'" role="switch"></div></div></div>'
-      + '<div class="st-card"><div class="st-lbl">🔑 Смена ПИН-кода</div><div class="st-pin-r"><input id="stOldPin" type="tel" inputmode="numeric" maxlength="4" placeholder="Старый"><input id="stNewPin" type="tel" inputmode="numeric" maxlength="4" placeholder="Новый"><button type="button" id="stSavePin">OK</button></div></div>'
-      + '<button type="button" class="st-upd" id="stUpdBtn">🔄 Обновить приложение</button>'
+    m.innerHTML = '<div class="ios-set">'
+      + '<div class="sheet-grab"></div>'
+      + '<div class="ios-set-hd"><b>Настройки</b><button type="button" class="ios-set-x" id="stX" aria-label="Закрыть">✕</button></div>'
+      + '<div class="ios-set-body">'
+      + '<div class="ios-sec-t">Маршрут и навигация</div>'
+      + '<div class="ios-grp">'
+      + '  <div class="ios-row"><div><div class="ios-row-t">Навигатор</div><div class="ios-row-s">Приложение для ведения</div></div><div class="ios-seg" id="stNav"><button type="button" data-v="sys" class="'+(curNav==="sys"?"on":"")+'">Системный</button><button type="button" data-v="ya" class="'+(curNav==="ya"?"on":"")+'">Яндекс</button></div></div>'
+      + '  <div class="ios-row"><div><div class="ios-row-t">Смена</div><div class="ios-row-s">Объезд Покр Кентрона днём</div></div><div class="ios-seg" id="stShift"><button type="button" data-v="day" class="'+(curShift==="day"?"on":"")+'">День</button><button type="button" data-v="night" class="'+(curShift==="night"?"on":"")+'">Ночь</button></div></div>'
+      + '</div>'
+      + '<div class="ios-sec-t">Интерфейс</div>'
+      + '<div class="ios-grp">'
+      + '  <div class="ios-lang-seg" id="stLang"><button type="button" data-v="ru" class="'+(curLang==="ru"?"on":"")+'">Русский</button><button type="button" data-v="hy" class="'+(curLang==="hy"?"on":"")+'">Հայերեն</button><button type="button" data-v="en" class="'+(curLang==="en"?"on":"")+'">English</button></div>'
+      + '  <div class="ios-row"><div><div class="ios-row-t">Тактильный отклик</div><div class="ios-row-s">Вибрация при нажатиях</div></div><div id="stVib" class="ios-sw '+(vibOn?"on":"")+'" role="switch"></div></div>'
+      + '</div>'
+      + '<div class="ios-sec-t">Безопасность</div>'
+      + '<div class="ios-grp"><div class="ios-pin-box"><input id="stOldPin" type="tel" inputmode="numeric" maxlength="4" placeholder="Старый ПИН"><input id="stNewPin" type="tel" inputmode="numeric" maxlength="4" placeholder="Новый ПИН"><button type="button" id="stSavePin">Изменить</button></div></div>'
+      + '<div class="ios-grp" style="margin-bottom:0"><button type="button" class="ios-act-btn" id="stUpdBtn">Обновить версию приложения</button></div>'
       + '</div></div>';
     document.body.appendChild(m);
 
     const close = () => m.remove();
-    m.addEventListener("touchmove", e => { if (!e.target.closest(".st-list")) e.preventDefault(); }, { passive: false });
+    m.addEventListener("touchmove", ev => { if (!ev.target.closest(".ios-set-body")) ev.preventDefault(); }, { passive: false });
     g("stX").onclick = close;
-    m.onclick = e => { if (e.target === m) close(); };
+    m.onclick = ev => { if (ev.target === m) close(); };
 
     m.querySelectorAll("#stNav button").forEach(b => b.onclick = () => {
       lsSet("NAV", b.dataset.v);
@@ -357,7 +365,7 @@
       const next = !sw.classList.contains("on");
       sw.classList.toggle("on", next);
       if (next) lsDel("NO_VIB"); else lsSet("NO_VIB", "1");
-      if (next && navigator.vibrate) try { navigator.vibrate(40); } catch(e){}
+      if (next && window.vib) window.vib(40);
     };
 
     const p1 = g("stOldPin"), p2 = g("stNewPin");
@@ -374,14 +382,14 @@
         await ref.set(newV);
         p1.value = ""; p2.value = "";
         window.toast && toast("ПИН-код успешно изменён");
-      } catch(e) { window.toast && toast("Ошибка сохранения", "err"); }
+      } catch(err) { window.toast && toast("Ошибка сохранения", "err"); }
     };
 
     g("stUpdBtn").onclick = async () => {
       try {
         if ("caches" in window) { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); }
         if ("serviceWorker" in navigator) { const rs = await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r => r.update().catch(()=>{}))); }
-      } catch(e) {}
+      } catch(err) {}
       location.reload();
     };
   }
