@@ -146,7 +146,7 @@
   };
 
   async function compressImage(file){
-    const maxSide = 1800;
+    const maxSide = 1280;
     if (window.createImageBitmap) {
       try {
         const bmp0 = await createImageBitmap(file);
@@ -161,7 +161,7 @@
         const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
         cv.getContext('2d').drawImage(bmp, 0, 0);
         bmp.close();
-        const out = cv.toDataURL('image/jpeg', 0.90).split(',').pop();
+        const out = cv.toDataURL('image/jpeg', 0.78).split(',').pop();
         cv.width = cv.height = 0;
         return out;
       } catch (e) {}
@@ -175,7 +175,7 @@
         if (w > maxSide || h > maxSide) { if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; } else { w = Math.round(w * maxSide / h); h = maxSide; } }
         const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
         cv.getContext('2d').drawImage(img, 0, 0, w, h);
-        const out = cv.toDataURL('image/jpeg', 0.90).split(',').pop();
+        const out = cv.toDataURL('image/jpeg', 0.78).split(',').pop();
         cv.width = cv.height = 0;
         res(out);
       };
@@ -189,7 +189,7 @@
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
     const prompt = 'Считай накладную EuroBaza на армянском/русском языке. Внимательно различай армянские буквы (например: Յանա, Նիցցա, Ալսու, Մոնա Լիզա, Էկո, Ռիո, Պրեստիժ, Ատլանտա, շիմո). Верни ТОЛЬКО JSON: {"doc":"номер документа из Բեռնափոխադրման թերթիկ № или Վաճառքի փաստաթուղթ № (только цифры и дефис)","addr":"адрес из Տեղափոխման հասցե","items":[{"name":"точное название товара из Ապրանքի անվանումը","qty":1}]}. Игнорируй услуги доставки (Տեղափոխություն, Տեղափոխուտյուն), сборки (Հավաքում, Сборка) и фурнитуру.';
     const bodyStr = JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mime_type: 'image/jpeg', data: b64 } }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json' } });
-    const models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-2.0-flash'];
+    const models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-flash-lite-latest', 'gemini-flash-latest'];
     let j = null, lastErr = '';
     for (const mdl of models) {
       try {
@@ -210,7 +210,7 @@
         lastErr = (e && e.name === 'TimeoutError') ? 'Таймаут сети' : ((e && e.message) || 'Нет связи');
       }
     }
-    if (!j) throw new Error(/quota|429/i.test(lastErr) ? 'Исчерпан дневной лимит запросов Gemini API. Попробуйте позже или обновите ключ.' : (lastErr || 'Сервер распознавания не ответил'));
+    if (!j) throw new Error(/quota|429/i.test(lastErr) ? 'Слишком много сканов подряд (лимит API). Подождите 15 секунд и повторите.' : (lastErr || 'Сервер распознавания не ответил'));
     const cand = Array.isArray(j.candidates) ? j.candidates[0] : null;
     const parts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : [];
     const ans = parts.find(p => p && !p.thought && typeof p.text === 'string') || parts[parts.length - 1];
