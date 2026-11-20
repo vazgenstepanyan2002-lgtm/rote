@@ -497,8 +497,8 @@
   try{sessionStorage.removeItem('BON_WAS_OPEN')}catch(e){}
   if(src!=='pop'){try{if(history.state&&history.state.bn)setTimeout(()=>history.back(),0)}catch(e){}}
  }
- window.addEventListener('popstate',()=>{if(skipPop>0){skipPop--;return}if(g('ocrCatMdl')||g('ocrSrcMdl')||g('ocrBonMdl'))return;const o=g('bnSm');if(o&&o.classList.contains('open')){o.classList.remove('open');return}const m=g('bnMdl');if(m&&m.classList.contains('open'))closeBon('pop')});
- try{if(sessionStorage.getItem('BON_WAS_OPEN')==='1')setTimeout(()=>openBon(true),120)}catch(e){}
+ window.addEventListener('popstate',()=>{if(skipPop>0){skipPop--;return}if(g('ocrCatMdl')||g('ocrSrcMdl')||g('ocrBonMdl')||sessionStorage.getItem('OCR_CAM_PENDING')==='1')return;const o=g('bnSm');if(o&&o.classList.contains('open')){o.classList.remove('open');return}const m=g('bnMdl');if(m&&m.classList.contains('open'))closeBon('pop')});
+ const restoreBon=()=>{try{if(sessionStorage.getItem('BON_WAS_OPEN')==='1'&&(!g('bnMdl')||!g('bnMdl').classList.contains('open')))openBon(true)}catch(e){}};setTimeout(restoreBon,120);document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(restoreBon,150)});
 
  // Перерисовка названий мебели при смене языка приложения
  new MutationObserver(()=>{

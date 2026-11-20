@@ -57,12 +57,20 @@
     }, () => {});
   }, 800);
 
-  function saveCloudModel(rawName, code){
+  function saveCloudModel(rawName, code, isAdminRole){
     const fk = fbKey(rawName);
-    if (!fk) return;
-    if (code) CLOUD_MAP[fk] = code; else delete CLOUD_MAP[fk];
+    if (!fk || !code) return;
+    CLOUD_MAP[fk] = code;
     try { localStorage.setItem('BON_OCR_MAP', JSON.stringify(CLOUD_MAP)); } catch (e) {}
-    if (window.firebase && firebase.apps && firebase.apps.length) firebase.database().ref('config/ocrMap/' + fk).set(code || null).catch(() => {});
+    if (!window.firebase || !firebase.apps || !firebase.apps.length) return;
+    const db = firebase.database();
+    if (isAdminRole) {
+      db.ref('config/ocrMap/' + fk).set(code).catch(() => {});
+      db.ref('config/ocrPending/' + fk).remove().catch(() => {});
+    } else {
+      const who = (() => { try { return localStorage.getItem('USER_NAME') || 'Водитель'; } catch (e) { return 'Водитель'; } })();
+      db.ref('config/ocrPending/' + fk).set({ raw: String(rawName || '').trim(), code, by: who, t: Date.now() }).catch(() => {});
+    }
   }
 
   const RULES = [
@@ -203,7 +211,7 @@
       };
       g('obPkChips').onclick = ev => { const b = ev.target.closest('button[data-c]'); if (!b) return; selCat = b.dataset.c; g('obPkChips').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); drawItems(); };
       g('obPkInp').oninput = ev => { q = ev.target.value.trim().toLowerCase(); drawItems(); };
-      g('obPkList').onclick = ev => { const it = ev.target.closest('button[data-code]'); if (!it) return; r.code = it.dataset.code; saveCloudModel(r.name, r.code); closePk(); renderRows(); };
+      g('obPkList').onclick = ev => { const it = ev.target.closest('button[data-code]'); if (!it) return; r.code = it.dataset.code; r.edited = true; closePk(); renderRows(); };
       drawItems();
     };
 
@@ -256,7 +264,16 @@
         let s = 0, q = 0;
         valid.forEach(r => { const info = BON_BY_CODE[r.code], k = info.one ? r.code : (isCity ? r.code : r.code + '_2'); patch[k] = (+cur[k] || 0) + r.qty; s += (info.one ? info.p1 : (isCity ? info.p1 : info.p2)) * r.qty; q += r.qty; });
         await qRef.update(patch); await db.ref('cars/' + code + '/t').set(Date.now());
-        close(); window.toast && toast('Начислено: +' + q + ' шт (' + fm(s) + ' ' + CUR + ')');
+        const isAdmRole = code === 'ADMIN';
+        let sentReq = false;
+        valid.forEach(r => {
+          if (r.edited && r.code) {
+            saveCloudModel(r.name, r.code, isAdmRole);
+            if (!isAdmRole) sentReq = true;
+          }
+        });
+        close();
+        window.toast && toast(sentReq ? 'Начислено: +' + q + ' шт · правило отправлено на проверку админу' : 'Начислено: +' + q + ' шт (' + fm(s) + ' ' + CUR + ')');
       } catch (err) { g('obSaveBtn').disabled = false; window.toast && toast('Ошибка записи в базу', 'err'); }
     };
     renderRows();
@@ -310,7 +327,7 @@
     document.body.appendChild(m);
     const close = () => m.remove();
     g('ocrPickNo').onclick = close; g('ocrPickX').onclick = close; m.onclick = e => { if (e.target === m) close(); };
-    g('ocrPickCam').onclick = () => { close(); cam.click(); }; g('ocrPickGal').onclick = () => { close(); gal.click(); };
+    g('ocrPickCam').onclick = () => { try { sessionStorage.setItem('OCR_CAM_PENDING', '1'); sessionStorage.setItem('BON_WAS_OPEN', '1'); } catch (e) {} close(); cam.click(); }; g('ocrPickGal').onclick = () => { close(); gal.click(); };
   };
   window.EUROBAZA_OCR_KEY = GKEY;
   setTimeout(() => {
