@@ -275,32 +275,52 @@
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
     const prompt = 'Считай накладную EuroBaza на армянском/русском языке. Внимательно различай армянские буквы (например: Յանա, Նիցցա, Ալսու, Մոնա Լիզա, Էկո, Ռիո, Պրեստիժ, Ատլանտա, շիմո), не обрезай размеры и количество дверей (например 1.6, 0.9*2, 3 դուռ, 4 դուռ, կոմոդով, առանց կոմոդ) и не разбивай перенос строки одного товара на две позиции. Верни ТОЛЬКО JSON: {"doc":"номер документа из Բեռնափոխադրման թերթիկ № или Վաճառքի փաստաթուղթ № (только цифры и дефис)","addr":"адрес из Տեղափոխման հասցե","items":[{"name":"точное название товара из Ապրանքի անվանումը","qty":1}]}. Игнорируй услуги доставки (Տեղափոխություն, Տեղափոխուտյուն), сборки (Հավաքում, Сборка) и фурнитуру.';
     const bodyStr = JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mime_type: 'image/jpeg', data: b64 } }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json' } });
-    const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest', 'gemini-flash-lite-latest'];
-    let j = null, lastErr = '';
-    for (const mdl of models) {
-      try {
-        const res = await fetch('https' + '://' + host + '/v1beta/models/' + mdl + ':generateContent?key=' + encodeURIComponent(GKEY), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: AbortSignal.timeout(25000),
-          body: bodyStr
-        });
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          lastErr = (errData.error && errData.error.message) ? errData.error.message : ('HTTP ' + res.status);
-          continue;
+    const models = ['gemini-2.5-flash', 'gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-4-hydrogen', 'gemini-flash-latest', 'gemini-flash-lite-latest'];
+    const dead = {}, wait = ms => new Promise(r => setTimeout(r, ms));
+    let parsed = null, lastErr = '', overloadHit = false;
+    for (let pass = 0; pass < 3 && !parsed; pass++) {
+      if (pass > 0) {
+        if (!overloadHit) break;
+        window.toast && toast(pass === 1 ? 'Сервер Google перегружен, повторяю...' : 'Пробую ещё раз...');
+        await wait(pass === 1 ? 1600 : 2800);
+      }
+      for (const mdl of models) {
+        if (dead[mdl]) continue;
+        try {
+          const res = await fetch('https' + '://' + host + '/v1beta/models/' + mdl + ':generateContent?key=' + encodeURIComponent(GKEY), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.timeout(15000),
+            body: bodyStr
+          });
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            const msg = (errData.error && errData.error.message) ? errData.error.message : ('HTTP ' + res.status);
+            if (!lastErr || (res.status !== 404 && res.status !== 400)) lastErr = msg;
+            if (res.status === 404 || res.status === 400) { dead[mdl] = true; continue; }
+            if (res.status === 503 || res.status === 429 || res.status >= 500 || /high demand|overload|temporarily|rate|quota/i.test(msg)) overloadHit = true;
+            continue;
+          }
+          const j = await res.json();
+          const cand = Array.isArray(j && j.candidates) ? j.candidates[0] : null;
+          const parts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : [];
+          const ans = parts.find(p => p && !p.thought && typeof p.text === 'string') || parts[parts.length - 1];
+          const txt = ((ans && ans.text) || '').replace(/\x60{3}json|\x60{3}/gi, '').trim();
+          if (!txt) { if (!lastErr) lastErr = 'Пустой ответ модели'; continue; }
+          parsed = JSON.parse(txt);
+          break;
+        } catch (e) {
+          overloadHit = true;
+          lastErr = (e && e.name === 'TimeoutError') ? 'Таймаут сети' : ((e && e.message) || 'Нет связи');
         }
-        j = await res.json();
-        if (j && Array.isArray(j.candidates) && j.candidates.length) break;
-      } catch (e) {
-        lastErr = (e && e.name === 'TimeoutError') ? 'Таймаут сети' : ((e && e.message) || 'Нет связи');
       }
     }
-    if (!j) throw new Error(lastErr || 'Сервер распознавания не ответил');
-    const cand = Array.isArray(j.candidates) ? j.candidates[0] : null;
-    const parts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : [];
-    const ans = parts.find(p => p && !p.thought && typeof p.text === 'string') || parts[parts.length - 1];
-    const parsed = JSON.parse(((ans && ans.text) || '{}').replace(/```json|```/gi, '').trim());
+    if (!parsed) {
+      const isBusy = overloadHit || /high demand|overload|temporarily|rate|quota|503|429/i.test(lastErr);
+      const err = new Error(isBusy ? 'Серверы Google сейчас перегружены (временный пик нагрузки)' : (lastErr || 'Сервер распознавания не ответил'));
+      err.retryable = isBusy;
+      throw err;
+    }
     const items = [];
     (Array.isArray(parsed.items) ? parsed.items : []).forEach(x => {
       const name = String((x && x.name) || '').trim(), qty = Math.max(1, Math.round(+x.qty || 1));
@@ -311,7 +331,6 @@
     const doc = String((parsed && parsed.doc) || '').replace(/^[^0-9]+/, '').trim();
     return { doc, addr: String((parsed && parsed.addr) || '').trim(), items };
   }
-
   const saveOcrDraft = (rows, isCity, docNum) => {
     try {
       if (!rows || !rows.length) sessionStorage.removeItem("OCR_BON_DRAFT");
@@ -462,18 +481,31 @@
     return { cam: mk('bnCamFile', 1), gal: mk('bnGalFile', 0) };
   };
 
-  async function scanBonusFile(file){
-    if (!file) return;
+  async function scanBonusFile(file, cachedB64){
+    if (!file && !cachedB64) return;
     window._ocrScanning = true;
     if (window.openBon && (!g('bnMdl') || !g('bnMdl').classList.contains('open'))) window.openBon(true);
     const btn = g('bnCamBtn'); if (btn) btn.classList.add('busy'); if (typeof busy === 'function') busy(1);
     const _t0 = Date.now(); window.toast && toast('Распознаю накладную...');
+    let retryB64 = '';
     try {
-      const b64 = await compressImage(file);
+      const b64 = cachedB64 || await compressImage(file);
+      retryB64 = b64;
       const { doc, addr, items } = await askGemini(b64);
       if (!items.length) { window.toast && toast('Товары в накладной не найдены', 'err'); return; }
       window.toast && toast('Готово за ' + ((Date.now() - _t0) / 1000).toFixed(1) + ' сек'); openBonusInvoiceModal(items, isYerevanAddress(addr), doc);
-    } catch (e) { window.toast && toast('Ошибка OCR: ' + ((e && e.message) || e), 'err'); }
+    } catch (e) {
+      if (e && e.retryable && retryB64 && typeof askC === 'function') {
+        const b64Copy = retryB64;
+        setTimeout(async () => {
+          const cmEl = g('cm'); if (cmEl) document.body.appendChild(cmEl);
+          const ok = await askC('Серверы Google сейчас перегружены (временный пик нагрузки).\n\nПовторить отправку этого же фото?', 'Повторить', '⏳');
+          if (ok) scanBonusFile(null, b64Copy);
+        }, 0);
+      } else {
+        window.toast && toast('Ошибка OCR: ' + ((e && e.message) || e), 'err');
+      }
+    }
     finally { window._ocrScanning = false; if (btn) btn.classList.remove('busy'); if (typeof busy === 'function') busy(0); }
   }
 
