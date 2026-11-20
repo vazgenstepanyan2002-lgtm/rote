@@ -328,14 +328,24 @@ async function go(){
     }
     throw 0;
   };
+  let Dist=null;
   try{
-    const j=await osrmJson("table",pts.map(p=>p.lon+","+p.lat).join(";"),"?annotations=duration");
+    const j=await osrmJson("table",pts.map(p=>p.lon+","+p.lat).join(";"),"?annotations=duration,distance");
     D=j.durations;if(!D)throw 0;
-    D=D.map((row,i)=>row.map((v,j)=>{if(v==null){approx=true;return Math.hypot((pts[i].lat-pts[j].lat)*111,(pts[i].lon-pts[j].lon)*85)*90}return v}));
+    D=D.map((row,i)=>row.map((v,k)=>{if(v==null){approx=true;return Math.hypot((pts[i].lat-pts[k].lat)*111,(pts[i].lon-pts[k].lon)*85)*90}return v}));
+    if(j.distances)Dist=j.distances.map((row,i)=>row.map((v,k)=>v!=null?v:Math.hypot((pts[i].lat-pts[k].lat)*111000,(pts[i].lon-pts[k].lon)*85000)*1.35));
   }catch(e){approx=true;D=pts.map(a=>pts.map(b=>Math.hypot((a.lat-b.lat)*111,(a.lon-b.lon)*85)*90))}
-  if(isDay&&!allowKentron)for(let i=0;i<pts.length;i++)for(let j=0;j<pts.length;j++)if(i!==j&&segCrossesKentron(pts[i],pts[j]))D[i][j]+=420;
-  let Dist=pts.map(a=>pts.map(b=>Math.hypot((a.lat-b.lat)*111000,(a.lon-b.lon)*85000)*1.35));
-  const origP=P;P=activeP;const idx=solve(D,activeP.length,bIdx);P=origP;
+  if(!Dist)Dist=pts.map(a=>pts.map(b=>Math.hypot((a.lat-b.lat)*111000,(a.lon-b.lon)*85000)*1.35));
+  const M=D.map((row,i)=>row.map((v,k)=>{
+    if(i===k)return 0;
+    const dMin=Math.min(v,D[k][i]),sMin=Math.min(Dist[i][k],Dist[k][i]);
+    const dur=(v-dMin<=480)?(0.6*v+0.4*dMin):v;
+    const dst=(Dist[i][k]-sMin<=3000)?(0.6*Dist[i][k]+0.4*sMin):Dist[i][k];
+    let c=dur+0.045*dst;
+    if(isDay&&!allowKentron&&segCrossesKentron(pts[i],pts[k]))c+=420;
+    return c;
+  }));
+  const origP=P;P=activeP;const idx=solve(M,activeP.length,bIdx);P=origP;
   if(back)idx.push(bIdx);
   try{
     const rPts=[pts.at(0),...idx.map(i=>pts.at(i))];
