@@ -487,11 +487,11 @@ function drawTotals(){
   b.textContent=n>99?'99+':String(n);
   b.hidden=n===0;
  }
+ const ocrNorm=s=>String(s||'').toLowerCase().replace(/և/g,'եվ').replace(/ё/g,'е').replace(/[–—−]/g,'-').replace(/[,]/g,'.').replace(/[_\/]+/g,' ').replace(/\s+/g,' ').trim();
+ const OCR_HY_KW={other:'այլ աթոռ դարակաշար սեղան լվացարան կոմոդ մահճակալ մոդուլ ներքնակ պահոց դուռ պուֆ տումբա',sofas:'բազմոց բազկաթոռ հավաքածու',recep:'ընդունարան ռեսեպշեն նախասրահ',kitchen:'խոհանոց',living:'հյուրասրահ հյուրասենյակ',bedroom:'ննջասենյակ ննջարան',wardrobe:'պահարան'};
  function drawOcr(){
   const pendList=getOcrPending();
   const allKeys=Object.keys(OCR_MAP).filter(k=>OCR_MAP[k]&&OCR_CAT_NAMES[OCR_MAP[k]]).sort();
-  const q=OCR_Q.trim().toLowerCase();
-  const keys=q?allKeys.filter(k=>k.includes(q)||(OCR_CAT_NAMES[OCR_MAP[k]]||'').toLowerCase().includes(q)):allKeys;
   let h='<div class="sum-dash"><div class="sum-top"><div><div class="sum-lbl">Общий словарь накладных</div><div class="sum-val">'+allKeys.length+' <span>правил</span></div></div><button type="button" data-act="ocr-add" style="height:40px;padding:0 14px;border-radius:12px;background:rgba(16,185,129,.22);border:1px solid rgba(52,211,153,.45);color:#6ee7b7;font-size:13.5px;font-weight:700;white-space:nowrap">➕ Добавить</button></div></div>';
   if(pendList.length){
    h+='<div class="sec" style="color:#fde047">🧾 Ожидают подтверждения ('+pendList.length+')</div>';
@@ -509,18 +509,30 @@ function drawTotals(){
    }).join('');
    h+='<div class="sec">Все правила ('+allKeys.length+')</div>';
   }
-  h+='<input id="ocrSrchInp" class="sum-srch" type="search" value="'+esc(OCR_Q)+'" placeholder="Поиск по названию или категории..." style="margin-bottom:10px!important">';
-  if(!keys.length)h+='<div class="mut box">'+(allKeys.length?'Ничего не найдено по запросу.':'Словарь пуст. Правила появятся после сканирования накладных или добавления вручную.')+'</div>';
-  h+=keys.map(k=>{
-   const cd=OCR_MAP[k];
-   return '<div class="row" data-act="ocr-edit" data-k="'+esc(k)+'" style="padding:11px 12px">'
-    +'<div class="rm"><div class="rt" style="font-size:14px">📄 '+esc(k)+'</div>'
-    +'<div class="rs" style="color:#6ee7b7;font-weight:600">'+esc(OCR_CAT_NAMES[cd]||cd)+'</div></div>'
-    +'<button type="button" class="xb" data-act="ocr-del" data-k="'+esc(k)+'" aria-label="Удалить">✕</button></div>';
-  }).join('');
+  h+='<input id="ocrSrchInp" class="sum-srch" type="search" value="'+esc(OCR_Q)+'" placeholder="Поиск по названию или категории..." style="margin-bottom:10px!important"><div id="ocrRulesList"></div>';
+  const curInp=g('ocrSrchInp'),wasFocused=curInp&&document.activeElement===curInp;
+  const renderList=()=>{
+   const box=g('ocrRulesList');if(!box)return;
+   const tokens=ocrNorm(OCR_Q).split(' ').filter(Boolean);
+   const keys=tokens.length?allKeys.filter(k=>{
+    const cd=OCR_MAP[k],grp=(cd||'').split('_')[0];
+    const hay=ocrNorm(k+' '+k.replace(/_/g,'.')+' '+(OCR_CAT_NAMES[cd]||'')+' '+(OCR_HY_KW[grp]||''));
+    return tokens.every(t=>hay.includes(t));
+   }):allKeys;
+   if(!keys.length){box.innerHTML='<div class="mut box">'+(allKeys.length?'Ничего не найдено по запросу.':'Словарь пуст. Правила появятся после сканирования накладных или добавления вручную.')+'</div>';return;}
+   box.innerHTML=keys.map(k=>{
+    const cd=OCR_MAP[k];
+    return '<div class="row" data-act="ocr-edit" data-k="'+esc(k)+'" style="padding:11px 12px">'
+     +'<div class="rm"><div class="rt" style="font-size:14px">📄 '+esc(k)+'</div>'
+     +'<div class="rs" style="color:#6ee7b7;font-weight:600">'+esc(OCR_CAT_NAMES[cd]||cd)+'</div></div>'
+     +'<button type="button" class="xb" data-act="ocr-del" data-k="'+esc(k)+'" aria-label="Удалить">✕</button></div>';
+   }).join('');
+  };
+  if(wasFocused&&g('ocrRulesList')){renderList();return;}
   g('view').innerHTML=h;
+  renderList();
   const inp=g('ocrSrchInp');
-  if(inp)inp.oninput=e=>{OCR_Q=e.target.value;const p=inp.selectionStart;drawOcr();const ni=g('ocrSrchInp');if(ni){ni.focus();try{ni.setSelectionRange(p,p)}catch(err){}}};
+  if(inp)inp.oninput=e=>{OCR_Q=e.target.value;renderList()};
  }
  function draw(){
   if(g('panel').hidden)return;
@@ -655,7 +667,14 @@ function openOcrRuleModal(ruleKey, curCode){
 
   const drawItems = () => {
    const box = g('aopList');
-   const list = allItems.filter(it => (selCat === 'all' || it.cat === selCat) && (!q || it.name.toLowerCase().includes(q) || it.cat.toLowerCase().includes(q)));
+   const qTokens = ocrNorm(q).split(' ').filter(Boolean);
+   const list = allItems.filter(it => {
+    if (selCat !== 'all' && it.cat !== selCat) return false;
+    if (!qTokens.length) return true;
+    const grp = (it.cd || '').split('_')[0];
+    const hay = ocrNorm(it.name + ' ' + it.cat + ' ' + (OCR_HY_KW[grp] || ''));
+    return qTokens.every(t => hay.includes(t));
+   });
    if (!list.length) { box.innerHTML = '<div class="mut" style="text-align:center;padding:20px">Ничего не найдено</div>'; return; }
    box.innerHTML = list.map(it => {
     const on = it.cd === curCode;

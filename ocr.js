@@ -42,8 +42,61 @@
     { code: 'wardrobe_e', cat: 'Шкафы', name: 'Шкаф 6 дверей', p1: 2500, p2: 3250 }
   ];
   const BON_BY_CODE = Object.fromEntries(BON_ITEMS.map(x => [x.code, x]));
+  const HY_PICK_KW = {
+    other_a: 'աթոռ դարակաշար աստիճան полка стеллаж стул',
+    other_b: 'աթոռ սեղան գրասեղան стол стул',
+    other_c: 'լվացարան раковина мойка',
+    other_d: 'կոմոդ կոմոդներ комод',
+    other_e: 'մահճակալ кровать',
+    other_f: 'մոդուլ մոդուլներ модуль',
+    other_g: 'ներքնակ ներքնակներ матрас',
+    other_h: 'պահոց պահոցներ короб ящик хранения',
+    other_i: 'դուռ դռներ дверь',
+    other_j: 'պուֆ պուֆիկ պուֆիկներ пуф',
+    other_k: 'տումբա տումբաներ тумба',
+    sofas_a: 'բազկաթոռ кресло диваны',
+    sofas_b: 'բազմոց диван',
+    sofas_c: 'փափուկ կահույք հավաքածու комплект мягкой мебели диваны',
+    recep_a: 'ընդունարան ռեսեպշեն նախասրահ прихожая ресепшен эконом мини до 1.6',
+    recep_b: 'ընդունարան ռեսեպշեն նախասրահ прихожая ресепшен более 1.6',
+    kitchen_a: 'խոհանոց խոհանոցներ кухня 1.6',
+    kitchen_b: 'խոհանոց խոհանոցներ кухня 2 3 люкс',
+    living_a: 'հյուրասրահ հյուրասենյակ гостиная до 1.7 мини',
+    living_b: 'հյուրասրահ հյուրասենյակ гостиная более 1.7',
+    living_c: 'հյուրասրահ հյուրասենյակ էքսկլյուզիվ гостиная эксклюзив',
+    bedroom_a: 'ննջասենյակ ննջարան 2 դուռ դռնանի спальня двери',
+    bedroom_b: 'ննջասենյակ ննջարան 3 դուռ առանց կոմոդ спальня без комода',
+    bedroom_c: 'ննջասենյակ ննջարան 3 դուռ կոմոդով րիո էկո спальня с комодом',
+    bedroom_d: 'ննջասենյակ ննջարան 4 դուռ նիցցա ալսու մոնա լիզա спальня',
+    bedroom_e: 'ննջասենյակ ննջարան 5 դուռ спальня',
+    bedroom_f: 'ննջասենյակ ննջարան 6 դուռ պրեստիժ спальня',
+    bedroom_g: 'ննջասենյակ սենյակ 0.9*2 0,9*2 спальня',
+    wardrobe_a: 'պահարան 2 դուռ դռնանի шкаф двери',
+    wardrobe_b: 'պահարան 3 դուռ դռնանի ատլանտա шкаф двери',
+    wardrobe_c: 'պահարան 4 դուռ դռնանի 1600 шкаф двери',
+    wardrobe_d: 'պահարան 5 դուռ դռնանի шкаф двери',
+    wardrobe_e: 'պահարան 6 դուռ դռնանի шкаф двери'
+  };
+  const normText = s => String(s || '').toLowerCase().replace(/և/g, 'եվ').replace(/ё/g, 'е').replace(/[–—−]/g, '-').replace(/\s+/g, ' ').trim();
+  const normSearch = s => normText(s).replace(/[,]/g, '.').replace(/["'«»()_\/]+/g, ' ').replace(/(\d)\s*[×xх*]\s*(\d)/g, '$1*$2').replace(/\s+/g, ' ').trim();
+  const normRules = s => normText(s).replace(/["'«»()]/g, ' ').replace(/\s+/g, ' ').trim();
   const normModel = s => String(s || '').toLowerCase().replace(/[\"'«»().,]/g, ' ').replace(/\s+/g, ' ').trim();
   const fbKey = k => normModel(k).replace(/[.#$\[\]\/]+/g, '_').slice(0, 120);
+  const editDist = (a, b) => {
+    const n = a.length, m = b.length;
+    if (!n) return m; if (!m) return n;
+    if (Math.abs(n - m) > 4) return 99;
+    let prev = Array.from({ length: m + 1 }, (_, j) => j), cur = new Array(m + 1);
+    for (let i = 1; i <= n; i++) {
+      cur[0] = i;
+      for (let j = 1; j <= m; j++) {
+        const c = a[i - 1] === b[j - 1] ? 0 : 1;
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + c);
+      }
+      const t = prev; prev = cur; cur = t;
+    }
+    return prev[m];
+  };
 
   let CLOUD_MAP = (() => { try { return JSON.parse(localStorage.getItem('BON_OCR_MAP') || '{}') || {}; } catch (e) { return {}; } })();
   let LOCAL_MAP = (() => { try { return JSON.parse(localStorage.getItem('BON_OCR_LOCAL') || '{}') || {}; } catch (e) { return {}; } })();
@@ -84,31 +137,31 @@
 
   const RULES = [
     { ignore: true, rx: /(?:տեղափոխու[թտ]յուն|հավաքում|доставк|перевозк|сборк)/i },
-    { code: 'bedroom_g', rx: /(?:ննջասենյակ|սենյակ|спальн).*0[.,]9\s*[*xх×]\s*2/i },
+    { code: 'bedroom_g', rx: /(?:ննջասենյակ|սենյակ|спальн).*0[.,\s]?9\s*[*xх×]\s*2/i },
     { code: 'bedroom_d', rx: /(?:ննջասենյակ|спальн).*(?:նիցցա|ницца|ալսու|алсу|մոնա լիզա|мона лиза)/i },
     { code: 'bedroom_c', rx: /(?:ննջասենյակ|спальн).*(?:էկո|эко|րիո|рио)/i },
     { code: 'bedroom_f', rx: /(?:ննջասենյակ|спальн).*(?:պրեստիժ|престиж)/i },
-    { code: 'bedroom_f', rx: /(?:ննջասենյակ|спальн).*6\s*(?:դուռ|двер)/i },
-    { code: 'bedroom_e', rx: /(?:ննջասենյակ|спальн).*5\s*(?:դուռ|двер)/i },
-    { code: 'bedroom_d', rx: /(?:ննջասենյակ|спальн).*4\s*(?:դուռ|двер)/i },
-    { code: 'bedroom_b', rx: /(?:ննջասենյակ|спальн).*3\s*(?:դուռ|двер).*(?:առանց կոմոդ|без комод)/i },
-    { code: 'bedroom_c', rx: /(?:ննջասենյակ|спальн).*3\s*(?:դուռ|двер)/i },
-    { code: 'bedroom_a', rx: /(?:ննջասենյակ|спальн).*2\s*(?:դուռ|двер)/i },
-    { code: 'recep_a', rx: /(?:ընդունարան|прихож|ресепш).*(?:էկո|эко|մինի|мини|յանա|яна|շիմո|շիժո|шимо|шижо)/i },
-    { code: 'recep_a', rx: /(?:ընդունարան|прихож|ресепш).*(?:1[.,][0-6]|90|100|110|120|130|140|150|160)\b/i },
-    { code: 'recep_b', rx: /(?:ընդունարան|прихож|ресепш).*(?:1[.,][7-9]|2[.,]\d|170|180|190|200|210|220|240)\b/i },
-    { code: 'kitchen_b', rx: /(?:խոհանոց|кухн).*(?:լյուքս|люкс|2[.,]\d|3[.,]0|2-3|200|220|240|250|260|280|300)\b/i },
-    { code: 'kitchen_a', rx: /(?:խոհանոց|кухн).*(?:1[.,]6|160)\b/i },
-    { code: 'living_c', rx: /(?:հյուրասենյակ|гостин).*(?:էքսկլ|экскл)/i },
-    { code: 'living_a', rx: /(?:հյուրասենյակ|гостин).*(?:մինի|мини|1[.,][0-7]|120|130|140|150|160|170)\b/i },
-    { code: 'living_b', rx: /(?:հյուրասենյակ|гостин).*(?:1[.,]|2[.,]\d|180|190|200|210|220|240|250|260)\b/i },
+    { code: 'bedroom_f', rx: /(?:ննջասենյակ|спальн).*6[\s-]*(?:դուռ|դռնանի|դռ\.?|двер|дв\.?)/i },
+    { code: 'bedroom_e', rx: /(?:ննջասենյակ|спальн).*5[\s-]*(?:դուռ|դռնանի|դռ\.?|двер|дв\.?)/i },
+    { code: 'bedroom_d', rx: /(?:ննջասենյակ|спальн).*4[\s-]*(?:դուռ|դռնանի|դռ\.?|двер|дв\.?)/i },
+    { code: 'bedroom_b', rx: /(?:ննջասենյակ|спальн).*3[\s-]*(?:դուռ|դռնանի|դռ\.?|двер|дв\.?).*(?:առանց կոմոդ|без комод)/i },
+    { code: 'bedroom_c', rx: /(?:ննջասենյակ|спальн).*3[\s-]*(?:դուռ|դռնանի|դռ\.?|двер|дв\.?)/i },
+    { code: 'bedroom_a', rx: /(?:ննջասենյակ|спальн).*2[\s-]*(?:դուռ|դռնանի|դռ\.?|двер|дв\.?)/i },
+    { code: 'recep_a', rx: /(?:ընդունարան|ռեսեպշեն|նախասրահ|прихож|ресепш).*(?:էկո|эко|մինի|мини|յանա|яна|շիմո|շիժո|шимо|шижо)/i },
+    { code: 'recep_a', rx: /(?:ընդունարան|ռեսեպշեն|նախասրահ|прихож|ресепш).*(?:1[.,\s][0-6]|90|100|110|120|130|140|150|160)\b/i },
+    { code: 'recep_b', rx: /(?:ընդունարան|ռեսեպշեն|նախասրահ|прихож|ресепш).*(?:1[.,\s][7-9]|2[.,\s]\d|170|180|190|200|210|220|240)\b/i },
+    { code: 'kitchen_b', rx: /(?:խոհանոց|кухн).*(?:լյուքս|люкс|2[.,\s]\d|3[.,\s]0|2-3|200|220|240|250|260|280|300)\b/i },
+    { code: 'kitchen_a', rx: /(?:խոհանոց|кухн).*(?:1[.,\s]6|160)\b/i },
+    { code: 'living_c', rx: /(?:հյուրասենյակ|հյուրասրահ|гостин).*(?:էքսկլ|экскл)/i },
+    { code: 'living_a', rx: /(?:հյուրասենյակ|հյուրասրահ|гостин).*(?:մինի|мини|1[.,\s][0-7]|120|130|140|150|160|170)\b/i },
+    { code: 'living_b', rx: /(?:հյուրասենյակ|հյուրասրահ|гостин).*(?:1[.,\s][89]|[2-9][.,\s]\d|180|190|200|210|220|240|250|260)\b/i },
     { code: 'wardrobe_b', rx: /(?:պահարան|шкаф).*(?:ատլանտա|атланта)/i },
     { code: 'wardrobe_c', rx: /(?:պահարան|шкаф).*1600\b/i },
-    { code: 'wardrobe_e', rx: /(?:պահարան|шкаф).*6\s*(?:դուռ|двер)/i },
-    { code: 'wardrobe_d', rx: /(?:պահարան|шкаф).*5\s*(?:դուռ|двер)/i },
-    { code: 'wardrobe_c', rx: /(?:պահարան|шкаф).*4\s*(?:դուռ|двер)/i },
-    { code: 'wardrobe_b', rx: /(?:պահարան|шкаф).*3\s*(?:դուռ|двер)/i },
-    { code: 'wardrobe_a', rx: /(?:պահարան|шкаф).*2\s*(?:դուռ|двер)/i },
+    { code: 'wardrobe_e', rx: /(?:պահարան|шкаф).*6[\s-]*(?:դուռ|դռնանի|դռ\.?|двер|дв\.?)/i },
+    { code: 'wardrobe_d', rx: /(?:պահարան|шкаф).*5[\s-]*(?:դուռ|դռնանի|դռ\.?|двер|дв\.?)/i },
+    { code: 'wardrobe_c', rx: /(?:պահարան|шкаф).*4[\s-]*(?:դուռ|դռնանի|դռ\.?|двер|дв\.?)/i },
+    { code: 'wardrobe_b', rx: /(?:պահարան|шкаф).*3[\s-]*(?:դուռ|դռնանի|դռ\.?|двер|дв\.?)/i },
+    { code: 'wardrobe_a', rx: /(?:պահարան|шкаф).*2[\s-]*(?:դուռ|դռնանի|դռ\.?|двер|дв\.?)/i },
     { code: 'sofas_c', rx: /(?:փափուկ կահույք|հավաքածու|комплект).*(?:բազմոց|диван)/i },
     { code: 'sofas_a', rx: /(?:բազկաթոռ|кресл)/i },
     { code: 'sofas_b', rx: /(?:բազմոց|диван)/i },
@@ -120,25 +173,56 @@
     { code: 'other_j', rx: /(?:պուֆ|пуф)/i },
     { code: 'other_c', rx: /(?:լվացարան|раковин|мойк)/i },
     { code: 'other_f', rx: /(?:մոդուլ|модул)/i },
-    { code: 'other_i', rx: /(?:^|\s)(?:դուռ|дверь)(?:\s|$)/i },
+    { code: 'other_i', rx: /(?:^|\s)(?:դուռ|դռներ|դվեր|двер[ьи]?)(?:\s|$)/i },
     { code: 'other_a', rx: /(?:դարակաշար|стеллаж|полк)/i },
     { code: 'other_b', rx: /(?:գրասեղան|սեղան|стол)/i },
     { code: 'other_a', rx: /(?:աթոռ|стул)/i }
   ];
 
+  function findMapMatch(clean){
+    const fk = fbKey(clean);
+    const exact = fk && (CLOUD_MAP[fk] || LOCAL_MAP[fk]);
+    if (exact && BON_BY_CODE[exact]) return exact;
+    const qNorm = normSearch(clean);
+    if (!qNorm) return '';
+    const dicts = [LOCAL_MAP, CLOUD_MAP];
+    for (const dict of dicts) {
+      for (const k of Object.keys(dict)) {
+        const cd = dict[k];
+        if (cd && BON_BY_CODE[cd] && normSearch(k) === qNorm) return cd;
+      }
+    }
+    if (qNorm.length >= 5) {
+      let bestCd = '', bestScore = 0;
+      for (const dict of dicts) {
+        for (const k of Object.keys(dict)) {
+          const cd = dict[k];
+          if (!cd || !BON_BY_CODE[cd]) continue;
+          const kn = normSearch(k);
+          const maxL = Math.max(qNorm.length, kn.length);
+          if (!maxL || Math.abs(qNorm.length - kn.length) > 3) continue;
+          const d = editDist(qNorm, kn);
+          const sim = 1 - d / maxL;
+          if (sim >= 0.86 && sim > bestScore) { bestScore = sim; bestCd = cd; }
+        }
+      }
+      if (bestCd) return bestCd;
+    }
+    return '';
+  }
+
   function classifyProduct(rawName){
     const clean = String(rawName || '').replace(/\s+/g, ' ').trim();
     if (!clean) return { ignore: true };
-    const norm = normModel(clean);
-    if (RULES[0].rx.test(norm)) return { ignore: true };
-    const fk = fbKey(clean);
-    const mapped = fk && (CLOUD_MAP[fk] || LOCAL_MAP[fk]);
-    if (mapped && BON_BY_CODE[mapped]) return { ignore: false, code: mapped };
-    for (let i = 1; i < RULES.length; i++) if (RULES[i].rx.test(norm)) return { ignore: false, code: RULES[i].code };
+    const rNorm = normRules(clean);
+    if (RULES[0].rx.test(rNorm)) return { ignore: true };
+    const mapped = findMapMatch(clean);
+    if (mapped) return { ignore: false, code: mapped };
+    for (let i = 1; i < RULES.length; i++) if (RULES[i].rx.test(rNorm)) return { ignore: false, code: RULES[i].code };
     return { ignore: false, code: '' };
   }
 
-  const isRegionAddress = s => /(?:կոտայք|քանաքեռավան|աբովյան|հրազդան|չարենցավան|եզվարդ|բյուրեղավան|նոր հաճն|արարատ|մասիս|արտաշատ|վեդի|արմավիր|վաղարշապատ|էջմիածին|մեծամոր|արագածոտն|աշտարակ|ապարան|թալին|շիրակ|գյումրի|արթիկ|մարալիկ|լոռի|վանաձոր|ալավերդի|սպիտակ|ստեփանավան|տաշիր|տավուշ|իջևան|դիլիջան|բերդ|նոյեմբերյան|գեղարքունիք|գավառ|սևան|մարտունի|վարդենիս|ճամբարակ|վայոց ձոր|եզեգնաձոր|ջերմուկ|վայք|սյունիք|կապան|գորիս|սիսիան|մեղրի|քաջարան|котайк|канакераван|абовян|раздан|чаренцаван|егвард|бюрегаван|нор ачин|арарат|масис|арташат|веди|армавир|вагаршапат|эчмиадзин|мецамор|арагацотн|аштарак|ширак|гюмри|лори|ванадзор|тавуш|иджеван|дилижан|гегаркуник|гавар|севан|мартини|вайоц дзор|ехегнадзор|сюник|капан|горис|сисиан)/i.test(String(s || "").toLowerCase());
+  const isRegionAddress = s => /(?:կոտայք|քանաքեռավան|աբովյան|հրազդան|չարենցավան|եղվարդ|եզվարդ|բյուրեղավան|նոր հաճն|արարատ|մասիս|արտաշատ|վեդի|արմավիր|վաղարշապատ|էջմիածին|մեծամոր|արագածոտն|աշտարակ|ապարան|թալին|շիրակ|գյումրի|արթիկ|մարալիկ|լոռի|վանաձոր|ալավերդի|սպիտակ|ստեփանավան|տաշիր|տավուշ|իջևան|դիլիջան|բերդ|նոյեմբերյան|գեղարքունիք|գավառ|սևան|մարտունի|վարդենիս|ճամբարակ|վայոց ձոր|եղեգնաձոր|եզեգնաձոր|ջերմուկ|վայք|սյունիք|կապան|գորիս|սիսիան|մեղրի|քաջարան|котайк|канакераван|абовян|раздан|чаренцаван|егвард|бюрегаван|нор ачин|арарат|масис|арташат|веди|армавир|вагаршапат|эчмиадзин|мецамор|арагацотн|аштарак|ширак|гюмри|лори|ванадзор|тавуш|иджеван|дилижан|гегаркуник|гавар|севан|мартуни|мартини|вайоц дзор|ехегнадзор|сюник|капан|горис|сисиан)/i.test(normText(s));
   const isYerevanAddress = s => {
     const low = String(s || "").toLowerCase();
     if (isRegionAddress(low)) return false;
@@ -146,7 +230,7 @@
   };
 
   async function compressImage(file){
-    const maxSide = 896;
+    const maxSide = 1600;
     if (window.createImageBitmap) {
       try {
         const bmp0 = await createImageBitmap(file);
@@ -160,11 +244,9 @@
         const bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
         const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
         const ctx = cv.getContext('2d');
-        ctx.filter = 'grayscale(1) contrast(1.25)';
         ctx.drawImage(bmp, 0, 0);
-        ctx.filter = 'none';
         bmp.close();
-        const out = cv.toDataURL('image/jpeg', 0.65).split(',').pop();
+        const out = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
         cv.width = cv.height = 0;
         return out;
       } catch (e) {}
@@ -178,10 +260,8 @@
         if (w > maxSide || h > maxSide) { if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; } else { w = Math.round(w * maxSide / h); h = maxSide; } }
         const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
         const ctx = cv.getContext('2d');
-        ctx.filter = 'grayscale(1) contrast(1.25)';
         ctx.drawImage(img, 0, 0, w, h);
-        ctx.filter = 'none';
-        const out = cv.toDataURL('image/jpeg', 0.65).split(',').pop();
+        const out = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
         cv.width = cv.height = 0;
         res(out);
       };
@@ -193,9 +273,9 @@
   async function askGemini(b64){
     try { localStorage.removeItem('OCR_FAST_MDL'); } catch (e) {}
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
-    const prompt = 'Считай накладную EuroBaza на армянском/русском языке. Внимательно различай армянские буквы (например: Յանա, Նիցցա, Ալսու, Մոնա Լիզա, Էկո, Ռիո, Պրեստիժ, Ատլանտա, շիմո). Верни ТОЛЬКО JSON: {"doc":"номер документа из Բեռնափոխադրման թերթիկ № или Վաճառքի փաստաթուղթ № (только цифры и дефис)","addr":"адрес из Տեղափոխման հասցե","items":[{"name":"точное название товара из Ապրանքի անվանումը","qty":1}]}. Игнорируй услуги доставки (Տեղափոխություն, Տեղափոխուտյուն), сборки (Հավաքում, Сборка) и фурнитуру.';
+    const prompt = 'Считай накладную EuroBaza на армянском/русском языке. Внимательно различай армянские буквы (например: Յանա, Նիցցա, Ալսու, Մոնա Լիզա, Էկո, Ռիո, Պրեստիժ, Ատլանտա, շիմո), не обрезай размеры и количество дверей (например 1.6, 0.9*2, 3 դուռ, 4 դուռ, կոմոդով, առանց կոմոդ) и не разбивай перенос строки одного товара на две позиции. Верни ТОЛЬКО JSON: {"doc":"номер документа из Բեռնափոխադրման թերթիկ № или Վաճառքի փաստաթուղթ № (только цифры и дефис)","addr":"адрес из Տեղափոխման հասցե","items":[{"name":"точное название товара из Ապրանքի անվանումը","qty":1}]}. Игнорируй услуги доставки (Տեղափոխություն, Տեղափոխուտյուն), сборки (Հավաքում, Сборка) и фурнитуру.';
     const bodyStr = JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mime_type: 'image/jpeg', data: b64 } }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json' } });
-    const models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-flash-lite-latest', 'gemini-flash-latest'];
+    const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest', 'gemini-flash-lite-latest'];
     let j = null, lastErr = '';
     for (const mdl of models) {
       try {
@@ -260,7 +340,13 @@
       g('obPkX').onclick = closePk; pm.onclick = ev => { if (ev.target === pm) closePk(); };
       const drawItems = () => {
         const box = g('obPkList');
-        const list = BON_ITEMS.filter(it => (selCat === 'all' || it.cat === selCat) && (!q || it.name.toLowerCase().includes(q) || it.cat.toLowerCase().includes(q)));
+        const qTokens = normSearch(q).split(' ').filter(Boolean);
+        const list = BON_ITEMS.filter(it => {
+          if (selCat !== 'all' && it.cat !== selCat) return false;
+          if (!qTokens.length) return true;
+          const hay = normSearch(it.name + ' ' + it.cat + ' ' + (HY_PICK_KW[it.code] || ''));
+          return qTokens.every(t => hay.includes(t));
+        });
         if (!list.length) { box.innerHTML = '<div class="pt-empty">Ничего не найдено</div>'; return; }
         box.innerHTML = list.map(it => {
           const on = r.code === it.code, pr = it.one ? it.p1 : (isCity ? it.p1 : it.p2);
@@ -303,7 +389,7 @@
           + '<div class="ob-pr">' + (info ? (fm(up) + ' × ' + r.qty + ' = <b>' + fm(up * r.qty) + ' ' + CUR + '</b>') : '<span style="color:#fbbf24">Не выбрано</span>') + '</div></div></div>';
       }).join('');
       g('obTotSum').textContent = fm(tot) + ' ' + CUR;
-      saveOcrDraft(rows, isCity);
+      saveOcrDraft(rows, isCity, cleanDoc);
     };
 
     g('obZoneSeg').onclick = e => { const b = e.target.closest('button[data-z]'); if (!b) return; isCity = b.dataset.z === 'city'; g('obZoneSeg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); renderRows(); };
