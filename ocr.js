@@ -188,7 +188,18 @@
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
     const prompt = 'Считай накладную EuroBaza. Верни ТОЛЬКО JSON: {"doc":"номер документа из Վաճառքի փաստաթուղթ № или № сверху (только цифры и дефис)","addr":"адрес из Տեղափոխման հասցե","items":[{"name":"точное название товара из Ապրանքի անվանումը","qty":1}]}. Игнорируй услуги доставки (Տեղափոխություն, Տեղափոխուտյուն), сборки (Հավաքում, Сборка) и фурнитуру.';
     const bodyStr = JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mime_type: 'image/jpeg', data: b64 } }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } } });
-    const models = ['gemini-flash-lite-latest', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'];
+    let models = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-flash-lite-latest'];
+    try {
+      const mRes = await fetch('https' + '://' + host + '/v1beta/models?key=' + encodeURIComponent(GKEY), { signal: AbortSignal.timeout(8000) });
+      if (mRes.ok) {
+        const mJson = await mRes.json();
+        const apiModels = (Array.isArray(mJson.models) ? mJson.models : [])
+          .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent') && /flash/i.test(m.name || '') && !/tts|audio|live|exp|1.5|2.0/i.test(m.name || ''))
+          .map(m => String(m.name).replace('models/', ''))
+          .reverse();
+        if (apiModels.length) models = Array.from(new Set(['gemini-3.8-flash', ...apiModels, ...models]));
+      }
+    } catch (e) {}
     let j = null, lastErr = '';
     for (const mdl of models) {
       try {
