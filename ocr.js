@@ -279,19 +279,45 @@
   async function askGemini(b64){
     const host = ["generativelanguage", "googleapis", "com"].join(".");
     const prompt = 'Считай накладную EuroBaza (армянский/русский). Различай буквы точно (Յանա, Նիցցա, Ալսու, Մոնա Լիզա, Էկո, Ռիո, Պրեստիժ, Ատլանտա, շիմո). Верни ТОЛЬКО JSON: {"doc":"номер документа из Բեռնափոխադրման թերթիկ № или Վաճառքի փաստաթուղթ № (цифры и дефис)","addr":"адрес из Տեղափոխման հասցե","items":[{"name":"название товара из Ապրանքի անվանումը","qty":1}]}. Игнорируй доставку (Տեղափոխություն/Տեղափոխուտյուն), сборку (Հավաքում/Сборка) и фурнитуру.';
-    const baseModels = ["gemini-2.5-flash-lite", "gemini-flash-lite-latest", "gemini-2.5-flash", "gemini-flash-latest"];
+    const baseModels = [
+      "gemini-2.5-flash-lite",
+      "gemini-flash-lite-latest",
+      "gemini-3.1-flash-lite",
+      "gemini-4-hydrogen",
+      "gemini-2.5-flash",
+      "gemini-flash-latest"
+    ];
+
+    let skipMap = {};
+    try { skipMap = JSON.parse(localStorage.getItem("OCR_SKIP_MDL") || "{}") || {}; } catch (e) {}
+    const nowTs = Date.now();
+    Object.keys(skipMap).forEach(k => { if (!skipMap[k] || skipMap[k] <= nowTs) delete skipMap[k]; });
+    const markSkip = (m, mins) => {
+      skipMap[m] = Date.now() + mins * 60000;
+      try { localStorage.setItem("OCR_SKIP_MDL", JSON.stringify(skipMap)); } catch (e) {}
+    };
+
     let fastMdl = "";
     try {
       const rec = JSON.parse(localStorage.getItem("OCR_FAST_MDL_V2") || "null");
-      if (rec && rec.m && (Date.now() - rec.t) < 1200000 && baseModels.includes(rec.m)) fastMdl = rec.m;
+      if (rec && rec.m && (nowTs - rec.t) < 1200000 && baseModels.includes(rec.m) && !skipMap[rec.m]) fastMdl = rec.m;
     } catch (e) {}
-    const models = fastMdl ? [fastMdl, ...baseModels.filter(m => m !== fastMdl)] : baseModels.slice();
 
-    const makeBody = (mdl, skipThink) => {
-      const gen = { temperature: 0, maxOutputTokens: 2048, responseMimeType: "application/json" };
-      if (!skipThink) {
-        if (/2\.5/.test(mdl)) gen.thinkingConfig = { thinkingBudget: 0 };
-        else gen.thinkingConfig = { thinkingLevel: "LOW" };
+    let activeModels = baseModels.filter(m => !skipMap[m]);
+    if (!activeModels.length) activeModels = baseModels.slice(0, 3);
+    const models = fastMdl ? [fastMdl, ...activeModels.filter(m => m !== fastMdl)] : activeModels;
+
+    const makeBody = (mdl, safeMode) => {
+      const gen = { maxOutputTokens: 2048, responseMimeType: "application/json" };
+      if (!safeMode) {
+        if (/2\.5/.test(mdl)) {
+          gen.temperature = 0;
+          gen.thinkingConfig = { thinkingBudget: 0 };
+        } else if (/3\.1-flash-lite/.test(mdl)) {
+          gen.thinkingConfig = { thinkingLevel: "MINIMAL" };
+        } else {
+          gen.thinkingConfig = { thinkingLevel: "LOW" };
+        }
       }
       return JSON.stringify({
         contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mime_type: "image/jpeg", data: b64 } }] }],
@@ -299,11 +325,12 @@
       });
     };
 
-    let parsed = null, lastErr = "";
-    const passes = [{ to: 8500 }, { to: 13000 }];
+    let parsed = null, lastErr = "", quotaHits = 0;
+    const passes = [{ to: 8500 }, { to: 12000 }];
     for (let pIdx = 0; pIdx < passes.length && !parsed; pIdx++) {
       if (pIdx > 0) await new Promise(r => setTimeout(r, 350));
       for (const mdl of models) {
+        if (skipMap[mdl] && skipMap[mdl] > Date.now()) continue;
         for (let tOpt = 0; tOpt < 2; tOpt++) {
           try {
             const res = await fetch("https" + "://" + host + "/v1beta/models/" + mdl + ":generateContent?key=" + encodeURIComponent(GKEY), {
@@ -315,8 +342,15 @@
             if (!res.ok) {
               const errData = await res.json().catch(() => ({}));
               const msg = (errData.error && errData.error.message) ? errData.error.message : ("HTTP " + res.status);
+              if (res.status === 400 && tOpt === 0) continue;
+              if (res.status === 404) { markSkip(mdl, 720); break; }
+              if (res.status === 429 || /quota|rate.?limit|exceeded/i.test(msg)) {
+                quotaHits++;
+                markSkip(mdl, /per day|free.?tier/i.test(msg) ? 60 : 5);
+                if (!lastErr) lastErr = "Лимит бесплатных запросов на модель (" + mdl + ")";
+                break;
+              }
               lastErr = msg;
-              if (res.status === 400 && tOpt === 0 && /think/i.test(msg)) continue;
               break;
             }
             const j = await res.json();
@@ -336,7 +370,10 @@
         if (parsed) break;
       }
     }
-    if (!parsed) throw new Error(lastErr || "Сервер распознавания не ответил");
+    if (!parsed) {
+      if (quotaHits && quotaHits >= models.length) throw new Error("Дневной лимит бесплатного OCR исчерпан, попробуйте чуть позже");
+      throw new Error(lastErr || "Сервер распознавания не ответил");
+    }
     const items = [];
     (Array.isArray(parsed.items) ? parsed.items : []).forEach(x => {
       const name = String((x && x.name) || "").trim(), qty = Math.max(1, Math.round(+x.qty || 1));
