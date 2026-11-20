@@ -150,7 +150,7 @@
       return res.json();
     };
     const j = await Promise.any(['gemini-flash-lite-latest', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'].map(runModel));
-    const parts = (j && j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates.content.parts) || [];
+    const cand = j && Array.isArray(j.candidates) ? j.candidates.at(0) : null; const parts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : [];
     const ans = parts.find(p => p && !p.thought && typeof p.text === 'string') || parts.at(-1);
     const parsed = JSON.parse(((ans && ans.text) || '{}').replace(/```json|```/gi, '').trim());
     const items = [];
