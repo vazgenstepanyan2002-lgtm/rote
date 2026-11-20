@@ -512,61 +512,234 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ensureOcrInputs);
   else ensureOcrInputs();
 
-  async function getBestBackStream(){
-    const tryStream = async (videoConstraints) => {
-      try {
-        return await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
-      } catch (e) {
-        return null;
-      }
+  const CAM_ID_KEY = "OCR_CAM_ID";
+  const CAM_CAPS_KEY = "OCR_CAM_CAPS_V1";
+  const stopStream = st => { try { if (st) st.getTracks().forEach(t => t.stop()); } catch (e) {} };
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const getCaps = tr => { try { return (tr && tr.getCapabilities) ? (tr.getCapabilities() || {}) : {}; } catch (e) { return {}; } };
+  const hasTorchCap = tr => {
+    const cp = getCaps(tr);
+    return !!(cp && (cp.torch || (Array.isArray(cp.fillLightMode) && cp.fillLightMode.includes("torch"))));
+  };
+  const hasAfCap = tr => {
+    const cp = getCaps(tr);
+    return !!(cp && Array.isArray(cp.focusMode) && (cp.focusMode.includes("continuous") || cp.focusMode.includes("single-shot")));
+  };
+  const getMaxRes = tr => {
+    const cp = getCaps(tr), st = (tr && tr.getSettings) ? (tr.getSettings() || {}) : {};
+    return {
+      w: Math.max((cp.width && cp.width.max) || 0, st.width || 0),
+      h: Math.max((cp.height && cp.height.max) || 0, st.height || 0)
     };
-    const hasTorchCap = (st) => {
-      try {
-        const tr = st && st.getVideoTracks()[0];
-        const cp = tr && tr.getCapabilities && tr.getCapabilities();
-        return !!(cp && (cp.torch || (Array.isArray(cp.fillLightMode) && cp.fillLightMode.includes("torch"))));
-      } catch (e) {
-        return false;
-      }
-    };
-
-    let stream = await tryStream({
-      facingMode: { exact: "environment" },
-      width: { ideal: 1920 },
-      height: { ideal: 1080 }
-    }) || await tryStream({
-      facingMode: { ideal: "environment" },
-      width: { ideal: 1920 },
-      height: { ideal: 1080 }
-    });
-
-    if (stream && hasTorchCap(stream)) return stream;
-
-    if (navigator.mediaDevices.enumerateDevices) {
-      try {
-        const devs = await navigator.mediaDevices.enumerateDevices();
-        const curId = stream && stream.getVideoTracks()[0] && stream.getVideoTracks()[0].getSettings().deviceId;
-        const backs = devs.filter(d => d.kind === "videoinput" && d.deviceId && d.deviceId !== curId);
-        // Сначала проверяем камеры, в названии которых есть back / rear / 0
-        backs.sort((a, b) => (/back|rear|0/i.test(b.label) ? 1 : 0) - (/back|rear|0/i.test(a.label) ? 1 : 0));
-        for (const d of backs) {
-          const st = await tryStream({
-            deviceId: { exact: d.deviceId },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
-          });
-          if (!st) continue;
-          if (hasTorchCap(st)) {
-            if (stream) stream.getTracks().forEach(t => t.stop());
-            return st;
+  };
+  const isFrontDev = (label, tr) => {
+    const cp = getCaps(tr);
+    const fm = Array.isArray(cp.facingMode) ? cp.facingMode[0] : cp.facingMode;
+    if (fm === "user") return true;
+    return /front|user|selfie|face|фронт|селфи/i.test(String(label || ""));
+  };
+  const scoreLens = info => {
+    let s = 0;
+    if (info.hasTorch) s += 1000;
+    if (info.hasAF) s += 500;
+    if (/ultra|0\.[56]|macro|depth|tele|bokeh|ir\b/i.test(info.label || "")) s -= 180;
+    if (/camera2\s*0\b|main|primary|\bback\b|задн/i.test(info.label || "")) s += 120;
+    s += Math.min(400, Math.round(((info.w || 0) * (info.h || 0)) / 50000));
+    return s;
+  };
+  async function tryOpenVideo(baseVideo, extraAdv){
+    const tiers = [
+      Object.assign({ width: { ideal: 3840 }, height: { ideal: 2160 } }, baseVideo),
+      Object.assign({ width: { ideal: 1920 }, height: { ideal: 1080 } }, baseVideo),
+      Object.assign({}, baseVideo)
+    ];
+    for (const c of tiers) {
+      if (extraAdv && extraAdv.length) c.advanced = extraAdv;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const st = await navigator.mediaDevices.getUserMedia({ video: c, audio: false });
+          const tr = st.getVideoTracks()[0];
+          if (tr && tr.applyConstraints) {
+            const cp = getCaps(tr), sets = tr.getSettings ? (tr.getSettings() || {}) : {};
+            const maxCap = Math.max((cp.width && cp.width.max) || 0, (cp.height && cp.height.max) || 0);
+            const curMax = Math.max(sets.width || 0, sets.height || 0);
+            const tw = Math.min(3840, (cp.width && cp.width.max) || 3840);
+            const th = Math.min(2160, (cp.height && cp.height.max) || 2160);
+            const adv = [];
+            if (Array.isArray(cp.focusMode) && cp.focusMode.includes("continuous")) adv.push({ focusMode: "continuous" });
+            if (extraAdv && extraAdv.length) adv.push(...extraAdv);
+            try {
+              const up = {};
+              if (tw >= 1280 && curMax < Math.min(3840, maxCap || 3840) * 0.85) {
+                up.width = { ideal: tw };
+                up.height = { ideal: th };
+              }
+              if (adv.length) up.advanced = adv;
+              if (Object.keys(up).length) await tr.applyConstraints(up);
+            } catch (e) {}
           }
-          st.getTracks().forEach(t => t.stop());
+          return st;
+        } catch (e) {
+          if (attempt === 0 && (e && (e.name === "NotReadableError" || e.name === "AbortError"))) {
+            await sleep(90);
+            continue;
+          }
+          break;
         }
-      } catch (e) {}
+      }
+    }
+    return null;
+  }
+  async function openBestCameraSession(){
+    let savedId = "", cached = null;
+    try { savedId = localStorage.getItem(CAM_ID_KEY) || ""; } catch (e) {}
+    try { cached = JSON.parse(localStorage.getItem(CAM_CAPS_KEY) || "null"); } catch (e) {}
+
+    let stream = null;
+    if (savedId) stream = await tryOpenVideo({ deviceId: { exact: savedId } });
+    if (!stream) stream = await tryOpenVideo({ facingMode: { exact: "environment" } });
+    if (!stream) stream = await tryOpenVideo({ facingMode: { ideal: "environment" } });
+    if (!stream) stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+
+    let tr = stream.getVideoTracks()[0];
+    let curSets = (tr && tr.getSettings) ? (tr.getSettings() || {}) : {};
+    let curId = curSets.deviceId || "";
+    let curTorch = hasTorchCap(tr), curAF = hasAfCap(tr), curRes = getMaxRes(tr);
+
+    let allVideo = [];
+    try {
+      if (navigator.mediaDevices.enumerateDevices) {
+        allVideo = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput" && d.deviceId);
+      }
+    } catch (e) {}
+
+    const rearCandidates = allVideo.filter(d => !isFrontDev(d.label, d.deviceId === curId ? tr : null));
+    const sig = allVideo.map(d => d.deviceId).sort().join("|");
+    const cacheValid = cached && cached.sig === sig && Array.isArray(cached.lenses) && cached.lenses.length;
+
+    if (curTorch && curAF) {
+      let lenses = cacheValid ? cached.lenses.slice() : rearCandidates.map(d => ({
+        deviceId: d.deviceId,
+        label: d.label || "",
+        hasTorch: d.deviceId === curId ? curTorch : null,
+        hasAF: d.deviceId === curId ? curAF : null,
+        w: d.deviceId === curId ? curRes.w : 0,
+        h: d.deviceId === curId ? curRes.h : 0,
+        probed: d.deviceId === curId
+      }));
+      if (!lenses.some(x => x.deviceId === curId) && curId) {
+        lenses.unshift({ deviceId: curId, label: (tr && tr.label) || "", hasTorch: curTorch, hasAF: curAF, w: curRes.w, h: curRes.h, probed: true });
+      }
+      const curIdx = Math.max(0, lenses.findIndex(x => x.deviceId === curId));
+      lenses[curIdx] = Object.assign({}, lenses[curIdx], { label: lenses[curIdx].label || (tr && tr.label) || "", hasTorch: curTorch, hasAF: curAF, w: curRes.w, h: curRes.h, probed: true });
+      try { localStorage.setItem(CAM_ID_KEY, curId); } catch (e) {}
+      return { stream, lenses, curIdx, sig };
     }
 
-    if (stream) return stream;
-    return await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+    if (cacheValid) {
+      const sorted = cached.lenses.slice().sort((a, b) => scoreLens(b) - scoreLens(a));
+      const best = sorted[0];
+      if (best && best.deviceId && best.deviceId !== curId && (best.hasTorch || best.hasAF)) {
+        stopStream(stream);
+        await sleep(50);
+        const st2 = await tryOpenVideo({ deviceId: { exact: best.deviceId } });
+        if (st2) {
+          try { localStorage.setItem(CAM_ID_KEY, best.deviceId); } catch (e) {}
+          return { stream: st2, lenses: sorted, curIdx: 0, sig };
+        }
+        stream = await tryOpenVideo({ facingMode: { ideal: "environment" } }) || stream;
+      }
+    }
+
+    const tested = [];
+    if (curId && !isFrontDev((tr && tr.label) || "", tr)) {
+      tested.push({ deviceId: curId, label: (tr && tr.label) || "", hasTorch: curTorch, hasAF: curAF, w: curRes.w, h: curRes.h, probed: true });
+    }
+    const toProbe = rearCandidates
+      .filter(d => d.deviceId !== curId)
+      .sort((a, b) => (/camera2\s*0\b|back|rear|\b0\b/i.test(b.label) ? 1 : 0) - (/camera2\s*0\b|back|rear|\b0\b/i.test(a.label) ? 1 : 0));
+
+    if (toProbe.length) {
+      stopStream(stream);
+      stream = null;
+      await sleep(50);
+      for (const d of toProbe) {
+        const st = await tryOpenVideo({ deviceId: { exact: d.deviceId } });
+        if (!st) continue;
+        const t0 = st.getVideoTracks()[0];
+        if (!isFrontDev(d.label || (t0 && t0.label), t0)) {
+          const r = getMaxRes(t0);
+          tested.push({
+            deviceId: d.deviceId,
+            label: d.label || (t0 && t0.label) || "",
+            hasTorch: hasTorchCap(t0),
+            hasAF: hasAfCap(t0),
+            w: r.w,
+            h: r.h,
+            probed: true
+          });
+        }
+        stopStream(st);
+        await sleep(40);
+      }
+    }
+
+    tested.sort((a, b) => scoreLens(b) - scoreLens(a));
+    if (!stream && tested.length) {
+      for (let i = 0; i < tested.length; i++) {
+        const cand = await tryOpenVideo({ deviceId: { exact: tested[i].deviceId } });
+        if (cand) {
+          stream = cand;
+          if (i !== 0) { const picked = tested.splice(i, 1)[0]; tested.unshift(picked); }
+          break;
+        }
+      }
+    }
+    if (!stream) stream = await tryOpenVideo({ facingMode: { ideal: "environment" } }) || await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+    tr = stream.getVideoTracks()[0];
+    curId = (tr && tr.getSettings && tr.getSettings().deviceId) || (tested[0] && tested[0].deviceId) || "";
+    if (!tested.length && curId) {
+      const r = getMaxRes(tr);
+      tested.push({ deviceId: curId, label: (tr && tr.label) || "", hasTorch: hasTorchCap(tr), hasAF: hasAfCap(tr), w: r.w, h: r.h, probed: true });
+    }
+    if (sig && tested.length) {
+      try { localStorage.setItem(CAM_CAPS_KEY, JSON.stringify({ sig, lenses: tested })); } catch (e) {}
+    }
+    if (curId) { try { localStorage.setItem(CAM_ID_KEY, curId); } catch (e) {} }
+    return { stream, lenses: tested, curIdx: Math.max(0, tested.findIndex(x => x.deviceId === curId)), sig };
+  }
+
+  function cropToFrame(src, srcW, srcH, vidEl, frameEl){
+    const vr = vidEl.getBoundingClientRect();
+    const fr = frameEl ? frameEl.getBoundingClientRect() : vr;
+    const vw = vidEl.videoWidth || srcW, vh = vidEl.videoHeight || srcH;
+    const coverScale = Math.max(vr.width / vw, vr.height / vh);
+    const renW = vw * coverScale, renH = vh * coverScale;
+    const offX = (vr.width - renW) / 2, offY = (vr.height - renH) / 2;
+    const clamp01 = v => Math.max(0, Math.min(1, v));
+    const nx1 = clamp01((fr.left - vr.left - offX) / renW);
+    const ny1 = clamp01((fr.top - vr.top - offY) / renH);
+    const nx2 = clamp01((fr.right - vr.left - offX) / renW);
+    const ny2 = clamp01((fr.bottom - vr.top - offY) / renH);
+
+    const vScale = Math.min(srcW / vw, srcH / vh);
+    const visW = vw * vScale, visH = vh * vScale;
+    const visOffX = (srcW - visW) / 2, visOffY = (srcH - visH) / 2;
+    const sx = Math.max(0, Math.round(visOffX + nx1 * visW));
+    const sy = Math.max(0, Math.round(visOffY + ny1 * visH));
+    const sw = Math.max(20, Math.min(srcW - sx, Math.round((nx2 - nx1) * visW)));
+    const sh = Math.max(20, Math.min(srcH - sy, Math.round((ny2 - ny1) * visH)));
+
+    const maxOut = 2400;
+    let outW = sw, outH = sh;
+    if (outW > maxOut || outH > maxOut) {
+      if (outW > outH) { outH = Math.round(outH * maxOut / outW); outW = maxOut; }
+      else { outW = Math.round(outW * maxOut / outH); outH = maxOut; }
+    }
+    const cv = document.createElement("canvas");
+    cv.width = outW; cv.height = outH;
+    cv.getContext("2d").drawImage(src, sx, sy, sw, sh, 0, 0, outW, outH);
+    return new Promise(res => cv.toBlob(b => { cv.width = cv.height = 0; res(b); }, "image/jpeg", 0.92));
   }
 
   async function openLiveCamera(fallbackInput){
@@ -574,57 +747,139 @@
       if (fallbackInput) fallbackInput.click();
       return;
     }
-    let stream = null;
+    window.toast && toast("Загрузка камеры...");
+    let sess = null;
     try {
-      stream = await getBestBackStream();
+      sess = await openBestCameraSession();
     } catch (e) {
       if (fallbackInput) fallbackInput.click();
       return;
     }
-    let ov = g('ocrLiveCam'); if (ov) ov.remove();
-    ov = document.createElement('div'); ov.id = 'ocrLiveCam';
+    let stream = sess.stream;
+    let lenses = sess.lenses || [];
+    let curIdx = Math.max(0, sess.curIdx || 0);
+    const sig = sess.sig || "";
+
+    let ov = g("ocrLiveCam"); if (ov) ov.remove();
+    ov = document.createElement("div"); ov.id = "ocrLiveCam";
     ov.innerHTML = '<video id="ocrLiveVid" autoplay playsinline muted></video>'
       + '<div id="olcFocusRing" style="position:fixed;width:64px;height:64px;border:2px solid #fde047;border-radius:50%;pointer-events:none;opacity:0;transform:translate(-50%,-50%) scale(1.2);transition:opacity .2s,transform .2s;z-index:3"></div>'
-      + '<div class="olc-top"><button type="button" class="olc-btn" id="olcSys">📷 Системная</button><span>Коснитесь текста для фокуса</span><button type="button" class="olc-btn" id="olcClose">✕</button></div>'
-      + '<div class="olc-frame"></div>'
-      + '<div class="olc-bot"><button type="button" class="olc-btn" id="olcTorch">🔦 Свет</button><button type="button" class="olc-shot" id="olcShot" aria-label="Снять"></button><span style="width:68px"></span></div>';
+      + '<div class="olc-top"><button type="button" class="olc-btn" id="olcSys">📷 Системная</button><span>Коснитесь текста для фокуса</span><button type="button" class="olc-btn" id="olcClose" aria-label="Закрыть">✕</button></div>'
+      + '<div class="olc-frame" id="olcFrame"></div>'
+      + '<div class="olc-bot"><button type="button" class="olc-btn" id="olcTorch">🔦 Свет</button><button type="button" class="olc-shot" id="olcShot" aria-label="Снять"></button><button type="button" class="olc-btn" id="olcLens"></button></div>';
     document.body.appendChild(ov);
-    const vid = g('ocrLiveVid');
+    const vid = g("ocrLiveVid");
+    const frameEl = g("olcFrame");
+    const torchBtn = g("olcTorch");
+    const lensBtn = g("olcLens");
     vid.srcObject = stream;
     try { await vid.play(); } catch (e) {}
     let track = stream.getVideoTracks()[0];
     let torchOn = false;
+    let switching = false;
+
+    const saveCaps = () => {
+      if (sig && lenses.length) {
+        try { localStorage.setItem(CAM_CAPS_KEY, JSON.stringify({ sig, lenses })); } catch (e) {}
+      }
+    };
+    const updateUi = () => {
+      if (torchBtn) torchBtn.classList.toggle("on", !!torchOn);
+      if (lensBtn) {
+        if (lenses.length > 1) {
+          lensBtn.style.display = "";
+          lensBtn.textContent = "🔄 " + (curIdx + 1) + "/" + lenses.length;
+          lensBtn.setAttribute("aria-label", "Объектив " + (curIdx + 1) + "/" + lenses.length);
+        } else {
+          lensBtn.style.display = "none";
+        }
+      }
+    };
+    const syncCurLensMeta = () => {
+      if (!track || !lenses[curIdx]) return;
+      const r = getMaxRes(track);
+      lenses[curIdx] = Object.assign({}, lenses[curIdx], {
+        label: lenses[curIdx].label || track.label || "",
+        hasTorch: hasTorchCap(track),
+        hasAF: hasAfCap(track),
+        w: r.w,
+        h: r.h,
+        probed: true
+      });
+      saveCaps();
+    };
+    const switchToIdx = async (nextIdx, wantTorch) => {
+      if (!lenses.length) return false;
+      const target = lenses[nextIdx];
+      if (!target || !target.deviceId) return false;
+      const activeId = (lenses[curIdx] && lenses[curIdx].deviceId) || "";
+      try { if (torchOn && track && track.applyConstraints) await track.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {}); } catch (e) {}
+      stopStream(stream);
+      await sleep(60);
+      const st = await tryOpenVideo({ deviceId: { exact: target.deviceId } }, wantTorch ? [{ torch: true }] : null);
+      if (!st) return false;
+      const tr = st.getVideoTracks()[0];
+      if (isFrontDev(target.label || (tr && tr.label), tr)) {
+        stopStream(st);
+        lenses.splice(nextIdx, 1);
+        curIdx = Math.max(0, lenses.findIndex(x => x.deviceId === activeId));
+        saveCaps();
+        return false;
+      }
+      stream = st;
+      track = tr;
+      curIdx = nextIdx;
+      vid.srcObject = stream;
+      try { await vid.play(); } catch (e) {}
+      try { localStorage.setItem(CAM_ID_KEY, target.deviceId); } catch (e) {}
+      syncCurLensMeta();
+      return true;
+    };
 
     const applyTorch = async (on) => {
-      if (!track || !track.applyConstraints) return false;
-      const variants = [
-        { advanced: [{ torch: on }] },
-        { torch: on },
-        { advanced: [{ fillLightMode: on ? "torch" : "off" }] }
-      ];
-      for (const c of variants) {
-        try {
-          await track.applyConstraints(c);
-          const st = track.getSettings ? track.getSettings() : {};
-          if (!on || st.torch === true || st.torch === undefined) return true;
-        } catch (e) {}
+      if (!track) return false;
+      if (on && !hasTorchCap(track) && lenses.length > 1) {
+        let torchIdx = lenses.findIndex((x, idx) => idx !== curIdx && x.hasTorch === true);
+        if (torchIdx === -1) {
+          for (let i = 0; i < lenses.length; i++) {
+            const dev = lenses[i];
+            if (!dev || dev.deviceId === (track.getSettings && track.getSettings().deviceId) || dev.probed) continue;
+            const okSw = await switchToIdx(i, true);
+            if (okSw && hasTorchCap(track)) { torchIdx = curIdx; break; }
+          }
+        } else {
+          await switchToIdx(torchIdx, true);
+        }
+        if (torchIdx !== -1 && hasTorchCap(track)) {
+          window.toast && toast("Переключено на объектив со вспышкой");
+        }
       }
-      // Переоткрытие потока с принудительным torch (помогает на Xiaomi/Samsung/Redmi)
+      if (track.applyConstraints) {
+        const variants = [
+          { advanced: [{ torch: on }] },
+          { torch: on },
+          { advanced: [{ fillLightMode: on ? "torch" : "off" }] }
+        ];
+        for (const c of variants) {
+          try {
+            await track.applyConstraints(c);
+            const st = track.getSettings ? track.getSettings() : {};
+            if (!on || st.torch === true || st.fillLightMode === "torch") return true;
+          } catch (e) {}
+        }
+      }
       try {
-        const devId = track.getSettings && track.getSettings().deviceId;
-        const newSt = await navigator.mediaDevices.getUserMedia({
-          video: Object.assign(
-            devId ? { deviceId: { exact: devId } } : { facingMode: "environment" },
-            { width: { ideal: 1920 }, height: { ideal: 1080 }, advanced: [{ torch: on }] }
-          ),
-          audio: false
-        });
-        stream.getTracks().forEach(t => t.stop());
+        const devId = (track.getSettings && track.getSettings().deviceId) || (lenses[curIdx] && lenses[curIdx].deviceId);
+        stopStream(stream);
+        await sleep(50);
+        const newSt = await tryOpenVideo(devId ? { deviceId: { exact: devId } } : { facingMode: "environment" }, [{ torch: on }]);
+        if (!newSt) return false;
         stream = newSt;
         track = stream.getVideoTracks()[0];
         vid.srcObject = stream;
         try { await vid.play(); } catch (e) {}
-        return true;
+        const st2 = (track && track.getSettings) ? track.getSettings() : {};
+        return !on || st2.torch === true || hasTorchCap(track);
       } catch (e) {
         return false;
       }
@@ -632,59 +887,103 @@
 
     const stopCam = () => {
       try { if (torchOn && track && track.applyConstraints) track.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {}); } catch (e) {}
-      try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+      stopStream(stream);
       ov.remove();
     };
 
-    try {
-      const caps = track && track.getCapabilities && track.getCapabilities();
-      if (caps && track.applyConstraints && caps.focusMode && caps.focusMode.includes('continuous')) {
-        track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
-      }
-      const tb = g('olcTorch');
-      if (tb) {
-        tb.onclick = async () => {
+    syncCurLensMeta();
+    updateUi();
+
+    if (torchBtn) {
+      torchBtn.onclick = async () => {
+        if (switching) return;
+        switching = true;
+        torchBtn.disabled = true;
+        try {
           const next = !torchOn;
           const ok = await applyTorch(next);
           if (!ok && next) {
-            window.toast && toast('Вспышка недоступна в браузере на этом телефоне', 'err');
+            window.toast && toast("Вспышка недоступна на этом объективе", "err");
+            torchOn = false;
+          } else {
+            torchOn = next;
+          }
+          updateUi();
+        } finally {
+          torchBtn.disabled = false;
+          switching = false;
+        }
+      };
+    }
+
+    if (lensBtn) {
+      lensBtn.onclick = async () => {
+        if (switching || lenses.length < 2) return;
+        switching = true;
+        lensBtn.disabled = true;
+        try {
+          const prevTorch = torchOn;
+          let switched = false;
+          for (let step = 1; step <= lenses.length; step++) {
+            const tryIdx = (curIdx + step) % lenses.length;
+            if (tryIdx === curIdx && lenses.length > 1) continue;
+            if (await switchToIdx(tryIdx, prevTorch)) {
+              switched = true;
+              break;
+            }
+          }
+          if (!switched) {
+            window.toast && toast("Другой задний объектив не найден", "err");
             return;
           }
-          torchOn = next;
-          tb.style.borderColor = torchOn ? '#fde047' : '';
-          tb.style.color = torchOn ? '#fde047' : '';
-          tb.style.background = torchOn ? 'rgba(250,204,21,.22)' : '';
-        };
-      }
-    } catch (e) {}
+          if (prevTorch) {
+            const tOk = await applyTorch(true);
+            torchOn = !!tOk;
+          } else {
+            torchOn = false;
+          }
+          updateUi();
+          const cur = lenses[curIdx];
+          window.toast && toast("Объектив " + (curIdx + 1) + "/" + lenses.length + (cur && cur.hasTorch ? " · вспышка" : ""));
+        } finally {
+          lensBtn.disabled = false;
+          switching = false;
+        }
+      };
+    }
 
-    // Фокусировка по касанию экрана
     vid.onclick = async ev => {
-      const ring = g('olcFocusRing');
+      const ring = g("olcFocusRing");
       if (ring) {
-        ring.style.left = ev.clientX + 'px';
-        ring.style.top = ev.clientY + 'px';
-        ring.style.opacity = '1';
-        ring.style.transform = 'translate(-50%,-50%) scale(1)';
+        ring.style.left = ev.clientX + "px";
+        ring.style.top = ev.clientY + "px";
+        ring.style.opacity = "1";
+        ring.style.transform = "translate(-50%,-50%) scale(1)";
         clearTimeout(ring._t);
-        ring._t = setTimeout(() => { ring.style.opacity = '0'; ring.style.transform = 'translate(-50%,-50%) scale(1.2)'; }, 700);
+        ring._t = setTimeout(() => { ring.style.opacity = "0"; ring.style.transform = "translate(-50%,-50%) scale(1.2)"; }, 700);
       }
       if (!track || !track.applyConstraints) return;
-      try {
-        await track.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] });
-        setTimeout(() => {
-          const adv = [{ focusMode: 'continuous' }];
-          if (torchOn) adv.push({ torch: true });
-          track.applyConstraints({ advanced: adv }).catch(() => {});
-        }, 800);
-      } catch (e) {}
+      const cp = getCaps(track);
+      const vr = vid.getBoundingClientRect();
+      const px = Math.max(0, Math.min(1, (ev.clientX - vr.left) / (vr.width || 1)));
+      const py = Math.max(0, Math.min(1, (ev.clientY - vr.top) / (vr.height || 1)));
+      const tryFocus = async c => { try { await track.applyConstraints({ advanced: [c] }); return true; } catch (e) { return false; } };
+      const single = cp.pointsOfInterest ? { focusMode: "single-shot", pointsOfInterest: [{ x: px, y: py }] } : { focusMode: "single-shot" };
+      if (!(await tryFocus(single))) await tryFocus({ focusMode: "single-shot" });
+      setTimeout(() => {
+        const adv = [{ focusMode: "continuous" }];
+        if (torchOn) adv.push({ torch: true });
+        track.applyConstraints({ advanced: adv }).catch(() => {});
+      }, 900);
     };
 
-    g('olcClose').onclick = stopCam;
-    g('olcSys').onclick = () => { stopCam(); if (fallbackInput) fallbackInput.click(); };
-    g('olcShot').onclick = async () => {
-      const shotBtn = g('olcShot');
+    g("olcClose").onclick = stopCam;
+    g("olcSys").onclick = () => { stopCam(); if (fallbackInput) fallbackInput.click(); };
+    g("olcShot").onclick = async () => {
+      const shotBtn = g("olcShot");
       if (shotBtn) shotBtn.disabled = true;
+      const vw = vid.videoWidth || 1920, vh = vid.videoHeight || 1080;
+      const vidPort = vh > vw;
       if (window.ImageCapture && track) {
         try {
           const ic = new ImageCapture(track);
@@ -692,29 +991,31 @@
           try {
             const pc = await ic.getPhotoCapabilities();
             if (pc && pc.imageWidth && pc.imageWidth.max) {
-              photoOpts.imageWidth = pc.imageWidth.max;
-              photoOpts.imageHeight = pc.imageHeight.max;
+              photoOpts.imageWidth = Math.min(4096, pc.imageWidth.max);
+              photoOpts.imageHeight = Math.min(4096, pc.imageHeight.max);
             }
           } catch (e) {}
-          const photoBlob = await ic.takePhoto(photoOpts);
-          stopCam();
-          if (photoBlob && photoBlob.size > 10000) {
-            scanBonusFile(photoBlob);
-            return;
+          const photoBlob = await Promise.race([
+            ic.takePhoto(photoOpts),
+            new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 3500))
+          ]);
+          if (photoBlob && photoBlob.size > 10000 && window.createImageBitmap) {
+            const bmp = await createImageBitmap(photoBlob);
+            const bmpPort = bmp.height > bmp.width;
+            if (bmpPort === vidPort) {
+              const cropped = await cropToFrame(bmp, bmp.width, bmp.height, vid, frameEl);
+              bmp.close();
+              stopCam();
+              if (cropped) { scanBonusFile(cropped); return; }
+            } else {
+              bmp.close();
+            }
           }
         } catch (e) {}
       }
-      const vw = vid.videoWidth || 1920, vh = vid.videoHeight || 1080;
-      const maxS = 2048;
-      let w = vw, h = vh;
-      if (w > maxS || h > maxS) { if (w > h) { h = Math.round(h * maxS / w); w = maxS; } else { w = Math.round(w * maxS / h); h = maxS; } }
-      const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
-      cv.getContext('2d').drawImage(vid, 0, 0, w, h);
+      const croppedVid = await cropToFrame(vid, vw, vh, vid, frameEl);
       stopCam();
-      cv.toBlob(blob => {
-        cv.width = cv.height = 0;
-        if (blob) scanBonusFile(blob);
-      }, 'image/jpeg', 0.9);
+      if (croppedVid) scanBonusFile(croppedVid);
     };
   }
 
