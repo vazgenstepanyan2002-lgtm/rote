@@ -94,7 +94,7 @@
     { code: 'bedroom_b', rx: /(?:ննջասենյակ|спальн).*3\s*(?:դուռ|двер).*(?:առանց կոմոդ|без комод)/i },
     { code: 'bedroom_c', rx: /(?:ննջասենյակ|спальн).*3\s*(?:դուռ|двер)/i },
     { code: 'bedroom_a', rx: /(?:ննջասենյակ|спальн).*2\s*(?:դուռ|двер)/i },
-    { code: 'recep_a', rx: /(?:ընդունարան|прихож|ресепш).*(?:էկո|эко|մինի|мини|յանա|яна)/i },
+    { code: 'recep_a', rx: /(?:ընդունարան|прихож|ресепш).*(?:էկո|эко|մինի|мини|յանա|яна|շիմո|շիժո|шимо|шижо)/i },
     { code: 'recep_a', rx: /(?:ընդունարան|прихож|ресепш).*(?:1[.,][0-6]|90|100|110|120|130|140|150|160)\b/i },
     { code: 'recep_b', rx: /(?:ընդունարան|прихож|ресепш).*(?:1[.,][7-9]|2[.,]\d|170|180|190|200|210|220|240)\b/i },
     { code: 'kitchen_b', rx: /(?:խոհանոց|кухн).*(?:լյուքս|люкс|2[.,]\d|3[.,]0|2-3|200|220|240|250|260|280|300)\b/i },
@@ -146,7 +146,7 @@
   };
 
   async function compressImage(file){
-    const maxSide = 960;
+    const maxSide = 1600;
     if (window.createImageBitmap) {
       try {
         const bmp0 = await createImageBitmap(file);
@@ -157,11 +157,11 @@
           else { w = Math.round(w * maxSide / h); h = maxSide; }
         }
         bmp0.close();
-        const bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'medium' });
+        const bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
         const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
         cv.getContext('2d').drawImage(bmp, 0, 0);
         bmp.close();
-        const out = cv.toDataURL('image/jpeg', 0.68).split(',').pop();
+        const out = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
         cv.width = cv.height = 0;
         return out;
       } catch (e) {}
@@ -175,7 +175,7 @@
         if (w > maxSide || h > maxSide) { if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; } else { w = Math.round(w * maxSide / h); h = maxSide; } }
         const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
         cv.getContext('2d').drawImage(img, 0, 0, w, h);
-        const out = cv.toDataURL('image/jpeg', 0.68).split(',').pop();
+        const out = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
         cv.width = cv.height = 0;
         res(out);
       };
@@ -187,7 +187,7 @@
   async function askGemini(b64){
     try { localStorage.removeItem('OCR_FAST_MDL'); } catch (e) {}
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
-    const prompt = 'Считай накладную EuroBaza. Верни ТОЛЬКО JSON: {"doc":"номер документа из Վաճառքի փաստաթուղթ № или № сверху (только цифры и дефис)","addr":"адрес из Տեղափոխման հասցե","items":[{"name":"точное название товара из Ապրանքի անվանումը","qty":1}]}. Игнорируй услуги доставки (Տեղափոխություն, Տեղափոխուտյուն), сборки (Հավաքում, Сборка) и фурнитуру.';
+    const prompt = 'Считай накладную EuroBaza на армянском/русском языке. Внимательно различай армянские буквы (например: Յանա, Նիցցա, Ալսու, Մոնա Լիզա, Էկո, Ռիո, Պրեստիժ, Ատլանտա, շիմո). Верни ТОЛЬКО JSON: {"doc":"номер документа из Բեռնափոխադրման թերթիկ № или Վաճառքի փաստաթուղթ № (только цифры и дефис)","addr":"адрес из Տեղափոխման հասցե","items":[{"name":"точное название товара из Ապրանքի անվանումը","qty":1}]}. Игнорируй услуги доставки (Տեղափոխություն, Տեղափոխուտյուն), сборки (Հավաքում, Сборка) и фурнитуру.';
     const bodyStr = JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mime_type: 'image/jpeg', data: b64 } }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json' } });
     const models = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
     let j = null, lastErr = '';
