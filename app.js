@@ -19,6 +19,7 @@ function inKentron(lat,lon){
   return ins;
 }
 const $=id=>document.getElementById(id);
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let P=JSON.parse(localStorage.getItem('P')||'[]');
 function save(){localStorage.setItem('P',JSON.stringify(P));draw()}
 function syncGoGrp(){const g=$('goGrp');if(g)g.classList.toggle('show',P.length>0||!!($('o')&&$('o').innerHTML.trim()))}
@@ -88,7 +89,6 @@ function voice(){
 ;
 let SPEC_PTS=(()=>{try{const v=JSON.parse(localStorage.getItem('SPEC')||'null');if(Array.isArray(v))return v}catch(e){}return[{name:'Артак',lat:40.163019,lon:44.388218},{name:'Геворг Спайка',lat:40.127240,lon:44.490112}]})();
 let _spTok=0;
-const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function saveSpec(){localStorage.setItem('SPEC',JSON.stringify(SPEC_PTS));if(window._admPushNow)window._admPushNow()}
 function drawSpec(me,dists,durs){
  if(!SPEC_PTS.length){$('ptList').innerHTML='<div class="pt-empty">Список пуст. Добавьте точку ниже.</div>';return}
