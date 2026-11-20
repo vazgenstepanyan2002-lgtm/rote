@@ -455,6 +455,7 @@
     document.body.appendChild(ov);
     const vid = g('ocrLiveVid');
     vid.srcObject = stream;
+    try { await vid.play(); } catch (e) {}
     const track = stream.getVideoTracks()[0];
     let torchOn = false;
 
@@ -476,23 +477,32 @@
       }
       const tb = g('olcTorch');
       if (tb) {
-        tb.onclick = async () => {
-          if (!track || !track.applyConstraints) {
-            window.toast && toast('Вспышка не поддерживается в этом браузере', 'err');
-            return;
-          }
-          torchOn = !torchOn;
+        const setTorch = async (on) => {
+          if (!track || !track.applyConstraints) return false;
           try {
-            await track.applyConstraints({ advanced: [{ torch: torchOn }] });
+            await track.applyConstraints({ advanced: [{ torch: on }] });
+            return true;
           } catch (e1) {
             try {
-              await track.applyConstraints({ torch: torchOn });
+              await track.applyConstraints({ torch: on });
+              return true;
             } catch (e2) {
-              torchOn = false;
-              window.toast && toast('Не удалось включить вспышку на этом устройстве', 'err');
-              return;
+              return false;
             }
           }
+        };
+        tb.onclick = async () => {
+          const next = !torchOn;
+          let ok = await setTorch(next);
+          if (!ok && next) {
+            await new Promise(r => setTimeout(r, 150));
+            ok = await setTorch(true);
+          }
+          if (!ok && next) {
+            window.toast && toast('Вспышка недоступна на этой камере', 'err');
+            return;
+          }
+          torchOn = next;
           tb.style.borderColor = torchOn ? '#fde047' : '';
           tb.style.color = torchOn ? '#fde047' : '';
           tb.style.background = torchOn ? 'rgba(250,204,21,.22)' : '';
@@ -562,7 +572,7 @@
     document.body.appendChild(m);
     const close = () => m.remove();
     g('ocrPickNo').onclick = close; g('ocrPickX').onclick = close; m.onclick = e => { if (e.target === m) close(); };
-    g('ocrPickCam').onclick = () => { close(); cam.click(); }; g('ocrPickGal').onclick = () => { close(); gal.click(); };
+    g('ocrPickCam').onclick = () => { close(); openLiveCamera(cam); }; g('ocrPickGal').onclick = () => { close(); gal.click(); };
   };
   window.EUROBAZA_OCR_KEY = GKEY;
   setTimeout(() => {
