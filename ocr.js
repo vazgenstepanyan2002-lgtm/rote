@@ -136,9 +136,9 @@
   }
 
   const RULES = [
-    { ignore: true, rx: /(?:տեղափոխու[թտ]յուն|հավաքում|доставк|перевозк|сборк)/i },
+    { ignore: true, rx: /(?:տեղափոխու[թտ]յուն|հեղափոխություն|հավաքում|բարձում|ֆուրնիտուր|доставк|перевозк|сборк|фурнитур)/i },
     { code: 'bedroom_g', rx: /(?:ննջասենյակ|սենյակ|спальн).*0[.,\s]?9\s*[*xх×]\s*2/i },
-    { code: 'bedroom_d', rx: /(?:ննջասենյակ|спальн).*(?:նիցցա|ницца|ալսու|алсу|մոնա լիզա|мона лиза)/i },
+    { code: 'bedroom_d', rx: /(?:ննջասենյակ|ննջ\.?|спальн).*(?:նիցցա|ницца|ալսու|алсу|մոնա\s*լիզա|мона\s*лиза)/i },
     { code: 'bedroom_c', rx: /(?:ննջասենյակ|спальн).*(?:էկո|эко|րիո|рио)/i },
     { code: 'bedroom_f', rx: /(?:ննջասենյակ|спальн).*(?:պրեստիժ|престиж)/i },
     { code: 'bedroom_f', rx: /(?:ննջասենյակ|спальн).*6[\s-]*(?:դուռ|դռնանի|դռ\.?|двер|дв\.?)/i },
@@ -222,7 +222,7 @@
     return { ignore: false, code: '' };
   }
 
-  const isRegionAddress = s => /(?:կոտայք|քանաք[ե]?ռավան|աբովյան|հրազդան|չարենցավան|եղվարդ|եզվարդ|բյուրեղավան|նոր հաճն|արարատ|մասիս|արտաշատ|վեդի|արմավիր|վաղարշապատ|էջմիածին|մեծամոր|արագածոտն|աշտարակ|ապարան|թալին|շիրակ|գյումրի|արթիկ|մարալիկ|լոռի|վանաձոր|ալավերդի|սպիտակ|ստեփանավան|տաշիր|տավուշ|իջևան|դիլիջան|բերդ|նոյեմբերյան|գեղարքունիք|գավառ|սևան|մարտունի|վարդենիս|ճամբարակ|վայոց ձոր|եղեգնաձոր|եզեգնաձոր|ջերմուկ|վայք|սյունիք|կապան|գորիս|սիսիան|մեղրի|քաջարան|котайк|канакераван|абовян|раздан|чаренцаван|егвард|бюрегаван|нор ачин|арарат|масис|арташат|веди|армавир|вагаршапат|эчмиадзин|мецамор|арагацотн|аштарак|ширак|гюмри|лори|ванадзор|тавуш|иджеван|дилижан|гегаркуник|гавар|севан|мартуни|мартини|вайоц дзор|ехегнадзор|сюник|капан|горис|сисиан)/i.test(normText(s));
+  const isRegionAddress = s => /(?:կոտայք|քանաք[ե]?ռավան|աբովյան|հրազդան|չարենցավան|եղվարդ|եզվարդ|բյուրեղավան|նոր հաճ[ը]?ն|առինջ|պտղնի|ձորաղբյուր|ջրվեժ|զովունի|պռոշյան|քասախ|բալահովիտ|մայակովսկի|գառնի|արզնի|արարատ|մասիս|արտաշատ|վեդի|նոր խարբերդ|մերձավան|փարաքար|արգավանդ|արմավիր|վաղարշապատ|էջմիածին|մեծամոր|արագածոտն|աշտարակ|ապարան|թալին|օշական|կարբի|բյուրական|շիրակ|գյումրի|արթիկ|մարալիկ|լոռի|վանաձոր|ալավերդի|սպիտակ|ստեփանավան|տաշիր|տավուշ|իջևան|դիլիջան|բերդ|նոյեմբերյան|գեղարքունիք|գավառ|սևան|մարտունի|վարդենիս|ճամբարակ|վայոց ձոր|եղեգնաձոր|եզեգնաձոր|ջերմուկ|վայք|սյունիք|կապան|գորիս|սիսիան|մեղրի|քաջարան|մարզ|котайк|канакераван|абовян|раздан|чаренцаван|егвард|бюрегаван|нор ачин|ариндж|пхтни|дзорахпюр|джрвеж|зовуни|прошян|касах|гарни|арзни|арарат|масис|арташат|веди|мердзаван|паракар|аргаванд|армавир|вагаршапат|эчмиадзин|мецамор|арагацотн|аштарак|ширак|гюмри|лори|ванадзор|тавуш|иджеван|дилижан|гегаркуник|гавар|севан|мартуни|вайоц дзор|ехегнадзор|сюник|капан|горис|сисиан|область|марз)/i.test(String(s || "").toLowerCase());
   const isYerevanAddress = s => {
     const low = String(s || "").toLowerCase();
     if (isRegionAddress(low)) return false;
@@ -231,8 +231,9 @@
 
 async function compressImage(file){
     if (file && file._preB64) return file._preB64;
-    const maxSide = (file && file._isCropped) ? 1024 : 1280;
-    const q = (file && file._isCropped) ? 0.74 : 0.76;
+    const isCrop = !!(file && file._isCropped);
+    const maxSide = isCrop ? 896 : 1280;
+    const q = 0.76;
     const encodeCv = cv => {
       try {
         const wUrl = cv.toDataURL('image/webp', q);
@@ -253,9 +254,9 @@ async function compressImage(file){
         const bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
         const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
         const ctx = cv.getContext('2d');
-        ctx.filter = 'grayscale(1) contrast(1.22)';
+        if (!isCrop) ctx.filter = 'grayscale(1) contrast(1.18)';
         ctx.drawImage(bmp, 0, 0);
-        ctx.filter = 'none';
+        if (!isCrop) ctx.filter = 'none';
         bmp.close();
         const out = encodeCv(cv);
         cv.width = cv.height = 0;
@@ -271,9 +272,9 @@ async function compressImage(file){
         if (w > maxSide || h > maxSide) { if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; } else { w = Math.round(w * maxSide / h); h = maxSide; } }
         const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
         const ctx = cv.getContext('2d');
-        ctx.filter = 'grayscale(1) contrast(1.22)';
+        if (!isCrop) ctx.filter = 'grayscale(1) contrast(1.18)';
         ctx.drawImage(img, 0, 0, w, h);
-        ctx.filter = 'none';
+        if (!isCrop) ctx.filter = 'none';
         const out = encodeCv(cv);
         cv.width = cv.height = 0;
         res(out);
@@ -336,7 +337,7 @@ async function askGemini(b64){
       let list = baseModels.filter(m => !skip[m]);
       try {
         const fc = JSON.parse(localStorage.getItem('OCR_FAST_MDL_V2') || 'null');
-        if (fc && fc.m && fc.m !== 'gemini-flash-latest' && fc.t > Date.now() - 20 * 60000 && list.includes(fc.m)) {
+        if (fc && fc.m && /lite/.test(fc.m) && fc.t > Date.now() - 20 * 60000 && list.includes(fc.m)) {
           list = [fc.m].concat(list.filter(x => x !== fc.m));
         }
       } catch (e) {}
@@ -442,11 +443,11 @@ async function askGemini(b64){
           if (r.ok) finish(true, { mdl: m2, json: r.json });
           else onFail(r.err, false);
         });
-      }, 2400);
+      }, 2600);
     });
 
-    const passTimeouts = [7000, 9500, 12500];
-    const passWaits = [0, 350, 1000];
+    const passTimeouts = [5200, 7500, 10500];
+    const passWaits = [0, 300, 900];
     let j = null, winMdl = '', lastErr = '';
     for (let p = 0; p < passTimeouts.length; p++) {
       if (passWaits[p] > 0) await new Promise(r => setTimeout(r, passWaits[p]));
@@ -468,8 +469,10 @@ async function askGemini(b64){
       if (j) break;
     }
     if (!j) throw new Error(lastErr || 'Сервер распознавания не ответил');
-    if (winMdl && /lite|2\.5-flash$/.test(winMdl)) {
+    if (winMdl && /lite/.test(winMdl)) {
       try { localStorage.setItem('OCR_FAST_MDL_V2', JSON.stringify({ m: winMdl, t: Date.now() })); } catch (e) {}
+    } else {
+      try { localStorage.removeItem('OCR_FAST_MDL_V2'); } catch (e) {}
     }
     const cand = Array.isArray(j.candidates) ? j.candidates[0] : null;
     const parts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : [];
@@ -1178,7 +1181,7 @@ async function askGemini(b64){
     g("olcSys").onclick = () => { stopCam(); if (fallbackInput) fallbackInput.click(); };
     g("olcShot").onclick = async () => {
       const _sb0 = g('olcShot'); if (_sb0) _sb0.disabled = true;
-      const _fastShot = () => {
+const _fastShot = () => {
         if (torchOn || !vid || (vid.videoWidth || 0) < 1280 || !vid.videoHeight) return '';
         try {
           const vw = vid.videoWidth, vh = vid.videoHeight;
@@ -1196,21 +1199,19 @@ async function askGemini(b64){
           }
           if (sw < 100 || sh < 100) { sx = 0; sy = 0; sw = vw; sh = vh; }
           let dw = Math.round(sw), dh = Math.round(sh);
-          if (dw > 1024 || dh > 1024) {
-            if (dw > dh) { dh = Math.round(dh * 1024 / dw); dw = 1024; }
-            else { dw = Math.round(dw * 1024 / dh); dh = 1024; }
+          if (dw > 896 || dh > 896) {
+            if (dw > dh) { dh = Math.round(dh * 896 / dw); dw = 896; }
+            else { dw = Math.round(dw * 896 / dh); dh = 896; }
           }
           const cv = document.createElement('canvas'); cv.width = dw; cv.height = dh;
           const ctx = cv.getContext('2d');
-          ctx.filter = 'grayscale(1) contrast(1.22)';
           ctx.drawImage(vid, sx, sy, sw, sh, 0, 0, dw, dh);
-          ctx.filter = 'none';
           let out = '';
           try {
-            const wu = cv.toDataURL('image/webp', 0.74);
+            const wu = cv.toDataURL('image/webp', 0.76);
             if (wu && wu.indexOf('data:image/webp') === 0) out = wu.split(',').pop();
           } catch (e) {}
-          if (!out) out = cv.toDataURL('image/jpeg', 0.74).split(',').pop();
+          if (!out) out = cv.toDataURL('image/jpeg', 0.76).split(',').pop();
           cv.width = cv.height = 0;
           return out;
         } catch (e) { return ''; }
@@ -1272,6 +1273,8 @@ async function askGemini(b64){
     g('ocrPickCam').onclick = () => { close(); openLiveCamera(cam); }; g('ocrPickGal').onclick = () => { close(); gal.click(); };
   };
   window.EUROBAZA_OCR_KEY = GKEY;
+  const _ebWarmHook = () => { try { if (typeof warmGeminiHost === 'function') warmGeminiHost(); } catch (e) {} };
+  document.addEventListener('pointerdown', ev => { if (ev.target && ev.target.closest && ev.target.closest('#bnCamBtn, .fab-l')) _ebWarmHook(); }, { passive: true });
   setTimeout(() => {
     try {
       const raw = sessionStorage.getItem("OCR_BON_DRAFT");
