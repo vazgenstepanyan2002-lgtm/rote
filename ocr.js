@@ -229,9 +229,10 @@
     return /(?:ереван|երևան|yerevan|աջափնյակ|արաբկիր|ավան|դավթաշեն|էրեբունի|կենտրոն|մալաթիա|նոր նորք|նորք-մարաշ|նուբարաշեն|շենգավիթ|քանաքեռ-զեյթուն|քանաքեռ|ачапняк|арабкир|аван|давидашен|эребуни|кентрон|малатия|нор норк|норк-мараш|нубарашен|шенгавит|канакер)/i.test(low);
   };
 
-  async function compressImage(file){
-    const maxSide = (file && file._isCropped) ? 1152 : 1440;
-    const q = (file && file._isCropped) ? 0.76 : 0.78;
+async function compressImage(file){
+    if (file && file._preB64) return file._preB64;
+    const maxSide = (file && file._isCropped) ? 1024 : 1280;
+    const q = (file && file._isCropped) ? 0.74 : 0.76;
     const encodeCv = cv => {
       try {
         const wUrl = cv.toDataURL('image/webp', q);
@@ -294,7 +295,7 @@ async function askGemini(b64){
     const cleanB64 = String(b64 || '');
     const mime = cleanB64.indexOf('UklGR') === 0 ? 'image/webp' : (cleanB64.indexOf('iVBOR') === 0 ? 'image/png' : 'image/jpeg');
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
-    const prompt = 'Распознай накладную EuroBaza (HY/RU/EN). Внимательно различай армянские буквы. doc=номер из Բեռնափոխադրման թերթիկ № или Վաճառքի փաստաթուղթ № (цифры и дефис), addr=адрес из Տեղափոխման հասցե, items=[{name:точное название из Ապրանքի անվանումը, qty:целое число из Քանակ}]. Игнорируй доставку (Տեղափոխություն/Տեղափոխուտյուն), сборку (Հավաքում/Сборка) и фурнитуру.';
+    const prompt = 'Накладная EuroBaza (HY/RU/EN). doc=номер из Բեռնափոխադրման թերթիկ № или Վաճառքի փաստաթուղթ № (цифры и дефис). addr=ТОЛЬКО город или область (1-2 слова из Տեղափոխման հասցե, без улицы и телефонов). items=[{name:точное название из Ապրանքի անվանումը, qty:целое число из Քանակ}] без доставки (Տեղափոխություն/Տեղափոխուտյուն), сборки (Հավաքում/Сборка) и фурнитуры.';
     const schema = {
       type: 'OBJECT',
       properties: {
@@ -314,7 +315,7 @@ async function askGemini(b64){
       },
       required: ['doc', 'addr', 'items']
     };
-    const baseModels = ['gemini-2.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash', 'gemini-flash-lite-latest', 'gemini-flash-latest'];
+    const baseModels = ['gemini-2.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-2.5-flash', 'gemini-flash-latest'];
     const readSkip = () => {
       try {
         const raw = JSON.parse(localStorage.getItem('OCR_SKIP_MDL') || '{}') || {};
@@ -346,7 +347,7 @@ async function askGemini(b64){
       if (safeMode) {
         genCfg = { responseMimeType: 'application/json' };
       } else {
-        genCfg = { responseMimeType: 'application/json', responseSchema: schema, maxOutputTokens: 1024 };
+        genCfg = { responseMimeType: 'application/json', responseSchema: schema, maxOutputTokens: 768 };
         if (/gemini-2\.5/.test(mdl)) {
           genCfg.temperature = 0;
           genCfg.thinkingConfig = { thinkingBudget: 0 };
@@ -441,11 +442,11 @@ async function askGemini(b64){
           if (r.ok) finish(true, { mdl: m2, json: r.json });
           else onFail(r.err, false);
         });
-      }, 3800);
+      }, 2400);
     });
 
-    const passTimeouts = [8500, 10500, 13500];
-    const passWaits = [0, 450, 1300];
+    const passTimeouts = [7000, 9500, 12500];
+    const passWaits = [0, 350, 1000];
     let j = null, winMdl = '', lastErr = '';
     for (let p = 0; p < passTimeouts.length; p++) {
       if (passWaits[p] > 0) await new Promise(r => setTimeout(r, passWaits[p]));
@@ -1176,6 +1177,50 @@ async function askGemini(b64){
     g("olcClose").onclick = stopCam;
     g("olcSys").onclick = () => { stopCam(); if (fallbackInput) fallbackInput.click(); };
     g("olcShot").onclick = async () => {
+      const _sb0 = g('olcShot'); if (_sb0) _sb0.disabled = true;
+      const _fastShot = () => {
+        if (torchOn || !vid || (vid.videoWidth || 0) < 1280 || !vid.videoHeight) return '';
+        try {
+          const vw = vid.videoWidth, vh = vid.videoHeight;
+          const vr = vid.getBoundingClientRect();
+          const frEl = g('olcFrame');
+          const fr = frEl && frEl.getBoundingClientRect();
+          let sx = 0, sy = 0, sw = vw, sh = vh;
+          if (vr && vr.width > 20 && vr.height > 20 && fr && fr.width > 20 && fr.height > 20) {
+            const sc = Math.max(vr.width / vw, vr.height / vh);
+            const ox = (vw * sc - vr.width) / 2, oy = (vh * sc - vr.height) / 2;
+            sx = Math.max(0, ((fr.left - vr.left) + ox) / sc);
+            sy = Math.max(0, ((fr.top - vr.top) + oy) / sc);
+            sw = Math.min(vw - sx, fr.width / sc);
+            sh = Math.min(vh - sy, fr.height / sc);
+          }
+          if (sw < 100 || sh < 100) { sx = 0; sy = 0; sw = vw; sh = vh; }
+          let dw = Math.round(sw), dh = Math.round(sh);
+          if (dw > 1024 || dh > 1024) {
+            if (dw > dh) { dh = Math.round(dh * 1024 / dw); dw = 1024; }
+            else { dw = Math.round(dw * 1024 / dh); dh = 1024; }
+          }
+          const cv = document.createElement('canvas'); cv.width = dw; cv.height = dh;
+          const ctx = cv.getContext('2d');
+          ctx.filter = 'grayscale(1) contrast(1.22)';
+          ctx.drawImage(vid, sx, sy, sw, sh, 0, 0, dw, dh);
+          ctx.filter = 'none';
+          let out = '';
+          try {
+            const wu = cv.toDataURL('image/webp', 0.74);
+            if (wu && wu.indexOf('data:image/webp') === 0) out = wu.split(',').pop();
+          } catch (e) {}
+          if (!out) out = cv.toDataURL('image/jpeg', 0.74).split(',').pop();
+          cv.width = cv.height = 0;
+          return out;
+        } catch (e) { return ''; }
+      };
+      const _fastB64 = _fastShot();
+      if (_fastB64) {
+        stopCam();
+        scanBonusFile({ size: _fastB64.length, _preB64: _fastB64, _isCropped: true });
+        return;
+      }
       const shotBtn = g("olcShot");
       if (shotBtn) shotBtn.disabled = true;
       const vw = vid.videoWidth || 1920, vh = vid.videoHeight || 1080;
