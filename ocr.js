@@ -395,42 +395,60 @@
   else ensureOcrInputs();
 
   async function getBestBackStream(){
-    const baseVideo = {
-      facingMode: { ideal: 'environment' },
-      width: { ideal: 4032, min: 1920 },
-      height: { ideal: 3024, min: 1080 },
-      focusMode: { ideal: 'continuous' }
-    };
-    let stream = await navigator.mediaDevices.getUserMedia({ video: baseVideo, audio: false });
-    try {
-      const t0 = stream.getVideoTracks()[0];
-      const c0 = t0 && t0.getCapabilities && t0.getCapabilities();
-      if (c0 && c0.torch) return stream;
-      if (navigator.mediaDevices.enumerateDevices) {
-        const devs = await navigator.mediaDevices.enumerateDevices();
-        const backs = devs.filter(d => d.kind === 'videoinput' && (!c0 || d.deviceId !== c0.deviceId));
-        for (const d of backs) {
-          if (!d.deviceId) continue;
-          let st = null;
-          try {
-            st = await navigator.mediaDevices.getUserMedia({
-              video: { deviceId: { exact: d.deviceId }, width: { ideal: 4032, min: 1280 }, height: { ideal: 3024, min: 720 } },
-              audio: false
-            });
-            const tr = st.getVideoTracks()[0];
-            const cp = tr && tr.getCapabilities && tr.getCapabilities();
-            if (cp && cp.torch) {
-              stream.getTracks().forEach(t => t.stop());
-              return st;
-            }
-            st.getTracks().forEach(t => t.stop());
-          } catch (e) {
-            if (st) st.getTracks().forEach(t => t.stop());
-          }
-        }
+    const tryStream = async (videoConstraints) => {
+      try {
+        return await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
+      } catch (e) {
+        return null;
       }
-    } catch (e) {}
-    return stream;
+    };
+    const hasTorchCap = (st) => {
+      try {
+        const tr = st && st.getVideoTracks()[0];
+        const cp = tr && tr.getCapabilities && tr.getCapabilities();
+        return !!(cp && (cp.torch || (Array.isArray(cp.fillLightMode) && cp.fillLightMode.includes("torch"))));
+      } catch (e) {
+        return false;
+      }
+    };
+
+    let stream = await tryStream({
+      facingMode: { exact: "environment" },
+      width: { ideal: 1920 },
+      height: { ideal: 1080 }
+    }) || await tryStream({
+      facingMode: { ideal: "environment" },
+      width: { ideal: 1920 },
+      height: { ideal: 1080 }
+    });
+
+    if (stream && hasTorchCap(stream)) return stream;
+
+    if (navigator.mediaDevices.enumerateDevices) {
+      try {
+        const devs = await navigator.mediaDevices.enumerateDevices();
+        const curId = stream && stream.getVideoTracks()[0] && stream.getVideoTracks()[0].getSettings().deviceId;
+        const backs = devs.filter(d => d.kind === "videoinput" && d.deviceId && d.deviceId !== curId);
+        // Сначала проверяем камеры, в названии которых есть back / rear / 0
+        backs.sort((a, b) => (/back|rear|0/i.test(b.label) ? 1 : 0) - (/back|rear|0/i.test(a.label) ? 1 : 0));
+        for (const d of backs) {
+          const st = await tryStream({
+            deviceId: { exact: d.deviceId },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          });
+          if (!st) continue;
+          if (hasTorchCap(st)) {
+            if (stream) stream.getTracks().forEach(t => t.stop());
+            return st;
+          }
+          st.getTracks().forEach(t => t.stop());
+        }
+      } catch (e) {}
+    }
+
+    if (stream) return stream;
+    return await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
   }
 
   async function openLiveCamera(fallbackInput){
@@ -456,8 +474,43 @@
     const vid = g('ocrLiveVid');
     vid.srcObject = stream;
     try { await vid.play(); } catch (e) {}
-    const track = stream.getVideoTracks()[0];
+    let track = stream.getVideoTracks()[0];
     let torchOn = false;
+
+    const applyTorch = async (on) => {
+      if (!track || !track.applyConstraints) return false;
+      const variants = [
+        { advanced: [{ torch: on }] },
+        { torch: on },
+        { advanced: [{ fillLightMode: on ? "torch" : "off" }] }
+      ];
+      for (const c of variants) {
+        try {
+          await track.applyConstraints(c);
+          const st = track.getSettings ? track.getSettings() : {};
+          if (!on || st.torch === true || st.torch === undefined) return true;
+        } catch (e) {}
+      }
+      // Переоткрытие потока с принудительным torch (помогает на Xiaomi/Samsung/Redmi)
+      try {
+        const devId = track.getSettings && track.getSettings().deviceId;
+        const newSt = await navigator.mediaDevices.getUserMedia({
+          video: Object.assign(
+            devId ? { deviceId: { exact: devId } } : { facingMode: "environment" },
+            { width: { ideal: 1920 }, height: { ideal: 1080 }, advanced: [{ torch: on }] }
+          ),
+          audio: false
+        });
+        stream.getTracks().forEach(t => t.stop());
+        stream = newSt;
+        track = stream.getVideoTracks()[0];
+        vid.srcObject = stream;
+        try { await vid.play(); } catch (e) {}
+        return true;
+      } catch (e) {
+        return false;
+      }
+    };
 
     const stopCam = () => {
       try { if (torchOn && track && track.applyConstraints) track.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {}); } catch (e) {}
@@ -467,39 +520,16 @@
 
     try {
       const caps = track && track.getCapabilities && track.getCapabilities();
-      if (caps && track.applyConstraints) {
-        const cObj = {};
-        if (caps.focusMode && caps.focusMode.includes('continuous')) cObj.advanced = [{ focusMode: 'continuous' }];
-        const maxW = caps.width && caps.width.max ? Math.min(4096, caps.width.max) : 0;
-        const maxH = caps.height && caps.height.max ? Math.min(3072, caps.height.max) : 0;
-        if (maxW >= 1920 && maxH >= 1080) { cObj.width = { ideal: maxW }; cObj.height = { ideal: maxH }; }
-        track.applyConstraints(cObj).catch(() => {});
+      if (caps && track.applyConstraints && caps.focusMode && caps.focusMode.includes('continuous')) {
+        track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
       }
       const tb = g('olcTorch');
       if (tb) {
-        const setTorch = async (on) => {
-          if (!track || !track.applyConstraints) return false;
-          try {
-            await track.applyConstraints({ advanced: [{ torch: on }] });
-            return true;
-          } catch (e1) {
-            try {
-              await track.applyConstraints({ torch: on });
-              return true;
-            } catch (e2) {
-              return false;
-            }
-          }
-        };
         tb.onclick = async () => {
           const next = !torchOn;
-          let ok = await setTorch(next);
+          const ok = await applyTorch(next);
           if (!ok && next) {
-            await new Promise(r => setTimeout(r, 150));
-            ok = await setTorch(true);
-          }
-          if (!ok && next) {
-            window.toast && toast('Вспышка недоступна на этой камере', 'err');
+            window.toast && toast('Вспышка недоступна в браузере на этом телефоне', 'err');
             return;
           }
           torchOn = next;
@@ -540,8 +570,14 @@
       if (window.ImageCapture && track) {
         try {
           const ic = new ImageCapture(track);
-          let photoOpts = {};
-          try { const pc = await ic.getPhotoCapabilities(); if (pc && pc.imageWidth && pc.imageWidth.max) photoOpts = { imageWidth: pc.imageWidth.max, imageHeight: pc.imageHeight.max }; } catch (e) {}
+          let photoOpts = torchOn ? { fillLightMode: "torch" } : {};
+          try {
+            const pc = await ic.getPhotoCapabilities();
+            if (pc && pc.imageWidth && pc.imageWidth.max) {
+              photoOpts.imageWidth = pc.imageWidth.max;
+              photoOpts.imageHeight = pc.imageHeight.max;
+            }
+          } catch (e) {}
           const photoBlob = await ic.takePhoto(photoOpts);
           stopCam();
           if (photoBlob && photoBlob.size > 10000) {
