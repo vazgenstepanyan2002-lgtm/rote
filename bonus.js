@@ -353,7 +353,7 @@
   html+='<div id="bnCats">'+rows.map((c,idx)=>{
    const cq=cqOf(c),pct=totS?Math.round(c.sum*100/totS):0;
    const body=c.items.map(it=>'<div class="sum-it" data-name="'+esc(furnitureName(it.name).toLowerCase())+'"><div class="sum-it-t">'+esc(furnitureName(it.name))+'</div>'
-    +it.parts.map(z=>{const cls=z.l==='Район'?'reg':(z.l?'city':'one');return '<div class="sum-r" data-zone="'+esc(z.l||'Шт')+'"><span class="bn-tag '+cls+'">'+(z.l||'Шт')+'</span><span class="sum-f"><b>'+fm(z.n)+'</b> × '+fm(z.p)+' '+CUR+'</span><b class="sum-v">'+fm(z.v)+' '+CUR+'</b></div>';}).join('')+'</div>').join('');
+    +it.parts.map(z=>{const cls=z.l==='Район'?'reg':(z.l?'city':'one');return '<div class="sum-r" data-zone="'+esc(z.l||'Шт')+'" data-q="'+(+z.n||0)+'" data-v="'+(+z.v||0)+'"><span class="bn-tag '+cls+'">'+(z.l||'Шт')+'</span><span class="sum-f"><b>'+fm(z.n)+'</b> × '+fm(z.p)+' '+CUR+'</span><b class="sum-v">'+fm(z.v)+' '+CUR+'</b></div>';}).join('')+'</div>').join('');
    return '<div class="sum-cat" data-ci="'+idx+'"><div class="sum-cat-h" data-tog="1"><div class="sum-cat-l"><span class="sum-chv">▸</span><div><div class="sum-cat-n">'+esc(furnitureName(c.name))+'</div><div class="sum-cat-s">'+fm(cq)+' шт · '+pct+'% от суммы</div></div></div><div class="sum-cat-r">'+fm(c.sum)+' '+CUR+'</div></div><div class="sum-cat-b">'+body+'</div></div>';
   }).join('')+'</div>';
   return html;
@@ -374,10 +374,8 @@
       r.style.display=ok?'':'none';
       if(ok){
        vr++;
-       const nums=(r.textContent||'').replace(/\s+/g,' ').match(/[\d.,]+/g)||[];
-       const qn=parseFloat((nums[0]||'0').replace(',','.'))||0;
-       const vn=parseFloat((nums[nums.length-1]||'0').replace(',','.'))||0;
-       cQ+=qn;cS+=vn;
+       cQ+=parseFloat(r.dataset.q)||0;
+       cS+=parseFloat(r.dataset.v)||0;
       }
      });
      it.style.display=vr?'':'none';

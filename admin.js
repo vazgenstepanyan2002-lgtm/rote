@@ -180,7 +180,7 @@
    const body=(c.items||[]).map(it=>'<div class="sum-it" data-name="'+esc(nm(it.name).toLowerCase())+'"><div class="sum-it-t">'+esc(nm(it.name))+'</div>'
     +(it.parts||[]).map(z=>{
      const cls=z.l==='Район'?'reg':(z.l?'city':'one');
-     return '<div class="sum-r" data-zone="'+esc(z.l||'Шт')+'"><span class="tg '+cls+'">'+esc(z.l||'Шт')+'</span><span class="sum-f"><b>'+fm(z.n)+'</b> × '+fm(z.p)+' '+CUR+'</span><b class="sum-v">'+money(z.v)+'</b></div>';
+     return '<div class="sum-r" data-zone="'+esc(z.l||'Шт')+'" data-q="'+(+z.n||0)+'" data-v="'+(+z.v||0)+'"><span class="tg '+cls+'">'+esc(z.l||'Шт')+'</span><span class="sum-f"><b>'+fm(z.n)+'</b> × '+fm(z.p)+' '+CUR+'</span><b class="sum-v">'+money(z.v)+'</b></div>';
     }).join('')+'</div>').join('');
    return '<div class="sum-cat"><div class="sum-cat-h" data-atog="1"><div class="sum-cat-l"><span class="sum-chv">▸</span><div><div class="sum-cat-n">'+esc(nm(c.name))+'</div><div class="sum-cat-s">'+fm(cq)+' шт · '+pct+'% от суммы</div></div></div><div class="sum-cat-r">'+money(c.sum)+'</div></div><div class="sum-cat-b">'+body+'</div></div>';
   }).join('')+'</div>';
@@ -402,10 +402,8 @@ function openAdmSumModal(code,subKey){
      r.style.display=ok?"":"none";
      if(ok){
       vr++;
-      const nums=(r.textContent||"").replace(/\s+/g," ").match(/[\d.,]+/g)||[];
-      const qn=parseFloat((nums[0]||"0").replace(",","."))||0;
-      const vn=parseFloat((nums[nums.length-1]||"0").replace(",","."))||0;
-      cQ+=qn;cS+=vn;
+      cQ+=parseFloat(r.dataset.q)||0;
+      cS+=parseFloat(r.dataset.v)||0;
      }
     });
     it.style.display=vr?"":"none";
