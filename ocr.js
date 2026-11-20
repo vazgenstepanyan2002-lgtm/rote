@@ -146,7 +146,26 @@
   };
 
   async function compressImage(file){
-    const maxSide = 1600;
+    const maxSide = 1440;
+    if (window.createImageBitmap) {
+      try {
+        const bmp0 = await createImageBitmap(file);
+        const w0 = bmp0.width, h0 = bmp0.height;
+        let w = w0, h = h0;
+        if (w > maxSide || h > maxSide) {
+          if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; }
+          else { w = Math.round(w * maxSide / h); h = maxSide; }
+        }
+        bmp0.close();
+        const bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'medium' });
+        const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
+        cv.getContext('2d').drawImage(bmp, 0, 0);
+        bmp.close();
+        const out = cv.toDataURL('image/jpeg', 0.72).split(',').pop();
+        cv.width = cv.height = 0;
+        return out;
+      } catch (e) {}
+    }
     const url = URL.createObjectURL(file);
     return new Promise((res, rej) => {
       const img = new Image();
@@ -156,7 +175,9 @@
         if (w > maxSide || h > maxSide) { if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; } else { w = Math.round(w * maxSide / h); h = maxSide; } }
         const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
         cv.getContext('2d').drawImage(img, 0, 0, w, h);
-        res(cv.toDataURL('image/jpeg', 0.74).split(',').pop());
+        const out = cv.toDataURL('image/jpeg', 0.72).split(',').pop();
+        cv.width = cv.height = 0;
+        res(out);
       };
       img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Ошибка чтения фото')); };
       img.src = url;
@@ -363,6 +384,63 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ensureOcrInputs);
   else ensureOcrInputs();
 
+  async function openLiveCamera(fallbackInput){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      if (fallbackInput) fallbackInput.click();
+      return;
+    }
+    let stream = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1600 }, height: { ideal: 1200 } },
+        audio: false
+      });
+    } catch (e) {
+      if (fallbackInput) fallbackInput.click();
+      return;
+    }
+    let ov = g('ocrLiveCam'); if (ov) ov.remove();
+    ov = document.createElement('div'); ov.id = 'ocrLiveCam';
+    ov.innerHTML = '<video id="ocrLiveVid" autoplay playsinline muted></video>'
+      + '<div class="olc-top"><button type="button" class="olc-btn" id="olcSys">📷 Системная</button><span>Наведите на накладную</span><button type="button" class="olc-btn" id="olcClose">✕</button></div>'
+      + '<div class="olc-frame"></div>'
+      + '<div class="olc-bot"><button type="button" class="olc-btn" id="olcTorch" hidden>🔦 Свет</button><button type="button" class="olc-shot" id="olcShot" aria-label="Снять"></button><span style="width:68px"></span></div>';
+    document.body.appendChild(ov);
+    const vid = g('ocrLiveVid');
+    vid.srcObject = stream;
+    const stopCam = () => {
+      try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+      ov.remove();
+    };
+    const track = stream.getVideoTracks()[0];
+    let torchOn = false;
+    try {
+      const caps = track && track.getCapabilities && track.getCapabilities();
+      if (caps && caps.torch) {
+        const tb = g('olcTorch'); tb.hidden = false;
+        tb.onclick = async () => {
+          torchOn = !torchOn;
+          try { await track.applyConstraints({ advanced: [{ torch: torchOn }] }); tb.style.borderColor = torchOn ? '#fde047' : ''; } catch (e) {}
+        };
+      }
+    } catch (e) {}
+    g('olcClose').onclick = stopCam;
+    g('olcSys').onclick = () => { stopCam(); if (fallbackInput) fallbackInput.click(); };
+    g('olcShot').onclick = async () => {
+      const vw = vid.videoWidth || 1280, vh = vid.videoHeight || 960;
+      const maxS = 1440;
+      let w = vw, h = vh;
+      if (w > maxS || h > maxS) { if (w > h) { h = Math.round(h * maxS / w); w = maxS; } else { w = Math.round(w * maxS / h); h = maxS; } }
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(vid, 0, 0, w, h);
+      stopCam();
+      cv.toBlob(blob => {
+        cv.width = cv.height = 0;
+        if (blob) scanBonusFile(blob);
+      }, 'image/jpeg', 0.78);
+    };
+  }
+
   window.openBonusScanner = () => {
     const { cam, gal } = ensureOcrInputs();
     let m = g('ocrSrcMdl'); if (m) m.remove();
@@ -371,7 +449,7 @@
     document.body.appendChild(m);
     const close = () => m.remove();
     g('ocrPickNo').onclick = close; g('ocrPickX').onclick = close; m.onclick = e => { if (e.target === m) close(); };
-    g('ocrPickCam').onclick = () => { try { sessionStorage.setItem('OCR_CAM_PENDING', '1'); sessionStorage.setItem('BON_WAS_OPEN', '1'); } catch (e) {} close(); cam.click(); }; g('ocrPickGal').onclick = () => { close(); gal.click(); };
+    g('ocrPickCam').onclick = () => { close(); openLiveCamera(cam); }; g('ocrPickGal').onclick = () => { close(); gal.click(); };
   };
   window.EUROBAZA_OCR_KEY = GKEY;
   setTimeout(() => {

@@ -1084,3 +1084,14 @@ body:has(.cm.open)>*:not(.cm):not(#toast):not(#busy){pointer-events:none!importa
 .ob-pk-tx b{font-size:13px;font-weight:700;color:#f8fafc;line-height:1.25;white-space:normal;word-break:break-word}
 .ob-pk-tx small{font-size:11px;color:#8b9bb4;margin-top:1px}
 .ob-pk-pr{font-size:12.5px;font-weight:800;color:#fde047;white-space:nowrap;flex-shrink:0}
+
+/* IN-APP-CAMERA */
+#ocrLiveCam{position:fixed;inset:0;z-index:270;background:#000;display:flex;flex-direction:column;justify-content:space-between;touch-action:none}
+#ocrLiveVid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+.olc-top{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:calc(12px + env(safe-area-inset-top,0px)) 14px 12px;background:linear-gradient(180deg,rgba(0,0,0,.78),transparent)}
+.olc-top span{font-size:14px;font-weight:700;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8)}
+.olc-btn{width:auto!important;height:38px!important;margin:0!important;padding:0 13px!important;border-radius:12px!important;background:rgba(15,23,34,.78)!important;border:1px solid rgba(255,255,255,.22)!important;color:#fff!important;font-size:13px!important;font-weight:700!important;backdrop-filter:blur(8px);box-shadow:none!important}
+.olc-frame{position:relative;z-index:2;margin:auto 22px;height:54vh;border:2px dashed rgba(52,211,153,.75);border-radius:20px;box-shadow:0 0 0 9999px rgba(0,0,0,.32);pointer-events:none}
+.olc-bot{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-around;padding:16px 20px calc(22px + env(safe-area-inset-bottom,0px));background:linear-gradient(0deg,rgba(0,0,0,.85),transparent)}
+.olc-shot{width:72px!important;height:72px!important;margin:0!important;padding:0!important;border-radius:50%!important;background:#fff!important;border:5px solid rgba(52,211,153,.85)!important;box-shadow:0 0 24px rgba(16,185,129,.5)!important;transition:.12s}
+.olc-shot:active{transform:scale(.92)}
