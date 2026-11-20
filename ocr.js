@@ -298,16 +298,8 @@
         const db = firebase.database();
         let dup = null;
         if (docKey && code !== 'ADMIN') {
-          try {
-            const dupSnap = await db.ref('cars/' + code + '/docs/' + docKey).once('value');
-            dup = dupSnap.val();
-          } catch (e) {}
-          if (!dup) {
-            try {
-              const locDocs = JSON.parse(localStorage.getItem('CAR_DOCS_' + code) || '{}') || {};
-              if (locDocs[docKey]) dup = locDocs[docKey];
-            } catch (e) {}
-          }
+          const dupSnap = await db.ref('cars/' + code + '/docs/' + docKey).once('value');
+          dup = dupSnap.val();
           if (dup && typeof askC === 'function') {
             const cmEl = g('cm'); if (cmEl) document.body.appendChild(cmEl);
             const byWho = dup.by || 'коллега';
@@ -321,13 +313,7 @@
         await qRef.update(patch); await db.ref('cars/' + code + '/t').set(Date.now());
         if (docKey && code !== 'ADMIN' && !dup) {
           const meName = (() => { try { return localStorage.getItem('USER_NAME') || 'Водитель'; } catch (e) { return 'Водитель'; } })();
-          const rec = { doc: cleanDoc, by: meName, t: Date.now() };
-          try {
-            const locDocs = JSON.parse(localStorage.getItem('CAR_DOCS_' + code) || '{}') || {};
-            locDocs[docKey] = rec;
-            localStorage.setItem('CAR_DOCS_' + code, JSON.stringify(locDocs));
-          } catch (e) {}
-          await db.ref('cars/' + code + '/docs/' + docKey).set(rec).catch(() => {});
+          await db.ref('cars/' + code + '/docs/' + docKey).set({ doc: cleanDoc, by: meName, t: Date.now() });
         }
         const isAdmRole = code === 'ADMIN';
         let sentReq = false;

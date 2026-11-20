@@ -255,7 +255,7 @@
   if(!CAR_CODE){tst('Экипаж не назначен администратором','err');return}
   if(!await askC(CAR_CODE==='ADMIN'?'Обнулить все количества?':'Обнулить все количества экипажа '+CAR_CODE+'?','Обнулить','🔄'))return;
   B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));
-  firebase.database().ref('cars/'+CAR_CODE+'/qty').remove().catch(()=>{});firebase.database().ref('cars/'+CAR_CODE+'/docs').remove().catch(()=>{});try{localStorage.removeItem('CAR_DOCS_'+CAR_CODE)}catch(e){}
+  firebase.database().ref('cars/'+CAR_CODE+'/qty').remove().catch(()=>{});firebase.database().ref('cars/'+CAR_CODE+'/docs').remove().catch(()=>{});
   render();tst('Количества обнулены');
  }
 
