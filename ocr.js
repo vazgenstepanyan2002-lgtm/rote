@@ -146,7 +146,7 @@
   };
 
   async function compressImage(file){
-    const maxSide = 1100;
+    const maxSide = 960;
     if (window.createImageBitmap) {
       try {
         const bmp0 = await createImageBitmap(file);
@@ -161,7 +161,7 @@
         const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
         cv.getContext('2d').drawImage(bmp, 0, 0);
         bmp.close();
-        const out = cv.toDataURL('image/jpeg', 0.70).split(',').pop();
+        const out = cv.toDataURL('image/jpeg', 0.68).split(',').pop();
         cv.width = cv.height = 0;
         return out;
       } catch (e) {}
@@ -175,7 +175,7 @@
         if (w > maxSide || h > maxSide) { if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; } else { w = Math.round(w * maxSide / h); h = maxSide; } }
         const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
         cv.getContext('2d').drawImage(img, 0, 0, w, h);
-        const out = cv.toDataURL('image/jpeg', 0.70).split(',').pop();
+        const out = cv.toDataURL('image/jpeg', 0.68).split(',').pop();
         cv.width = cv.height = 0;
         res(out);
       };
@@ -188,7 +188,7 @@
     try { localStorage.removeItem('OCR_FAST_MDL'); } catch (e) {}
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
     const prompt = 'Считай накладную EuroBaza. Верни ТОЛЬКО JSON: {"doc":"номер документа из Վաճառքի փաստաթուղթ № или № сверху (только цифры и дефис)","addr":"адрес из Տեղափոխման հասցե","items":[{"name":"точное название товара из Ապրանքի անվանումը","qty":1}]}. Игнорируй услуги доставки (Տեղափոխություն, Տեղափոխուտյուն), сборки (Հավաքում, Сборка) и фурнитуру.';
-    const bodyStr = JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mime_type: 'image/jpeg', data: b64 } }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } } });
+    const bodyStr = JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mime_type: 'image/jpeg', data: b64 } }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json' } });
     const models = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
     let j = null, lastErr = '';
     for (const mdl of models) {
@@ -196,7 +196,7 @@
         const res = await fetch('https' + '://' + host + '/v1beta/models/' + mdl + ':generateContent?key=' + encodeURIComponent(GKEY), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          signal: AbortSignal.timeout(14000),
+          signal: AbortSignal.timeout(25000),
           body: bodyStr
         });
         if (!res.ok) {
@@ -375,12 +375,12 @@
     window._ocrScanning = true;
     if (window.openBon && (!g('bnMdl') || !g('bnMdl').classList.contains('open'))) window.openBon(true);
     const btn = g('bnCamBtn'); if (btn) btn.classList.add('busy'); if (typeof busy === 'function') busy(1);
-    window.toast && toast('Распознаю накладную...');
+    const _t0 = Date.now(); window.toast && toast('Распознаю накладную...');
     try {
       const b64 = await compressImage(file);
       const { doc, addr, items } = await askGemini(b64);
       if (!items.length) { window.toast && toast('Товары в накладной не найдены', 'err'); return; }
-      openBonusInvoiceModal(items, isYerevanAddress(addr), doc);
+      window.toast && toast('Готово за ' + ((Date.now() - _t0) / 1000).toFixed(1) + ' сек'); openBonusInvoiceModal(items, isYerevanAddress(addr), doc);
     } catch (e) { window.toast && toast('Ошибка OCR: ' + ((e && e.message) || e), 'err'); }
     finally { window._ocrScanning = false; if (btn) btn.classList.remove('busy'); if (typeof busy === 'function') busy(0); }
   }
