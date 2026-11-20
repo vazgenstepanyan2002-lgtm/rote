@@ -534,73 +534,75 @@
     };
     return { cam: mk('bnCamFile', 1), gal: mk('bnGalFile', 0) };
   };
-
   let _ebLastOcrB64 = "";
   async function scanBonusFile(file){
     if (!file) return;
     if (window.openBon && (!g("bnMdl") || !g("bnMdl").classList.contains("open"))) window.openBon(true);
     const btn = g("bnCamBtn");
+    let busyOn = false;
+    const setScanBusy = on => {
+      const next = !!on;
+      if (next === busyOn) return;
+      busyOn = next;
+      window._ocrScanning = next;
+      if (btn) btn.classList.toggle("busy", next);
+      if (typeof busy === "function") busy(next ? 1 : 0);
+    };
+
     let b64 = "";
     try {
-      window._ocrScanning = true;
-      if (btn) btn.classList.add("busy");
-      if (typeof busy === "function") busy(1);
+      setScanBusy(true);
       b64 = await compressImage(file);
       _ebLastOcrB64 = b64;
     } catch (e) {
-      window._ocrScanning = false;
-      if (btn) btn.classList.remove("busy");
-      if (typeof busy === "function") busy(0);
+      setScanBusy(false);
       window.toast && toast("Ошибка OCR: " + ((e && e.message) || e), "err");
       return;
     }
 
     let firstPass = true;
-    while (b64) {
-      window._ocrScanning = true;
-      if (btn) btn.classList.add("busy");
-      if (typeof busy === "function") busy(1);
-      const _t0 = Date.now();
-      window.toast && toast(firstPass ? "Распознаю накладную..." : "Повторяю отправку...");
-      firstPass = false;
-      try {
-        const { doc, addr, items } = await askGemini(b64);
-        _ebLastOcrB64 = "";
-        if (!items.length) {
-          window.toast && toast("Товары в накладной не найдены", "err");
+    try {
+      while (b64) {
+        setScanBusy(true);
+        const _t0 = Date.now();
+        window.toast && toast(firstPass ? "Распознаю накладную..." : "Повторяю отправку...");
+        firstPass = false;
+        try {
+          const { doc, addr, items } = await askGemini(b64);
+          _ebLastOcrB64 = "";
+          setScanBusy(false);
+          if (!items.length) {
+            window.toast && toast("Товары в накладной не найдены", "err");
+            return;
+          }
+          window.toast && toast("Готово за " + ((Date.now() - _t0) / 1000).toFixed(1) + " сек");
+          openBonusInvoiceModal(items, isYerevanAddress(addr), doc);
+          return;
+        } catch (e) {
+          const msg = (e && e.message) || String(e || "");
+          const isQuota = /дневной лимит|quota|free.?tier/i.test(msg);
+          setScanBusy(false);
+          if (!isQuota && typeof askC === "function") {
+            const cmEl = g("cm");
+            if (cmEl) document.body.appendChild(cmEl);
+            const isBusySrv = /high demand|503|таймаут|timeout|нет связи|overloaded|unavailable/i.test(msg);
+            const qText = isBusySrv
+              ? "Сервер распознавания временно перегружен. Повторить отправку этого же фото?"
+              : ("Ошибка распознавания: " + msg + "\n\nПовторить отправку этого же фото?");
+            const okRetry = await askC(qText, "Повторить", "🔄");
+            if (okRetry && _ebLastOcrB64) {
+              b64 = _ebLastOcrB64;
+              continue;
+            }
+          } else {
+            window.toast && toast("Ошибка OCR: " + msg, "err");
+          }
+          _ebLastOcrB64 = "";
           return;
         }
-        window.toast && toast("Готово за " + ((Date.now() - _t0) / 1000).toFixed(1) + " сек");
-        openBonusInvoiceModal(items, isYerevanAddress(addr), doc);
-        return;
-      } catch (e) {
-        const msg = (e && e.message) || String(e || "");
-        const isQuota = /дневной лимит|quota|free.?tier/i.test(msg);
-        window._ocrScanning = false;
-        if (btn) btn.classList.remove("busy");
-        if (typeof busy === "function") busy(0);
-        if (!isQuota && typeof askC === "function") {
-          const cmEl = g("cm");
-          if (cmEl) document.body.appendChild(cmEl);
-          const isBusySrv = /high demand|503|таймаут|timeout|нет связи|overloaded|unavailable/i.test(msg);
-          const qText = isBusySrv
-            ? "Сервер распознавания временно перегружен. Повторить отправку этого же фото?"
-            : ("Ошибка распознавания: " + msg + "\n\nПовторить отправку этого же фото?");
-          const okRetry = await askC(qText, "Повторить", "🔄");
-          if (okRetry && _ebLastOcrB64) {
-            b64 = _ebLastOcrB64;
-            continue;
-          }
-        } else {
-          window.toast && toast("Ошибка OCR: " + msg, "err");
-        }
-        _ebLastOcrB64 = "";
-        return;
-      } finally {
-        window._ocrScanning = false;
-        if (btn) btn.classList.remove("busy");
-        if (typeof busy === "function") busy(0);
       }
+    } finally {
+      setScanBusy(false);
     }
   }
 
