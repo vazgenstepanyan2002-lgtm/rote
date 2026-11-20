@@ -230,7 +230,8 @@
   };
 
   async function compressImage(file){
-    const maxSide = 1600;
+    const maxSide = (file && file._isCropped) ? 1280 : 1536;
+    const q = (file && file._isCropped) ? 0.78 : 0.80;
     if (window.createImageBitmap) {
       try {
         const bmp0 = await createImageBitmap(file);
@@ -241,12 +242,11 @@
           else { w = Math.round(w * maxSide / h); h = maxSide; }
         }
         bmp0.close();
-        const bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
-        const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
-        const ctx = cv.getContext('2d');
-        ctx.drawImage(bmp, 0, 0);
+        const bmp = await createImageBitmap(file, w === w0 && h === h0 ? undefined : { resizeWidth: w, resizeHeight: h, resizeQuality: "high" });
+        const cv = document.createElement("canvas"); cv.width = bmp.width; cv.height = bmp.height;
+        cv.getContext("2d").drawImage(bmp, 0, 0);
         bmp.close();
-        const out = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
+        const out = cv.toDataURL("image/jpeg", q).split(",").pop();
         cv.width = cv.height = 0;
         return out;
       } catch (e) {}
@@ -258,78 +258,94 @@
         URL.revokeObjectURL(url);
         let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
         if (w > maxSide || h > maxSide) { if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; } else { w = Math.round(w * maxSide / h); h = maxSide; } }
-        const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
-        const ctx = cv.getContext('2d');
-        ctx.drawImage(img, 0, 0, w, h);
-        const out = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
+        const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+        cv.getContext("2d").drawImage(img, 0, 0, w, h);
+        const out = cv.toDataURL("image/jpeg", q).split(",").pop();
         cv.width = cv.height = 0;
         res(out);
       };
-      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Ошибка чтения фото')); };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("Ошибка чтения фото")); };
       img.src = url;
     });
   }
 
+  const warmGeminiHost = () => {
+    try {
+      const host = ["generativelanguage", "googleapis", "com"].join(".");
+      fetch("https" + "://" + host + "/", { mode: "no-cors", keepalive: true }).catch(() => {});
+    } catch (e) {}
+  };
+
   async function askGemini(b64){
-    try { localStorage.removeItem('OCR_FAST_MDL'); } catch (e) {}
-    const host = ['generativelanguage', 'googleapis', 'com'].join('.');
-    const prompt = 'Считай накладную EuroBaza на армянском/русском языке. Внимательно различай армянские буквы (например: Յանա, Նիցցա, Ալսու, Մոնա Լիզա, Էկո, Ռիո, Պրեստիժ, Ատլանտա, շիմո), не обрезай размеры и количество дверей (например 1.6, 0.9*2, 3 դուռ, 4 դուռ, կոմոդով, առանց կոմոդ) и не разбивай перенос строки одного товара на две позиции. Верни ТОЛЬКО JSON: {"doc":"номер документа из Բեռնափոխադրման թերթիկ № или Վաճառքի փաստաթուղթ № (только цифры и дефис)","addr":"адрес из Տեղափոխման հասցե","items":[{"name":"точное название товара из Ապրանքի անվանումը","qty":1}]}. Игнорируй услуги доставки (Տեղափոխություն, Տեղափոխուտյուն), сборки (Հավաքում, Сборка) и фурнитуру.';
-    const bodyStr = JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mime_type: 'image/jpeg', data: b64 } }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json' } });
-    const models = ['gemini-2.5-flash', 'gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-4-hydrogen', 'gemini-flash-latest', 'gemini-flash-lite-latest'];
-    const dead = {}, wait = ms => new Promise(r => setTimeout(r, ms));
-    let parsed = null, lastErr = '', overloadHit = false;
-    for (let pass = 0; pass < 3 && !parsed; pass++) {
-      if (pass > 0) {
-        if (!overloadHit) break;
-        window.toast && toast(pass === 1 ? 'Сервер Google перегружен, повторяю...' : 'Пробую ещё раз...');
-        await wait(pass === 1 ? 1600 : 2800);
+    const host = ["generativelanguage", "googleapis", "com"].join(".");
+    const prompt = 'Считай накладную EuroBaza (армянский/русский). Различай буквы точно (Յանա, Նիցցա, Ալսու, Մոնա Լիզա, Էկո, Ռիո, Պրեստիժ, Ատլանտա, շիմո). Верни ТОЛЬКО JSON: {"doc":"номер документа из Բեռնափոխադրման թերթիկ № или Վաճառքի փաստաթուղթ № (цифры и дефис)","addr":"адрес из Տեղափոխման հասցե","items":[{"name":"название товара из Ապրանքի անվանումը","qty":1}]}. Игнорируй доставку (Տեղափոխություն/Տեղափոխուտյուն), сборку (Հավաքում/Сборка) и фурнитуру.';
+    const baseModels = ["gemini-2.5-flash-lite", "gemini-flash-lite-latest", "gemini-2.5-flash", "gemini-flash-latest"];
+    let fastMdl = "";
+    try {
+      const rec = JSON.parse(localStorage.getItem("OCR_FAST_MDL_V2") || "null");
+      if (rec && rec.m && (Date.now() - rec.t) < 1200000 && baseModels.includes(rec.m)) fastMdl = rec.m;
+    } catch (e) {}
+    const models = fastMdl ? [fastMdl, ...baseModels.filter(m => m !== fastMdl)] : baseModels.slice();
+
+    const makeBody = (mdl, skipThink) => {
+      const gen = { temperature: 0, maxOutputTokens: 2048, responseMimeType: "application/json" };
+      if (!skipThink) {
+        if (/2\.5/.test(mdl)) gen.thinkingConfig = { thinkingBudget: 0 };
+        else gen.thinkingConfig = { thinkingLevel: "LOW" };
       }
+      return JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mime_type: "image/jpeg", data: b64 } }] }],
+        generationConfig: gen
+      });
+    };
+
+    let parsed = null, lastErr = "";
+    const passes = [{ to: 8500 }, { to: 13000 }];
+    for (let pIdx = 0; pIdx < passes.length && !parsed; pIdx++) {
+      if (pIdx > 0) await new Promise(r => setTimeout(r, 350));
       for (const mdl of models) {
-        if (dead[mdl]) continue;
-        try {
-          const res = await fetch('https' + '://' + host + '/v1beta/models/' + mdl + ':generateContent?key=' + encodeURIComponent(GKEY), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: AbortSignal.timeout(15000),
-            body: bodyStr
-          });
-          if (!res.ok) {
-            const errData = await res.json().catch(() => ({}));
-            const msg = (errData.error && errData.error.message) ? errData.error.message : ('HTTP ' + res.status);
-            if (!lastErr || (res.status !== 404 && res.status !== 400)) lastErr = msg;
-            if (res.status === 404 || res.status === 400) { dead[mdl] = true; continue; }
-            if (res.status === 503 || res.status === 429 || res.status >= 500 || /high demand|overload|temporarily|rate|quota/i.test(msg)) overloadHit = true;
-            continue;
+        for (let tOpt = 0; tOpt < 2; tOpt++) {
+          try {
+            const res = await fetch("https" + "://" + host + "/v1beta/models/" + mdl + ":generateContent?key=" + encodeURIComponent(GKEY), {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              signal: AbortSignal.timeout(passes[pIdx].to),
+              body: makeBody(mdl, tOpt === 1)
+            });
+            if (!res.ok) {
+              const errData = await res.json().catch(() => ({}));
+              const msg = (errData.error && errData.error.message) ? errData.error.message : ("HTTP " + res.status);
+              lastErr = msg;
+              if (res.status === 400 && tOpt === 0 && /think/i.test(msg)) continue;
+              break;
+            }
+            const j = await res.json();
+            const cand = Array.isArray(j.candidates) ? j.candidates[0] : null;
+            const parts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : [];
+            const ans = parts.find(p => p && !p.thought && typeof p.text === "string") || parts[parts.length - 1];
+            const rawTxt = ((ans && ans.text) || "").replace(/```json|```/gi, "").trim();
+            if (!rawTxt) { lastErr = "Пустой ответ модели"; break; }
+            parsed = JSON.parse(rawTxt);
+            try { localStorage.setItem("OCR_FAST_MDL_V2", JSON.stringify({ m: mdl, t: Date.now() })); } catch (e) {}
+            break;
+          } catch (e) {
+            lastErr = (e && e.name === "TimeoutError") ? "Таймаут сети" : ((e && e.message) || "Нет связи");
+            break;
           }
-          const j = await res.json();
-          const cand = Array.isArray(j && j.candidates) ? j.candidates[0] : null;
-          const parts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : [];
-          const ans = parts.find(p => p && !p.thought && typeof p.text === 'string') || parts[parts.length - 1];
-          const txt = ((ans && ans.text) || '').replace(/\x60{3}json|\x60{3}/gi, '').trim();
-          if (!txt) { if (!lastErr) lastErr = 'Пустой ответ модели'; continue; }
-          parsed = JSON.parse(txt);
-          break;
-        } catch (e) {
-          overloadHit = true;
-          lastErr = (e && e.name === 'TimeoutError') ? 'Таймаут сети' : ((e && e.message) || 'Нет связи');
         }
+        if (parsed) break;
       }
     }
-    if (!parsed) {
-      const isBusy = overloadHit || /high demand|overload|temporarily|rate|quota|503|429/i.test(lastErr);
-      const err = new Error(isBusy ? 'Серверы Google сейчас перегружены (временный пик нагрузки)' : (lastErr || 'Сервер распознавания не ответил'));
-      err.retryable = isBusy;
-      throw err;
-    }
+    if (!parsed) throw new Error(lastErr || "Сервер распознавания не ответил");
     const items = [];
     (Array.isArray(parsed.items) ? parsed.items : []).forEach(x => {
-      const name = String((x && x.name) || '').trim(), qty = Math.max(1, Math.round(+x.qty || 1));
+      const name = String((x && x.name) || "").trim(), qty = Math.max(1, Math.round(+x.qty || 1));
       if (!name) return;
       const cls = classifyProduct(name);
-      if (!cls.ignore) items.push({ name, qty, code: cls.code || '' });
+      if (!cls.ignore) items.push({ name, qty, code: cls.code || "" });
     });
-    const doc = String((parsed && parsed.doc) || '').replace(/^[^0-9]+/, '').trim();
-    return { doc, addr: String((parsed && parsed.addr) || '').trim(), items };
+    const doc = String((parsed && parsed.doc) || "").replace(/^[^0-9]+/, "").trim();
+    return { doc, addr: String((parsed && parsed.addr) || "").trim(), items };
   }
   const saveOcrDraft = (rows, isCity, docNum) => {
     try {
@@ -739,7 +755,7 @@
     const cv = document.createElement("canvas");
     cv.width = outW; cv.height = outH;
     cv.getContext("2d").drawImage(src, sx, sy, sw, sh, 0, 0, outW, outH);
-    return new Promise(res => cv.toBlob(b => { cv.width = cv.height = 0; res(b); }, "image/jpeg", 0.92));
+    return new Promise(res => cv.toBlob(b => { cv.width = cv.height = 0; if (b) b._isCropped = true; res(b); }, "image/jpeg", 0.9));
   }
 
   async function openLiveCamera(fallbackInput){
@@ -1020,6 +1036,7 @@
   }
 
   window.openBonusScanner = () => {
+    warmGeminiHost();
     const { cam, gal } = ensureOcrInputs();
     let m = g('ocrSrcMdl'); if (m) m.remove();
     m = document.createElement('div'); m.id = 'ocrSrcMdl'; m.className = 'cm open';
