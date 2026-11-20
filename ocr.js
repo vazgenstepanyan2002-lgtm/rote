@@ -55,6 +55,12 @@
         try { localStorage.setItem('BON_OCR_MAP', JSON.stringify(CLOUD_MAP)); } catch (e) {}
       }
     }, () => {});
+    const myUid = (() => { try { return localStorage.getItem('ADM_UID') || ''; } catch (e) { return ''; } })();
+    if (myUid) {
+      firebase.database().ref('labels/' + myUid).on('value', s => {
+        try { localStorage.setItem('USER_LABEL', String(s.val() || '')); } catch (e) {}
+      }, () => {});
+    }
   }, 800);
 
   function saveCloudModel(rawName, code, isAdminRole){
@@ -66,10 +72,10 @@
     const db = firebase.database();
     if (isAdminRole) {
       db.ref('config/ocrMap/' + fk).set(code).catch(() => {});
-      db.ref('config/ocrPending/' + fk).remove().catch(() => {});
     } else {
+      const uid = (() => { try { return localStorage.getItem('ADM_UID') || ''; } catch (e) { return ''; } })();
       const who = (() => { try { return localStorage.getItem('USER_NAME') || 'Водитель'; } catch (e) { return 'Водитель'; } })();
-      db.ref('config/ocrPending/' + fk).set({ raw: String(rawName || '').trim(), code, by: who, t: Date.now() }).catch(() => {});
+      if (uid) db.ref('users/' + uid + '/ocrPending/' + fk).set({ raw: String(rawName || '').trim(), code, by: who, uid, t: Date.now() }).catch(() => {});
     }
   }
 
@@ -264,7 +270,8 @@
         let s = 0, q = 0;
         valid.forEach(r => { const info = BON_BY_CODE[r.code], k = info.one ? r.code : (isCity ? r.code : r.code + '_2'); patch[k] = (+cur[k] || 0) + r.qty; s += (info.one ? info.p1 : (isCity ? info.p1 : info.p2)) * r.qty; q += r.qty; });
         await qRef.update(patch); await db.ref('cars/' + code + '/t').set(Date.now());
-        const isAdmRole = code === 'ADMIN';
+        const lbl = (() => { try { return (localStorage.getItem('USER_LABEL') || '').trim().toLowerCase(); } catch (e) { return ''; } })();
+        const isAdmRole = code === 'ADMIN' || lbl === 'админ' || lbl === 'admin';
         let sentReq = false;
         valid.forEach(r => {
           if (r.edited && r.code) {
