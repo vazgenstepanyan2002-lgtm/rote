@@ -165,7 +165,7 @@
 
   async function askGemini(b64){
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
-    const prompt = 'Считай накладную EuroBaza. Верни ТОЛЬКО JSON: {"addr":"адрес из Տեղափոխման հասցե","items":[{"name":"точное название товара из Ապրանքի անվանումը","qty":1}]}. Игнорируй услуги доставки (Տեղափոխություն, Տեղափոխուտյուն), сборки (Հավաքում, Сборка) и фурнитуру.';
+    const prompt = 'Считай накладную EuroBaza. Верни ТОЛЬКО JSON: {"doc":"номер документа из Վաճառքի փաստաթուղթ № или № сверху (только цифры и дефис)","addr":"адрес из Տեղափոխման հասցե","items":[{"name":"точное название товара из Ապրանքի անվանումը","qty":1}]}. Игнорируй услуги доставки (Տեղափոխություն, Տեղափոխուտյուն), сборки (Հավաքում, Сборка) и фурнитуру.';
     const bodyStr = JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mime_type: 'image/jpeg', data: b64 } }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } } });
     const runModel = async mdl => {
       const res = await fetch('https' + '://' + host + '/v1beta/models/' + mdl + ':generateContent?key=' + encodeURIComponent(GKEY), { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(18000), body: bodyStr });
@@ -183,22 +183,25 @@
       const cls = classifyProduct(name);
       if (!cls.ignore) items.push({ name, qty, code: cls.code || '' });
     });
-    return { addr: String((parsed && parsed.addr) || '').trim(), items };
+    const doc = String((parsed && parsed.doc) || '').replace(/^[^0-9]+/, '').trim();
+    return { doc, addr: String((parsed && parsed.addr) || '').trim(), items };
   }
 
-  const saveOcrDraft = (rows, isCity) => {
+  const saveOcrDraft = (rows, isCity, docNum) => {
     try {
       if (!rows || !rows.length) sessionStorage.removeItem("OCR_BON_DRAFT");
-      else sessionStorage.setItem("OCR_BON_DRAFT", JSON.stringify({ rows, isCity: !!isCity }));
+      else sessionStorage.setItem("OCR_BON_DRAFT", JSON.stringify({ rows, isCity: !!isCity, docNum: docNum || '' }));
     } catch (e) {}
   };
 
-  function openBonusInvoiceModal(items, defaultIsCity){
+  function openBonusInvoiceModal(items, defaultIsCity, docNum){
+    const cleanDoc = String(docNum || '').trim();
+    const docKey = cleanDoc.replace(/[^0-9A-Za-z_-]+/g, '_').replace(/^_+|_+$/g, '');
     if (!Array.isArray(items) || !items.length) return;
     let m = g('ocrBonMdl'); if (m) m.remove();
     let isCity = !!defaultIsCity;
     const rows = items.map(x => ({ name: x.name, qty: x.qty, code: x.code || '', origCode: x.code || '' }));
-    saveOcrDraft(rows, isCity);
+    saveOcrDraft(rows, isCity, cleanDoc);
     const CAT_ICO = { 'Другое': '📦', 'Диваны': '🛋️', 'Ресепшен': '🗄️', 'Кухни': '🍳', 'Гостиная': '📺', 'Спальни': '🛏️', 'Шкафы': '🚪' };
     const catsList = Array.from(new Set(BON_ITEMS.map(x => x.cat)));
     const openCatPicker = rowIdx => {
@@ -235,7 +238,8 @@
     g('obX').onclick = close; m.onclick = e => { if (e.target === m) close(); };
 
     const carCode = (() => { try { return (localStorage.getItem('USER_CAR') || '').trim().toUpperCase(); } catch (e) { return ''; } })();
-    if (g('obSub')) g('obSub').innerHTML = carCode && carCode !== 'ADMIN' ? 'Экипаж <b style="color:#6ee7b7">' + esc(carCode) + '</b> · ' + (isCity ? 'Ереван → Город' : 'Область → Район') : (carCode === 'ADMIN' ? 'Режим Админ' : '<span style="color:#fbbf24">⚠️ Экипаж не назначен</span>');
+    const docTag = cleanDoc ? ' · № ' + esc(cleanDoc) : '';
+    if (g('obSub')) g('obSub').innerHTML = carCode && carCode !== 'ADMIN' ? 'Экипаж <b style="color:#6ee7b7">' + esc(carCode) + '</b> · ' + (isCity ? 'Ереван → Город' : 'Область → Район') + docTag : (carCode === 'ADMIN' ? 'Режим Админ' + docTag : '<span style="color:#fbbf24">⚠️ Экипаж не назначен</span>');
 
     const renderRows = () => {
       const box = g('obList');
@@ -270,10 +274,24 @@
       if (!code || !window.firebase || !firebase.apps.length) { window.toast && toast('Нет связи или не назначен экипаж', 'err'); return; }
       g('obSaveBtn').disabled = true;
       try {
-        const db = firebase.database(), qRef = db.ref('cars/' + code + '/qty'), cur = (await qRef.once('value')).val() || {}, patch = {};
+        const db = firebase.database();
+        if (docKey && code !== 'ADMIN') {
+          const dupSnap = await db.ref('cars/' + code + '/docs/' + docKey).once('value');
+          const dup = dupSnap.val();
+          if (dup && typeof askC === 'function') {
+            const byWho = dup.by || 'коллега';
+            const ok = await askC('Из вашего экипажа «' + byWho + '» уже добавил эти данные' + (cleanDoc ? ' (№ ' + cleanDoc + ')' : '') + ' в бонусы.\n\nПродолжить или отменить?', 'Продолжить', '⚠️');
+            if (!ok) { g('obSaveBtn').disabled = false; return; }
+          }
+        }
+        const qRef = db.ref('cars/' + code + '/qty'), cur = (await qRef.once('value')).val() || {}, patch = {};
         let s = 0, q = 0;
         valid.forEach(r => { const info = BON_BY_CODE[r.code], k = info.one ? r.code : (isCity ? r.code : r.code + '_2'); patch[k] = (+cur[k] || 0) + r.qty; s += (info.one ? info.p1 : (isCity ? info.p1 : info.p2)) * r.qty; q += r.qty; });
         await qRef.update(patch); await db.ref('cars/' + code + '/t').set(Date.now());
+        if (docKey && code !== 'ADMIN') {
+          const meName = (() => { try { return localStorage.getItem('USER_NAME') || 'Водитель'; } catch (e) { return 'Водитель'; } })();
+          await db.ref('cars/' + code + '/docs/' + docKey).set({ doc: cleanDoc, by: meName, t: Date.now() }).catch(() => {});
+        }
         const isAdmRole = code === 'ADMIN';
         let sentReq = false;
         valid.forEach(r => {
@@ -319,9 +337,9 @@
     window.toast && toast('Распознаю накладную...');
     try {
       const b64 = await compressImage(file);
-      const { addr, items } = await askGemini(b64);
+      const { doc, addr, items } = await askGemini(b64);
       if (!items.length) { window.toast && toast('Товары в накладной не найдены', 'err'); return; }
-      openBonusInvoiceModal(items, isYerevanAddress(addr));
+      openBonusInvoiceModal(items, isYerevanAddress(addr), doc);
     } catch (e) { window.toast && toast('Ошибка OCR: ' + ((e && e.message) || e), 'err'); }
     finally { window._ocrScanning = false; if (btn) btn.classList.remove('busy'); if (typeof busy === 'function') busy(0); }
   }
@@ -347,7 +365,7 @@
       const d = JSON.parse(raw);
       if (d && Array.isArray(d.rows) && d.rows.length) {
         if (window.openBon && (!g("bnMdl") || !g("bnMdl").classList.contains("open"))) window.openBon(true);
-        openBonusInvoiceModal(d.rows, !!d.isCity);
+        openBonusInvoiceModal(d.rows, !!d.isCity, d.docNum || '');
       }
     } catch (e) {}
   }, 350);

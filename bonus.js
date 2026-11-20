@@ -255,7 +255,7 @@
   if(!CAR_CODE){tst('Экипаж не назначен администратором','err');return}
   if(!await askC(CAR_CODE==='ADMIN'?'Обнулить все количества?':'Обнулить все количества экипажа '+CAR_CODE+'?','Обнулить','🔄'))return;
   B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));
-  firebase.database().ref('cars/'+CAR_CODE+'/qty').remove().catch(()=>{});
+  firebase.database().ref('cars/'+CAR_CODE+'/qty').remove().catch(()=>{});firebase.database().ref('cars/'+CAR_CODE+'/docs').remove().catch(()=>{});
   render();tst('Количества обнулены');
  }
 
@@ -435,7 +435,7 @@
   h[id]={m:mk,t:now.getTime(),sum:sumOf(rows),qty:qtyOf(rows),rows:rows};
   saveHist(h);
   B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));
-  if(CAR_CODE)firebase.database().ref('cars/'+CAR_CODE+'/qty').remove().catch(()=>{});render();histView();
+  if(CAR_CODE){firebase.database().ref('cars/'+CAR_CODE+'/qty').remove().catch(()=>{});firebase.database().ref('cars/'+CAR_CODE+'/docs').remove().catch(()=>{});}render();histView();
   tst('Итоги сохранены');
  }
  function openSum(){
