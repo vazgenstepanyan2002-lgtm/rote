@@ -146,7 +146,7 @@
   };
 
   async function compressImage(file){
-    const maxSide = 2048;
+    const maxSide = 1600;
     if (window.createImageBitmap) {
       try {
         const bmp0 = await createImageBitmap(file);
@@ -161,7 +161,7 @@
         const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
         cv.getContext('2d').drawImage(bmp, 0, 0);
         bmp.close();
-        const out = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
+        const out = cv.toDataURL('image/jpeg', 0.82).split(',').pop();
         cv.width = cv.height = 0;
         return out;
       } catch (e) {}
@@ -175,7 +175,7 @@
         if (w > maxSide || h > maxSide) { if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; } else { w = Math.round(w * maxSide / h); h = maxSide; } }
         const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
         cv.getContext('2d').drawImage(img, 0, 0, w, h);
-        const out = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
+        const out = cv.toDataURL('image/jpeg', 0.82).split(',').pop();
         cv.width = cv.height = 0;
         res(out);
       };
@@ -188,14 +188,31 @@
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
     const prompt = 'Считай накладную EuroBaza. Верни ТОЛЬКО JSON: {"doc":"номер документа из Վաճառքի փաստաթուղթ № или № сверху (только цифры и дефис)","addr":"адрес из Տեղափոխման հասցե","items":[{"name":"точное название товара из Ապրանքի անվանումը","qty":1}]}. Игнорируй услуги доставки (Տեղափոխություն, Տեղափոխուտյուն), сборки (Հավաքում, Сборка) и фурнитуру.';
     const bodyStr = JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mime_type: 'image/jpeg', data: b64 } }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } } });
-    const runModel = async mdl => {
-      const res = await fetch('https' + '://' + host + '/v1beta/models/' + mdl + ':generateContent?key=' + encodeURIComponent(GKEY), { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(18000), body: bodyStr });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      return res.json();
-    };
-    const j = await Promise.any(['gemini-flash-lite-latest', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'].map(runModel));
-    const cand = j && Array.isArray(j.candidates) ? j.candidates.at(0) : null; const parts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : [];
-    const ans = parts.find(p => p && !p.thought && typeof p.text === 'string') || parts.at(-1);
+    const models = ['gemini-flash-lite-latest', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'];
+    let j = null, lastErr = '';
+    for (const mdl of models) {
+      try {
+        const res = await fetch('https' + '://' + host + '/v1beta/models/' + mdl + ':generateContent?key=' + encodeURIComponent(GKEY), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(25000),
+          body: bodyStr
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          lastErr = (errData.error && errData.error.message) ? errData.error.message : ('HTTP ' + res.status);
+          continue;
+        }
+        j = await res.json();
+        if (j && Array.isArray(j.candidates) && j.candidates.length) break;
+      } catch (e) {
+        lastErr = (e && e.name === 'TimeoutError') ? 'Таймаут сети (медленный интернет)' : ((e && e.message) || 'Нет связи');
+      }
+    }
+    if (!j) throw new Error(lastErr || 'Сервер распознавания не ответил');
+    const cand = Array.isArray(j.candidates) ? j.candidates[0] : null;
+    const parts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : [];
+    const ans = parts.find(p => p && !p.thought && typeof p.text === 'string') || parts[parts.length - 1];
     const parsed = JSON.parse(((ans && ans.text) || '{}').replace(/```json|```/gi, '').trim());
     const items = [];
     (Array.isArray(parsed.items) ? parsed.items : []).forEach(x => {
@@ -380,8 +397,8 @@
       stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: 'environment' },
-          width: { ideal: 2560, min: 1280 },
-          height: { ideal: 1920, min: 720 },
+          width: { ideal: 4032, min: 1920 },
+          height: { ideal: 3024, min: 1080 },
           focusMode: { ideal: 'continuous' }
         },
         audio: false
@@ -444,7 +461,9 @@
       if (window.ImageCapture && track) {
         try {
           const ic = new ImageCapture(track);
-          const photoBlob = await ic.takePhoto();
+          let photoOpts = {};
+          try { const pc = await ic.getPhotoCapabilities(); if (pc && pc.imageWidth && pc.imageWidth.max) photoOpts = { imageWidth: pc.imageWidth.max, imageHeight: pc.imageHeight.max }; } catch (e) {}
+          const photoBlob = await ic.takePhoto(photoOpts);
           stopCam();
           if (photoBlob && photoBlob.size > 10000) {
             scanBonusFile(photoBlob);
