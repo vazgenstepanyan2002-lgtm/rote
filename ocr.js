@@ -240,20 +240,48 @@
     renderRows();
   }
 
+  const ensureOcrInputs = () => {
+    const mk = (id, cap) => {
+      let el = g(id);
+      if (!el && document.body) {
+        el = document.createElement('input');
+        el.type = 'file';
+        el.id = id;
+        el.accept = 'image/*';
+        el.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0';
+        if (cap) el.setAttribute('capture', 'environment');
+        el.addEventListener('change', () => {
+          const f = el.files && el.files[0];
+          el.value = '';
+          if (f) scanBonusFile(f);
+        });
+        document.body.appendChild(el);
+      }
+      return el;
+    };
+    return { cam: mk('bnCamFile', 1), gal: mk('bnGalFile', 0) };
+  };
+
   async function scanBonusFile(file){
+    if (!file) return;
+    window._ocrScanning = true;
+    if (window.openBon && (!g('bnMdl') || !g('bnMdl').classList.contains('open'))) window.openBon(true);
     const btn = g('bnCamBtn'); if (btn) btn.classList.add('busy'); if (typeof busy === 'function') busy(1);
     window.toast && toast('Распознаю накладную...');
     try {
-      const { addr, items } = await askGemini(await compressImage(file));
+      const b64 = await compressImage(file);
+      const { addr, items } = await askGemini(b64);
       if (!items.length) { window.toast && toast('Товары в накладной не найдены', 'err'); return; }
       openBonusInvoiceModal(items, isYerevanAddress(addr));
     } catch (e) { window.toast && toast('Ошибка OCR: ' + ((e && e.message) || e), 'err'); }
-    finally { if (btn) btn.classList.remove('busy'); if (typeof busy === 'function') busy(0); }
+    finally { window._ocrScanning = false; if (btn) btn.classList.remove('busy'); if (typeof busy === 'function') busy(0); }
   }
 
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ensureOcrInputs);
+  else ensureOcrInputs();
+
   window.openBonusScanner = () => {
-    const mk = (id, cap) => { let el = g(id); if (!el) { el = document.createElement('input'); el.type = 'file'; el.id = id; el.accept = 'image/*'; el.hidden = true; if (cap) el.setAttribute('capture', 'environment'); el.onchange = () => { const f = el.files && el.files[0]; el.value = ''; if (f) scanBonusFile(f); }; document.body.appendChild(el); } return el; };
-    const cam = mk('bnCamFile', 1), gal = mk('bnGalFile', 0);
+    const { cam, gal } = ensureOcrInputs();
     let m = g('ocrSrcMdl'); if (m) m.remove();
     m = document.createElement('div'); m.id = 'ocrSrcMdl'; m.className = 'cm open';
     m.innerHTML = '<div class="cm-b ocr-src-box"><button type="button" class="pm-x" id="ocrPickX">✕</button><div class="ocr-src-top"><div class="ocr-src-ring"><div class="ocr-src-in">📷</div></div><div class="ocr-src-pill"><i></i>Smart OCR</div><div class="ocr-src-t">Сканировать накладную</div><div class="ocr-src-s">Автоподсчёт бонусов по фото документа</div></div><div class="pm-acts"><button type="button" class="pm-btn pm-chat" id="ocrPickCam"><span class="pm-btn-l"><span class="pm-ic">📸</span><span class="pm-tx"><b>Открыть камеру</b><small>Сфотографировать накладную</small></span></span><span class="pm-arr">›</span></button><button type="button" class="pm-btn pm-dm" id="ocrPickGal"><span class="pm-btn-l"><span class="pm-ic">🖼️</span><span class="pm-tx"><b>Выбрать из галереи</b><small>Загрузить готовый снимок</small></span></span><span class="pm-arr">›</span></button></div><button type="button" class="pm-cls" id="ocrPickNo">Отмена</button></div>';

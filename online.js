@@ -171,6 +171,7 @@
   // Принудительное обновление: применяется, когда в приложении ничего не заполняется
   let pendingFU = 0;
   function busy(){
+    if (window._ocrScanning) return true;
     const g = id => document.getElementById(id);
     const open = id => g(id) && g(id).classList.contains('open');
     return !!((g('a') && g('a').value.trim()) || (g('pn') && g('pn').value.trim()) ||
