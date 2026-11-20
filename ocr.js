@@ -46,23 +46,31 @@
   const fbKey = k => normModel(k).replace(/[.#$\[\]\/]+/g, '_').slice(0, 120);
 
   let CLOUD_MAP = (() => { try { return JSON.parse(localStorage.getItem('BON_OCR_MAP') || '{}') || {}; } catch (e) { return {}; } })();
+  let LOCAL_MAP = (() => { try { return JSON.parse(localStorage.getItem('BON_OCR_LOCAL') || '{}') || {}; } catch (e) { return {}; } })();
   const _cmWait = setInterval(() => {
     if (!window.firebase || !firebase.apps || !firebase.apps.length) return;
     clearInterval(_cmWait);
     firebase.database().ref('config/ocrMap').on('value', s => {
-      if (s.val() && typeof s.val() === 'object') {
-        CLOUD_MAP = Object.assign({}, CLOUD_MAP, s.val());
-        try { localStorage.setItem('BON_OCR_MAP', JSON.stringify(CLOUD_MAP)); } catch (e) {}
-      }
+      const val = (s.val() && typeof s.val() === 'object') ? s.val() : {};
+      CLOUD_MAP = val;
+      Object.keys(val).forEach(k => { if (LOCAL_MAP[k]) delete LOCAL_MAP[k]; });
+      try {
+        localStorage.setItem('BON_OCR_MAP', JSON.stringify(CLOUD_MAP));
+        localStorage.setItem('BON_OCR_LOCAL', JSON.stringify(LOCAL_MAP));
+      } catch (e) {}
     }, () => {});
-
   }, 800);
 
   function saveCloudModel(rawName, code, isAdminRole){
     const fk = fbKey(rawName);
     if (!fk || !code) return;
-    CLOUD_MAP[fk] = code;
-    try { localStorage.setItem('BON_OCR_MAP', JSON.stringify(CLOUD_MAP)); } catch (e) {}
+    if (isAdminRole) {
+      CLOUD_MAP[fk] = code;
+      try { localStorage.setItem('BON_OCR_MAP', JSON.stringify(CLOUD_MAP)); } catch (e) {}
+    } else {
+      LOCAL_MAP[fk] = code;
+      try { localStorage.setItem('BON_OCR_LOCAL', JSON.stringify(LOCAL_MAP)); } catch (e) {}
+    }
     if (!window.firebase || !firebase.apps || !firebase.apps.length) return;
     const db = firebase.database();
     if (isAdminRole) {
@@ -124,7 +132,8 @@
     const norm = normModel(clean);
     if (RULES[0].rx.test(norm)) return { ignore: true };
     const fk = fbKey(clean);
-    if (fk && CLOUD_MAP[fk] && BON_BY_CODE[CLOUD_MAP[fk]]) return { ignore: false, code: CLOUD_MAP[fk] };
+    const mapped = fk && (CLOUD_MAP[fk] || LOCAL_MAP[fk]);
+    if (mapped && BON_BY_CODE[mapped]) return { ignore: false, code: mapped };
     for (let i = 1; i < RULES.length; i++) if (RULES[i].rx.test(norm)) return { ignore: false, code: RULES[i].code };
     return { ignore: false, code: '' };
   }
