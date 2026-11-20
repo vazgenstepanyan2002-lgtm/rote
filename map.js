@@ -36,6 +36,7 @@
 #mapBox .maplibregl-ctrl-attrib a{color:#7dd3fc!important}
 #mapBox .maplibregl-popup-content{background:#111827!important;color:#f8fafc!important;border:1px solid rgba(255,255,255,.16);border-radius:14px!important;padding:10px 26px 10px 12px!important;font-size:13px;line-height:1.45;box-shadow:0 10px 26px rgba(0,0,0,.65)}
 #mapBox .maplibregl-popup-tip{border-top-color:#111827!important;border-bottom-color:#111827!important}
+.mp-acts{display:flex;gap:6px;margin-top:8px}.mp-nav,.mp-done{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:30px;padding:0 10px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;cursor:pointer}.mp-nav{background:rgba(250,204,21,.2);border:1px solid rgba(250,204,21,.5);color:#fde047}.mp-done{background:rgba(16,185,129,.22);border:1px solid rgba(52,211,153,.5);color:#6ee7b7}
 #mapBox .maplibregl-popup-close-button{width:24px!important;height:24px!important;margin:0!important;padding:0!important;border:none!important;background:transparent!important;box-shadow:none!important;color:#94a3b8!important;font-size:16px!important;right:4px!important;top:4px!important}
 `;document.head.appendChild(t)})();
 (function(){
@@ -93,7 +94,7 @@
   return el;
  }
  async function openMap(){
-  const cur=(window.CUR||[]).filter(x=>!x.done);
+  const cur=(window.CUR||[]).map((x,idx)=>Object.assign({},x,{_origIdx:idx})).filter(x=>!x.done);
   if(!cur||!cur.length){window.toast&&toast('Сначала постройте маршрут','err');return}
   let sv={};try{sv=JSON.parse(localStorage.getItem('R_SAVE')||'{}')||{}}catch(e){}
   const start=sv.startPt&&isFinite(sv.startPt.lat)&&isFinite(sv.startPt.lon)?sv.startPt:null;
@@ -126,6 +127,7 @@
    if(eta)h+='<br>'+esc(eta);
    if(it.sub)h+='<br>'+esc(it.sub);
    if(inex)h+='<br><span style="color:#fbbf24">⚠️ Неточный адрес: Яндекс нашёл только район или город</span>';
+   h+='<div class="mp-acts"><a class="mp-nav" href="yandexnavi://build_route_on_map?lat_to='+it.lat+'&lon_to='+it.lon+'">🧭 Поехать</a>'+(base?'':'<button type="button" class="mp-done" data-oidx="'+it._origIdx+'">✓ Выполнено</button>')+'</div>';
    markers.push({lngLat:[it.lon,it.lat],cls:base?'base':inex?'bad':'ok',lbl:base?'🏁':String(k+1),html:h});
   });
 
@@ -164,6 +166,7 @@
   if(ll.length>1)map.fitBounds(bounds,{padding:46,maxZoom:16,duration:0});
   else if(ll.length===1)map.jumpTo({center:ll[0],zoom:15});
 
+  box.onclick=ev=>{const db=ev.target.closest&&ev.target.closest(".mp-done");if(!db)return;const oi=+db.dataset.oidx;if(typeof window.toggleDone==="function")window.toggleDone(oi);const nx=(window.CUR||[]).map((x,idx)=>Object.assign({},x,{_origIdx:idx})).filter(x=>!x.done);if(!nx.length){closeMap();return}let sv2={};try{sv2=JSON.parse(localStorage.getItem("R_SAVE")||"{}")||{}}catch(e){}draw(nx,start,sv2,++_tok)};
   markers.forEach(mk=>{
    const pop=new maplibregl.Popup({offset:18,closeOnClick:true}).setHTML(mk.html);
    new maplibregl.Marker({element:mkEl(mk.cls,mk.lbl),anchor:'center'}).setLngLat(mk.lngLat).setPopup(pop).addTo(map);

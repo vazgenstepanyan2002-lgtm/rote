@@ -51,21 +51,12 @@ function updHint(){
 }
 (function(){const d=window.draw;if(typeof d==='function'){window.draw=function(){d.apply(this,arguments);updHint()}}updHint()})();
 
-function showVer(){
- const e=document.getElementById('ver');if(!e)return;
- const f=v=>/^\d{14}$/.test(v||'')?'версия от '+v.slice(6,8)+'.'+v.slice(4,6)+'.'+v.slice(0,4)+' '+v.slice(8,10)+':'+v.slice(10,12):'версия: нет данных';
+window.getVerText=function(cb){
+ const f=v=>/^\d{14}$/.test(v||'')?'Версия от '+v.slice(6,8)+'.'+v.slice(4,6)+'.'+v.slice(0,4)+' '+v.slice(8,10)+':'+v.slice(10,12):'Версия: нет данных';
  let v=null;try{v=localStorage.getItem('APP_V')}catch(x){}
- if(v){e.textContent=f(v);return}
- fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(j=>{e.textContent=f(j.v)}).catch(()=>{e.textContent=f('')});
-}
-(function(){
- const f=document.createElement('div');f.id='ft';
- f.innerHTML='<span id="ver"></span>';
- const o=document.getElementById('o');if(o)o.after(f);else document.body.appendChild(f);
- showVer();
- document.addEventListener('visibilitychange',()=>{if(!document.hidden)showVer()});
-})();
-
+ if(v)return cb(f(v));
+ fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(j=>cb(f(j.v))).catch(()=>cb(f('')));
+};
 function gmapsUrl(h){
  const q=new URLSearchParams(h.split('?')[1]||''),via=[];
  for(let i=0;q.has('lat_via_'+i);i++)via.push(q.get('lat_via_'+i)+','+q.get('lon_via_'+i));
@@ -134,15 +125,14 @@ document.addEventListener('click',e=>{
  window.addEventListener('offline',()=>{window.toast&&toast('Нет интернета. Работаю в офлайн-режиме','err')});
 })();
 
-// ADMIN-BTN: кнопка входа в административную панель (по центру снизу)
+// CHAT-DOCK-BTN
 (function(){
- if(document.getElementById('admBtn'))return;
- const b=document.createElement('button');
- b.id='admBtn';b.className='fab fab-c';b.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg><span>Админ</span>';
- b.onclick=function(){location.href='admin.html'};
+ if(document.getElementById('chatDockBtn'))return;
+ const b=document.createElement('button');b.id='chatDockBtn';b.className='fab fab-c';
+ b.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>Чат</span><span id="dockChatBdg" class="dock-bdg" hidden>0</span>';
+ b.onclick=()=>{if(window.openChat)window.openChat()};
  document.body.appendChild(b);
 })();
-
 // DOCK-AUTO-HIDE: автоматическое скрытие нижнего док-бара при открытии Бонусов, Точек или модалок
 (function(){
   function syncDock(){

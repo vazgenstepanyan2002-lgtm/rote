@@ -25,7 +25,16 @@ function save(){localStorage.setItem('P',JSON.stringify(P));draw()}
 function syncGoGrp(){const g=$('goGrp');if(g)g.classList.toggle('show',P.length>0||!!($('o')&&$('o').innerHTML.trim()))}
 function clearDone(){P=P.filter(p=>!p.done);save();window.toast&&toast('Выполненные адреса убраны')}
 function toggleP(i){if(!P[i])return;P[i].done=!P[i].done;const p=P[i];if(window.CUR){let ch=false;window.CUR.forEach(it=>{if(it.name===p.name||Math.hypot((it.lat-p.lat)*111000,(it.lon-p.lon)*85000)<35){it.done=!!p.done;ch=true}});if(ch){try{const sv=JSON.parse(localStorage.getItem('R_SAVE')||'{}')||{};sv.curOrder=window.CUR;localStorage.setItem('R_SAVE',JSON.stringify(sv));renderOut(window.CUR,sv.startPt,sv.totT,sv.totD,sv.approx)}catch(e){}}}save()}
-function draw(){if($('cnt'))$('cnt').textContent=P.filter(p=>!p.done).length;syncGoGrp();$('l').innerHTML=P.map((p,i)=>{const kz=inKentron(p.lat,p.lon)?' <span style="color:#fca5a5;font-size:12px;font-weight:700">⛔ Покр Кентрон</span>':'';return`<li class="${p.pin?'pin':''}${p.done?' done':''}"><span class="done-btn" onclick="toggleP(${i})" title="Выполнено">✓</span><span class="pt-txt" style="flex:1">${esc(p.name)}${kz}</span><div class="cbtns"><a class="st ${p.pin?'on':''}" href="#" onclick="pin(${i});return false">${p.pin?'⭐':'☆'}</a><a class="x" href="#" onclick="del(${i});return false">✕</a></div></li>`}).join('');const dn=P.filter(p=>p.done).length;let cb=$('clrDoneBtn');if(dn){if(!cb){cb=document.createElement('button');cb.id='clrDoneBtn';cb.type='button';cb.onclick=clearDone;$('l').after(cb)}cb.textContent='🧹 Убрать выполненные ('+dn+')'}else if(cb)cb.remove()}
+function draw(){
+ const actCnt=P.filter(p=>!p.done).length;if($('cnt'))$('cnt').textContent=actCnt;syncGoGrp();
+ const hasRoute=!!($('o')&&$('o').innerHTML.trim());if(!hasRoute||!P.length)window._lCol=false;
+ let lt=$('lTog');
+ if(P.length&&hasRoute){if(!lt){lt=document.createElement('button');lt.id='lTog';lt.type='button';lt.className='l-tog';lt.onclick=()=>{window._lCol=!window._lCol;draw()};$('l').before(lt)}lt.innerHTML='<span>📍 Адреса в списке ('+P.length+')</span><span>'+(window._lCol?'▸ Показать':'▾ Скрыть')+'</span>'}else if(lt)lt.remove();
+ $('l').classList.toggle('col',!!(window._lCol&&hasRoute));
+ $('l').innerHTML=P.map((p,i)=>{const kz=inKentron(p.lat,p.lon)?' <span style="color:#fca5a5;font-size:12px;font-weight:700">⛔ Покр Кентрон</span>':'';return`<li class="${p.pin?'pin':''}${p.done?' done':''}"><span class="done-btn" onclick="toggleP(${i})" title="Выполнено">✓</span><span class="pt-txt" style="flex:1">${esc(p.name)}${kz}</span><div class="cbtns"><a class="st ${p.pin?'on':''}" href="#" onclick="pin(${i});return false">${p.pin?'⭐':'☆'}</a><a class="x" href="#" onclick="del(${i});return false">✕</a></div></li>`}).join('');
+ const dn=P.filter(p=>p.done).length;let cb=$('clrDoneBtn');
+ if(dn){if(!cb){cb=document.createElement('button');cb.id='clrDoneBtn';cb.type='button';cb.onclick=clearDone;$('l').after(cb)}cb.textContent='🧹 Убрать выполненные ('+dn+')';cb.classList.toggle('col',!!(window._lCol&&hasRoute))}else if(cb)cb.remove();
+}
 function del(i){P.splice(i,1);save();window.toast&&toast('Адрес удалён')}
 function pin(i){const v=!P[i].pin;P.forEach(x=>x.pin=false);P[i].pin=v;save()}
 
@@ -370,6 +379,7 @@ async function go(){
   });
   $("s").textContent="";localStorage.removeItem("DEP");localStorage.setItem("R_T0",Date.now());
   renderOut(curOrder,pts.at(0),totT,totD,approx);
+  if(P.length){window._lCol=true;draw()}setTimeout(()=>{const o=$("o");if(o)o.scrollIntoView({behavior:"smooth",block:"start"})},90);
   window.toast&&toast(approx?"Маршрут построен (время приблизительно)":"Маршрут построен",approx?"err":"ok");
 }
 function toggleDone(k){const c=window.CUR;if(!c||!c[k])return;c[k].done=!c[k].done;const it=c[k];if(String(it.name||'').indexOf('🏁')!==0){let ch=false;P.forEach(p=>{if(p.name===it.name||Math.hypot((p.lat-it.lat)*111000,(p.lon-it.lon)*85000)<35){p.done=!!it.done;ch=true}});if(ch)save()}try{const sv=JSON.parse(localStorage.getItem('R_SAVE')||'{}')||{};sv.curOrder=c;localStorage.setItem('R_SAVE',JSON.stringify(sv));renderOut(c,sv.startPt,sv.totT,sv.totD,sv.approx)}catch(e){}window.toast&&toast(c[k].done?'✅ Адрес отмечен как выполненный':'↩️ Адрес возвращён в маршрут')}

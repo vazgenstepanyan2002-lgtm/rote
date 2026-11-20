@@ -190,6 +190,7 @@
     setB("usrBadge", tot);
     setB("pmChatBadge", cN);
     setB("pmDmBadge", dN);
+    setB("dockChatBdg", cN);
   }
   function dayLabel(ms){
     if(!ms)return"";const d=new Date(ms),n=new Date();
@@ -244,6 +245,7 @@
     m.classList.add("open"); renderChatRows();
     
   }
+  window.openChat = openChat;
   let _dmList = [], _dmOpen = false, _dmBound = false, _dmInit = false, _dmLastNotifT = +(ls("DM_NOTIF_T") || 0);
   function dmUnreadCount(){
     const seen = +(ls("DM_SEEN") || 0);
@@ -437,9 +439,10 @@ function openProfileMenu(){
     +'<button type="button" class="sh-row" id="pmChat"><span class="sh-ico" style="background:rgba(16,185,129,.16);color:#34d399">💬</span><span class="sh-lbl">Общий чат</span><span id="pmChatBadge" class="pm-bdg" hidden>0</span><span class="sh-chev">›</span></button>'
     +'<button type="button" class="sh-row" id="pmDm"><span class="sh-ico" style="background:rgba(56,189,248,.16);color:#38bdf8">✉️</span><span class="sh-lbl">Личный чат с админом</span><span id="pmDmBadge" class="pm-bdg" hidden>0</span><span class="sh-chev">›</span></button>'
     +'<button type="button" class="sh-row" id="pmSet"><span class="sh-ico" style="background:rgba(148,163,184,.16);color:#e2e8f0">⚙️</span><span class="sh-lbl">Настройки</span><span class="sh-chev">›</span></button>'
+    +'<button type="button" class="sh-row" id="pmAdm"><span class="sh-ico" style="background:rgba(250,204,21,.15);color:#fde047">🛡️</span><span class="sh-lbl">Админ-панель</span><span class="sh-chev">›</span></button>'
     +'</div><div class="sh-group" style="margin-top:10px">'
     +'<button type="button" class="sh-row sh-danger" id="pmOut"><span class="sh-ico" style="background:rgba(239,68,68,.15);color:#f87171">🚪</span><span class="sh-lbl">Выйти из аккаунта</span></button>'
-    +'</div></div>';
+    +'</div><div id="pmVer" class="sh-ver"></div></div>';
   document.body.appendChild(m);
   const close=()=>m.remove();
   m.onclick=ev=>{if(ev.target===m)close()};g("pmX").onclick=close;
@@ -447,6 +450,8 @@ function openProfileMenu(){
   g("pmChat").onclick=()=>{close();openChat()};
   g("pmDm").onclick=()=>{close();openDmChat()};
   g("pmSet").onclick=()=>{close();openUserSettings()};
+  g("pmAdm").onclick=()=>{close();location.href="admin.html"};
+  if(window.getVerText)window.getVerText(v=>{const ve=g("pmVer");if(ve)ve.textContent=v});
   g("pmOut").onclick=async()=>{close();if(typeof askC==="function"&&!(await askC("Выйти из профиля «"+nm+"» на этом телефоне? Данные останутся в облаке.","Выйти","👤")))return;lsDel("USER_NAME");lsDel("USER_KEY");lsDel("ADM_UID");lsDel("BON");lsDel("BON_HIST");lsDel("SPEC");lsDel("USER_AVATAR");location.replace(location.pathname)};
   updBadges();
 }
