@@ -381,7 +381,7 @@ function openAdmSumModal(code,subKey){
  if(!CARS_LIST.includes(code))return;const old=g("admSumOv");if(old)old.remove();
  const c=parseCar(code),isCur=subKey==="cur",rec=isCur?null:c.hist[subKey];if(!isCur&&!rec)return;
  const rows=isCur?c.rows:(rec.rows||[]),title=isCur?"Текущий месяц":monthName(rec.m||subKey),sub=isCur?"не сохранён":("сохранено "+ago(rec.t)),totS=isCur?c.sum:(+rec.sum||0),totQ=isCur?c.qty:(+rec.qty||0);
- const head="<div class=\"sum-dash\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">"+esc(title)+" · "+esc(sub)+"</div><div class=\"sum-val\">"+fm(totS)+" <span>"+CUR+"</span></div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b>"+fm(totQ)+"</b><span>штук</span></div><div class=\"sum-kpi\"><b>"+rows.length+"</b><span>катег.</span></div></div></div></div>";
+ const head="<div class=\"sum-dash\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">"+esc(title)+" · "+esc(sub)+"</div><div class=\"sum-val\" id=\"admTotVal\">"+fm(totS)+" <span>"+CUR+"</span></div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b id=\"admTotQty\">"+fm(totQ)+"</b><span>штук</span></div><div class=\"sum-kpi\"><b id=\"admTotCat\">"+rows.length+"</b><span>катег.</span></div></div></div></div>";
  const subHd=c.crew.length?"Экипаж: "+c.crew.join(", "):"Экипаж не назначен";
  const ov=document.createElement("div");ov.id="admSumOv";ov.className="ov";
  ov.innerHTML="<div class=\"dlg ach-box\" style=\"max-width:440px;height:88vh\"><div class=\"ach-hd\"><div class=\"ach-hd-l\"><div class=\"ach-hd-ic\">🚚</div><div><b>Экипаж "+esc(code)+"</b><small>"+esc(subHd)+"</small></div></div><button type=\"button\" id=\"admSumX\" class=\"ach-x\">✕</button></div><div id=\"admSumB\" class=\"ach-list\" style=\"background-image:none;padding:12px\">"+head+detail(rows)+"</div></div>";
@@ -389,7 +389,43 @@ function openAdmSumModal(code,subKey){
  const close=()=>{ov.classList.remove("show");setTimeout(()=>ov.remove(),180)};
  g("admSumX").onclick=close;ov.onclick=e=>{if(e.target===ov)close()};
  const root=g("admSumB");let flt="all",q="";
- const apply=()=>root.querySelectorAll(".sum-cat").forEach(cat=>{let vc=0;cat.querySelectorAll(".sum-it").forEach(it=>{const mn=!q||(it.dataset.name||"").includes(q);let vr=0;it.querySelectorAll(".sum-r").forEach(r=>{const ok=mn&&(flt==="all"||r.dataset.zone===flt);r.style.display=ok?"":"none";if(ok)vr++});it.style.display=vr?"":"none";if(vr)vc++});cat.style.display=vc?"":"none"});
+ const apply=()=>{
+  let gS=0,gQ=0,gC=0;
+  const catStats=[];
+  root.querySelectorAll(".sum-cat").forEach(cat=>{
+   let cS=0,cQ=0,vc=0;
+   cat.querySelectorAll(".sum-it").forEach(it=>{
+    const mn=!q||(it.dataset.name||"").includes(q);
+    let vr=0;
+    it.querySelectorAll(".sum-r").forEach(r=>{
+     const ok=mn&&(flt==="all"||r.dataset.zone===flt);
+     r.style.display=ok?"":"none";
+     if(ok){
+      vr++;
+      const nums=(r.textContent||"").replace(/\s+/g," ").match(/[\d.,]+/g)||[];
+      const qn=parseFloat((nums[0]||"0").replace(",","."))||0;
+      const vn=parseFloat((nums[nums.length-1]||"0").replace(",","."))||0;
+      cQ+=qn;cS+=vn;
+     }
+    });
+    it.style.display=vr?"":"none";
+    if(vr)vc++;
+   });
+   cat.style.display=vc?"":"none";
+   if(vc){gS+=cS;gQ+=cQ;gC++;catStats.push({cat,cS,cQ})}
+  });
+  catStats.forEach(({cat,cS,cQ})=>{
+   const rEl=cat.querySelector(".sum-cat-r");
+   const sEl=cat.querySelector(".sum-cat-s");
+   const pct=gS?Math.round(cS*100/gS):0;
+   if(rEl)rEl.textContent=money(cS);
+   if(sEl)sEl.textContent=fm(cQ)+" шт · "+pct+"% от суммы";
+  });
+  const vEl=g("admTotVal"),qEl=g("admTotQty"),cEl=g("admTotCat");
+  if(vEl)vEl.innerHTML=fm(gS)+" <span>"+CUR+"</span>";
+  if(qEl)qEl.textContent=fm(gQ);
+  if(cEl)cEl.textContent=fm(gC);
+ };
  root.addEventListener("click",e=>{const fb=e.target.closest("[data-aseg] button");if(fb){flt=fb.dataset.f;root.querySelectorAll("[data-aseg] button").forEach(b=>b.classList.toggle("on",b===fb));apply();return}const tg=e.target.closest("[data-atog]");if(tg){const card=tg.closest(".sum-cat");if(card){card.classList.toggle("open");const ch=card.querySelector(".sum-chv");if(ch)ch.textContent=card.classList.contains("open")?"▾":"▸"}}});
  root.addEventListener("input",e=>{if(e.target&&e.target.matches("[data-asrch]")){q=e.target.value.trim().toLowerCase();apply()}});
  requestAnimationFrame(()=>ov.classList.add("show"));

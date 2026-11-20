@@ -361,7 +361,44 @@
  function bindSumTools(root){
   if(!root||root._sumBound)return;root._sumBound=true;
   let flt='all',q='';
-  const apply=()=>{root.querySelectorAll('.sum-cat').forEach(cat=>{let vc=0;cat.querySelectorAll('.sum-it').forEach(it=>{const mn=!q||(it.dataset.name||'').includes(q);let vr=0;it.querySelectorAll('.sum-r').forEach(r=>{const ok=mn&&(flt==='all'||r.dataset.zone===flt);r.style.display=ok?'':'none';if(ok)vr++});it.style.display=vr?'':'none';if(vr)vc++});cat.style.display=vc?'':'none'})};
+  const apply=()=>{
+   let gS=0,gQ=0,gC=0;
+   const catStats=[];
+   root.querySelectorAll('.sum-cat').forEach(cat=>{
+    let cS=0,cQ=0,vc=0;
+    cat.querySelectorAll('.sum-it').forEach(it=>{
+     const mn=!q||(it.dataset.name||'').includes(q);
+     let vr=0;
+     it.querySelectorAll('.sum-r').forEach(r=>{
+      const ok=mn&&(flt==='all'||r.dataset.zone===flt);
+      r.style.display=ok?'':'none';
+      if(ok){
+       vr++;
+       const nums=(r.textContent||'').replace(/\s+/g,' ').match(/[\d.,]+/g)||[];
+       const qn=parseFloat((nums[0]||'0').replace(',','.'))||0;
+       const vn=parseFloat((nums[nums.length-1]||'0').replace(',','.'))||0;
+       cQ+=qn;cS+=vn;
+      }
+     });
+     it.style.display=vr?'':'none';
+     if(vr)vc++;
+    });
+    cat.style.display=vc?'':'none';
+    if(vc){gS+=cS;gQ+=cQ;gC++;catStats.push({cat,cS,cQ})}
+   });
+   catStats.forEach(({cat,cS,cQ})=>{
+    const rEl=cat.querySelector('.sum-cat-r');
+    const sEl=cat.querySelector('.sum-cat-s');
+    const pct=gS?Math.round(cS*100/gS):0;
+    if(rEl)rEl.textContent=fm(cS)+' '+CUR;
+    if(sEl)sEl.textContent=fm(cQ)+' шт · '+pct+'% от суммы';
+   });
+   const vEl=root.querySelector('.sum-val');
+   const kpis=root.querySelectorAll('.sum-kpi b');
+   if(vEl)vEl.innerHTML=fm(gS)+' <span>'+CUR+'</span>';
+   if(kpis[0])kpis[0].textContent=fm(gQ);
+   if(kpis[1])kpis[1].textContent=fm(gC);
+  };
   root.addEventListener('click',e=>{
    const fb=e.target.closest('#bnSeg button');if(fb){flt=fb.dataset.f;root.querySelectorAll('#bnSeg button').forEach(b=>b.classList.toggle('on',b===fb));apply();return}
    const tg=e.target.closest('[data-tog]');if(tg){const card=tg.closest('.sum-cat');if(card){card.classList.toggle('open');const ch=card.querySelector('.sum-chv');if(ch)ch.textContent=card.classList.contains('open')?'▾':'▸'}}
