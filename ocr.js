@@ -312,7 +312,7 @@
             const cmEl = g('cm'); if (cmEl) document.body.appendChild(cmEl);
             const byWho = dup.by || 'коллега';
             const ok = await askC('Из вашего экипажа «' + byWho + '» уже добавил эти данные' + (cleanDoc ? ' (№ ' + cleanDoc + ')' : '') + ' в бонусы.\n\nПродолжить или отменить?', 'Продолжить', '⚠️');
-            if (!ok) { g('obSaveBtn').disabled = false; return; }
+            if (!ok) { close(); return; }
           }
         }
         const qRef = db.ref('cars/' + code + '/qty'), cur = (await qRef.once('value')).val() || {}, patch = {};
