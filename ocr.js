@@ -296,8 +296,8 @@
       g('obSaveBtn').disabled = true;
       try {
         const db = firebase.database();
+        let dup = null;
         if (docKey && code !== 'ADMIN') {
-          let dup = null;
           try {
             const dupSnap = await db.ref('cars/' + code + '/docs/' + docKey).once('value');
             dup = dupSnap.val();
@@ -319,7 +319,7 @@
         let s = 0, q = 0;
         valid.forEach(r => { const info = BON_BY_CODE[r.code], k = info.one ? r.code : (isCity ? r.code : r.code + '_2'); patch[k] = (+cur[k] || 0) + r.qty; s += (info.one ? info.p1 : (isCity ? info.p1 : info.p2)) * r.qty; q += r.qty; });
         await qRef.update(patch); await db.ref('cars/' + code + '/t').set(Date.now());
-        if (docKey && code !== 'ADMIN') {
+        if (docKey && code !== 'ADMIN' && !dup) {
           const meName = (() => { try { return localStorage.getItem('USER_NAME') || 'Водитель'; } catch (e) { return 'Водитель'; } })();
           const rec = { doc: cleanDoc, by: meName, t: Date.now() };
           try {
