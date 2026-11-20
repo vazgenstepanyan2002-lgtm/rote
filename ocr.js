@@ -120,7 +120,12 @@
     return { ignore: false, code: '' };
   }
 
-  const isYerevanAddress = s => /(?:ереван|երևան|yerevan|աջափնյակ|արաբկիր|ավան|դավթաշեն|էրեբունի|կենտրոն|մալաթիա|նոր նորք|նորք-մարաշ|նուբարաշեն|շենգավիթ|քանաքեռ|ачапняк|арабкир|аван|давидашен|эребуни|кентрон|малатия|нор норк|норк-мараш|нубарашен|шенгавит|канакер)/i.test(String(s || '').toLowerCase());
+  const isRegionAddress = s => /(?:կոտայք|քանաքեռավան|աբովյան|հրազդան|չարենցավան|եզվարդ|բյուրեղավան|նոր հաճն|արարատ|մասիս|արտաշատ|վեդի|արմավիր|վաղարշապատ|էջմիածին|մեծամոր|արագածոտն|աշտարակ|ապարան|թալին|շիրակ|գյումրի|արթիկ|մարալիկ|լոռի|վանաձոր|ալավերդի|սպիտակ|ստեփանավան|տաշիր|տավուշ|իջևան|դիլիջան|բերդ|նոյեմբերյան|գեղարքունիք|գավառ|սևան|մարտունի|վարդենիս|ճամբարակ|վայոց ձոր|եզեգնաձոր|ջերմուկ|վայք|սյունիք|կապան|գորիս|սիսիան|մեղրի|քաջարան|котайк|канакераван|абовян|раздан|чаренцаван|егвард|бюрегаван|нор ачин|арарат|масис|арташат|веди|армавир|вагаршапат|эчмиадзин|мецамор|арагацотн|аштарак|ширак|гюмри|лори|ванадзор|тавуш|иджеван|дилижан|гегаркуник|гавар|севан|мартини|вайоц дзор|ехегнадзор|сюник|капан|горис|сисиан)/i.test(String(s || "").toLowerCase());
+  const isYerevanAddress = s => {
+    const low = String(s || "").toLowerCase();
+    if (isRegionAddress(low)) return false;
+    return /(?:ереван|երևան|yerevan|աջափնյակ|արաբկիր|ավան|դավթաշեն|էրեբունի|կենտրոն|մալաթիա|նոր նորք|նորք-մարաշ|նուբարաշեն|շենգավիթ|քանաքեռ-զեյթուն|քանաքեռ|ачапняк|арабкир|аван|давидашен|эребуни|кентрон|малатия|нор норк|норк-мараш|нубарашен|шенгавит|канакер)/i.test(low);
+  };
 
   async function compressImage(file){
     const maxSide = 1600;
@@ -163,11 +168,19 @@
     return { addr: String((parsed && parsed.addr) || '').trim(), items };
   }
 
+  const saveOcrDraft = (rows, isCity) => {
+    try {
+      if (!rows || !rows.length) sessionStorage.removeItem("OCR_BON_DRAFT");
+      else sessionStorage.setItem("OCR_BON_DRAFT", JSON.stringify({ rows, isCity: !!isCity }));
+    } catch (e) {}
+  };
+
   function openBonusInvoiceModal(items, defaultIsCity){
     if (!Array.isArray(items) || !items.length) return;
     let m = g('ocrBonMdl'); if (m) m.remove();
     let isCity = !!defaultIsCity;
     const rows = items.map(x => ({ name: x.name, qty: x.qty, code: x.code || '' }));
+    saveOcrDraft(rows, isCity);
     const groups = {};
     BON_ITEMS.forEach(it => { (groups[it.cat] = groups[it.cat] || []).push(it); });
     const optsHtml = '<option value="">— Выберите категорию бонусов —</option>' + Object.keys(groups).map(cat =>
@@ -180,7 +193,7 @@
       + '<div class="pt-list" id="obList"></div>'
       + '<div class="pt-ft"><div class="ob-tot"><span>Будет начислено:</span><b id="obTotSum">0 ' + CUR + '</b></div><button type="button" class="pt-add" id="obSaveBtn"><span>➕ Добавить в бонусы</span></button></div></div>';
     document.body.appendChild(m);
-    const close = () => m.remove();
+    const close = () => { saveOcrDraft(null); m.remove(); };
     g('obX').onclick = close; m.onclick = e => { if (e.target === m) close(); };
 
     const carCode = (() => { try { return (localStorage.getItem('USER_CAR') || '').trim().toUpperCase(); } catch (e) { return ''; } })();
@@ -201,6 +214,7 @@
       }).join('');
       box.querySelectorAll('.ob-sel').forEach(sel => { const r = rows[+sel.dataset.i]; if (r && r.code) sel.value = r.code; });
       g('obTotSum').textContent = fm(tot) + ' ' + CUR;
+      saveOcrDraft(rows, isCity);
     };
 
     g('obZoneSeg').onclick = e => { const b = e.target.closest('button[data-z]'); if (!b) return; isCity = b.dataset.z === 'city'; g('obZoneSeg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); renderRows(); };
@@ -249,4 +263,15 @@
     g('ocrPickCam').onclick = () => { close(); cam.click(); }; g('ocrPickGal').onclick = () => { close(); gal.click(); };
   };
   window.EUROBAZA_OCR_KEY = GKEY;
+  setTimeout(() => {
+    try {
+      const raw = sessionStorage.getItem("OCR_BON_DRAFT");
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d && Array.isArray(d.rows) && d.rows.length) {
+        if (window.openBon && (!g("bnMdl") || !g("bnMdl").classList.contains("open"))) window.openBon(true);
+        openBonusInvoiceModal(d.rows, !!d.isCity);
+      }
+    } catch (e) {}
+  }, 350);
 })();

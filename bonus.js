@@ -485,17 +485,20 @@
   return m;
  }
 
- function openBon(){
+ function openBon(noPush){
   const m=ensure();updCarBadge();render();if(!CAR_CODE)tst('Экипаж не назначен администратором','err');
   m.classList.add('open');lock(true);
-  try{history.pushState({bn:1},'')}catch(e){}
+  try{sessionStorage.setItem('BON_WAS_OPEN','1')}catch(e){}
+  if(!noPush){try{history.pushState({bn:1},'')}catch(e){}}
  }
  function closeBon(src){
   const m=g('bnMdl');if(!m||!m.classList.contains('open'))return;
   const ov=g('bnSm');if(ov)ov.classList.remove('open');m.classList.remove('open');lock(false);
+  try{sessionStorage.removeItem('BON_WAS_OPEN')}catch(e){}
   if(src!=='pop'){try{if(history.state&&history.state.bn)setTimeout(()=>history.back(),0)}catch(e){}}
  }
- window.addEventListener('popstate',()=>{if(skipPop>0){skipPop--;return}const o=g('bnSm');if(o&&o.classList.contains('open')){o.classList.remove('open');return}const m=g('bnMdl');if(m&&m.classList.contains('open'))closeBon('pop')});
+ window.addEventListener('popstate',()=>{if(skipPop>0){skipPop--;return}if(g('ocrSrcMdl')||g('ocrBonMdl'))return;const o=g('bnSm');if(o&&o.classList.contains('open')){o.classList.remove('open');return}const m=g('bnMdl');if(m&&m.classList.contains('open'))closeBon('pop')});
+ try{if(sessionStorage.getItem('BON_WAS_OPEN')==='1')setTimeout(()=>openBon(true),120)}catch(e){}
 
  // Перерисовка названий мебели при смене языка приложения
  new MutationObserver(()=>{
