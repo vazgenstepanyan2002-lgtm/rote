@@ -113,7 +113,7 @@
     const clean = String(rawName || '').replace(/\s+/g, ' ').trim();
     if (!clean) return { ignore: true };
     const norm = normModel(clean);
-    if (RULES.rx.test(norm)) return { ignore: true };
+    if (RULES[0].rx.test(norm)) return { ignore: true };
     const fk = fbKey(clean);
     if (fk && CLOUD_MAP[fk] && BON_BY_CODE[CLOUD_MAP[fk]]) return { ignore: false, code: CLOUD_MAP[fk] };
     for (let i = 1; i < RULES.length; i++) if (RULES[i].rx.test(norm)) return { ignore: false, code: RULES[i].code };
@@ -150,7 +150,7 @@
       return res.json();
     };
     const j = await Promise.any(['gemini-flash-lite-latest', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'].map(runModel));
-    const parts = (j && j.candidates && j.candidates && j.candidates.content && j.candidates.content.parts) || [];
+    const parts = (j && j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates.content.parts) || [];
     const ans = parts.find(p => p && !p.thought && typeof p.text === 'string') || parts.at(-1);
     const parsed = JSON.parse(((ans && ans.text) || '{}').replace(/```json|```/gi, '').trim());
     const items = [];
@@ -238,7 +238,7 @@
   }
 
   window.openBonusScanner = () => {
-    const mk = (id, cap) => { let el = g(id); if (!el) { el = document.createElement('input'); el.type = 'file'; el.id = id; el.accept = 'image/*'; el.hidden = true; if (cap) el.setAttribute('capture', 'environment'); el.onchange = () => { const f = el.files && el.files; el.value = ''; if (f) scanBonusFile(f); }; document.body.appendChild(el); } return el; };
+    const mk = (id, cap) => { let el = g(id); if (!el) { el = document.createElement('input'); el.type = 'file'; el.id = id; el.accept = 'image/*'; el.hidden = true; if (cap) el.setAttribute('capture', 'environment'); el.onchange = () => { const f = el.files && el.files[0]; el.value = ''; if (f) scanBonusFile(f); }; document.body.appendChild(el); } return el; };
     const cam = mk('bnCamFile', 1), gal = mk('bnGalFile', 0);
     let m = g('ocrSrcMdl'); if (m) m.remove();
     m = document.createElement('div'); m.id = 'ocrSrcMdl'; m.className = 'cm open';
