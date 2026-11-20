@@ -326,11 +326,12 @@
     };
 
     let parsed = null, lastErr = "", quotaHits = 0;
-    const passes = [{ to: 8500 }, { to: 12000 }];
+    const passes = [{ to: 8500, wait: 0 }, { to: 10000, wait: 450 }, { to: 13000, wait: 1300 }];
     for (let pIdx = 0; pIdx < passes.length && !parsed; pIdx++) {
-      if (pIdx > 0) await new Promise(r => setTimeout(r, 350));
-      for (const mdl of models) {
-        if (skipMap[mdl] && skipMap[mdl] > Date.now()) continue;
+      const avail = models.filter(m => !(skipMap[m] && skipMap[m] > Date.now()));
+      if (!avail.length) break;
+      if (passes[pIdx].wait > 0) await new Promise(r => setTimeout(r, passes[pIdx].wait));
+      for (const mdl of avail) {
         for (let tOpt = 0; tOpt < 2; tOpt++) {
           try {
             const res = await fetch("https" + "://" + host + "/v1beta/models/" + mdl + ":generateContent?key=" + encodeURIComponent(GKEY), {
@@ -534,32 +535,73 @@
     return { cam: mk('bnCamFile', 1), gal: mk('bnGalFile', 0) };
   };
 
-  async function scanBonusFile(file, cachedB64){
-    if (!file && !cachedB64) return;
-    window._ocrScanning = true;
-    if (window.openBon && (!g('bnMdl') || !g('bnMdl').classList.contains('open'))) window.openBon(true);
-    const btn = g('bnCamBtn'); if (btn) btn.classList.add('busy'); if (typeof busy === 'function') busy(1);
-    const _t0 = Date.now(); window.toast && toast('Распознаю накладную...');
-    let retryB64 = '';
+  let _ebLastOcrB64 = "";
+  async function scanBonusFile(file){
+    if (!file) return;
+    if (window.openBon && (!g("bnMdl") || !g("bnMdl").classList.contains("open"))) window.openBon(true);
+    const btn = g("bnCamBtn");
+    let b64 = "";
     try {
-      const b64 = cachedB64 || await compressImage(file);
-      retryB64 = b64;
-      const { doc, addr, items } = await askGemini(b64);
-      if (!items.length) { window.toast && toast('Товары в накладной не найдены', 'err'); return; }
-      window.toast && toast('Готово за ' + ((Date.now() - _t0) / 1000).toFixed(1) + ' сек'); openBonusInvoiceModal(items, isYerevanAddress(addr), doc);
+      window._ocrScanning = true;
+      if (btn) btn.classList.add("busy");
+      if (typeof busy === "function") busy(1);
+      b64 = await compressImage(file);
+      _ebLastOcrB64 = b64;
     } catch (e) {
-      if (e && e.retryable && retryB64 && typeof askC === 'function') {
-        const b64Copy = retryB64;
-        setTimeout(async () => {
-          const cmEl = g('cm'); if (cmEl) document.body.appendChild(cmEl);
-          const ok = await askC('Серверы Google сейчас перегружены (временный пик нагрузки).\n\nПовторить отправку этого же фото?', 'Повторить', '⏳');
-          if (ok) scanBonusFile(null, b64Copy);
-        }, 0);
-      } else {
-        window.toast && toast('Ошибка OCR: ' + ((e && e.message) || e), 'err');
+      window._ocrScanning = false;
+      if (btn) btn.classList.remove("busy");
+      if (typeof busy === "function") busy(0);
+      window.toast && toast("Ошибка OCR: " + ((e && e.message) || e), "err");
+      return;
+    }
+
+    let firstPass = true;
+    while (b64) {
+      window._ocrScanning = true;
+      if (btn) btn.classList.add("busy");
+      if (typeof busy === "function") busy(1);
+      const _t0 = Date.now();
+      window.toast && toast(firstPass ? "Распознаю накладную..." : "Повторяю отправку...");
+      firstPass = false;
+      try {
+        const { doc, addr, items } = await askGemini(b64);
+        _ebLastOcrB64 = "";
+        if (!items.length) {
+          window.toast && toast("Товары в накладной не найдены", "err");
+          return;
+        }
+        window.toast && toast("Готово за " + ((Date.now() - _t0) / 1000).toFixed(1) + " сек");
+        openBonusInvoiceModal(items, isYerevanAddress(addr), doc);
+        return;
+      } catch (e) {
+        const msg = (e && e.message) || String(e || "");
+        const isQuota = /дневной лимит|quota|free.?tier/i.test(msg);
+        window._ocrScanning = false;
+        if (btn) btn.classList.remove("busy");
+        if (typeof busy === "function") busy(0);
+        if (!isQuota && typeof askC === "function") {
+          const cmEl = g("cm");
+          if (cmEl) document.body.appendChild(cmEl);
+          const isBusySrv = /high demand|503|таймаут|timeout|нет связи|overloaded|unavailable/i.test(msg);
+          const qText = isBusySrv
+            ? "Сервер распознавания временно перегружен. Повторить отправку этого же фото?"
+            : ("Ошибка распознавания: " + msg + "\n\nПовторить отправку этого же фото?");
+          const okRetry = await askC(qText, "Повторить", "🔄");
+          if (okRetry && _ebLastOcrB64) {
+            b64 = _ebLastOcrB64;
+            continue;
+          }
+        } else {
+          window.toast && toast("Ошибка OCR: " + msg, "err");
+        }
+        _ebLastOcrB64 = "";
+        return;
+      } finally {
+        window._ocrScanning = false;
+        if (btn) btn.classList.remove("busy");
+        if (typeof busy === "function") busy(0);
       }
     }
-    finally { window._ocrScanning = false; if (btn) btn.classList.remove('busy'); if (typeof busy === 'function') busy(0); }
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ensureOcrInputs);
