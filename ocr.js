@@ -233,7 +233,7 @@
       const { addr, items } = await askGemini(await compressImage(file));
       if (!items.length) { window.toast && toast('Товары в накладной не найдены', 'err'); return; }
       openBonusInvoiceModal(items, isYerevanAddress(addr));
-    } catch (e) { window.toast && toast('Не удалось распознать накладную', 'err'); }
+    } catch (e) { window.toast && toast('Ошибка OCR: ' + ((e && e.message) || e), 'err'); }
     finally { if (btn) btn.classList.remove('busy'); if (typeof busy === 'function') busy(0); }
   }
 
