@@ -190,7 +190,79 @@ window.addEventListener('appinstalled',()=>{window._pwaPrompt=null;$('instBar').
 ;
 const fT=async u=>{let last;for(let i=0;i<2;i++){try{return await fetch(u,{signal:AbortSignal.timeout(9000)})}catch(e){last=e;if(!navigator.onLine)throw e;await new Promise(r=>setTimeout(r,400*(i+1)))}}throw last};
 const BASE={name:'🏁 Возврат на базу (Арин Берд 7)',lat:40.120847,lon:44.514271};
-function solve(D,n,bIdx){const skipPen=(a,b,used)=>{let pen=0;for(let j=1;j<=n;j++)if(!used[j]&&j!==b){const det=D[a][j]+D[j][b]-D[a][b];if(det<360)pen+=600}return pen};let best=[],bc=Infinity;const pI=P.findIndex(x=>x&&x.pin)+1;if(n<=8){const rec=(path,used,c)=>{if(c>=bc)return;if(path.length===n){const l=path[path.length-1],t=c+(bIdx?D[l][bIdx]:0);if(t<bc){bc=t;best=path.slice()}return}const last=path.length?path[path.length-1]:0;for(let i=1;i<=n;i++)if(!used[i]){const pen=skipPen(last,i,used);used[i]=1;path.push(i);rec(path,used,c+D[last][i]+pen);path.pop();used[i]=0}};if(pI>0){const u=Array(n+2).fill(0);u[pI]=1;rec([pI],u,D[0][pI])}else rec([],Array(n+2).fill(0),0)}else{const used=Array(n+2).fill(0);let cur=0;if(pI>0){used[pI]=1;best.push(pI);cur=pI}for(let k=best.length;k<n;k++){let b=-1,bv=Infinity;for(let i=1;i<=n;i++)if(!used[i]){const v=D[cur][i]+skipPen(cur,i,used);if(v<bv){bv=v;b=i}}used[b]=1;best.push(b);cur=b}const st=pI>0?1:0;const cost=p=>{let c=0,l=0;for(let k=0;k<p.length;k++){const x=p[k];c+=D[l][x];if(k>=st)for(let m=k+1;m<p.length;m++){const j=p[m];if(D[l][j]+D[j][x]-D[l][x]<360)c+=600}l=x}return c+(bIdx?D[l][bIdx]:0)};let imp=true,it=0;while(imp&&it++<50){imp=false;for(let i=st;i<n-1;i++)for(let j=i+1;j<n;j++){const q=best.slice(0,i).concat(best.slice(i,j+1).reverse(),best.slice(j+1));if(cost(q)<cost(best)-1e-9){best=q;imp=true}}}}return best}
+function solve(D,n,bIdx){
+ if(n<=0)return[];
+ if(n===1)return[1];
+ const pI=P.findIndex(x=>x&&x.pin)+1;
+ if(n<=13){
+  const N=1<<n,FULL=N-1,dp=new Float64Array(N*n),par=new Int8Array(N*n);
+  dp.fill(Infinity);par.fill(-1);
+  if(pI>0){dp[(1<<(pI-1))*n+(pI-1)]=D[0][pI]}
+  else{for(let i=0;i<n;i++)dp[(1<<i)*n+i]=D[0][i+1]}
+  for(let mask=1;mask<FULL;mask++){
+   for(let last=0;last<n;last++){
+    if(!(mask&(1<<last)))continue;
+    const curC=dp[mask*n+last];
+    if(curC===Infinity)continue;
+    const row=D[last+1];
+    for(let nxt=0;nxt<n;nxt++){
+     if(mask&(1<<nxt))continue;
+     const nm=mask|(1<<nxt),nc=curC+row[nxt+1],idx=nm*n+nxt;
+     if(nc<dp[idx]){dp[idx]=nc;par[idx]=last}
+    }
+   }
+  }
+  let bc=Infinity,bl=0;
+  for(let last=0;last<n;last++){
+   const c=dp[FULL*n+last]+(bIdx?D[last+1][bIdx]:0);
+   if(c<bc){bc=c;bl=last}
+  }
+  const res=new Array(n);let m=FULL,cur=bl;
+  for(let k=n-1;k>=0;k--){res[k]=cur+1;const pr=par[m*n+cur];m^=(1<<cur);cur=pr}
+  return res;
+ }
+ const st=pI>0?1:0;
+ const cost=p=>{
+  let c=0,l=0;
+  for(let k=0;k<p.length;k++){c+=D[l][p[k]];l=p[k]}
+  return c+(bIdx?D[l][bIdx]:0);
+ };
+ const nn=first=>{
+  const used=Array(n+2).fill(0),arr=[];let cur=0;
+  if(first>0){used[first]=1;arr.push(first);cur=first}
+  while(arr.length<n){
+   let b=-1,bv=Infinity;
+   for(let i=1;i<=n;i++)if(!used[i]){const v=D[cur][i];if(v<bv){bv=v;b=i}}
+   used[b]=1;arr.push(b);cur=b;
+  }
+  return arr;
+ };
+ const opt=arr=>{
+  let p=arr.slice(),pc=cost(p),imp=true,it=0;
+  while(imp&&it++<40){
+   imp=false;
+   for(let i=st;i<n-1;i++)for(let j=i+1;j<n;j++){
+    const q=p.slice(0,i).concat(p.slice(i,j+1).reverse(),p.slice(j+1)),qc=cost(q);
+    if(qc<pc-1e-6){p=q;pc=qc;imp=true}
+   }
+   for(const len of[1,2]){
+    for(let i=st;i<=n-len;i++){
+     const seg=p.slice(i,i+len),rest=p.slice(0,i).concat(p.slice(i+len));
+     for(let j=st;j<=rest.length;j++){
+      if(j===i)continue;
+      const q=rest.slice(0,j).concat(seg,rest.slice(j)),qc=cost(q);
+      if(qc<pc-1e-6){p=q;pc=qc;imp=true}
+     }
+    }
+   }
+  }
+  return{p,c:pc};
+ };
+ const seeds=pI>0?[nn(pI)]:Array.from({length:n},(_,i)=>nn(i+1)).sort((a,b)=>cost(a)-cost(b)).slice(0,6);
+ let best=[],bc=Infinity;
+ for(const sd of seeds){const r=opt(sd);if(r.c<bc){bc=r.c;best=r.p}}
+ return best;
+}
 function etaBase(){const d=localStorage.getItem('DEP');if(d&&/^\d\d:\d\d$/.test(d)){const x=new Date();x.setHours(+d.slice(0,2),+d.slice(3,5),0,0);return x.getTime()}return +localStorage.getItem('R_T0')||Date.now()}
 function hm(ms){const x=new Date(ms),p=n=>String(n).padStart(2,'0');return p(x.getHours())+':'+p(x.getMinutes())+(x.getDate()!==new Date().getDate()?' (+1 д)':'')}
 function setDep(v){if(v)localStorage.setItem('DEP',v);else{localStorage.removeItem('DEP');localStorage.setItem('R_T0',Date.now())}updEta()}
@@ -276,7 +348,7 @@ async function go(){
   }catch(e){approx=true}
   let prev=0,totT=0,totD=0;
   let curOrder=idx.map(i=>{
-    const sT=600+D.at(prev).at(i),sD=Dist.at(prev).at(i);totT+=sT;totD+=sD;prev=i;
+    const sT=(bIdx&&i===bIdx?0:600)+D.at(prev).at(i),sD=Dist.at(prev).at(i);totT+=sT;totD+=sD;prev=i;
     const sKm=sD?" • "+(sD<10000?(sD/1000).toFixed(1):Math.round(sD/1000))+" км":"";
     return{name:pts.at(i).name,lat:pts.at(i).lat,lon:pts.at(i).lon,st:sT,sub:"+"+fmtT(sT)+sKm};
   });
@@ -295,7 +367,7 @@ function toggleDone(k){
   }catch(e){}
   window.toast&&toast(c[k].done?"✅ Адрес отмечен как выполненный":"↩️ Адрес возвращён в маршрут");
 }
-function renderOut(curOrder,startPt,totT,totD,approx){syncGoGrp();window.CUR=curOrder;localStorage.setItem('R_SAVE',JSON.stringify({curOrder:curOrder,startPt:startPt,totT:totT,totD:totD,approx:!!approx}));const km=totD?' • '+Math.round(totD/1000)+' км':'',liHtml=curOrder.map((it,k)=>`<li class="${it.done?'done':''}"><span class="done-btn" onclick="toggleDone(${k})" title="Выполнено">✓</span><span class="ord-txt" style="flex:1">${it.name}<span class="t-tag">(${it.sub})</span></span><span class="dh">☰</span></li>`).join('');$('o').innerHTML=`<h3>Порядок (потяните ☰):</h3><div class="stat">⏱ Весь путь: ~${fmtT(totT)}${km}${approx?' ⚠ приблизительно':''}</div><ol>${liHtml}</ol><a class="nav" href="${buildNav(curOrder)}" onclick="if(this.getAttribute('href')==='#'){event.preventDefault();window.toast&&toast('Все адреса в маршруте уже выполнены','err');}"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg><span>Открыть в навигаторе</span></a>`;updEta();const ol=$('o').querySelector('ol');let dragEl=null;ol.addEventListener('touchstart',ev=>{const h=ev.target.closest('.dh');if(!h)return;dragEl=h.closest('li');dragEl.classList.add('drag')},{passive:true});ol.addEventListener('touchmove',ev=>{if(!dragEl)return;ev.preventDefault();const over=document.elementFromPoint(ev.touches.item(0).clientX,ev.touches.item(0).clientY),target=over&&over.closest('#o ol li');if(target&&target!==dragEl){const items=Array.from(ol.children),fromI=items.indexOf(dragEl),toI=items.indexOf(target);if(fromI<toI)target.after(dragEl);else target.before(dragEl);curOrder.splice(toI,0,curOrder.splice(fromI,1).at(0))}},{passive:false});ol.addEventListener('touchend',async()=>{if(!dragEl)return;dragEl.classList.remove('drag');dragEl=null;const navA=document.querySelector('#o a.nav');if(navA)navA.href=buildNav(curOrder);let tT=totT,tD=totD,ap=!!approx;try{const rPts=new Array(startPt).concat(curOrder),rr=await fT('https://router.project-osrm.org/route/v1/driving/'+rPts.map(p=>p.lon+','+p.lat).join(';')+'?overview=false'),legs=(await rr.json()).routes.at(0).legs;if(legs){ap=false;tT=0;tD=0;const lis=ol.querySelectorAll('li');legs.forEach((leg,k)=>{const sT=600+leg.duration,sD=leg.distance;tT+=sT;tD+=sD;const sKm=sD?' • '+(sD<10000?(sD/1000).toFixed(1):Math.round(sD/1000))+' км':'',sub='+'+fmtT(sT)+sKm;curOrder.at(k).sub=sub;curOrder.at(k).st=sT;const tag=lis.item(k)&&lis.item(k).querySelector('.t-tag');if(tag)tag.textContent='('+sub+')'});const st=document.querySelector('#o .stat');if(st)st.textContent='⏱ Весь путь: ~'+fmtT(tT)+(tD?' • '+Math.round(tD/1000)+' км':'')+(ap?' ⚠ приблизительно':'')}}catch(e){ap=true}localStorage.setItem('R_SAVE',JSON.stringify({curOrder:curOrder,startPt:startPt,totT:tT,totD:tD,approx:ap}));updEta()})}
+function renderOut(curOrder,startPt,totT,totD,approx){syncGoGrp();window.CUR=curOrder;localStorage.setItem('R_SAVE',JSON.stringify({curOrder:curOrder,startPt:startPt,totT:totT,totD:totD,approx:!!approx}));const km=totD?' • '+Math.round(totD/1000)+' км':'',liHtml=curOrder.map((it,k)=>`<li class="${it.done?'done':''}"><span class="done-btn" onclick="toggleDone(${k})" title="Выполнено">✓</span><span class="ord-txt" style="flex:1">${it.name}<span class="t-tag">(${it.sub})</span></span><span class="dh">☰</span></li>`).join('');$('o').innerHTML=`<h3>Порядок (потяните ☰):</h3><div class="stat">⏱ Весь путь: ~${fmtT(totT)}${km}${approx?' ⚠ приблизительно':''}</div><ol>${liHtml}</ol><a class="nav" href="${buildNav(curOrder)}" onclick="if(this.getAttribute('href')==='#'){event.preventDefault();window.toast&&toast('Все адреса в маршруте уже выполнены','err');}"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg><span>Открыть в навигаторе</span></a>`;updEta();const ol=$('o').querySelector('ol');let dragEl=null;ol.addEventListener('touchstart',ev=>{const h=ev.target.closest('.dh');if(!h)return;dragEl=h.closest('li');dragEl.classList.add('drag')},{passive:true});ol.addEventListener('touchmove',ev=>{if(!dragEl)return;ev.preventDefault();const over=document.elementFromPoint(ev.touches.item(0).clientX,ev.touches.item(0).clientY),target=over&&over.closest('#o ol li');if(target&&target!==dragEl){const items=Array.from(ol.children),fromI=items.indexOf(dragEl),toI=items.indexOf(target);if(fromI<toI)target.after(dragEl);else target.before(dragEl);curOrder.splice(toI,0,curOrder.splice(fromI,1).at(0))}},{passive:false});ol.addEventListener('touchend',async()=>{if(!dragEl)return;dragEl.classList.remove('drag');dragEl=null;const navA=document.querySelector('#o a.nav');if(navA)navA.href=buildNav(curOrder);let tT=totT,tD=totD,ap=!!approx;try{const rPts=new Array(startPt).concat(curOrder),rc=rPts.map(p=>p.lon+','+p.lat).join(';'),getLegs=async u=>{const r=await fT(u+rc+'?overview=false');if(!r.ok)throw 0;const j=await r.json();if(!j.routes||!j.routes.at(0))throw 0;return j.routes.at(0).legs};let legs=null;try{legs=await getLegs('https://router.project-osrm.org/route/v1/driving/')}catch(e){legs=await getLegs('https://routing.openstreetmap.de/routed-car/route/v1/driving/')}if(legs){ap=false;tT=0;tD=0;const lis=ol.querySelectorAll('li');legs.forEach((leg,k)=>{const isBase=String((curOrder.at(k)&&curOrder.at(k).name)||'').indexOf('🏁')===0,sT=(isBase?0:600)+leg.duration,sD=leg.distance;tT+=sT;tD+=sD;const sKm=sD?' • '+(sD<10000?(sD/1000).toFixed(1):Math.round(sD/1000))+' км':'',sub='+'+fmtT(sT)+sKm;curOrder.at(k).sub=sub;curOrder.at(k).st=sT;const tag=lis.item(k)&&lis.item(k).querySelector('.t-tag');if(tag)tag.textContent='('+sub+')'});const st=document.querySelector('#o .stat');if(st)st.textContent='⏱ Весь путь: ~'+fmtT(tT)+(tD?' • '+Math.round(tD/1000)+' км':'')+(ap?' ⚠ приблизительно':'')}}catch(e){ap=true}localStorage.setItem('R_SAVE',JSON.stringify({curOrder:curOrder,startPt:startPt,totT:tT,totD:tD,approx:ap}));updEta()})}
 try{const sv=JSON.parse(localStorage.getItem('R_SAVE')||'null');if(sv&&sv.curOrder&&sv.curOrder.length)renderOut(sv.curOrder,sv.startPt,sv.totT,sv.totD,sv.approx)}catch(e){}
 ;
 (function(){
