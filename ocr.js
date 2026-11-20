@@ -61,7 +61,7 @@
     }, () => {});
   }, 800);
 
-  function saveCloudModel(rawName, code, isAdminRole){
+  function saveCloudModel(rawName, code, isAdminRole, fromCode){
     const fk = fbKey(rawName);
     if (!fk || !code) return;
     if (isAdminRole) {
@@ -78,7 +78,7 @@
     } else {
       const uid = (() => { try { return localStorage.getItem('ADM_UID') || ''; } catch (e) { return ''; } })();
       const who = (() => { try { return localStorage.getItem('USER_NAME') || 'Водитель'; } catch (e) { return 'Водитель'; } })();
-      if (uid) db.ref('users/' + uid + '/ocrPending/' + fk).set({ raw: String(rawName || '').trim(), code, by: who, uid, t: Date.now() }).catch(() => {});
+      if (uid) db.ref('users/' + uid + '/ocrPending/' + fk).set({ raw: String(rawName || '').trim(), code, from: fromCode || '', by: who, uid, t: Date.now() }).catch(() => {});
     }
   }
 
@@ -197,7 +197,7 @@
     if (!Array.isArray(items) || !items.length) return;
     let m = g('ocrBonMdl'); if (m) m.remove();
     let isCity = !!defaultIsCity;
-    const rows = items.map(x => ({ name: x.name, qty: x.qty, code: x.code || '' }));
+    const rows = items.map(x => ({ name: x.name, qty: x.qty, code: x.code || '', origCode: x.code || '' }));
     saveOcrDraft(rows, isCity);
     const CAT_ICO = { 'Другое': '📦', 'Диваны': '🛋️', 'Ресепшен': '🗄️', 'Кухни': '🍳', 'Гостиная': '📺', 'Спальни': '🛏️', 'Шкафы': '🚪' };
     const catsList = Array.from(new Set(BON_ITEMS.map(x => x.cat)));
@@ -278,7 +278,7 @@
         let sentReq = false;
         valid.forEach(r => {
           if (r.edited && r.code) {
-            saveCloudModel(r.name, r.code, isAdmRole);
+            saveCloudModel(r.name, r.code, isAdmRole, r.origCode || '');
             if (!isAdmRole) sentReq = true;
           }
         });
