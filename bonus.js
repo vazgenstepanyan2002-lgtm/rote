@@ -359,8 +359,11 @@
   return html;
  }
  function bindSumTools(root){
-  if(!root||root._sumBound)return;root._sumBound=true;
+  if(!root)return;
+  if(root._sumBound){if(root._resetSumTools)root._resetSumTools();return;}
+  root._sumBound=true;
   let flt='all',q='';
+  root._resetSumTools=()=>{flt='all';q='';};
   const apply=()=>{
    let gS=0,gQ=0,gC=0;
    const catStats=[];
@@ -425,6 +428,7 @@
   setFoot(k);detailView(d.rows,monthName(d.m||k),new Date(d.t||0).toLocaleDateString('ru-RU',{day:'numeric',month:'long'}));
  }
  async function saveMonth(){
+  if(!CAR_CODE){tst('Экипаж не назначен администратором','err');return}
   const rows=sumRows();
   if(!rows.length){tst('Пока ничего не выбрано','err');return}
   const mk=await pickMonth();if(!mk)return;

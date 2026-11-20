@@ -125,13 +125,13 @@
   };
   let curLines=drawRoute(ll,true);
   const pad=new Array(30,30);
-  const _fit=()=>map.fitBounds(L.latLngBounds(ll),{padding:pad,maxZoom:16});_fit();
+  _fit=()=>map.fitBounds(L.latLngBounds(ll),{padding:pad,maxZoom:16});_fit();
   setTimeout(()=>{if(_map===map){map.invalidateSize();map.fitBounds(L.latLngBounds(ll),{padding:pad,maxZoom:16});}},150);
 
   let note='Линия по прямой (загружаю дороги...)';
   function info(){
     let h='<div class="map-stats"><span class="map-pill">Точек: <b>'+cur.length+'</b></span>';
-    if(sv.totT&&typeof fmtt==='function')h+='<span class="map-pill tm">Время: <b>'+fmtt(sv.totT)+'</b></span>';
+    if(sv.totT&&typeof fmtT==='function')h+='<span class="map-pill tm">Время: <b>'+fmtT(sv.totT)+'</b></span>';
     if(sv.totD)h+='<span class="map-pill km">Путь: <b>'+Math.round(sv.totD/1000)+' км</b></span>';
     h+='</div><div class="map-note"><i></i><span>'+esc(note)+'</span></div>';
     if(bad)h+='<div class="w">⚠️ Неточных адресов: '+bad+' (жёлтые маркеры). Маршрут приведёт в центр района, уточните улицу и дом.</div>';

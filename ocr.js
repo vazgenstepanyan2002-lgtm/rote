@@ -980,7 +980,7 @@ async function askGemini(b64){
           try { localStorage.setItem(CAM_ID_KEY, best.deviceId); } catch (e) {}
           return { stream: st2, lenses: sorted, curIdx: 0, sig };
         }
-        stream = await tryOpenVideo({ facingMode: { ideal: "environment" } }) || stream;
+        stream = await tryOpenVideo({ facingMode: { ideal: "environment" } });
       }
     }
 

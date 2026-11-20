@@ -38,11 +38,6 @@
       const cur = (window.getLang && window.getLang()) || ls("LANG") || "ru";
       m.querySelectorAll("[data-al]").forEach(b => b.classList.toggle("on", b.dataset.al === cur));
     };
-    m.querySelectorAll("[data-al]").forEach(b => {
-      b.onclick = () => {
-        if (window.setAppLang) window.setAppLang(b.dataset.al);
-        updLangBtns();
-
     const syncAuthInst = () => {
       const box = g("auInst"), txt = g("auInstTxt"), ib = g("auInstBtn");
       if (!box || !txt || !ib) return;
@@ -71,11 +66,15 @@
       }
     };
     window._updAuthInst = syncAuthInst;
-    syncAuthInst();
-
+    m.querySelectorAll("[data-al]").forEach(b => {
+      b.onclick = () => {
+        if (window.setAppLang) window.setAppLang(b.dataset.al);
+        updLangBtns();
+        syncAuthInst();
       };
     });
     updLangBtns();
+    syncAuthInst();
 
     async function submit(){
       err.textContent = "";
@@ -384,11 +383,11 @@
     };
 
     const p1 = g("stOldPin"), p2 = g("stNewPin");
-    [p1, p2].forEach(el => el.addEventListener("input", () => { el.value = el.value.replace(/D/g, "").slice(0, 4); }));
+    [p1, p2].forEach(el => el.addEventListener("input", () => { el.value = el.value.replace(/\D/g, "").slice(0, 4); }));
     g("stSavePin").onclick = async () => {
       const key = ls("USER_KEY"), oldV = p1.value.trim(), newV = p2.value.trim();
       if (!key) return;
-      if (!/^d{4}$/.test(oldV) || !/^d{4}$/.test(newV)) { window.toast && toast("Введите 4 цифры старого и нового ПИН-кода", "err"); return; }
+      if (!/^\d{4}$/.test(oldV) || !/^\d{4}$/.test(newV)) { window.toast && toast("Введите 4 цифры старого и нового ПИН-кода", "err"); return; }
       if (!window.firebase || !firebase.apps || !firebase.apps.length) { window.toast && toast("Нет соединения с сервером", "err"); return; }
       try {
         const ref = firebase.database().ref("accounts/" + key + "/pin");
