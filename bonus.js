@@ -406,7 +406,8 @@
   });
   root.addEventListener('input',e=>{if(e.target&&e.target.id==='bnSrch'){q=e.target.value.trim().toLowerCase();apply()}});
  }
- function histView(){setFoot();
+ let CUR_VIEW={k:"cur",title:"Текущий месяц",rows:null};
+ function histView(){CUR_VIEW={k:"cur",title:"Текущий месяц",rows:null};setFoot();
   const h=HIST(),ks=Object.keys(h).sort((a,b)=>(h[b].t||0)-(h[a].t||0));
   const cr=sumRows(),cs=sumOf(cr),cq=qtyOf(cr);
   let html='<div class="sum-dash sum-dash-btn" data-m="cur"><div class="sum-top"><div><div class="sum-lbl">Текущий месяц · открыть ›</div><div class="sum-val">'+fm(cs)+' <span>'+CUR+'</span></div></div><div class="sum-kpis"><div class="sum-kpi"><b>'+fm(cq)+'</b><span>штук</span></div></div></div></div>';
@@ -423,8 +424,9 @@
  }
  function showMonth(k){
   if(k==='back')return histView();
-  if(k==='cur'){setFoot();return detailView(sumRows(),'Текущий месяц','')}
+  if(k==='cur'){CUR_VIEW={k:'cur',title:'Текущий месяц',rows:null};setFoot();return detailView(sumRows(),'Текущий месяц','')}
   const d=HIST()[k];if(!d)return;
+  CUR_VIEW={k:k,title:monthName(d.m||k),rows:d.rows||[]};
   setFoot(k);detailView(d.rows,monthName(d.m||k),new Date(d.t||0).toLocaleDateString('ru-RU',{day:'numeric',month:'long'}));
  }
  async function saveMonth(){
@@ -453,9 +455,10 @@
   try{if(history.state&&history.state.bs){skipPop++;setTimeout(()=>history.back(),0)}}catch(e){}
  }
  function copySum(){
-  const rows=sumRows();
+  const isCur=!CUR_VIEW||CUR_VIEW.k==='cur';
+  const rows=isCur?sumRows():(CUR_VIEW.rows||[]);
   if(!rows.length){tst('Пока ничего не выбрано','err');return}
-  let t=0,q=0,s='Итоги\n';
+  let t=0,q=0,s=(isCur?'Итоги':('Итоги · '+CUR_VIEW.title))+'\n';
   rows.forEach(c=>{
    t+=c.sum;s+='\n'+furnitureName(c.name)+' — '+fm(c.sum)+' '+CUR+'\n';
    c.items.forEach(it=>{

@@ -44,7 +44,7 @@
  const auth=firebase.auth(),db=firebase.database();
 
  const CARS_LIST=['BB','CC','EE','XX','ZZ','RR','VV','GG'];
- let USERS={},LABELS={},ACCOUNTS={},CARS={},OCR_PEND={},OCR_MAP={},OCR_Q='',CHAT=[],CHAT_OPEN=false,DMS={},DM_UID=null,FU=0,PUB=undefined,TAB='online',SEL='all';
+ let USERS={},LABELS={},ACCOUNTS={},CARS={},OCR_PEND={},OCR_MAP={},OCR_Q='',CHAT=[],CHAT_OPEN=false,DMS={},DM_UID=null,FU=0,PUB=undefined,TAB='online',SEL='all',ONL_CAR='all';
  const OCR_CAT_NAMES={'other_a':'Другое · Стулья, стеллажи','other_b':'Другое · Стулья, столы','other_c':'Другое · Раковина','other_d':'Другое · Комоды','other_e':'Другое · Кровать','other_f':'Другое · Модули','other_g':'Другое · Матрасы','other_h':'Другое · Системы хранения','other_i':'Другое · Дверь','other_j':'Другое · Пуфы','other_k':'Другое · Тумбы','sofas_a':'Диваны · Кресло','sofas_b':'Диваны · Диван','sofas_c':'Диваны · Комплект','recep_a':'Ресепшен · До 1,6 м','recep_b':'Ресепшен · Более 1,6 м','kitchen_a':'Кухни · 1,6 м','kitchen_b':'Кухни · 2–3 м','living_a':'Гостиная · До 1,7 м','living_b':'Гостиная · Более 1,7 м','living_c':'Гостиная · Эксклюзив','bedroom_a':'Спальни · 2 двери','bedroom_b':'Спальни · 3 двери без комода','bedroom_c':'Спальни · 3 двери с комодом','bedroom_d':'Спальни · 4 двери','bedroom_e':'Спальни · 5 дверей','bedroom_f':'Спальни · 6 дверей','bedroom_g':'Спальни · 0,9*2','wardrobe_a':'Шкафы · 2 двери','wardrobe_b':'Шкафы · 3 двери','wardrobe_c':'Шкафы · 4 двери','wardrobe_d':'Шкафы · 5 дверей','wardrobe_e':'Шкафы · 6 дверей'};
  const SUB_EMAIL='diannakirakosyan@gmail.com';
  const isSubAdm=()=>((auth.currentUser&&auth.currentUser.email)||'').toLowerCase()===SUB_EMAIL;
@@ -189,122 +189,83 @@
   return h;
  }
  // ===== Живая карта водителей =====
- const BASE_PT = { lat: 40.120847, lon: 44.514271, name: "База EuroBaza (Арин Берд 7)" };
- let _lfProm = null, _map = null, _markers = {}, _baseMk = null, _didFit = false, MAP_ONLY_ONLINE = true;
-
+ const BASE_PT={lat:40.120847,lon:44.514271,name:"База EuroBaza (Арин Берд 7)"};
+ const ADM_CDNS=[{css:"https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css",js:"https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"},{css:"https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css",js:"https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"}];
+ const ADM_SAT_URL="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+ let _lfProm=null,_map=null,_markers={},_baseMk=null,_didFit=false,MAP_ONLY_ONLINE=true,_applyAdmSat=null;
+ let ADM_SAT=(()=>{try{return localStorage.getItem("ADM_MAP_SAT")!=="0"}catch(e){return true}})();
  function ensureLeaflet(){
-  if(window.L && L.map) return Promise.resolve();
-  if(_lfProm) return _lfProm;
-  _lfProm = new Promise((res, rej) => {
-   const s = document.createElement("script");
-   s.src = "leaflet.min.js";
-   s.onload = () => res();
-   s.onerror = () => { _lfProm = null; rej(new Error("Ошибка загрузки leaflet.min.js")); };
-   document.head.appendChild(s);
-  });
+  if(window.maplibregl&&maplibregl.Map)return Promise.resolve();
+  if(_lfProm)return _lfProm;
+  _lfProm=new Promise((res,rej)=>{let idx=0;const go=()=>{const s0=ADM_CDNS[idx],c=document.createElement("link");c.rel="stylesheet";c.href=s0.css;document.head.appendChild(c);const s=document.createElement("script");s.src=s0.js;s.onload=()=>{if(window.maplibregl&&maplibregl.Map)res();else fail()};const fail=()=>{s.remove();c.remove();idx++;if(idx<ADM_CDNS.length)go();else{_lfProm=null;rej(new Error("Ошибка загрузки MapLibre"))}};s.onerror=fail;document.head.appendChild(s)};go()});
   return _lfProm;
  }
-
- function destroyMap(){
-  if(_map){ try{ _map.remove(); }catch(e){} _map = null; }
-  _markers = {}; _baseMk = null; _didFit = false;
- }
-
+ function destroyMap(){if(_map){try{_map.remove()}catch(e){}_map=null}_markers={};_baseMk=null;_didFit=false;_applyAdmSat=null}
  function fitAllDrivers(){
-  if(!_map || !window.L) return;
-  const now = Date.now();
-  const baseLL = L.latLng(BASE_PT.lat, BASE_PT.lon);
-  const pts = new Array(baseLL);
-  devs().forEach(d => {
-   if(typeof d.u.lat !== "number" || typeof d.u.lon !== "number") return;
-   if(MAP_ONLY_ONLINE && !(now - (d.u.t || 0) < TTL)) return;
-   pts.push(L.latLng(d.u.lat, d.u.lon));
-  });
-  if(pts.length === 1) _map.setView(baseLL, 13);
-  else _map.fitBounds(L.latLngBounds(pts), { padding: L.point(36, 36), maxZoom: 15 });
+  if(!_map||!window.maplibregl)return;
+  const now=Date.now(),baseLL=[BASE_PT.lon,BASE_PT.lat],pts=[baseLL];
+  devs().forEach(d=>{if(typeof d.u.lat!=="number"||typeof d.u.lon!=="number")return;if(MAP_ONLY_ONLINE&&!(now-(d.u.t||0)<TTL))return;pts.push([d.u.lon,d.u.lat])});
+  if(pts.length===1)_map.easeTo({center:baseLL,zoom:13,duration:300});
+  else{const b=new maplibregl.LngLatBounds();pts.forEach(p=>b.extend(p));_map.fitBounds(b,{padding:44,maxZoom:15,duration:350})}
  }
-
  function syncMapMarkers(){
-  if(!_map || !window.L) return;
-  const now = Date.now(), seen = {};
-  devs().forEach(d => {
-   if(typeof d.u.lat !== "number" || typeof d.u.lon !== "number") return;
-   const live = now - (d.u.t || 0) < TTL;
-   if(MAP_ONLY_ONLINE && !live) return;
-   seen[d.id] = true;
-   const title = dispName(d);
-   const spd = typeof d.u.spd === "number" && d.u.spd > 2 ? " · " + d.u.spd + " км/ч" : "";
-   const popHtml = '<div class="pop-t">' + esc(title) + '</div>'
-    + '<div class="pop-s">' + (live ? "🟢 В сети" : "⚪ Был(а) " + ago(d.u.gt || d.u.t)) + esc(spd) + '</div>';
-
-   const htmlPin = '<div class="drv-b' + (live ? "" : " off") + '"><i></i><span>' + esc(title) + '</span></div>';
-   const ic = L.divIcon({ className: "drv-pin", html: htmlPin, iconSize: L.point(0, 0) });
-   const ll = L.latLng(d.u.lat, d.u.lon);
-
+  if(!_map||!window.maplibregl)return;
+  const now=Date.now(),seen={};
+  devs().forEach(d=>{
+   if(typeof d.u.lat!=="number"||typeof d.u.lon!=="number")return;
+   const live=now-(d.u.t||0)<TTL;if(MAP_ONLY_ONLINE&&!live)return;
+   seen[d.id]=true;
+   const title=dispName(d),spd=typeof d.u.spd==="number"&&d.u.spd>2?" · "+d.u.spd+" км/ч":"";
+   const popHtml='<div class="pop-t">'+esc(title)+'</div><div class="pop-s">'+(live?"🟢 В сети":"⚪ Был(а) "+ago(d.u.gt||d.u.t))+esc(spd)+'</div>';
+   const htmlPin='<div class="drv-b'+(live?"":" off")+'"><i></i><span>'+esc(title)+'</span></div>';
    if(_markers[d.id]){
-    _markers[d.id].setLatLng(ll);
-    _markers[d.id].setIcon(ic);
-    if(_markers[d.id].getPopup()) _markers[d.id].setPopupContent(popHtml);
-   } else {
-    _markers[d.id] = L.marker(ll, { icon: ic }).addTo(_map).bindPopup(popHtml);
+    _markers[d.id].setLngLat([d.u.lon,d.u.lat]);
+    const el=_markers[d.id].getElement();if(el)el.innerHTML=htmlPin;
+    if(_markers[d.id].getPopup())_markers[d.id].getPopup().setHTML(popHtml);
+   }else{
+    const el=document.createElement("div");el.className="drv-pin";el.innerHTML=htmlPin;
+    _markers[d.id]=new maplibregl.Marker({element:el,anchor:"center"}).setLngLat([d.u.lon,d.u.lat]).setPopup(new maplibregl.Popup({offset:18}).setHTML(popHtml)).addTo(_map);
    }
   });
-
-  Object.keys(_markers).forEach(id => {
-   if(!seen[id]){ _map.removeLayer(_markers[id]); delete _markers[id]; }
-  });
-
-  if(!_didFit){ _didFit = true; fitAllDrivers(); }
+  Object.keys(_markers).forEach(id=>{if(!seen[id]){_markers[id].remove();delete _markers[id]}});
+  if(!_didFit){_didFit=true;fitAllDrivers()}
  }
-
  async function drawMap(){
-  const Llist = devs(), now = Date.now();
-  const withGeo = Llist.filter(d => {
-   if(typeof d.u.lat !== "number" || typeof d.u.lon !== "number") return false;
-   if(MAP_ONLY_ONLINE && !(now - (d.u.t || 0) < TTL)) return false;
-   return true;
-  });
-
+  const Llist=devs(),now=Date.now();
+  const withGeo=Llist.filter(d=>typeof d.u.lat==="number"&&typeof d.u.lon==="number"&&(!MAP_ONLY_ONLINE||(now-(d.u.t||0)<TTL)));
   if(!g("admMap")){
-   g("view").innerHTML = '<div class="map-wrap"><div id="admMap"></div><div class="map-bar"><button type="button" id="mapFilterBtn" class="map-btn" data-act="mapfilter">⚪ Все водители</button></div></div><div id="mapCards"></div>';
+   g("view").innerHTML='<div class="map-wrap"><div id="admMap"></div><div class="map-bar"><button type="button" id="admSatBtn" class="map-btn" data-act="mapsat"></button><button type="button" id="mapFilterBtn" class="map-btn" data-act="mapfilter">⚪ Все водители</button></div></div><div id="mapCards"></div>';
    try{
-    await ensureLeaflet();
-    if(TAB !== "map" || !g("admMap")) return;
-    const baseLL = L.latLng(BASE_PT.lat, BASE_PT.lon);
-    _map = L.map("admMap", { zoomControl: true }).setView(baseLL, 12);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(_map);
-    const baseIc = L.divIcon({ className: "drv-pin", html: '<div class="drv-b base"><i></i><span>База EuroBaza</span></div>', iconSize: L.point(0, 0) });
-    _baseMk = L.marker(baseLL, { icon: baseIc }).addTo(_map).bindPopup('<div class="pop-t">🏁 ' + esc(BASE_PT.name) + '</div>');
-    setTimeout(() => { if(_map) _map.invalidateSize(true); }, 50);
-    setTimeout(() => { if(_map) _map.invalidateSize(true); }, 350);
-   }catch(e){
-    if(g("mapCards")) g("mapCards").innerHTML = '<div class="box mut">Ошибка карты: ' + esc((e && e.message) || e) + '</div>';
-    return;
-   }
+    await ensureLeaflet();if(TAB!=="map"||!g("admMap"))return;
+    const baseLL=[BASE_PT.lon,BASE_PT.lat];
+    _map=new maplibregl.Map({container:"admMap",style:"https://tiles.openfreemap.org/styles/dark",center:baseLL,zoom:12,attributionControl:false});
+    _map.addControl(new maplibregl.NavigationControl({showCompass:true,showZoom:true}),"top-left");
+    const bel=document.createElement("div");bel.className="drv-pin";bel.innerHTML='<div class="drv-b base"><i></i><span>База EuroBaza</span></div>';
+    _baseMk=new maplibregl.Marker({element:bel,anchor:"center"}).setLngLat(baseLL).setPopup(new maplibregl.Popup({offset:18}).setHTML('<div class="pop-t">🏁 '+esc(BASE_PT.name)+'</div>')).addTo(_map);
+    let sr=false,fc=0,om=[],hs=false;
+    _applyAdmSat=sat=>{
+     if(!_map||!_map.getLayer("adm-sat-layer"))return;
+     _map.setLayoutProperty("adm-sat-layer","visibility",sat?"visible":"none");
+     om.forEach(l=>{if(!_map.getLayer(l.id))return;let v=l.vis;if(sat)v=(l.type==="symbol"||(l.type==="line"&&/admin|boundary/i.test(l.id)))?l.vis:"none";try{_map.setLayoutProperty(l.id,"visibility",v)}catch(e){}});
+    };
+    _map.on("style.load",()=>{
+     if(!_map)return;sr=true;const st=_map.getStyle(),ls=(st&&st.layers)?st.layers.slice():[];
+     om=ls.filter(l=>l.id!=="adm-sat-layer").map(l=>({id:l.id,type:l.type,vis:(l.layout&&l.layout.visibility)||"visible"}));
+     const sym=ls.find(l=>l.type==="symbol"),fid=sym?sym.id:undefined;hs=!!fid;
+     if(!_map.getSource("adm-sat-src")){_map.addSource("adm-sat-src",{type:"raster",tiles:[ADM_SAT_URL],tileSize:256,maxzoom:18});_map.addLayer({id:"adm-sat-layer",type:"raster",source:"adm-sat-src",layout:{visibility:ADM_SAT?"visible":"none"}},fid)}
+     _applyAdmSat(hs?ADM_SAT:true);
+    });
+    _map.on("error",ev=>{if(ev&&ev.sourceId==="adm-sat-src")return;if(!sr&&_map){fc++;try{if(fc===1)_map.setStyle("https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json");else if(fc===2)_map.setStyle({version:8,sources:{"adm-sat-src":{type:"raster",tiles:[ADM_SAT_URL],tileSize:256,maxzoom:18}},layers:[{id:"adm-sat-layer",type:"raster",source:"adm-sat-src"}]})}catch(e){}}});
+    setTimeout(()=>{if(_map)_map.resize()},80);setTimeout(()=>{if(_map)_map.resize()},350);
+   }catch(e){if(g("mapCards"))g("mapCards").innerHTML='<div class="box mut">Ошибка карты: '+esc((e&&e.message)||e)+'</div>';return}
   }
-
-  const fBtn = g("mapFilterBtn");
-  if(fBtn){
-   fBtn.classList.toggle("on", MAP_ONLY_ONLINE);
-   fBtn.textContent = MAP_ONLY_ONLINE ? "🟢 Только онлайн" : "⚪ Все водители";
-  }
-
-  try{ syncMapMarkers(); }catch(e){}
-
-  let ch = '<div class="sec">' + (MAP_ONLY_ONLINE ? 'Сейчас на линии (' : 'На карте (') + withGeo.length + ')</div>';
-  if(!withGeo.length){
-   ch += '<div class="box mut">' + (MAP_ONLY_ONLINE ? 'Сейчас нет водителей в сети с активной геолокацией.' : 'Пока ни одно устройство не передало координаты. Координаты появятся, когда приложение откроют с разрешённой геолокацией.') + '</div>';
-  } else {
-   ch += withGeo.map(d => {
-    const live = now - (d.u.t || 0) < TTL;
-    const title = dispName(d);
-    const spd = typeof d.u.spd === "number" && d.u.spd > 2 ? " · " + d.u.spd + " км/ч" : "";
-    return '<div class="row" data-act="focus" data-id="' + esc(d.id) + '"><span class="dot' + (live ? " on" : "") + '"></span>'
-     + '<div class="rm"><div class="rt">' + esc(title) + '</div>'
-     + '<div class="rs">' + (live ? "сейчас на линии" : "обновлено " + ago(d.u.gt || d.u.t)) + esc(spd) + '</div></div></div>';
-   }).join("");
-  }
-  if(g("mapCards")) g("mapCards").innerHTML = ch;
+  const sBtn=g("admSatBtn");if(sBtn){sBtn.classList.toggle("on",ADM_SAT);sBtn.textContent=ADM_SAT?"🛰️ Спутник":"🗺️ Схема"}
+  const fBtn=g("mapFilterBtn");if(fBtn){fBtn.classList.toggle("on",MAP_ONLY_ONLINE);fBtn.textContent=MAP_ONLY_ONLINE?"🟢 Только онлайн":"⚪ Все водители"}
+  try{syncMapMarkers()}catch(e){}
+  let ch='<div class="sec">'+(MAP_ONLY_ONLINE?'Сейчас на линии (':'На карте (')+withGeo.length+')</div>';
+  if(!withGeo.length)ch+='<div class="box mut">'+(MAP_ONLY_ONLINE?'Сейчас нет водителей в сети с активной геолокацией.':'Пока ни одно устройство не передало координаты.')+'</div>';
+  else ch+=withGeo.map(d=>{const live=now-(d.u.t||0)<TTL,spd=typeof d.u.spd==="number"&&d.u.spd>2?" · "+d.u.spd+" км/ч":"";return'<div class="row" data-act="focus" data-id="'+esc(d.id)+'"><span class="dot'+(live?" on":"")+'"></span><div class="rm"><div class="rt">'+esc(dispName(d))+'</div><div class="rs">'+(live?"сейчас на линии":"обновлено "+ago(d.u.gt||d.u.t))+esc(spd)+'</div></div></div>'}).join("");
+  if(g("mapCards"))g("mapCards").innerHTML=ch;
  }
  // ===== Вкладки =====
  function drawOnline(){
@@ -312,8 +273,11 @@
   const on=L.filter(d=>now-(d.u.t||0)<TTL).length,day=L.filter(d=>now-(d.u.t||0)<864e5).length;
   let h='<div class="tiles"><div class="tile"><b>'+on+'</b><span>онлайн</span></div><div class="tile"><b>'+day+'</b><span>за 24 часа</span></div><div class="tile"><b>'+L.length+'</b><span>всего</span></div></div>';
 
-  if(!L.length)h+='<div class="mut box">Данных пока нет. Устройства появятся, когда откроют обновлённое приложение.</div>';
-  h+=L.map(d=>{
+  const chips=[['all','Все'],...CARS_LIST.map(c=>[c,c]),['none','Без экипажа']];
+  h+='<div class="onl-flts">'+chips.map(([v,lbl])=>'<button type="button" class="onl-chip'+(ONL_CAR===v?' on':'')+'" data-act="onlcar" data-c="'+v+'">'+lbl+'</button>').join('')+'</div>';
+  const FL=ONL_CAR==='all'?L:ONL_CAR==='none'?L.filter(d=>!String(d.u.car||'').trim()):L.filter(d=>String(d.u.car||'').toUpperCase()===ONL_CAR);
+  if(!FL.length)h+='<div class="mut box">'+(L.length?'Нет водителей в этом фильтре.':'Данных пока нет.')+'</div>';
+  h+=FL.map(d=>{
    const live=now-(d.u.t||0)<TTL,acc=accByUid(d.id),blk=!!((acc&&acc.blocked)||d.u.blocked);
    const pill=(txt,st)=>'<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:7px;font-size:11px;font-weight:600;line-height:1.2;white-space:nowrap;'+st+'">'+txt+'</span>';
    const pBase='background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#cbd5e1;';
@@ -387,9 +351,11 @@ function openAdmSumModal(code,subKey){
  const head="<div class=\"sum-dash\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">"+esc(title)+" · "+esc(sub)+"</div><div class=\"sum-val\" id=\"admTotVal\">"+fm(totS)+" <span>"+CUR+"</span></div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b id=\"admTotQty\">"+fm(totQ)+"</b><span>штук</span></div><div class=\"sum-kpi\"><b id=\"admTotCat\">"+rows.length+"</b><span>катег.</span></div></div></div></div>";
  const subHd=c.crew.length?"Экипаж: "+c.crew.join(", "):"Экипаж не назначен";
  const ov=document.createElement("div");ov.id="admSumOv";ov.className="ov";
- ov.innerHTML="<div class=\"dlg ach-box\" style=\"max-width:440px;height:88vh\"><div class=\"ach-hd\"><div class=\"ach-hd-l\"><div class=\"ach-hd-ic\">🚚</div><div><b>Экипаж "+esc(code)+"</b><small>"+esc(subHd)+"</small></div></div><button type=\"button\" id=\"admSumX\" class=\"ach-x\">✕</button></div><div id=\"admSumB\" class=\"ach-list\" style=\"background-image:none;padding:12px\">"+head+detail(rows)+"</div></div>";
+ const delH=(!isCur&&!isSubAdm())?"<button type=\"button\" id=\"admSumDel\" class=\"ach-clr\" style=\"margin-right:6px\">🗑️ Удалить</button>":"";
+ ov.innerHTML="<div class=\"dlg ach-box\" style=\"max-width:440px;height:88vh\"><div class=\"ach-hd\"><div class=\"ach-hd-l\"><div class=\"ach-hd-ic\">🚚</div><div><b>Экипаж "+esc(code)+"</b><small>"+esc(subHd)+"</small></div></div><div class=\"ach-acts\">"+delH+"<button type=\"button\" id=\"admSumX\" class=\"ach-x\">✕</button></div></div><div id=\"admSumB\" class=\"ach-list\" style=\"background-image:none;padding:12px\">"+head+detail(rows)+"</div></div>";
  document.body.appendChild(ov);
  const close=()=>{ov.classList.remove("show");setTimeout(()=>ov.remove(),180)};
+ if(g("admSumDel"))g("admSumDel").onclick=async()=>{if(!await ask("Удалить сохранённый итог за «"+title+"» у экипажа "+code+"?",{title:"Удаление итога",okText:"Удалить",danger:true}))return;try{await db.ref("cars/"+code+"/hist/"+subKey).remove();close();toast("Итог удалён")}catch(e){toast("Ошибка удаления",true)}};
  g("admSumX").onclick=close;ov.onclick=e=>{if(e.target===ov)close()};
  const root=g("admSumB");let flt="all",q="";
  const apply=()=>{
@@ -449,7 +415,7 @@ function drawTotals(){
   h+="<div class=\"sum-dash sum-dash-btn\" data-act=\"subopen\" data-sub=\"cur\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">Текущий месяц · открыть ›</div><div class=\"sum-val\">"+fm(c.sum)+" <span>"+CUR+"</span></div><div style=\"font-size:12px;color:#8b9bb4;margin-top:4px\">"+(c.crew.length?"Экипаж: "+esc(c.crew.join(", ")):"Экипаж не назначен")+"</div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b>"+fm(c.qty)+"</b><span>штук</span></div></div></div></div><div class=\"sec\">Сохранённые итоги</div>";
   const ks=Object.keys(c.hist).filter(k=>c.hist[k]).sort((a,b)=>{const x=c.hist[a],y=c.hist[b];return(y.m||"")<(x.m||"")?-1:(y.m||"")>(x.m||"")?1:(y.t||0)-(x.t||0)});
   if(!ks.length)h+="<div class=\"mut box\">У экипажа "+esc(SEL)+" нет сохранённых итогов.</div>";
-  h+=ks.map(k=>{const x=c.hist[k];return"<div class=\"mr\" style=\"cursor:pointer\" data-act=\"subopen\" data-sub=\""+esc(k)+"\"><div class=\"rm\"><div class=\"rt\">"+esc(monthName(x.m))+"</div><div class=\"rs\">"+fm(x.qty)+" шт · сохранено "+esc(ago(x.t))+"</div></div><div class=\"rv\">"+money(x.sum)+"</div><span class=\"ar\">›</span></div>"}).join("");
+  h+=ks.map(k=>{const x=c.hist[k];const dBtn=!isSubAdm()?"<button type=\"button\" class=\"xb\" data-act=\"del-car-hist\" data-car=\""+esc(SEL)+"\" data-hk=\""+esc(k)+"\" aria-label=\"Удалить\">✕</button>":"";return"<div class=\"mr\" style=\"cursor:pointer\" data-act=\"subopen\" data-sub=\""+esc(k)+"\"><div class=\"rm\"><div class=\"rt\">"+esc(monthName(x.m))+"</div><div class=\"rs\">"+fm(x.qty)+" шт · сохранено "+esc(ago(x.t))+"</div></div><div class=\"rv\">"+money(x.sum)+"</div>"+dBtn+"<span class=\"ar\">›</span></div>"}).join("");
  }
  g("view").innerHTML=h;
 }
@@ -791,8 +757,11 @@ function openSelectModal(){
   else if(a==='ocr-edit'){e.stopPropagation();const k=b.dataset.k;if(k)openOcrRuleModal(k,OCR_MAP[k]||'')}
   else if(a==='ocr-del'){e.stopPropagation();const k=b.dataset.k;if(!k)return;if(!(await ask('Удалить правило «'+k+'» из общего словаря?',{title:'Удаление правила',okText:'Удалить',danger:true})))return;try{await db.ref('config/ocrMap/'+k).remove();toast('Правило удалено')}catch(err){toast('Ошибка удаления',true)}}
   else if(a==='ocr-no'){e.stopPropagation();const uid=b.dataset.uid,k=b.dataset.k;if(!uid||!k)return;try{await db.ref('users/'+uid+'/ocrPending/'+k).remove();toast('Запрос отклонён')}catch(err){toast('Ошибка удаления',true)}}
+  else if(a==='onlcar'){ONL_CAR=b.dataset.c||'all';drawOnline()}
+  else if(a==='del-car-hist'){e.stopPropagation();if(isSubAdm())return;const car=b.dataset.car,hk=b.dataset.hk,rec=CARS[car]&&CARS[car].hist&&CARS[car].hist[hk];if(!car||!hk)return;if(!await ask('Удалить сохранённый итог за «'+monthName(rec&&rec.m||hk)+'» у экипажа '+car+'?',{title:'Удаление итога',okText:'Удалить',danger:true}))return;try{await db.ref('cars/'+car+'/hist/'+hk).remove();toast('Итог удалён')}catch(err){toast('Ошибка удаления',true)}}
   else if(a==='mapfilter'){MAP_ONLY_ONLINE=!MAP_ONLY_ONLINE;_didFit=false;drawMap()}
-  else if(a==='focus'){const mk=_markers[b.dataset.id];if(mk&&_map){_map.setView(mk.getLatLng(),16,{animate:true});mk.openPopup()}}
+  else if(a==='mapsat'){ADM_SAT=!ADM_SAT;try{localStorage.setItem('ADM_MAP_SAT',ADM_SAT?'1':'0')}catch(e){}if(_applyAdmSat)_applyAdmSat(ADM_SAT);const sb=g('admSatBtn');if(sb){sb.classList.toggle('on',ADM_SAT);sb.textContent=ADM_SAT?'🛰️ Спутник':'🗺️ Схема'}}
+  else if(a==='focus'){const mk=_markers[b.dataset.id];if(mk&&_map){_map.easeTo({center:mk.getLngLat(),zoom:16,duration:400});const p=mk.getPopup();if(p&&!p.isOpen())mk.togglePopup()}}
  });
  document.querySelectorAll('.tabs button').forEach(b=>b.onclick=async ()=>{TAB=b.dataset.tab;draw()});
 

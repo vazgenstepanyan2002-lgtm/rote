@@ -1,24 +1,4 @@
 {
-  "'+fm(cqOf(c))+' шт": [
-    "'+fm(cqOf(c))+' հատ",
-    "'+fm(cqOf(c))+' pcs"
-  ],
-  "'+fm(q)+' шт'+(sub?' · '+esc(sub):'')+'": [
-    "'+fm(q)+' հատ'+(ենթակետ?' '+esc(sub):'')+'",
-    "'+fm(q)+' pcs'+(sub?' '+esc(sub):'')+'"
-  ],
-  "'+fm(qty)+' шт'+(sub?' · '+esc(sub):'')+'": [
-    "'+fm(քանակ)+' հատ'+(ենթա՞կ?' '+esc(sub):'')+'",
-    "'+fm(qty)+' pcs'+(sub?' '+esc(sub):'')+'"
-  ],
-  ").innerHTML=` Порядок (потяните ☰): ⏱ Весь путь: ~${fmtT(totT)}${km}${approx?": [
-    ").innerHTML=` Պատվեր (քաշեք ☰). ⏱ Ամբողջ ճանապարհը՝ ~${fmtT(totT)}${km}${մոտ?",
-    ").innerHTML=` Order (pull ☰): ⏱ Entire path: ~${fmtT(totT)}${km}${approx?"
-  ],
-  "} ${liHtml} Открыть в навигаторе `;updEta();const ol=$(": [
-    "} ${liHtml} Բացել նավիգատորում `;updEta();const ol=$(",
-    "} ${liHtml} Open in navigator `;updEta();const ol=$("
-  ],
   "Артак": [
     "Արտակ",
     "Artak"
@@ -86,10 +66,6 @@
   "версия от": [
     "տարբերակից",
     "version from"
-  ],
-  "или null function pickMonth(){return new Promise(res=>{ const old=g(": [
-    "կամ null ֆունկցիա pickMonth(){return new Promise(res=>{ const old=g(",
-    "or null function pickMonth(){return new Promise(res=>{ const old=g("
   ],
   "лимит Яндекса": [
     "Yandex-ի սահմանաչափը",

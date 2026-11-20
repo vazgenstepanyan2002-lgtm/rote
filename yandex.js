@@ -79,6 +79,9 @@ async function addPick(it){
   }
   lat=l[0].lat;lon=l[0].lon;name=clean(l[0].name);exact=l[0].exact;
  }
+ const normN=t=>String(t||'').toLowerCase().replace(/\s+/g,' ').trim();
+ const dup=P.find(x=>normN(x.name)===normN(name)||(isFinite(x.lat)&&isFinite(x.lon)&&Math.hypot((x.lat-lat)*111000,(x.lon-lon)*85000)<35));
+ if(dup&&typeof askC==='function'){const ok=await askC('Адрес уже есть в списке:\n«'+dup.name+'»\n\nДобавить ещё раз?','Добавить','⚠️');if(!ok)return;}
  saveAdrCache({name:name,lat:lat,lon:lon});
  if(it.text)saveAdrCache({name:clean(it.text),lat:lat,lon:lon});
  P.push({name:name,lat:lat,lon:lon});

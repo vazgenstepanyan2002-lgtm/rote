@@ -110,7 +110,7 @@
  function draw(cur,start,sv,tok){
   if(_map){try{_map.remove()}catch(e){}_map=null}
   const box=g('mapBox');box.innerHTML='';
-  const etas=document.querySelectorAll('#o ol li .eta');
+  const etas=document.querySelectorAll('#o ol li:not(.done) .eta');
   const ll=[];let bad=0;
   const markers=[];
   if(start){

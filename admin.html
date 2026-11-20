@@ -400,6 +400,19 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
 .aop-tx{flex:1;min-width:0;display:flex;flex-direction:column}
 .aop-tx b{font-size:13.5px;font-weight:700;color:#f8fafc;line-height:1.25}
 .aop-tx small{font-size:11px;color:#8b9bb4;margin-top:1px}
+
+#admMap .drv-b{transform:none!important}
+#admMap .maplibregl-ctrl-group{background:rgba(13,19,31,.88)!important;border:1px solid rgba(255,255,255,.16)!important;border-radius:13px!important;overflow:hidden}
+#admMap .maplibregl-ctrl-group button{width:34px!important;height:34px!important;margin:0!important;padding:0!important;background:transparent!important;border:none!important;border-bottom:1px solid rgba(255,255,255,.12)!important;border-radius:0!important}
+#admMap .maplibregl-ctrl-group button .maplibregl-ctrl-icon{filter:invert(1) brightness(1.15)}
+#admMap .maplibregl-popup-content{background:#111827!important;color:#f8fafc!important;border:1px solid rgba(255,255,255,.15)!important;border-radius:16px!important;padding:12px 24px 12px 14px!important;font-size:13px}
+#admMap .maplibregl-popup-tip{border-top-color:#111827!important;border-bottom-color:#111827!important}
+#admMap .maplibregl-popup-close-button{color:#94a3b8!important;font-size:16px!important;right:5px!important;top:4px!important}
+#admMap .maplibregl-ctrl-attrib{display:none!important}
+.onl-flts{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none}
+.onl-flts::-webkit-scrollbar{display:none}
+.onl-chip{width:auto!important;height:32px!important;padding:0 11px!important;border-radius:99px!important;font-size:12px!important;font-weight:700!important;background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.12)!important;color:#94a3b8!important;white-space:nowrap;flex-shrink:0}
+.onl-chip.on{background:rgba(56,189,248,.18)!important;border-color:rgba(56,189,248,.48)!important;color:#7dd3fc!important}
 </style></head><body>
 <a class="back" href="./" onclick="event.preventDefault();if(document.referrer&&document.referrer.indexOf(location.origin)===0&&history.length>1)history.back();else location.replace('./')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>В приложение</a>
 <div id="login" class="auth-wrap"><div class="card">
@@ -447,8 +460,8 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
   </div>
  </div>
 </div>
-<script src="yandex.js?v=20261120231852"></script>
-<script src="admin.js?v=20261120231852"></script>
+<script src="yandex.js?v=20261120233450"></script>
+<script src="admin.js?v=20261120233450"></script>
 <script>
 ['lgEm','lgPw'].forEach(id=>{
  const el=document.getElementById(id);
