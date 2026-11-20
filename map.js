@@ -11,6 +11,9 @@
 .mapm-b button:active{transform:scale(.95);border-color:#38bdf8!important}
 .mapm-b .mapm-c{width:34px!important;padding:0!important;background:rgba(244,63,94,.14)!important;border-color:rgba(244,63,94,.38)!important;color:#fda4af!important}
 #mapBox{flex:1;min-height:0;background:#090e1a;position:relative;overflow:hidden}
+.map-sat{position:absolute;top:10px;right:10px;z-index:10;height:36px!important;width:auto!important;margin:0!important;padding:0 12px!important;border-radius:12px!important;background:rgba(13,19,31,.88)!important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.18)!important;color:#e2e8f0!important;font-size:12.5px!important;font-weight:700!important;display:inline-flex!important;align-items:center;justify-content:center;gap:6px;box-shadow:0 6px 18px rgba(0,0,0,.48)!important;transition:.14s}
+.map-sat.on{background:rgba(6,78,59,.9)!important;border-color:rgba(52,211,153,.55)!important;color:#6ee7b7!important}
+.map-sat:active{transform:scale(.95)}
 #mapInfo{flex-shrink:0;padding:11px 14px calc(12px + env(safe-area-inset-bottom,0px));background:rgba(13,19,31,.96);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid rgba(255,255,255,.14);box-shadow:0 -10px 28px rgba(0,0,0,.45);z-index:500;max-height:22vh;overflow-y:auto}
 .map-stats{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
 .map-pill{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);font-size:13px;font-weight:700;color:#f1f5f9}
@@ -44,7 +47,10 @@
  ];
  const STYLE_PRIMARY='https://tiles.openfreemap.org/styles/dark';
  const STYLE_FALLBACK='https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+ const SAT_URL='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
  let _lp=null,_map=null,_tok=0,_fit=null;
+ function getSat(){try{return localStorage.getItem('MAP_SAT')!=='0'}catch(e){return true}}
+ function setSat(v){try{localStorage.setItem('MAP_SAT',v?'1':'0')}catch(e){}}
  function lock(on){document.documentElement.classList.toggle('lock',on);document.body.classList.toggle('lock',on)}
  function loadMapLibre(){
   if(window.maplibregl&&maplibregl.Map)return Promise.resolve();
@@ -138,6 +144,18 @@
   _map=map;
   map.addControl(new maplibregl.NavigationControl({showCompass:true,showZoom:true,visualizePitch:true}),'top-left');
 
+  let isSat=getSat();
+  const satBtn=document.createElement('button');
+  satBtn.type='button';
+  satBtn.id='mapSatBtn';
+  satBtn.className='map-sat'+(isSat?' on':'');
+  const syncSatBtn=()=>{
+   satBtn.classList.toggle('on',isSat);
+   satBtn.textContent=isSat?'🛰️ Спутник':'🗺️ Схема';
+  };
+  syncSatBtn();
+  box.appendChild(satBtn);
+
   _fit=()=>{
    if(_map!==map||!ll.length)return;
    if(ll.length===1)map.easeTo({center:ll[0],zoom:15,duration:350});
@@ -151,32 +169,70 @@
    new maplibregl.Marker({element:mkEl(mk.cls,mk.lbl),anchor:'center'}).setLngLat(mk.lngLat).setPopup(pop).addTo(map);
   });
 
-  let routeCoords=ll.slice(),routeDashed=true,styleReady=false,usedFallback=false;
+  let routeCoords=ll.slice(),routeDashed=true,styleReady=false,failCount=0,origMeta=[],hasSym=false;
+  const applySat=sat=>{
+   if(_map!==map||!map.getLayer('sat-layer'))return;
+   map.setLayoutProperty('sat-layer','visibility',sat?'visible':'none');
+   origMeta.forEach(l=>{
+    if(!map.getLayer(l.id))return;
+    let v=l.vis;
+    if(sat){
+     if(l.type==='symbol')v=l.vis;
+     else if(l.type==='line'&&/admin|boundary/i.test(l.id))v=l.vis;
+     else v='none';
+    }
+    try{map.setLayoutProperty(l.id,'visibility',v)}catch(e){}
+   });
+  };
+  satBtn.onclick=()=>{
+   isSat=!isSat;
+   setSat(isSat);
+   syncSatBtn();
+   applySat(isSat);
+  };
+
   const setupLayers=()=>{
    if(_map!==map)return;
    styleReady=true;
+   const stObj=map.getStyle();
+   const layers=(stObj&&stObj.layers)?stObj.layers.slice():[];
+   const own=new Set(['sat-layer','kentron-fill','kentron-line','route-glow','route-dash','route-solid']);
+   origMeta=layers.filter(l=>!own.has(l.id)).map(l=>({id:l.id,type:l.type,vis:(l.layout&&l.layout.visibility)||'visible'}));
+   const sym=layers.find(l=>l.type==='symbol');
+   const firstSymId=sym?sym.id:undefined;
+   hasSym=!!firstSymId;
+
+   if(!map.getSource('sat-src')){
+    map.addSource('sat-src',{type:'raster',tiles:[SAT_URL],tileSize:256,maxzoom:18,attribution:'Tiles © Esri'});
+    map.addLayer({id:'sat-layer',type:'raster',source:'sat-src',layout:{visibility:isSat?'visible':'none'}},firstSymId);
+   }
    if(typeof KENTRON_POLY!=='undefined'&&typeof getShift==='function'&&getShift()==='day'&&!map.getSource('kentron-src')){
     const ring=KENTRON_POLY.map(p=>[p[1],p[0]]);
     ring.push(ring[0]);
     map.addSource('kentron-src',{type:'geojson',data:{type:'Feature',geometry:{type:'Polygon',coordinates:[ring]}}});
-    map.addLayer({id:'kentron-fill',type:'fill',source:'kentron-src',paint:{'fill-color':'#ef4444','fill-opacity':0.14}});
-    map.addLayer({id:'kentron-line',type:'line',source:'kentron-src',paint:{'line-color':'#ef4444','line-width':2,'line-dasharray':[3,3]}});
+    map.addLayer({id:'kentron-fill',type:'fill',source:'kentron-src',paint:{'fill-color':'#ef4444','fill-opacity':0.16}},firstSymId);
+    map.addLayer({id:'kentron-line',type:'line',source:'kentron-src',paint:{'line-color':'#ef4444','line-width':2.2,'line-dasharray':[3,3]}},firstSymId);
     map.on('click','kentron-fill',e=>{
      new maplibregl.Popup().setLngLat(e.lngLat).setHTML('<b>⛔ Зона Кентрон</b><br>Въезд грузовым машинам до 21:00 запрещён').addTo(map);
     });
    }
    if(!map.getSource('route-src')){
     map.addSource('route-src',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:routeCoords}}});
-    map.addLayer({id:'route-glow',type:'line',source:'route-src',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#0284c7','line-width':10,'line-opacity':0.34}});
-    map.addLayer({id:'route-dash',type:'line',source:'route-src',layout:{'line-cap':'round','line-join':'round',visibility:routeDashed?'visible':'none'},paint:{'line-color':'#38bdf8','line-width':4.5,'line-opacity':0.95,'line-dasharray':[2,2]}});
-    map.addLayer({id:'route-solid',type:'line',source:'route-src',layout:{'line-cap':'round','line-join':'round',visibility:routeDashed?'none':'visible'},paint:{'line-color':'#38bdf8','line-width':4.5,'line-opacity':0.98}});
+    map.addLayer({id:'route-glow',type:'line',source:'route-src',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#0284c7','line-width':10,'line-opacity':0.42}},firstSymId);
+    map.addLayer({id:'route-dash',type:'line',source:'route-src',layout:{'line-cap':'round','line-join':'round',visibility:routeDashed?'visible':'none'},paint:{'line-color':'#38bdf8','line-width':4.5,'line-opacity':0.98,'line-dasharray':[2,2]}},firstSymId);
+    map.addLayer({id:'route-solid',type:'line',source:'route-src',layout:{'line-cap':'round','line-join':'round',visibility:routeDashed?'none':'visible'},paint:{'line-color':'#38bdf8','line-width':4.5,'line-opacity':1}},firstSymId);
    }
+   applySat(hasSym?isSat:true);
   };
   map.on('style.load',setupLayers);
-  map.on('error',()=>{
-   if(!styleReady&&!usedFallback&&_map===map){
-    usedFallback=true;
-    try{map.setStyle(STYLE_FALLBACK)}catch(e){}
+  map.on('error',ev=>{
+   if(ev&&ev.sourceId==='sat-src')return;
+   if(!styleReady&&_map===map){
+    failCount++;
+    try{
+     if(failCount===1)map.setStyle(STYLE_FALLBACK);
+     else if(failCount===2)map.setStyle({version:8,sources:{'sat-src':{type:'raster',tiles:[SAT_URL],tileSize:256,maxzoom:18}},layers:[{id:'sat-layer',type:'raster',source:'sat-src'}]});
+    }catch(e){}
    }
   });
   setTimeout(()=>{if(_map===map){map.resize();if(ll.length>1)map.fitBounds(bounds,{padding:46,maxZoom:16,duration:0})}},160);
