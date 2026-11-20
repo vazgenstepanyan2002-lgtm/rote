@@ -276,9 +276,19 @@
       try {
         const db = firebase.database();
         if (docKey && code !== 'ADMIN') {
-          const dupSnap = await db.ref('cars/' + code + '/docs/' + docKey).once('value');
-          const dup = dupSnap.val();
+          let dup = null;
+          try {
+            const dupSnap = await db.ref('cars/' + code + '/docs/' + docKey).once('value');
+            dup = dupSnap.val();
+          } catch (e) {}
+          if (!dup) {
+            try {
+              const locDocs = JSON.parse(localStorage.getItem('CAR_DOCS_' + code) || '{}') || {};
+              if (locDocs[docKey]) dup = locDocs[docKey];
+            } catch (e) {}
+          }
           if (dup && typeof askC === 'function') {
+            const cmEl = g('cm'); if (cmEl) document.body.appendChild(cmEl);
             const byWho = dup.by || 'коллега';
             const ok = await askC('Из вашего экипажа «' + byWho + '» уже добавил эти данные' + (cleanDoc ? ' (№ ' + cleanDoc + ')' : '') + ' в бонусы.\n\nПродолжить или отменить?', 'Продолжить', '⚠️');
             if (!ok) { g('obSaveBtn').disabled = false; return; }
@@ -290,7 +300,13 @@
         await qRef.update(patch); await db.ref('cars/' + code + '/t').set(Date.now());
         if (docKey && code !== 'ADMIN') {
           const meName = (() => { try { return localStorage.getItem('USER_NAME') || 'Водитель'; } catch (e) { return 'Водитель'; } })();
-          await db.ref('cars/' + code + '/docs/' + docKey).set({ doc: cleanDoc, by: meName, t: Date.now() }).catch(() => {});
+          const rec = { doc: cleanDoc, by: meName, t: Date.now() };
+          try {
+            const locDocs = JSON.parse(localStorage.getItem('CAR_DOCS_' + code) || '{}') || {};
+            locDocs[docKey] = rec;
+            localStorage.setItem('CAR_DOCS_' + code, JSON.stringify(locDocs));
+          } catch (e) {}
+          await db.ref('cars/' + code + '/docs/' + docKey).set(rec).catch(() => {});
         }
         const isAdmRole = code === 'ADMIN';
         let sentReq = false;
