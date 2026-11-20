@@ -417,6 +417,45 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ensureOcrInputs);
   else ensureOcrInputs();
 
+  async function getBestBackStream(){
+    const baseVideo = {
+      facingMode: { ideal: 'environment' },
+      width: { ideal: 4032, min: 1920 },
+      height: { ideal: 3024, min: 1080 },
+      focusMode: { ideal: 'continuous' }
+    };
+    let stream = await navigator.mediaDevices.getUserMedia({ video: baseVideo, audio: false });
+    try {
+      const t0 = stream.getVideoTracks()[0];
+      const c0 = t0 && t0.getCapabilities && t0.getCapabilities();
+      if (c0 && c0.torch) return stream;
+      if (navigator.mediaDevices.enumerateDevices) {
+        const devs = await navigator.mediaDevices.enumerateDevices();
+        const backs = devs.filter(d => d.kind === 'videoinput' && (!c0 || d.deviceId !== c0.deviceId));
+        for (const d of backs) {
+          if (!d.deviceId) continue;
+          let st = null;
+          try {
+            st = await navigator.mediaDevices.getUserMedia({
+              video: { deviceId: { exact: d.deviceId }, width: { ideal: 4032, min: 1280 }, height: { ideal: 3024, min: 720 } },
+              audio: false
+            });
+            const tr = st.getVideoTracks()[0];
+            const cp = tr && tr.getCapabilities && tr.getCapabilities();
+            if (cp && cp.torch) {
+              stream.getTracks().forEach(t => t.stop());
+              return st;
+            }
+            st.getTracks().forEach(t => t.stop());
+          } catch (e) {
+            if (st) st.getTracks().forEach(t => t.stop());
+          }
+        }
+      }
+    } catch (e) {}
+    return stream;
+  }
+
   async function openLiveCamera(fallbackInput){
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       if (fallbackInput) fallbackInput.click();
@@ -424,15 +463,7 @@
     }
     let stream = null;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 4032, min: 1920 },
-          height: { ideal: 3024, min: 1080 },
-          focusMode: { ideal: 'continuous' }
-        },
-        audio: false
-      });
+      stream = await getBestBackStream();
     } catch (e) {
       if (fallbackInput) fallbackInput.click();
       return;
@@ -447,27 +478,27 @@
     document.body.appendChild(ov);
     const vid = g('ocrLiveVid');
     vid.srcObject = stream;
+    const track = stream.getVideoTracks()[0];
+    let torchOn = false;
+
     const stopCam = () => {
+      try { if (torchOn && track && track.applyConstraints) track.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {}); } catch (e) {}
       try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
       ov.remove();
     };
-    const track = stream.getVideoTracks()[0];
-    let torchOn = false;
+
     try {
       const caps = track && track.getCapabilities && track.getCapabilities();
       if (caps && track.applyConstraints) {
-        const adv = [];
-        if (caps.focusMode && caps.focusMode.includes('continuous')) adv.push({ focusMode: 'continuous' });
-        if (caps.zoom && caps.zoom.min <= 1.4 && caps.zoom.max >= 1.4) adv.push({ zoom: 1.4 });
+        const cObj = {};
+        if (caps.focusMode && caps.focusMode.includes('continuous')) cObj.advanced = [{ focusMode: 'continuous' }];
         const maxW = caps.width && caps.width.max ? Math.min(4096, caps.width.max) : 0;
         const maxH = caps.height && caps.height.max ? Math.min(3072, caps.height.max) : 0;
-        const cObj = adv.length ? { advanced: adv } : {};
         if (maxW >= 1920 && maxH >= 1080) { cObj.width = { ideal: maxW }; cObj.height = { ideal: maxH }; }
         track.applyConstraints(cObj).catch(() => {});
       }
       const tb = g('olcTorch');
       if (tb) {
-        if (caps && 'torch' in caps && !caps.torch) tb.hidden = true;
         tb.onclick = async () => {
           if (!track || !track.applyConstraints) {
             window.toast && toast('Вспышка не поддерживается в этом браузере', 'err');
@@ -476,13 +507,18 @@
           torchOn = !torchOn;
           try {
             await track.applyConstraints({ advanced: [{ torch: torchOn }] });
-            tb.style.borderColor = torchOn ? '#fde047' : '';
-            tb.style.color = torchOn ? '#fde047' : '';
-            tb.style.background = torchOn ? 'rgba(250,204,21,.22)' : '';
-          } catch (e) {
-            torchOn = false;
-            window.toast && toast('Не удалось включить вспышку на этом устройстве', 'err');
+          } catch (e1) {
+            try {
+              await track.applyConstraints({ torch: torchOn });
+            } catch (e2) {
+              torchOn = false;
+              window.toast && toast('Не удалось включить вспышку на этом устройстве', 'err');
+              return;
+            }
           }
+          tb.style.borderColor = torchOn ? '#fde047' : '';
+          tb.style.color = torchOn ? '#fde047' : '';
+          tb.style.background = torchOn ? 'rgba(250,204,21,.22)' : '';
         };
       }
     } catch (e) {}
@@ -501,7 +537,11 @@
       if (!track || !track.applyConstraints) return;
       try {
         await track.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] });
-        setTimeout(() => { track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {}); }, 800);
+        setTimeout(() => {
+          const adv = [{ focusMode: 'continuous' }];
+          if (torchOn) adv.push({ torch: true });
+          track.applyConstraints({ advanced: adv }).catch(() => {});
+        }, 800);
       } catch (e) {}
     };
 
@@ -510,7 +550,6 @@
     g('olcShot').onclick = async () => {
       const shotBtn = g('olcShot');
       if (shotBtn) shotBtn.disabled = true;
-      // Пробуем сделать настоящий снимок через ImageCapture (максимальная чёткость на Android)
       if (window.ImageCapture && track) {
         try {
           const ic = new ImageCapture(track);
@@ -524,7 +563,6 @@
           }
         } catch (e) {}
       }
-      // Запасной вариант (iOS Safari): кадр из HD-потока в максимальном разрешении
       const vw = vid.videoWidth || 1920, vh = vid.videoHeight || 1080;
       const maxS = 2048;
       let w = vw, h = vh;
@@ -535,7 +573,7 @@
       cv.toBlob(blob => {
         cv.width = cv.height = 0;
         if (blob) scanBonusFile(blob);
-      }, 'image/jpeg', 0.88);
+      }, 'image/jpeg', 0.9);
     };
   }
 
