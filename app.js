@@ -193,13 +193,16 @@ const BASE={name:'🏁 Возврат на базу (Арин Берд 7)',lat:4
 function solve(D,n,bIdx){
  if(n<=0)return[];
  if(n===1)return[1];
- const pI=P.findIndex(x=>x&&x.pin)+1;
+ const pI=P.findIndex(x=>x&&x.pin)+1,ALPHA=0.22;
  if(n<=13){
-  const N=1<<n,FULL=N-1,dp=new Float64Array(N*n),par=new Int8Array(N*n);
+  const N=1<<n,FULL=N-1,dp=new Float64Array(N*n),par=new Int8Array(N*n),pc=new Uint8Array(N);
+  for(let i=1;i<N;i++)pc[i]=pc[i>>1]+(i&1);
   dp.fill(Infinity);par.fill(-1);
-  if(pI>0){dp[(1<<(pI-1))*n+(pI-1)]=D[0][pI]}
-  else{for(let i=0;i<n;i++)dp[(1<<i)*n+i]=D[0][i+1]}
+  const w0=1+ALPHA;
+  if(pI>0){dp[(1<<(pI-1))*n+(pI-1)]=D[0][pI]*w0}
+  else{for(let i=0;i<n;i++)dp[(1<<i)*n+i]=D[0][i+1]*w0}
   for(let mask=1;mask<FULL;mask++){
+   const w=1+ALPHA*(n-pc[mask])/n;
    for(let last=0;last<n;last++){
     if(!(mask&(1<<last)))continue;
     const curC=dp[mask*n+last];
@@ -207,7 +210,7 @@ function solve(D,n,bIdx){
     const row=D[last+1];
     for(let nxt=0;nxt<n;nxt++){
      if(mask&(1<<nxt))continue;
-     const nm=mask|(1<<nxt),nc=curC+row[nxt+1],idx=nm*n+nxt;
+     const nm=mask|(1<<nxt),nc=curC+row[nxt+1]*w,idx=nm*n+nxt;
      if(nc<dp[idx]){dp[idx]=nc;par[idx]=last}
     }
    }
@@ -224,7 +227,7 @@ function solve(D,n,bIdx){
  const st=pI>0?1:0;
  const cost=p=>{
   let c=0,l=0;
-  for(let k=0;k<p.length;k++){c+=D[l][p[k]];l=p[k]}
+  for(let k=0;k<p.length;k++){c+=D[l][p[k]]*(1+ALPHA*(n-k)/n);l=p[k]}
   return c+(bIdx?D[l][bIdx]:0);
  };
  const nn=first=>{
