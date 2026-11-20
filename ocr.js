@@ -222,7 +222,7 @@
     return { ignore: false, code: '' };
   }
 
-  const isRegionAddress = s => /(?:կոտայք|քանաքեռավան|աբովյան|հրազդան|չարենցավան|եղվարդ|եզվարդ|բյուրեղավան|նոր հաճն|արարատ|մասիս|արտաշատ|վեդի|արմավիր|վաղարշապատ|էջմիածին|մեծամոր|արագածոտն|աշտարակ|ապարան|թալին|շիրակ|գյումրի|արթիկ|մարալիկ|լոռի|վանաձոր|ալավերդի|սպիտակ|ստեփանավան|տաշիր|տավուշ|իջևան|դիլիջան|բերդ|նոյեմբերյան|գեղարքունիք|գավառ|սևան|մարտունի|վարդենիս|ճամբարակ|վայոց ձոր|եղեգնաձոր|եզեգնաձոր|ջերմուկ|վայք|սյունիք|կապան|գորիս|սիսիան|մեղրի|քաջարան|котайк|канакераван|абовян|раздан|чаренцаван|егвард|бюрегаван|нор ачин|арарат|масис|арташат|веди|армавир|вагаршапат|эчмиадзин|мецамор|арагацотн|аштарак|ширак|гюмри|лори|ванадзор|тавуш|иджеван|дилижан|гегаркуник|гавар|севан|мартуни|мартини|вайоц дзор|ехегнадзор|сюник|капан|горис|сисиан)/i.test(normText(s));
+  const isRegionAddress = s => /(?:կոտայք|քանաք[ե]?ռավան|աբովյան|հրազդան|չարենցավան|եղվարդ|եզվարդ|բյուրեղավան|նոր հաճն|արարատ|մասիս|արտաշատ|վեդի|արմավիր|վաղարշապատ|էջմիածին|մեծամոր|արագածոտն|աշտարակ|ապարան|թալին|շիրակ|գյումրի|արթիկ|մարալիկ|լոռի|վանաձոր|ալավերդի|սպիտակ|ստեփանավան|տաշիր|տավուշ|իջևան|դիլիջան|բերդ|նոյեմբերյան|գեղարքունիք|գավառ|սևան|մարտունի|վարդենիս|ճամբարակ|վայոց ձոր|եղեգնաձոր|եզեգնաձոր|ջերմուկ|վայք|սյունիք|կապան|գորիս|սիսիան|մեղրի|քաջարան|котайк|канакераван|абовян|раздан|чаренцаван|егвард|бюрегаван|нор ачин|арарат|масис|арташат|веди|армавир|вагаршапат|эчмиадзин|мецамор|арагацотн|аштарак|ширак|гюмри|лори|ванадзор|тавуш|иджеван|дилижан|гегаркуник|гавар|севан|мартуни|мартини|вайоц дзор|ехегнадзор|сюник|капан|горис|сисиан)/i.test(normText(s));
   const isYerevanAddress = s => {
     const low = String(s || "").toLowerCase();
     if (isRegionAddress(low)) return false;
@@ -230,8 +230,15 @@
   };
 
   async function compressImage(file){
-    const maxSide = (file && file._isCropped) ? 1280 : 1536;
-    const q = (file && file._isCropped) ? 0.78 : 0.80;
+    const maxSide = (file && file._isCropped) ? 1152 : 1440;
+    const q = (file && file._isCropped) ? 0.76 : 0.78;
+    const encodeCv = cv => {
+      try {
+        const wUrl = cv.toDataURL('image/webp', q);
+        if (wUrl && wUrl.indexOf('data:image/webp') === 0) return wUrl.split(',').pop();
+      } catch (e) {}
+      return cv.toDataURL('image/jpeg', q).split(',').pop();
+    };
     if (window.createImageBitmap) {
       try {
         const bmp0 = await createImageBitmap(file);
@@ -242,11 +249,14 @@
           else { w = Math.round(w * maxSide / h); h = maxSide; }
         }
         bmp0.close();
-        const bmp = await createImageBitmap(file, w === w0 && h === h0 ? undefined : { resizeWidth: w, resizeHeight: h, resizeQuality: "high" });
-        const cv = document.createElement("canvas"); cv.width = bmp.width; cv.height = bmp.height;
-        cv.getContext("2d").drawImage(bmp, 0, 0);
+        const bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
+        const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
+        const ctx = cv.getContext('2d');
+        ctx.filter = 'grayscale(1) contrast(1.22)';
+        ctx.drawImage(bmp, 0, 0);
+        ctx.filter = 'none';
         bmp.close();
-        const out = cv.toDataURL("image/jpeg", q).split(",").pop();
+        const out = encodeCv(cv);
         cv.width = cv.height = 0;
         return out;
       } catch (e) {}
@@ -258,13 +268,16 @@
         URL.revokeObjectURL(url);
         let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
         if (w > maxSide || h > maxSide) { if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; } else { w = Math.round(w * maxSide / h); h = maxSide; } }
-        const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
-        cv.getContext("2d").drawImage(img, 0, 0, w, h);
-        const out = cv.toDataURL("image/jpeg", q).split(",").pop();
+        const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+        const ctx = cv.getContext('2d');
+        ctx.filter = 'grayscale(1) contrast(1.22)';
+        ctx.drawImage(img, 0, 0, w, h);
+        ctx.filter = 'none';
+        const out = encodeCv(cv);
         cv.width = cv.height = 0;
         res(out);
       };
-      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("Ошибка чтения фото")); };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Ошибка чтения фото')); };
       img.src = url;
     });
   }
@@ -276,114 +289,200 @@
     } catch (e) {}
   };
 
-  async function askGemini(b64){
-    const host = ["generativelanguage", "googleapis", "com"].join(".");
-    const prompt = 'Считай накладную EuroBaza (армянский/русский). Различай буквы точно (Յանա, Նիցցա, Ալսու, Մոնա Լիզա, Էկո, Ռիո, Պրեստիժ, Ատլանտա, շիմո). Верни ТОЛЬКО JSON: {"doc":"номер документа из Բեռնափոխադրման թերթիկ № или Վաճառքի փաստաթուղթ № (цифры и дефис)","addr":"адрес из Տեղափոխման հասցե","items":[{"name":"название товара из Ապրանքի անվանումը","qty":1}]}. Игнорируй доставку (Տեղափոխություն/Տեղափոխուտյուն), сборку (Հավաքում/Сборка) и фурнитуру.';
-    const baseModels = [
-      "gemini-2.5-flash-lite",
-      "gemini-flash-lite-latest",
-      "gemini-3.1-flash-lite",
-      "gemini-4-hydrogen",
-      "gemini-2.5-flash",
-      "gemini-flash-latest"
-    ];
-
-    let skipMap = {};
-    try { skipMap = JSON.parse(localStorage.getItem("OCR_SKIP_MDL") || "{}") || {}; } catch (e) {}
-    const nowTs = Date.now();
-    Object.keys(skipMap).forEach(k => { if (!skipMap[k] || skipMap[k] <= nowTs) delete skipMap[k]; });
-    const markSkip = (m, mins) => {
-      skipMap[m] = Date.now() + mins * 60000;
-      try { localStorage.setItem("OCR_SKIP_MDL", JSON.stringify(skipMap)); } catch (e) {}
+async function askGemini(b64){
+    try { localStorage.removeItem('OCR_FAST_MDL'); } catch (e) {}
+    const cleanB64 = String(b64 || '');
+    const mime = cleanB64.indexOf('UklGR') === 0 ? 'image/webp' : (cleanB64.indexOf('iVBOR') === 0 ? 'image/png' : 'image/jpeg');
+    const host = ['generativelanguage', 'googleapis', 'com'].join('.');
+    const prompt = 'Распознай накладную EuroBaza (HY/RU/EN). Внимательно различай армянские буквы. doc=номер из Բեռնափոխադրման թերթիկ № или Վաճառքի փաստաթուղթ № (цифры и дефис), addr=адрес из Տեղափոխման հասցե, items=[{name:точное название из Ապրանքի անվանումը, qty:целое число из Քանակ}]. Игнорируй доставку (Տեղափոխություն/Տեղափոխուտյուն), сборку (Հավաքում/Сборка) и фурнитуру.';
+    const schema = {
+      type: 'OBJECT',
+      properties: {
+        doc: { type: 'STRING' },
+        addr: { type: 'STRING' },
+        items: {
+          type: 'ARRAY',
+          items: {
+            type: 'OBJECT',
+            properties: {
+              name: { type: 'STRING' },
+              qty: { type: 'INTEGER' }
+            },
+            required: ['name', 'qty']
+          }
+        }
+      },
+      required: ['doc', 'addr', 'items']
     };
-
-    let fastMdl = "";
-    try {
-      const rec = JSON.parse(localStorage.getItem("OCR_FAST_MDL_V2") || "null");
-      if (rec && rec.m && (nowTs - rec.t) < 1200000 && baseModels.includes(rec.m) && !skipMap[rec.m]) fastMdl = rec.m;
-    } catch (e) {}
-
-    let activeModels = baseModels.filter(m => !skipMap[m]);
-    if (!activeModels.length) activeModels = baseModels.slice(0, 3);
-    const models = fastMdl ? [fastMdl, ...activeModels.filter(m => m !== fastMdl)] : activeModels;
-
-    const makeBody = (mdl, safeMode) => {
-      const gen = { maxOutputTokens: 2048, responseMimeType: "application/json" };
-      if (!safeMode) {
-        if (/2\.5/.test(mdl)) {
-          gen.temperature = 0;
-          gen.thinkingConfig = { thinkingBudget: 0 };
-        } else if (/3\.1-flash-lite/.test(mdl)) {
-          gen.thinkingConfig = { thinkingLevel: "MINIMAL" };
+    const baseModels = ['gemini-2.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash', 'gemini-flash-lite-latest', 'gemini-flash-latest'];
+    const readSkip = () => {
+      try {
+        const raw = JSON.parse(localStorage.getItem('OCR_SKIP_MDL') || '{}') || {};
+        const now = Date.now(), clean = {};
+        for (const k in raw) if (raw[k] > now) clean[k] = raw[k];
+        return clean;
+      } catch (e) { return {}; }
+    };
+    const markSkip = (mdl, mins) => {
+      try {
+        const s = readSkip();
+        s[mdl] = Date.now() + mins * 60000;
+        localStorage.setItem('OCR_SKIP_MDL', JSON.stringify(s));
+      } catch (e) {}
+    };
+    const getOrderedModels = () => {
+      const skip = readSkip();
+      let list = baseModels.filter(m => !skip[m]);
+      try {
+        const fc = JSON.parse(localStorage.getItem('OCR_FAST_MDL_V2') || 'null');
+        if (fc && fc.m && fc.m !== 'gemini-flash-latest' && fc.t > Date.now() - 20 * 60000 && list.includes(fc.m)) {
+          list = [fc.m].concat(list.filter(x => x !== fc.m));
+        }
+      } catch (e) {}
+      return list;
+    };
+    const buildBody = (mdl, safeMode) => {
+      let genCfg;
+      if (safeMode) {
+        genCfg = { responseMimeType: 'application/json' };
+      } else {
+        genCfg = { responseMimeType: 'application/json', responseSchema: schema, maxOutputTokens: 1024 };
+        if (/gemini-2\.5/.test(mdl)) {
+          genCfg.temperature = 0;
+          genCfg.thinkingConfig = { thinkingBudget: 0 };
+        } else if (/gemini-3\.1-flash-lite/.test(mdl)) {
+          genCfg.temperature = 0;
+          genCfg.thinkingConfig = { thinkingLevel: 'MINIMAL' };
+        } else if (/gemini-3\./.test(mdl)) {
+          genCfg.temperature = 0;
+          genCfg.thinkingConfig = { thinkingLevel: 'LOW' };
         } else {
-          gen.thinkingConfig = { thinkingLevel: "LOW" };
+          genCfg.thinkingConfig = { thinkingLevel: 'LOW' };
         }
       }
       return JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mime_type: "image/jpeg", data: b64 } }] }],
-        generationConfig: gen
+        contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mime_type: mime, data: cleanB64 } }] }],
+        generationConfig: genCfg
       });
     };
-
-    let parsed = null, lastErr = "", quotaHits = 0;
-    const passes = [{ to: 8500, wait: 0 }, { to: 10000, wait: 450 }, { to: 13000, wait: 1300 }];
-    for (let pIdx = 0; pIdx < passes.length && !parsed; pIdx++) {
-      const avail = models.filter(m => !(skipMap[m] && skipMap[m] > Date.now()));
-      if (!avail.length) break;
-      if (passes[pIdx].wait > 0) await new Promise(r => setTimeout(r, passes[pIdx].wait));
-      for (const mdl of avail) {
-        for (let tOpt = 0; tOpt < 2; tOpt++) {
-          try {
-            const res = await fetch("https" + "://" + host + "/v1beta/models/" + mdl + ":generateContent?key=" + encodeURIComponent(GKEY), {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              signal: AbortSignal.timeout(passes[pIdx].to),
-              body: makeBody(mdl, tOpt === 1)
-            });
-            if (!res.ok) {
-              const errData = await res.json().catch(() => ({}));
-              const msg = (errData.error && errData.error.message) ? errData.error.message : ("HTTP " + res.status);
-              if (res.status === 400 && tOpt === 0) continue;
-              if (res.status === 404) { markSkip(mdl, 720); break; }
-              if (res.status === 429 || /quota|rate.?limit|exceeded/i.test(msg)) {
-                quotaHits++;
-                markSkip(mdl, /per day|free.?tier/i.test(msg) ? 60 : 5);
-                if (!lastErr) lastErr = "Лимит бесплатных запросов на модель (" + mdl + ")";
-                break;
-              }
-              lastErr = msg;
-              break;
-            }
-            const j = await res.json();
-            const cand = Array.isArray(j.candidates) ? j.candidates[0] : null;
-            const parts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : [];
-            const ans = parts.find(p => p && !p.thought && typeof p.text === "string") || parts[parts.length - 1];
-            const rawTxt = ((ans && ans.text) || "").replace(/```json|```/gi, "").trim();
-            if (!rawTxt) { lastErr = "Пустой ответ модели"; break; }
-            parsed = JSON.parse(rawTxt);
-            try { localStorage.setItem("OCR_FAST_MDL_V2", JSON.stringify({ m: mdl, t: Date.now() })); } catch (e) {}
-            break;
-          } catch (e) {
-            lastErr = (e && e.name === "TimeoutError") ? "Таймаут сети" : ((e && e.message) || "Нет связи");
-            break;
-          }
+    const callModel = async (mdl, timeoutMs, extSignal) => {
+      for (const safeMode of [false, true]) {
+        const ctrl = new AbortController();
+        let timedOut = false;
+        const onExtAbort = () => { try { ctrl.abort(); } catch (e) {} };
+        if (extSignal) {
+          if (extSignal.aborted) return { ok: false, err: '' };
+          extSignal.addEventListener('abort', onExtAbort, { once: true });
         }
-        if (parsed) break;
+        const tId = setTimeout(() => { timedOut = true; try { ctrl.abort(); } catch (e) {} }, timeoutMs);
+        try {
+          const res = await fetch('https' + '://' + host + '/v1beta/models/' + mdl + ':generateContent?key=' + encodeURIComponent(GKEY), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: ctrl.signal,
+            body: buildBody(mdl, safeMode)
+          });
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            const msg = (errData.error && errData.error.message) ? errData.error.message : ('HTTP ' + res.status);
+            if (res.status === 400 && !safeMode) continue;
+            if (res.status === 429) {
+              const isDaily = /per\s*day|free\s*tier|limit:\s*0/i.test(msg);
+              markSkip(mdl, isDaily ? 60 : 5);
+            } else if (res.status === 404) {
+              markSkip(mdl, 720);
+            }
+            return { ok: false, err: msg };
+          }
+          const data = await res.json();
+          if (data && Array.isArray(data.candidates) && data.candidates.length) {
+            return { ok: true, json: data };
+          }
+          return { ok: false, err: 'Пустой ответ модели' };
+        } catch (e) {
+          if (extSignal && extSignal.aborted) return { ok: false, err: '' };
+          return { ok: false, err: timedOut ? 'Таймаут сети' : ((e && e.message) || 'Нет связи') };
+        } finally {
+          clearTimeout(tId);
+          if (extSignal) extSignal.removeEventListener('abort', onExtAbort);
+        }
       }
+      return { ok: false, err: 'Ошибка параметров запроса' };
+    };
+    const raceTwo = (m1, m2, timeoutMs) => new Promise(resolve => {
+      const c1 = new AbortController(), c2 = new AbortController();
+      let timer = null, p2Started = false, settled = false, doneCount = 0, firstErr = '';
+      const finish = (ok, payload) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (ok) {
+          try { c1.abort(); } catch (e) {}
+          try { c2.abort(); } catch (e) {}
+          resolve({ ok: true, mdl: payload.mdl, json: payload.json });
+        } else {
+          resolve({ ok: false, err: payload, p2Tried: p2Started });
+        }
+      };
+      const onFail = (err, isP1) => {
+        doneCount++;
+        if (!firstErr && err) firstErr = err;
+        if (isP1 && !p2Started) { finish(false, firstErr); return; }
+        if (doneCount >= 2) finish(false, firstErr);
+      };
+      callModel(m1, timeoutMs, c1.signal).then(r => {
+        if (r.ok) finish(true, { mdl: m1, json: r.json });
+        else onFail(r.err, true);
+      });
+      timer = setTimeout(() => {
+        if (settled) return;
+        p2Started = true;
+        callModel(m2, timeoutMs, c2.signal).then(r => {
+          if (r.ok) finish(true, { mdl: m2, json: r.json });
+          else onFail(r.err, false);
+        });
+      }, 3800);
+    });
+
+    const passTimeouts = [8500, 10500, 13500];
+    const passWaits = [0, 450, 1300];
+    let j = null, winMdl = '', lastErr = '';
+    for (let p = 0; p < passTimeouts.length; p++) {
+      if (passWaits[p] > 0) await new Promise(r => setTimeout(r, passWaits[p]));
+      const avail = getOrderedModels();
+      if (!avail.length) break;
+      let startIdx = 0;
+      if (p === 0 && avail.length >= 2) {
+        const rr = await raceTwo(avail[0], avail[1], passTimeouts[p]);
+        if (rr.ok) { j = rr.json; winMdl = rr.mdl; break; }
+        if (rr.err) lastErr = rr.err;
+        startIdx = rr.p2Tried ? 2 : 1;
+      }
+      for (let idx = startIdx; idx < avail.length; idx++) {
+        const mdl = avail[idx];
+        const r = await callModel(mdl, passTimeouts[p], null);
+        if (r.ok) { j = r.json; winMdl = mdl; break; }
+        if (r.err) lastErr = r.err;
+      }
+      if (j) break;
     }
-    if (!parsed) {
-      if (quotaHits && quotaHits >= models.length) throw new Error("Дневной лимит бесплатного OCR исчерпан, попробуйте чуть позже");
-      throw new Error(lastErr || "Сервер распознавания не ответил");
+    if (!j) throw new Error(lastErr || 'Сервер распознавания не ответил');
+    if (winMdl && /lite|2\.5-flash$/.test(winMdl)) {
+      try { localStorage.setItem('OCR_FAST_MDL_V2', JSON.stringify({ m: winMdl, t: Date.now() })); } catch (e) {}
     }
+    const cand = Array.isArray(j.candidates) ? j.candidates[0] : null;
+    const parts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : [];
+    const ans = parts.find(p => p && !p.thought && typeof p.text === 'string') || parts[parts.length - 1];
+    const parsed = JSON.parse(((ans && ans.text) || '{}').replace(/```json|```/gi, '').trim());
     const items = [];
     (Array.isArray(parsed.items) ? parsed.items : []).forEach(x => {
-      const name = String((x && x.name) || "").trim(), qty = Math.max(1, Math.round(+x.qty || 1));
+      const name = String((x && x.name) || '').trim(), qty = Math.max(1, Math.round(+x.qty || 1));
       if (!name) return;
       const cls = classifyProduct(name);
-      if (!cls.ignore) items.push({ name, qty, code: cls.code || "" });
+      if (!cls.ignore) items.push({ name, qty, code: cls.code || '' });
     });
-    const doc = String((parsed && parsed.doc) || "").replace(/^[^0-9]+/, "").trim();
-    return { doc, addr: String((parsed && parsed.addr) || "").trim(), items };
+    const doc = String((parsed && parsed.doc) || '').replace(/^[^0-9]+/, '').trim();
+    return { doc, addr: String((parsed && parsed.addr) || '').trim(), items };
   }
   const saveOcrDraft = (rows, isCity, docNum) => {
     try {
@@ -1081,7 +1180,7 @@
       if (shotBtn) shotBtn.disabled = true;
       const vw = vid.videoWidth || 1920, vh = vid.videoHeight || 1080;
       const vidPort = vh > vw;
-      if (window.ImageCapture && track) {
+      if (window.ImageCapture && track && (torchOn || !vid || (vid.videoWidth || 0) < 1280)) {
         try {
           const ic = new ImageCapture(track);
           let photoOpts = torchOn ? { fillLightMode: "torch" } : {};
