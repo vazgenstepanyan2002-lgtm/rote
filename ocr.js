@@ -188,31 +188,53 @@
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
     const prompt = 'Считай накладную EuroBaza. Верни ТОЛЬКО JSON: {"doc":"номер документа из Վաճառքի փաստաթուղթ № или № сверху (только цифры и дефис)","addr":"адрес из Տեղափոխման հասցե","items":[{"name":"точное название товара из Ապրանքի անվանումը","qty":1}]}. Игнорируй услуги доставки (Տեղափոխություն, Տեղափոխուտյուն), сборки (Հավաքում, Сборка) и фурнитуру.';
     const bodyStr = JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mime_type: 'image/jpeg', data: b64 } }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } } });
-    const cachedMdl = (() => { try { return localStorage.getItem('OCR_FAST_MDL') || ''; } catch (e) { return ''; } })();
-    const models = Array.from(new Set([cachedMdl, 'gemini-flash-lite-latest', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'].filter(Boolean)));
+    const tryModel = async mdl => {
+      const res = await fetch('https' + '://' + host + '/v1beta/models/' + mdl + ':generateContent?key=' + encodeURIComponent(GKEY), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(18000),
+        body: bodyStr
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error((errData.error && errData.error.message) ? errData.error.message : ('HTTP ' + res.status));
+      }
+      const j = await res.json();
+      if (!j || !Array.isArray(j.candidates) || !j.candidates.length) throw new Error('Пустой ответ модели');
+      return j;
+    };
+
     let j = null, lastErr = '';
-    for (const mdl of models) {
+    const cachedMdl = (() => { try { return localStorage.getItem('OCR_FAST_MDL') || ''; } catch (e) { return ''; } })();
+    if (cachedMdl) {
+      try { j = await tryModel(cachedMdl); }
+      catch (e) { lastErr = e.message || ''; try { localStorage.removeItem('OCR_FAST_MDL'); } catch (er) {} }
+    }
+
+    if (!j) {
+      let models = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-flash-lite-latest'];
       try {
-        const res = await fetch('https' + '://' + host + '/v1beta/models/' + mdl + ':generateContent?key=' + encodeURIComponent(GKEY), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: AbortSignal.timeout(15000),
-          body: bodyStr
-        });
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          lastErr = (errData.error && errData.error.message) ? errData.error.message : ('HTTP ' + res.status);
-          continue;
+        const mRes = await fetch('https' + '://' + host + '/v1beta/models?key=' + encodeURIComponent(GKEY), { signal: AbortSignal.timeout(8000) });
+        if (mRes.ok) {
+          const mJson = await mRes.json();
+          const apiModels = (Array.isArray(mJson.models) ? mJson.models : [])
+            .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent') && /flash/i.test(m.name || '') && !/tts|audio|live|exp|1.5|2.0|2.5/i.test(m.name || ''))
+            .map(m => String(m.name).replace('models/', ''))
+            .reverse();
+          if (apiModels.length) models = Array.from(new Set([...apiModels, ...models]));
         }
-        j = await res.json();
-        if (j && Array.isArray(j.candidates) && j.candidates.length) {
+      } catch (e) {}
+      for (const mdl of models) {
+        try {
+          j = await tryModel(mdl);
           try { localStorage.setItem('OCR_FAST_MDL', mdl); } catch (e) {}
           break;
+        } catch (e) {
+          lastErr = (e && e.name === 'TimeoutError') ? 'Таймаут сети' : ((e && e.message) || 'Нет связи');
         }
-      } catch (e) {
-        lastErr = (e && e.name === 'TimeoutError') ? 'Таймаут сети' : ((e && e.message) || 'Нет связи');
       }
     }
+
     if (!j) throw new Error(lastErr || 'Сервер распознавания не ответил');
     const cand = Array.isArray(j.candidates) ? j.candidates : null;
     const parts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : [];
