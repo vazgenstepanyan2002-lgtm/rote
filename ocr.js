@@ -84,7 +84,7 @@
 
   const RULES = [
     { ignore: true, rx: /(?:տեղափոխու[թտ]յուն|հավաքում|доставк|перевозк|сборк)/i },
-    { code: 'bedroom_g', rx: /(?:ննջասենյակ|спальн).*0[.,]9\s*[*xх]\s*2/i },
+    { code: 'bedroom_g', rx: /(?:ննջասենյակ|սենյակ|спальн).*0[.,]9\s*[*xх×]\s*2/i },
     { code: 'bedroom_d', rx: /(?:ննջասենյակ|спальн).*(?:նիցցա|ницца|ալսու|алсу|մոնա լիզա|мона лиза)/i },
     { code: 'bedroom_c', rx: /(?:ննջասենյակ|спальн).*(?:էկո|эко|րիո|рио)/i },
     { code: 'bedroom_f', rx: /(?:ննջասենյակ|спальн).*(?:պրեստիժ|престиж)/i },
@@ -145,27 +145,6 @@
     return /(?:ереван|երևան|yerevan|աջափնյակ|արաբկիր|ավան|դավթաշեն|էրեբունի|կենտրոն|մալաթիա|նոր նորք|նորք-մարաշ|նուբարաշեն|շենգավիթ|քանաքեռ-զեյթուն|քանաքեռ|ачапняк|арабкир|аван|давидашен|эребуни|кентрон|малатия|нор норк|норк-мараш|нубарашен|шенгавит|канакер)/i.test(low);
   };
 
-  function sharpenCanvas(ctx, w, h){
-    try {
-      const imgData = ctx.getImageData(0, 0, w, h);
-      const d = imgData.data;
-      const copy = new Uint8ClampedArray(d);
-      const mix = 0.35;
-      for (let y = 1; y < h - 1; y++) {
-        for (let x = 1; x < w - 1; x++) {
-          const i = (y * w + x) * 4;
-          for (let c = 0; c < 3; c++) {
-            const val = 5 * copy[i + c]
-              - copy[i - 4 + c] - copy[i + 4 + c]
-              - copy[i - w * 4 + c] - copy[i + w * 4 + c];
-            d[i + c] = copy[i + c] * (1 - mix) + val * mix;
-          }
-        }
-      }
-      ctx.putImageData(imgData, 0, 0);
-    } catch (e) {}
-  }
-
   async function compressImage(file){
     const maxSide = 1800;
     if (window.createImageBitmap) {
@@ -180,13 +159,9 @@
         bmp0.close();
         const bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
         const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
-        const ctx = cv.getContext('2d');
-        ctx.filter = 'contrast(1.12)';
-        ctx.drawImage(bmp, 0, 0);
-        ctx.filter = 'none';
+        cv.getContext('2d').drawImage(bmp, 0, 0);
         bmp.close();
-        sharpenCanvas(ctx, cv.width, cv.height);
-        const out = cv.toDataURL('image/jpeg', 0.88).split(',').pop();
+        const out = cv.toDataURL('image/jpeg', 0.90).split(',').pop();
         cv.width = cv.height = 0;
         return out;
       } catch (e) {}
@@ -199,12 +174,8 @@
         let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
         if (w > maxSide || h > maxSide) { if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; } else { w = Math.round(w * maxSide / h); h = maxSide; } }
         const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
-        const ctx = cv.getContext('2d');
-        ctx.filter = 'contrast(1.12)';
-        ctx.drawImage(img, 0, 0, w, h);
-        ctx.filter = 'none';
-        sharpenCanvas(ctx, w, h);
-        const out = cv.toDataURL('image/jpeg', 0.88).split(',').pop();
+        cv.getContext('2d').drawImage(img, 0, 0, w, h);
+        const out = cv.toDataURL('image/jpeg', 0.90).split(',').pop();
         cv.width = cv.height = 0;
         res(out);
       };
@@ -585,7 +556,7 @@
     document.body.appendChild(m);
     const close = () => m.remove();
     g('ocrPickNo').onclick = close; g('ocrPickX').onclick = close; m.onclick = e => { if (e.target === m) close(); };
-    g('ocrPickCam').onclick = () => { close(); openLiveCamera(cam); }; g('ocrPickGal').onclick = () => { close(); gal.click(); };
+    g('ocrPickCam').onclick = () => { close(); cam.click(); }; g('ocrPickGal').onclick = () => { close(); gal.click(); };
   };
   window.EUROBAZA_OCR_KEY = GKEY;
   setTimeout(() => {
