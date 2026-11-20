@@ -311,27 +311,7 @@
   const L=devs(),now=Date.now();
   const on=L.filter(d=>now-(d.u.t||0)<TTL).length,day=L.filter(d=>now-(d.u.t||0)<864e5).length;
   let h='<div class="tiles"><div class="tile"><b>'+on+'</b><span>онлайн</span></div><div class="tile"><b>'+day+'</b><span>за 24 часа</span></div><div class="tile"><b>'+L.length+'</b><span>всего</span></div></div>';
-  const pendList=[];
-  if(!isSubAdm()){
-   Object.keys(USERS).forEach(uid=>{
-    const op=USERS[uid]&&USERS[uid].ocrPending;
-    if(op&&typeof op==='object'){
-     Object.keys(op).forEach(k=>{if(op[k]&&op[k].code)pendList.push({uid,k,p:op[k]})});
-    }
-   });
-  }
-  if(pendList.length){
-   h+='<div class="sec" style="color:#fde047">🧾 Новые правила накладных ('+pendList.length+')</div>';
-   h+=pendList.map(({uid,k,p})=>{
-    return '<div class="mr col" style="cursor:default;border-color:rgba(250,204,21,.4);background:linear-gradient(180deg,rgba(36,30,14,.92) 0%,rgba(16,18,28,.96) 100%)">'
-     +'<div class="rm"><div class="rt" style="font-size:14px">📄 '+esc(p.raw||k)+'</div>'
-     +'<div class="rs">Категория: <b style="color:#6ee7b7">'+esc(OCR_CAT_NAMES[p.code]||p.code)+'</b> · от '+esc(p.by||'Водитель')+'</div></div>'
-     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
-     +'<button type="button" data-act="ocr-ok" data-uid="'+esc(uid)+'" data-k="'+esc(k)+'" data-code="'+esc(p.code)+'" style="height:36px;border-radius:10px;background:rgba(16,185,129,.22);border:1px solid rgba(52,211,153,.45);color:#6ee7b7;font-size:13px;font-weight:700">✓ Одобрить для всех</button>'
-     +'<button type="button" data-act="ocr-no" data-uid="'+esc(uid)+'" data-k="'+esc(k)+'" style="height:36px;border-radius:10px;background:rgba(239,68,68,.16);border:1px solid rgba(239,68,68,.38);color:#fca5a5;font-size:13px;font-weight:700">✕ Отклонить</button>'
-     +'</div></div>';
-   }).join('');
-  }
+
   if(!L.length)h+='<div class="mut box">Данных пока нет. Устройства появятся, когда откроют обновлённое приложение.</div>';
   h+=L.map(d=>{
    const live=now-(d.u.t||0)<TTL,acc=accByUid(d.id),blk=!!((acc&&acc.blocked)||d.u.blocked);
@@ -489,11 +469,43 @@ function drawTotals(){
    +'<button class="btn" data-act="force">🔄 Обновить у всех</button>';
   g('view').innerHTML=h;
  }
+ function getOcrPending(){
+  const list=[];
+  if(!isSubAdm()){
+   Object.keys(USERS).forEach(uid=>{
+    const op=USERS[uid]&&USERS[uid].ocrPending;
+    if(op&&typeof op==='object'){
+     Object.keys(op).forEach(k=>{if(op[k]&&op[k].code)list.push({uid,k,p:op[k]})});
+    }
+   });
+  }
+  return list;
+ }
+ function updOcrTabBdg(){
+  const b=g('ocrTabBdg');if(!b)return;
+  const n=getOcrPending().length;
+  b.textContent=n>99?'99+':String(n);
+  b.hidden=n===0;
+ }
  function drawOcr(){
+  const pendList=getOcrPending();
   const allKeys=Object.keys(OCR_MAP).filter(k=>OCR_MAP[k]&&OCR_CAT_NAMES[OCR_MAP[k]]).sort();
   const q=OCR_Q.trim().toLowerCase();
   const keys=q?allKeys.filter(k=>k.includes(q)||(OCR_CAT_NAMES[OCR_MAP[k]]||'').toLowerCase().includes(q)):allKeys;
   let h='<div class="sum-dash"><div class="sum-top"><div><div class="sum-lbl">Общий словарь накладных</div><div class="sum-val">'+allKeys.length+' <span>правил</span></div></div><button type="button" data-act="ocr-add" style="height:40px;padding:0 14px;border-radius:12px;background:rgba(16,185,129,.22);border:1px solid rgba(52,211,153,.45);color:#6ee7b7;font-size:13.5px;font-weight:700;white-space:nowrap">➕ Добавить</button></div></div>';
+  if(pendList.length){
+   h+='<div class="sec" style="color:#fde047">🧾 Ожидают подтверждения ('+pendList.length+')</div>';
+   h+=pendList.map(({uid,k,p})=>{
+    return '<div class="mr col" style="cursor:default;border-color:rgba(250,204,21,.4);background:linear-gradient(180deg,rgba(36,30,14,.92) 0%,rgba(16,18,28,.96) 100%)">'
+     +'<div class="rm"><div class="rt" style="font-size:14px">📄 '+esc(p.raw||k)+'</div>'
+     +'<div class="rs">Категория: <b style="color:#6ee7b7">'+esc(OCR_CAT_NAMES[p.code]||p.code)+'</b> · от '+esc(p.by||'Водитель')+'</div></div>'
+     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
+     +'<button type="button" data-act="ocr-ok" data-uid="'+esc(uid)+'" data-k="'+esc(k)+'" data-code="'+esc(p.code)+'" style="height:36px;border-radius:10px;background:rgba(16,185,129,.22);border:1px solid rgba(52,211,153,.45);color:#6ee7b7;font-size:13px;font-weight:700">✓ Одобрить для всех</button>'
+     +'<button type="button" data-act="ocr-no" data-uid="'+esc(uid)+'" data-k="'+esc(k)+'" style="height:36px;border-radius:10px;background:rgba(239,68,68,.16);border:1px solid rgba(239,68,68,.38);color:#fca5a5;font-size:13px;font-weight:700">✕ Отклонить</button>'
+     +'</div></div>';
+   }).join('');
+   h+='<div class="sec">Все правила ('+allKeys.length+')</div>';
+  }
   h+='<input id="ocrSrchInp" class="sum-srch" type="search" value="'+esc(OCR_Q)+'" placeholder="Поиск по названию или категории..." style="margin-bottom:10px!important">';
   if(!keys.length)h+='<div class="mut box">'+(allKeys.length?'Ничего не найдено по запросу.':'Словарь пуст. Правила появятся после сканирования накладных или добавления вручную.')+'</div>';
   h+=keys.map(k=>{
@@ -509,6 +521,7 @@ function drawTotals(){
  }
  function draw(){
   if(g('panel').hidden)return;
+  updOcrTabBdg();
   const sub=isSubAdm();
   const tabsEl=document.querySelector('.tabs');
   if(tabsEl)tabsEl.style.gridTemplateColumns=sub?'repeat(3,1fr)':'repeat(5,1fr)';
