@@ -216,7 +216,7 @@
         lastErr = (e && e.name === 'TimeoutError') ? 'Таймаут сети' : ((e && e.message) || 'Нет связи');
       }
     }
-    if (!j) throw new Error(/quota|429/i.test(lastErr) ? 'Слишком много сканов подряд (лимит API). Подождите 15 секунд и повторите.' : (lastErr || 'Сервер распознавания не ответил'));
+    if (!j) throw new Error(lastErr || 'Сервер распознавания не ответил');
     const cand = Array.isArray(j.candidates) ? j.candidates[0] : null;
     const parts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : [];
     const ans = parts.find(p => p && !p.thought && typeof p.text === 'string') || parts[parts.length - 1];
