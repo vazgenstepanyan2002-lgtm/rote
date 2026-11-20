@@ -466,7 +466,7 @@
  function ensure(){
   let m=g('bnMdl');if(m)return m;
   m=document.createElement('div');m.id='bnMdl';m.className='mdl';
-  m.innerHTML='<div class="mdl-b bn-b"><div class="bn-hd"><div class="bn-hd-l"><div class="bn-hd-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"/></svg></div><div><div class="bn-hd-t">Бонусы</div><div class="bn-hd-s">Расчёт по категориям мебели</div></div></div><button type="button" class="bn-x-btn" id="bnX" aria-label="Закрыть">✕</button></div>'
+  m.innerHTML='<div class="mdl-b bn-b"><div class="bn-hd"><div class="bn-hd-l"><div class="bn-hd-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"/></svg></div><div><div class="bn-hd-t">Бонусы</div><div class="bn-hd-s">Расчёт по категориям мебели</div></div></div><div style="display:flex;align-items:center;gap:7px;flex-shrink:0"><button type="button" class="bn-cam-btn" id="bnCamBtn" title="Сканировать накладную" aria-label="Сканировать накладную"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></button><button type="button" class="bn-x-btn" id="bnX" aria-label="Закрыть">✕</button></div></div>'
    +'<div id="bnList"></div>'
    +'<div class="bn-ft"><div class="bn-tr"><span>Общая сумма</span><b id="bnTot">0</b></div>'
    +'<div class="bn-tr bn-sm"><span>Всего штук: <b id="bnQty">0</b></span></div>'
@@ -476,7 +476,7 @@
    +'<div class="bn-btns"><button id="bnSave">💾 Сохранить</button><button id="bnSmCp">📄 Скопировать</button></div></div></div></div>';
   document.body.appendChild(m);
   m.onclick=e=>{if(e.target===m)closeBon()};
-  g('bnX').onclick=()=>closeBon();
+  g('bnX').onclick=()=>closeBon();if(g('bnCamBtn'))g('bnCamBtn').onclick=()=>{if(!CAR_CODE){tst('Экипаж не назначен администратором','err');return}if(window.openBonusScanner)window.openBonusScanner()};
   g('bnRst').onclick=resetQty;
   g('bnSumB').onclick=openSum;g('bnSmList').addEventListener('click',e=>{const r=e.target.closest('[data-m]');if(r)showMonth(r.dataset.m)});g('bnSmX').onclick=()=>closeSum();g('bnSmCp').onclick=copySum;g('bnSave').onclick=saveMonth;g('bnSm').onclick=e=>{if(e.target===g('bnSm'))closeSum()};
   const l=g('bnList');

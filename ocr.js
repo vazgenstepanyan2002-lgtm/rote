@@ -1,39 +1,137 @@
-// OCR: точное распознавание адресов EuroBaza (Gemini + Яндекс)
+// OCR: автоподсчёт бонусов EuroBaza по накладным (Gemini + облачный словарь)
 (function(){
   const GKEY = ['AQ.Ab8RN6LziHiRoI-kFxMOFA', 'FNqH9QT5tjkiqPTvuiHhnkVeFSMg'].join('');
   const g = id => document.getElementById(id);
   const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const stripPin = s => String(s || '').replace(/\s*[\u{1F50E}\u{1F4CD}]\s*$/u, '').trim();
+  const CUR = '֏';
+  const fm = n => (Math.round((+n || 0) * 100) / 100).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
+
+  const BON_ITEMS = [
+    { code: 'other_a', cat: 'Другое', name: 'Стулья, стеллажи', one: 1, p1: 50, p2: 50 },
+    { code: 'other_b', cat: 'Другое', name: 'Стулья, столы', one: 1, p1: 100, p2: 100 },
+    { code: 'other_c', cat: 'Другое', name: 'Раковина', p1: 300, p2: 390 },
+    { code: 'other_d', cat: 'Другое', name: 'Комоды', p1: 500, p2: 650 },
+    { code: 'other_e', cat: 'Другое', name: 'Кровать', p1: 500, p2: 650 },
+    { code: 'other_f', cat: 'Другое', name: 'Модули', p1: 250, p2: 325 },
+    { code: 'other_g', cat: 'Другое', name: 'Матрасы', p1: 250, p2: 325 },
+    { code: 'other_h', cat: 'Другое', name: 'Системы хранения', p1: 500, p2: 650 },
+    { code: 'other_i', cat: 'Другое', name: 'Дверь', one: 1, p1: 500, p2: 500 },
+    { code: 'other_j', cat: 'Другое', name: 'Пуфы', p1: 50, p2: 65 },
+    { code: 'other_k', cat: 'Другое', name: 'Тумбы', p1: 50, p2: 65 },
+    { code: 'sofas_a', cat: 'Диваны', name: 'Кресло', p1: 500, p2: 650 },
+    { code: 'sofas_b', cat: 'Диваны', name: 'Диван', p1: 1000, p2: 1300 },
+    { code: 'sofas_c', cat: 'Диваны', name: 'Комплект мягкой мебели', p1: 1500, p2: 1950 },
+    { code: 'recep_a', cat: 'Ресепшен', name: 'Прихожая / ресепшен до 1,6 м', p1: 700, p2: 910 },
+    { code: 'recep_b', cat: 'Ресепшен', name: 'Прихожая / ресепшен более 1,6 м', p1: 1200, p2: 1560 },
+    { code: 'kitchen_a', cat: 'Кухни', name: 'Кухня 1,6 м', p1: 1000, p2: 1300 },
+    { code: 'kitchen_b', cat: 'Кухни', name: 'Кухня 2–3 м', p1: 2500, p2: 3250 },
+    { code: 'living_a', cat: 'Гостиная', name: 'Гостиная до 1,7 м', p1: 1000, p2: 1300 },
+    { code: 'living_b', cat: 'Гостиная', name: 'Гостиная более 1,7 м', p1: 2000, p2: 2600 },
+    { code: 'living_c', cat: 'Гостиная', name: 'Гостиная Эксклюзив', p1: 3000, p2: 3900 },
+    { code: 'bedroom_a', cat: 'Спальни', name: 'Спальня 2 двери', p1: 1050, p2: 1365 },
+    { code: 'bedroom_b', cat: 'Спальни', name: 'Спальня 3 двери без комода', p1: 1550, p2: 2015 },
+    { code: 'bedroom_c', cat: 'Спальни', name: 'Спальня 3 двери с комодом', p1: 2050, p2: 2665 },
+    { code: 'bedroom_d', cat: 'Спальни', name: 'Спальня 4 двери', p1: 2600, p2: 3380 },
+    { code: 'bedroom_e', cat: 'Спальни', name: 'Спальня 5 дверей', p1: 3100, p2: 4030 },
+    { code: 'bedroom_f', cat: 'Спальни', name: 'Спальня 6 дверей', p1: 3600, p2: 4680 },
+    { code: 'bedroom_g', cat: 'Спальни', name: 'Спальня 0,9*2', p1: 3100, p2: 4030 },
+    { code: 'wardrobe_a', cat: 'Шкафы', name: 'Шкаф 2 двери', p1: 500, p2: 650 },
+    { code: 'wardrobe_b', cat: 'Шкафы', name: 'Шкаф 3 двери', p1: 1000, p2: 1300 },
+    { code: 'wardrobe_c', cat: 'Шкафы', name: 'Шкаф 4 двери', p1: 1500, p2: 1950 },
+    { code: 'wardrobe_d', cat: 'Шкафы', name: 'Шкаф 5 дверей', p1: 2000, p2: 2600 },
+    { code: 'wardrobe_e', cat: 'Шкафы', name: 'Шкаф 6 дверей', p1: 2500, p2: 3250 }
+  ];
+  const BON_BY_CODE = Object.fromEntries(BON_ITEMS.map(x => [x.code, x]));
+  const normModel = s => String(s || '').toLowerCase().replace(/[\"'«»().,]/g, ' ').replace(/\s+/g, ' ').trim();
+  const fbKey = k => normModel(k).replace(/[.#$\[\]\/]+/g, '_').slice(0, 120);
+
+  let CLOUD_MAP = (() => { try { return JSON.parse(localStorage.getItem('BON_OCR_MAP') || '{}') || {}; } catch (e) { return {}; } })();
+  const _cmWait = setInterval(() => {
+    if (!window.firebase || !firebase.apps || !firebase.apps.length) return;
+    clearInterval(_cmWait);
+    firebase.database().ref('config/ocrMap').on('value', s => {
+      if (s.val() && typeof s.val() === 'object') {
+        CLOUD_MAP = Object.assign({}, CLOUD_MAP, s.val());
+        try { localStorage.setItem('BON_OCR_MAP', JSON.stringify(CLOUD_MAP)); } catch (e) {}
+      }
+    }, () => {});
+  }, 800);
+
+  function saveCloudModel(rawName, code){
+    const fk = fbKey(rawName);
+    if (!fk) return;
+    if (code) CLOUD_MAP[fk] = code; else delete CLOUD_MAP[fk];
+    try { localStorage.setItem('BON_OCR_MAP', JSON.stringify(CLOUD_MAP)); } catch (e) {}
+    if (window.firebase && firebase.apps && firebase.apps.length) firebase.database().ref('config/ocrMap/' + fk).set(code || null).catch(() => {});
+  }
+
+  const RULES = [
+    { ignore: true, rx: /(?:տեղափոխու[թտ]յուն|հավաքում|доставк|перевозк|сборк)/i },
+    { code: 'bedroom_g', rx: /(?:ննջասենյակ|спальн).*0[.,]9\s*[*xх]\s*2/i },
+    { code: 'bedroom_d', rx: /(?:ննջասենյակ|спальн).*(?:նիցցա|ницца|ալսու|алсу|մոնա լիզա|мона лиза)/i },
+    { code: 'bedroom_c', rx: /(?:ննջասենյակ|спальн).*(?:էկո|эко|րիո|рио)/i },
+    { code: 'bedroom_f', rx: /(?:ննջասենյակ|спальн).*(?:պրեստիժ|престиж)/i },
+    { code: 'bedroom_f', rx: /(?:ննջասենյակ|спальн).*6\s*(?:դուռ|двер)/i },
+    { code: 'bedroom_e', rx: /(?:ննջասենյակ|спальн).*5\s*(?:դուռ|двер)/i },
+    { code: 'bedroom_d', rx: /(?:ննջասենյակ|спальн).*4\s*(?:դուռ|двер)/i },
+    { code: 'bedroom_b', rx: /(?:ննջասենյակ|спальн).*3\s*(?:դուռ|двер).*(?:առանց կոմոդ|без комод)/i },
+    { code: 'bedroom_c', rx: /(?:ննջասենյակ|спальн).*3\s*(?:դուռ|двер)/i },
+    { code: 'bedroom_a', rx: /(?:ննջասենյակ|спальн).*2\s*(?:դուռ|двер)/i },
+    { code: 'recep_a', rx: /(?:ընդունարան|прихож|ресепш).*(?:էկո|эко|մինի|мини|յանա|яна)/i },
+    { code: 'recep_a', rx: /(?:ընդունարան|прихож|ресепш).*(?:1[.,][0-6]|90|100|110|120|130|140|150|160)\b/i },
+    { code: 'recep_b', rx: /(?:ընդունարան|прихож|ресепш).*(?:1[.,][7-9]|2[.,]\d|170|180|190|200|210|220|240)\b/i },
+    { code: 'kitchen_b', rx: /(?:խոհանոց|кухн).*(?:լյուքս|люкс|2[.,]\d|3[.,]0|2-3|200|220|240|250|260|280|300)\b/i },
+    { code: 'kitchen_a', rx: /(?:խոհանոց|кухн).*(?:1[.,]6|160)\b/i },
+    { code: 'living_c', rx: /(?:հյուրասենյակ|гостин).*(?:էքսկլ|экскл)/i },
+    { code: 'living_a', rx: /(?:հյուրասենյակ|гостин).*(?:մինի|мини|1[.,][0-7]|120|130|140|150|160|170)\b/i },
+    { code: 'living_b', rx: /(?:հյուրասենյակ|гостин).*(?:1[.,]|2[.,]\d|180|190|200|210|220|240|250|260)\b/i },
+    { code: 'wardrobe_b', rx: /(?:պահարան|шкаф).*(?:ատլանտա|атланта)/i },
+    { code: 'wardrobe_c', rx: /(?:պահարան|шкаф).*1600\b/i },
+    { code: 'wardrobe_e', rx: /(?:պահարան|шкаф).*6\s*(?:դուռ|двер)/i },
+    { code: 'wardrobe_d', rx: /(?:պահարան|шкаф).*5\s*(?:դուռ|двер)/i },
+    { code: 'wardrobe_c', rx: /(?:պահարան|шкаф).*4\s*(?:դուռ|двер)/i },
+    { code: 'wardrobe_b', rx: /(?:պահարան|шкаф).*3\s*(?:դուռ|двер)/i },
+    { code: 'wardrobe_a', rx: /(?:պահարան|шкаф).*2\s*(?:դուռ|двер)/i },
+    { code: 'sofas_c', rx: /(?:փափուկ կահույք|հավաքածու|комплект).*(?:բազմոց|диван)/i },
+    { code: 'sofas_a', rx: /(?:բազկաթոռ|кресл)/i },
+    { code: 'sofas_b', rx: /(?:բազմոց|диван)/i },
+    { code: 'other_g', rx: /(?:ներքնակ|матрас)/i },
+    { code: 'other_h', rx: /(?:պահոց|короб|ящик для белья)/i },
+    { code: 'other_d', rx: /(?:կոմոդ|комод)/i },
+    { code: 'other_e', rx: /(?:մահճակալ|кроват)/i },
+    { code: 'other_k', rx: /(?:տումբա|тумб)/i },
+    { code: 'other_j', rx: /(?:պուֆ|пуф)/i },
+    { code: 'other_c', rx: /(?:լվացարան|раковин|мойк)/i },
+    { code: 'other_f', rx: /(?:մոդուլ|модул)/i },
+    { code: 'other_i', rx: /(?:^|\s)(?:դուռ|дверь)(?:\s|$)/i },
+    { code: 'other_a', rx: /(?:դարակաշար|стеллаж|полк)/i },
+    { code: 'other_b', rx: /(?:գրասեղան|սեղան|стол)/i },
+    { code: 'other_a', rx: /(?:աթոռ|стул)/i }
+  ];
+
+  function classifyProduct(rawName){
+    const clean = String(rawName || '').replace(/\s+/g, ' ').trim();
+    if (!clean) return { ignore: true };
+    const norm = normModel(clean);
+    if (RULES.rx.test(norm)) return { ignore: true };
+    const fk = fbKey(clean);
+    if (fk && CLOUD_MAP[fk] && BON_BY_CODE[CLOUD_MAP[fk]]) return { ignore: false, code: CLOUD_MAP[fk] };
+    for (let i = 1; i < RULES.length; i++) if (RULES[i].rx.test(norm)) return { ignore: false, code: RULES[i].code };
+    return { ignore: false, code: '' };
+  }
+
+  const isYerevanAddress = s => /(?:ереван|երևան|yerevan|աջափնյակ|արաբկիր|ավան|դավթաշեն|էրեբունի|կենտրոն|մալաթիա|նոր նորք|նորք-մարաշ|նուբարաշեն|շենգավիթ|քանաքեռ|ачапняк|арабкир|аван|давидашен|эребуни|кентрон|малатия|нор норк|норк-мараш|нубарашен|шенгавит|канакер)/i.test(String(s || '').toLowerCase());
 
   async function compressImage(file){
     const maxSide = 1600;
-    try {
-      if (typeof createImageBitmap === 'function') {
-        const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
-        let w = bmp.width, h = bmp.height;
-        if (w > maxSide || h > maxSide) {
-          if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; }
-          else { w = Math.round(w * maxSide / h); h = maxSide; }
-        }
-        const cv = document.createElement('canvas');
-        cv.width = w; cv.height = h;
-        cv.getContext('2d').drawImage(bmp, 0, 0, w, h);
-        bmp.close && bmp.close();
-        return cv.toDataURL('image/jpeg', 0.74).split(',').pop();
-      }
-    } catch (e) {}
+    const url = URL.createObjectURL(file);
     return new Promise((res, rej) => {
-      const url = URL.createObjectURL(file);
       const img = new Image();
       img.onload = () => {
         URL.revokeObjectURL(url);
         let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
-        if (w > maxSide || h > maxSide) {
-          if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; }
-          else { w = Math.round(w * maxSide / h); h = maxSide; }
-        }
-        const cv = document.createElement('canvas');
-        cv.width = w; cv.height = h;
+        if (w > maxSide || h > maxSide) { if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; } else { w = Math.round(w * maxSide / h); h = maxSide; } }
+        const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
         cv.getContext('2d').drawImage(img, 0, 0, w, h);
         res(cv.toDataURL('image/jpeg', 0.74).split(',').pop());
       };
@@ -44,241 +142,111 @@
 
   async function askGemini(b64){
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
-    const prompt = [
-      'Ты извлекаешь адреса доставки в Армении с фото накладных («Բեռնափոխադրման թերթիկ» или «ՎԱՃԱՌՔԻ ՓԱՍՏԱԹՈՒՂԹ»).',
-      'Где искать адрес:',
-      '1) Колонка «Տեղափոխման հասցե» или «Հասցե».',
-      '2) В документе «ՎԱՃԱՌՔԻ ՓԱՍՏԱԹՈՒՂԹ» адрес находится в блоке покупателя сразу под ФИО.',
-      'Правила обработки каждого адреса:',
-      '- «շ.», «շ», «շենք», «տ.», «տ», «տուն», «դ.» сразу после числа (в том числе слитно: «30տ», «3շ», «36շ», «45տ», «82 տուն», «42/1») — это НОМЕР ДОМА, а НЕ номер улицы! Никогда не превращай «Լուկաշինի 3շ» в «3-ю улицу Лукашина»: «Լուկաշինի 3շ» означает основную улицу Лукашина, дом 3 («Երևան, Աջափնյակ, Լուկաշինի փողոց, 3» / «Ереван, Ачапняк, улица Лукашина, 3»). Номерную улицу пиши только если в тексте явно есть «-րդ», «փողոց 3» или «3-я».',
-      '- Дробный номер дома (например «42/1») ОБЯЗАТЕЛЬНО сохраняй целиком с дробью («42/1»), не обрезай до «42» и НЕ приклеивай к нему цифру квартиры («42/1 1բն» -> это дом «42/1», а не «42/11» или «42/1»). Буквы «շ» и «տ» после числа удаляй.',
-      '- «բն.», «բն», «բնակարան», «մուտք», «հարկ», «հ», «բ.» и цифры рядом с ними (в том числе слитно: «1բն», «16բն», «48բն», «5բն», «2 մուտք», «1 հ», «5հ», «Վ-06») — это квартира, подъезд, этаж или домофон. УДАЛИ их полностью! Никогда не добавляй квартиру через дробь к номеру дома.',
-      '- Сохраняй область (մարզ), город (ք.), административный район Еревана (Շենգավիթ, Աջափնյակ, Նոր Նորք, Էրեբունի и др.), массив (Ջրվեժ, Ավան и др.) и село (գ. / գյուղ: Փարաքար, Վանանդ, Նուռնուս и др.). Если указана ереванская улица или район без города — добавь Ереван.',
-      '- Полностью игнорируй номера телефонов (055..., 093..., 094..., 098..., 099..., 077..., 091..., 096..., 044...), ФИО, номера машин, коды товаров и суммы.',
-      '- Исправляй очевидные опечатки в названиях улиц при переводе и нормализации (например, «Գեղցենի» -> «Գերցենի» / «улица Герцена», «5-րդ նրբ» -> «5-й переулок»).',
-      '- Примеры эталонного разбора:',
-      '  • «Արմավիրի մ, Գ. Փարաքար, Տիգրան Մեծ 30տ» -> {"orig":"Արմավիրի մարզ, գ. Փարաքար, Տիգրան Մեծի 30","ru":"Армавирская область, село Паракар, улица Тиграна Меца, 30"}',
-      '  • «Ք. Երևան, Շենգավիթ, Արշակունյաց 42/1 1բն, 1 հ» -> {"orig":"Երևան, Շենգավիթ, Արշակունյաց պողոտա, 42/1","ru":"Ереван, проспект Аршакуняц, 42/1"}',
-      '  • «ք Երևան Աջափնյակ Լուկաշինի 3շ 16բն 2 մուտք 1հ» -> {"orig":"Երևան, Աջափնյակ, Լուկաշինի փողոց, 3","ru":"Ереван, Ачапняк, улица Лукашина, 3"}',
-      '  • «Ք. Երևան, Նոր Նորք, Ջրվեժ Մայակ 2շ 48բն, 5հ» -> {"orig":"Երևան, Ջրվեժ, Մայակ թաղամաս, 2","ru":"Ереван, Джрвеж, квартал Маяк, 2"}',
-      '  • «Կոտայք գյուղ Նուռնուս Այգեգործների 45տ» -> {"orig":"Կոտայքի մարզ, գ. Նուռնուս, Այգեգործների 45","ru":"Котайкская область, село Нурнус, улица Айгегорцнери, 45"}',
-      'Верни ТОЛЬКО валидный JSON-массив объектов [{"orig":"...","ru":"..."}] или [].'
-    ].join('\n');
-
-    const bodyStr = JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mime_type: 'image/jpeg', data: b64 } }] }],
-      generationConfig: { temperature: 0, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } }
-    });
+    const prompt = 'Считай накладную EuroBaza. Верни ТОЛЬКО JSON: {"addr":"адрес из Տեղափոխման հասցե","items":[{"name":"точное название товара из Ապրանքի անվանումը","qty":1}]}. Игнорируй услуги доставки (Տեղափոխություն, Տեղափոխուտյուն), сборки (Հավաքում, Сборка) и фурнитуру.';
+    const bodyStr = JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mime_type: 'image/jpeg', data: b64 } }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } } });
     const runModel = async mdl => {
-      const url = 'https' + '://' + host + '/v1beta/models/' + mdl + ':generateContent?key=' + encodeURIComponent(GKEY);
-      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(18000), body: bodyStr });
+      const res = await fetch('https' + '://' + host + '/v1beta/models/' + mdl + ':generateContent?key=' + encodeURIComponent(GKEY), { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(18000), body: bodyStr });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       return res.json();
     };
     const j = await Promise.any(['gemini-flash-lite-latest', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'].map(runModel));
-    const cand = j && Array.isArray(j.candidates) ? j.candidates.at(0) : null;
-    const parts = cand && cand.content && Array.isArray(cand.content.parts) ? cand.content.parts : [];
-    const ansPart = parts.find(p => p && !p.thought && typeof p.text === 'string') || parts.at(-1);
-    const raw = (ansPart && ansPart.text) || '[]';
-    const arr = JSON.parse(raw.replace(/```json|```/gi, '').trim());
-    if (!Array.isArray(arr)) return [];
-    return arr.map(x => typeof x === 'string'
-      ? { orig: x.trim(), ru: x.trim() }
-      : { orig: String((x && x.orig) || '').trim(), ru: String((x && x.ru) || (x && x.orig) || '').trim() }
-    ).filter(x => x.ru || x.orig);
+    const parts = (j && j.candidates && j.candidates && j.candidates.content && j.candidates.content.parts) || [];
+    const ans = parts.find(p => p && !p.thought && typeof p.text === 'string') || parts.at(-1);
+    const parsed = JSON.parse(((ans && ans.text) || '{}').replace(/```json|```/gi, '').trim());
+    const items = [];
+    (Array.isArray(parsed.items) ? parsed.items : []).forEach(x => {
+      const name = String((x && x.name) || '').trim(), qty = Math.max(1, Math.round(+x.qty || 1));
+      if (!name) return;
+      const cls = classifyProduct(name);
+      if (!cls.ignore) items.push({ name, qty, code: cls.code || '' });
+    });
+    return { addr: String((parsed && parsed.addr) || '').trim(), items };
   }
 
-  async function resolveBestYandex(item){
-    const cleanQ = t => String(t || "").replace(/\s*[\u{1F4CD}\u{1F50E}]\s*$/gu, "").replace(/(\d+(?:\/\d+)?)\s*(?:շենք|շ\.?|տուն|տ\.?|դ\.?)(?=\s|,|$)/giu, "$1").replace(/,\s*(?:\d+\s*)?(?:բն\.?|բնակարան|մուտք|հարկ|կվ\.?|кв\.?|подъезд|этаж).*$/iu, "").replace(/\s+/g, " ").trim();
-    const origClean = cleanQ(item.orig);
-    const ruClean = cleanQ(item.ru);
-    const shortRu = ruClean.replace(/^[^,]+область,\s*/i, "").trim();
-    const shortOrig = origClean.replace(/^[^,]+մարզ,\s*/i, "").trim();
-    const queries = Array.from(new Set([shortRu, ruClean, shortOrig, origClean].filter(Boolean)));
-    const hm = (ruClean + ' ' + origClean).match(/(?:^|[,\s])(\d+(?:\/\d+)?)(?=\s|,|$)/);
-    const houseNum = hm ? hm.at(1).toLowerCase() : '';
-    const hasSlash = houseNum.includes('/');
-    const ordM = (ruClean + ' ' + origClean).match(/(?:^|\s)(\d+)(?:-րդ|-я|-й|-е)\s*(?:улица|переулок|проезд|тупик|փողոց|նրբ|փակ)/i);
-    const wantOrdNum = ordM ? ordM[1] : '';
-    const wantOrdStreet = !!wantOrdNum || /(?:переулок|тупик|նրբ|փակ)/i.test(ruClean + ' ' + origClean);
-    const isOrdStreet = txt => /(?:^|\s)\d+(?:-րդ|-я|-й|-е)\s+(?:улица|переулок|проезд|փողոց|նրբ)/i.test(String(txt || ''));
+  function openBonusInvoiceModal(items, defaultIsCity){
+    if (!Array.isArray(items) || !items.length) return;
+    let m = g('ocrBonMdl'); if (m) m.remove();
+    let isCity = !!defaultIsCity;
+    const rows = items.map(x => ({ name: x.name, qty: x.qty, code: x.code || '' }));
+    const groups = {};
+    BON_ITEMS.forEach(it => { (groups[it.cat] = groups[it.cat] || []).push(it); });
+    const optsHtml = '<option value="">— Выберите категорию бонусов —</option>' + Object.keys(groups).map(cat =>
+      '<optgroup label="' + esc(cat) + '">' + groups[cat].map(it => '<option value="' + it.code + '">' + esc(it.name) + ' (' + (it.one ? it.p1 : it.p1 + ' / ' + it.p2) + ' ' + CUR + ')</option>').join('') + '</optgroup>'
+    ).join('');
 
-    const escRe = v => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const exactHouse = txt => !houseNum || new RegExp('(^|[^0-9/])' + escRe(houseNum) + '([^0-9/]|$)').test(String(txt || ''));
-    const baseHouse = txt => !houseNum || new RegExp('(^|[^0-9])' + escRe(houseNum.split('/').at(0)) + '([^0-9]|$)').test(String(txt || ''));
-
-    const hasAnyHouse = txt => /(?:^|,\s*)(?:дом\s+|դ\.\s*)?\d+(?:\/\d+)?(?:\s*[ա-ֆa-zа-я])?\s*$/i.test(String(txt || '').trim());
-    const scoreCandidate = (name, exactFlag) => {
-      let sc = 0;
-      if (exactFlag) sc += 20;
-      if (houseNum) {
-        if (exactHouse(name)) sc += 60;
-        else if (baseHouse(name)) sc += 10;
-        else if (hasAnyHouse(name)) sc -= 80;
-      }
-      const candOrdM = String(name || '').match(/(?:^|\s)(\d+)(?:-րդ|-я|-й|-е)\s*(?:улица|переулок|проезд|тупик|փողոց|նրբ|փակ)/i);
-      const candOrdNum = candOrdM ? candOrdM[1] : '';
-      if (wantOrdNum && candOrdNum && wantOrdNum !== candOrdNum) sc -= 90;
-      if (!wantOrdStreet && isOrdStreet(name)) sc -= 40;
-      return sc;
-    };
-
-    let bestHit = null, bestScore = -999, bestList = [];
-    const consider = (cand, list) => {
-      if (!cand) return;
-      const sc = scoreCandidate(cand.name, cand.exact);
-      if (sc > bestScore) {
-        bestScore = sc;
-        bestHit = cand;
-        bestList = list || [];
-      }
-    };
-
-    // 1. Для дробных домов (42/1) проверяем прямой Геокодер (включая /1 при ошибке распознавания 42/12)
-    if (hasSlash) {
-      const baseNum = houseNum.split('/').at(0);
-      const slashQueries = queries.slice();
-      if (houseNum !== baseNum + '/1') {
-        for (const q of queries) {
-          if (q.includes(houseNum)) slashQueries.push(q.replace(houseNum, baseNum + '/1'));
-        }
-      }
-      for (const q of slashQueries) {
-        const list = await yan(q);
-        if (list && list.length) {
-          for (const x of list) {
-            const cn = cleanQ(x.name);
-            const hasAnySlash = new RegExp('(^|[^0-9/])' + escRe(baseNum) + '/\\d+([^0-9/]|$)').test(cn);
-            if (hasAnySlash && x.exact) {
-              return { hit: { name: cn, lat: x.lat, lon: x.lon, exact: true }, list: list };
-            }
-            consider({ name: cn, lat: x.lat, lon: x.lon, exact: x.exact }, list);
-          }
-        }
-      }
-    }
-
-    // 2. Поиск через Яндекс Саджест с ранжированием (штраф за ложную номерную улицу и бонус за точный дом)
-    if (typeof sugList === 'function') {
-      for (const q of queries) {
-        const sugs = await sugList(q);
-        const orderedSugs = (sugs || []).slice().sort((a, b) => {
-          const sa = scoreCandidate(a.text || a.name, false);
-          const sb = scoreCandidate(b.text || b.name, false);
-          return sb - sa;
-        });
-        for (const sg of orderedSugs.slice(0, 4)) {
-          const sugTitle = cleanQ(sg.name || sg.text);
-          const sq = cleanQ(sg.text || sg.name);
-          if (!sq) continue;
-          const list = await yan(sq);
-          if (list && list.length) {
-            for (const picked of list) {
-              const finalName = sugTitle && exactHouse(sugTitle) && (!isOrdStreet(sugTitle) || wantOrdStreet)
-                ? sugTitle
-                : cleanQ(picked.name);
-              consider({ name: finalName, lat: picked.lat, lon: picked.lon, exact: picked.exact }, list);
-            }
-            if (bestHit && exactHouse(bestHit.name) && bestHit.exact && (wantOrdStreet || !isOrdStreet(bestHit.name))) {
-              if (bestHit && houseNum && !exactHouse(bestHit.name) && ruClean) {
-      bestHit = { name: ruClean, lat: bestHit.lat, lon: bestHit.lon, exact: false };
-    }
-    return { hit: bestHit, list: bestList };
-            }
-          }
-        }
-      }
-    }
-
-    // 3. Прямой поиск через Яндекс Геокодер
-    for (const q of queries) {
-      const list = await yan(q);
-      if (list && list.length) {
-        for (const x of list) consider({ name: cleanQ(x.name), lat: x.lat, lon: x.lon, exact: x.exact }, list);
-        if (bestHit && exactHouse(bestHit.name) && bestHit.exact && (wantOrdStreet || !isOrdStreet(bestHit.name))) {
-          return { hit: bestHit, list: bestList };
-        }
-      }
-    }
-
-    return { hit: bestHit, list: bestList };
-  }
-
-  function showMultiPicker(items){
-    let m = g('ocrMdl');
-    if (m) m.remove();
-    m = document.createElement('div');
-    m.id = 'ocrMdl';
-    m.className = 'mdl open';
-    m.innerHTML = '<div class="mdl-b pt-box"><div class="pt-hd"><div class="pt-hd-l"><div class="pt-hd-ic">📷</div><div><div class="pt-hd-t">Найдено адресов: ' + items.length + '</div><div class="pt-hd-s">Отметьте нужные для маршрута</div></div></div><button type="button" class="pt-x" id="ocrX">✕</button></div><div class="pt-list">' + items.map((it, i) => '<label style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#f8fafc;font-size:14px;font-weight:600;cursor:pointer"><input type="checkbox" checked data-idx="' + i + '" style="width:19px;height:19px;accent-color:#10b981;flex-shrink:0"><span>' + esc(it.ru) + (it.orig && it.orig !== it.ru ? '<small style="display:block;color:#94a3b8;font-weight:500;font-size:12px">' + esc(it.orig) + '</small>' : '') + '</span></label>').join('') + '</div><div class="pt-ft"><button type="button" class="pt-add" id="ocrAddAll"><span>Добавить выбранные</span></button></div></div>';
+    m = document.createElement('div'); m.id = 'ocrBonMdl'; m.className = 'mdl open';
+    m.innerHTML = '<div class="mdl-b pt-box ob-box"><div class="pt-hd"><div class="pt-hd-l"><div class="pt-hd-ic" style="background:rgba(250,204,21,.16);border-color:rgba(250,204,21,.42);color:#fde047">🧮</div><div><div class="pt-hd-t">Бонусы по накладной</div><div class="pt-hd-s" id="obSub"></div></div></div><button type="button" class="pt-x" id="obX">✕</button></div>'
+      + '<div class="ob-zone-w"><div class="ob-seg" id="obZoneSeg"><button type="button" data-z="city" class="' + (isCity ? 'on' : '') + '">🏙️ Город (Ереван)</button><button type="button" data-z="reg" class="' + (!isCity ? 'on' : '') + '">🛣️ Район (Области)</button></div></div>'
+      + '<div class="pt-list" id="obList"></div>'
+      + '<div class="pt-ft"><div class="ob-tot"><span>Будет начислено:</span><b id="obTotSum">0 ' + CUR + '</b></div><button type="button" class="pt-add" id="obSaveBtn"><span>➕ Добавить в бонусы</span></button></div></div>';
     document.body.appendChild(m);
     const close = () => m.remove();
-    g('ocrX').onclick = close;
-    m.onclick = e => { if (e.target === m) close(); };
-    g('ocrAddAll').onclick = async () => {
-      const checked = Array.from(m.querySelectorAll('input:checked')).map(cb => items.at(+cb.dataset.idx));
-      close();
-      if (!checked.length) return;
-      const st = g('s');
-      let added = 0, approxCnt = 0;
-      if (typeof busy === 'function') busy(1);
-      try {
-        for (const it of checked) {
-          if (st) st.textContent = 'Ищу через Саджест: ' + it.ru + '...';
-          const res = await resolveBestYandex(it);
-          if (res.hit) {
-            const cleanName = stripPin(res.hit.name);
-            if (!res.hit.exact) approxCnt++;
-            if (typeof saveAdrCache === 'function') saveAdrCache({ name: cleanName, lat: res.hit.lat, lon: res.hit.lon });
-            P.push({ name: cleanName + (res.hit.exact ? '' : ' 📍'), lat: res.hit.lat, lon: res.hit.lon });
-            added++;
-          }
-        }
-      } finally { if (typeof busy === 'function') busy(0); }
-      if (st) st.textContent = '';
-      if (added) { save(); window.toast && toast(approxCnt ? 'Добавлено: ' + added + ' (неточн.: ' + approxCnt + ')' : 'Адрес добавлен', approxCnt ? 'err' : 'ok'); }
-      else window.toast && toast('Не удалось найти координаты', 'err');
+    g('obX').onclick = close; m.onclick = e => { if (e.target === m) close(); };
+
+    const carCode = (() => { try { return (localStorage.getItem('USER_CAR') || '').trim().toUpperCase(); } catch (e) { return ''; } })();
+    if (g('obSub')) g('obSub').innerHTML = carCode && carCode !== 'ADMIN' ? 'Экипаж <b style="color:#6ee7b7">' + esc(carCode) + '</b> · ' + (isCity ? 'Ереван → Город' : 'Область → Район') : (carCode === 'ADMIN' ? 'Режим Админ' : '<span style="color:#fbbf24">⚠️ Экипаж не назначен</span>');
+
+    const renderRows = () => {
+      const box = g('obList');
+      if (!rows.length) { box.innerHTML = '<div class="pt-empty">Все позиции удалены</div>'; g('obTotSum').textContent = '0 ' + CUR; return; }
+      let tot = 0;
+      box.innerHTML = rows.map((r, i) => {
+        const info = r.code ? BON_BY_CODE[r.code] : null;
+        const up = info ? (info.one ? info.p1 : (isCity ? info.p1 : info.p2)) : 0;
+        tot += up * r.qty;
+        return '<div class="ob-card' + (info ? '' : ' unk') + '"><div class="ob-top"><div class="ob-nm">' + esc(r.name) + '</div><button type="button" class="ob-del" data-i="' + i + '">✕</button></div>'
+          + '<select class="ob-sel" data-i="' + i + '">' + optsHtml + '</select>'
+          + '<div class="ob-bot"><div class="ob-qbox"><button type="button" class="ob-pm" data-act="dec" data-i="' + i + '">−</button><b>' + r.qty + ' шт</b><button type="button" class="ob-pm" data-act="inc" data-i="' + i + '">+</button></div>'
+          + '<div class="ob-pr">' + (info ? (fm(up) + ' × ' + r.qty + ' = <b>' + fm(up * r.qty) + ' ' + CUR + '</b>') : '<span style="color:#fbbf24">Выберите категорию</span>') + '</div></div></div>';
+      }).join('');
+      box.querySelectorAll('.ob-sel').forEach(sel => { const r = rows[+sel.dataset.i]; if (r && r.code) sel.value = r.code; });
+      g('obTotSum').textContent = fm(tot) + ' ' + CUR;
     };
+
+    g('obZoneSeg').onclick = e => { const b = e.target.closest('button[data-z]'); if (!b) return; isCity = b.dataset.z === 'city'; g('obZoneSeg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); renderRows(); };
+    g('obList').onchange = e => { const sel = e.target.closest('.ob-sel'); if (!sel) return; const r = rows[+sel.dataset.i]; if (r) { r.code = sel.value; saveCloudModel(r.name, sel.value); renderRows(); } };
+    g('obList').onclick = e => {
+      const del = e.target.closest('.ob-del'); if (del) { rows.splice(+del.dataset.i, 1); renderRows(); return; }
+      const pm = e.target.closest('.ob-pm'); if (pm && rows[+pm.dataset.i]) { rows[+pm.dataset.i].qty = pm.dataset.act === 'inc' ? rows[+pm.dataset.i].qty + 1 : Math.max(1, rows[+pm.dataset.i].qty - 1); renderRows(); }
+    };
+    g('obSaveBtn').onclick = async () => {
+      const valid = rows.filter(r => r.code && BON_BY_CODE[r.code] && r.qty > 0);
+      if (!valid.length) { window.toast && toast('Выберите категорию хотя бы для одной позиции', 'err'); return; }
+      const code = (() => { try { return (localStorage.getItem('USER_CAR') || '').trim().toUpperCase(); } catch (e) { return ''; } })();
+      if (!code || !window.firebase || !firebase.apps.length) { window.toast && toast('Нет связи или не назначен экипаж', 'err'); return; }
+      g('obSaveBtn').disabled = true;
+      try {
+        const db = firebase.database(), qRef = db.ref('cars/' + code + '/qty'), cur = (await qRef.once('value')).val() || {}, patch = {};
+        let s = 0, q = 0;
+        valid.forEach(r => { const info = BON_BY_CODE[r.code], k = info.one ? r.code : (isCity ? r.code : r.code + '_2'); patch[k] = (+cur[k] || 0) + r.qty; s += (info.one ? info.p1 : (isCity ? info.p1 : info.p2)) * r.qty; q += r.qty; });
+        await qRef.update(patch); await db.ref('cars/' + code + '/t').set(Date.now());
+        close(); window.toast && toast('Начислено: +' + q + ' шт (' + fm(s) + ' ' + CUR + ')');
+      } catch (err) { g('obSaveBtn').disabled = false; window.toast && toast('Ошибка записи в базу', 'err'); }
+    };
+    renderRows();
   }
 
-  async function scanFile(file){
-    const btn = g('camBtn'), st = g('s'), inp = g('a');
-    if (btn) btn.classList.add('busy');
-    if (st) st.textContent = 'Распознаю текст с фото...';
-    if (typeof busy === 'function') busy(1);
+  async function scanBonusFile(file){
+    const btn = g('bnCamBtn'); if (btn) btn.classList.add('busy'); if (typeof busy === 'function') busy(1);
+    window.toast && toast('Распознаю накладную...');
     try {
-      const b64 = await compressImage(file);
-      const items = await askGemini(b64);
-      if (!items.length) { if (st) st.textContent = 'Текст на фото не найден'; window.toast && toast('Текст на фото не найден', 'err'); return; }
-      if (items.length === 1) {
-        const one = items.at(0);
-        if (st) st.textContent = 'Ищу в Яндекс Саджесте...';
-        const res = await resolveBestYandex(one);
-        if (st) st.textContent = '';
-        if (res.hit) {
-          const cleanName = stripPin(res.hit.name);
-          if (typeof saveAdrCache === 'function') saveAdrCache({ name: cleanName, lat: res.hit.lat, lon: res.hit.lon });
-          P.push({ name: cleanName + (res.hit.exact ? '' : ' 📍'), lat: res.hit.lat, lon: res.hit.lon });
-          if (inp) inp.value = '';
-          if (typeof showList === 'function') showList(new Array());
-          save();
-          window.toast && toast(res.hit.exact ? 'Адрес добавлен' : 'Адрес добавлен (неточный дом)', res.hit.exact ? 'ok' : 'err');
-        } else {
-          if (inp) { inp.value = one.ru; inp.dispatchEvent(new Event('input', { bubbles: true })); }
-          window.toast && toast('Адрес не найден. Попробуйте написать иначе или добавьте город', 'err');
-        }
-      } else { if (st) st.textContent = ''; showMultiPicker(items); }
-    } catch (e) {
-      if (st) st.textContent = (e && (e.name === 'TimeoutError' || /timed out/i.test(e.message))) ? 'Сервер долго отвечает, проверьте интернет' : (e && e.errors ? e.errors.map(x => x.message).join('; ') : ((e && e.message) || 'Не удалось распознать фото'));
-      window.toast && toast('Не удалось распознать фото', 'err');
-    } finally { if (btn) btn.classList.remove('busy'); if (typeof busy === 'function') busy(0); }
+      const { addr, items } = await askGemini(await compressImage(file));
+      if (!items.length) { window.toast && toast('Товары в накладной не найдены', 'err'); return; }
+      openBonusInvoiceModal(items, isYerevanAddress(addr));
+    } catch (e) { window.toast && toast('Не удалось распознать накладную', 'err'); }
+    finally { if (btn) btn.classList.remove('busy'); if (typeof busy === 'function') busy(0); }
   }
 
-  function openSourcePicker(camInp,galInp){let m=g("ocrSrcMdl");if(m)m.remove();m=document.createElement("div");m.id="ocrSrcMdl";m.className="cm open";m.innerHTML="<div class=\"cm-b ocr-src-box\"><button type=\"button\" class=\"pm-x\" id=\"ocrPickX\" aria-label=\"Закрыть\">✕</button><div class=\"ocr-src-top\"><div class=\"ocr-src-ring\"><div class=\"ocr-src-in\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z\"/><circle cx=\"12\" cy=\"13\" r=\"3\"/></svg></div></div><div class=\"ocr-src-pill\"><i></i>Smart OCR</div><div class=\"ocr-src-t\">Сканировать адрес</div><div class=\"ocr-src-s\">Выберите источник фото накладной</div></div><div class=\"pm-acts\"><button type=\"button\" class=\"pm-btn pm-chat\" id=\"ocrPickCam\"><span class=\"pm-btn-l\"><span class=\"pm-ic\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.1\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z\"/><circle cx=\"12\" cy=\"13\" r=\"3\"/></svg></span><span class=\"pm-tx\"><b>Открыть камеру</b><small>Сфотографировать накладную сейчас</small></span></span><span class=\"pm-arr\">›</span></button><button type=\"button\" class=\"pm-btn pm-dm\" id=\"ocrPickGal\"><span class=\"pm-btn-l\"><span class=\"pm-ic\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.1\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"3\"/><circle cx=\"9\" cy=\"9\" r=\"2\"/><path d=\"m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21\"/></svg></span><span class=\"pm-tx\"><b>Выбрать из галереи</b><small>Загрузить готовый снимок или скриншот</small></span></span><span class=\"pm-arr\">›</span></button></div><button type=\"button\" class=\"pm-cls\" id=\"ocrPickNo\">Отмена</button></div>";document.body.appendChild(m);const close=()=>m.remove();g("ocrPickNo").onclick=close;g("ocrPickX").onclick=close;m.onclick=e=>{if(e.target===m)close()};g("ocrPickCam").onclick=()=>{close();camInp.click()};g("ocrPickGal").onclick=()=>{close();galInp.click()}}
-
-  function mount(){const inp=g("a");if(!inp||g("camBtn"))return;const wrap=inp.closest(".inp-w");if(!wrap)return;const makeInp=(id,cap)=>{const el=document.createElement("input");el.type="file";el.id=id;el.accept="image/*";el.hidden=true;if(cap)el.setAttribute("capture","environment");el.onchange=()=>{const f=el.files&&el.files.item(0);el.value="";if(f)scanFile(f)};return el};const camInp=makeInp("camFile",true),galInp=makeInp("galFile",false);const btn=document.createElement("span");btn.id="camBtn";btn.className="inp-cam";btn.title="Сканировать адрес с фото";btn.innerHTML="<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.1\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z\"/><circle cx=\"12\" cy=\"13\" r=\"3\"/></svg>";btn.onclick=()=>openSourcePicker(camInp,galInp);wrap.appendChild(camInp);wrap.appendChild(galInp);wrap.appendChild(btn)}
-
+  window.openBonusScanner = () => {
+    const mk = (id, cap) => { let el = g(id); if (!el) { el = document.createElement('input'); el.type = 'file'; el.id = id; el.accept = 'image/*'; el.hidden = true; if (cap) el.setAttribute('capture', 'environment'); el.onchange = () => { const f = el.files && el.files; el.value = ''; if (f) scanBonusFile(f); }; document.body.appendChild(el); } return el; };
+    const cam = mk('bnCamFile', 1), gal = mk('bnGalFile', 0);
+    let m = g('ocrSrcMdl'); if (m) m.remove();
+    m = document.createElement('div'); m.id = 'ocrSrcMdl'; m.className = 'cm open';
+    m.innerHTML = '<div class="cm-b ocr-src-box"><button type="button" class="pm-x" id="ocrPickX">✕</button><div class="ocr-src-top"><div class="ocr-src-ring"><div class="ocr-src-in">📷</div></div><div class="ocr-src-pill"><i></i>Smart OCR</div><div class="ocr-src-t">Сканировать накладную</div><div class="ocr-src-s">Автоподсчёт бонусов по фото документа</div></div><div class="pm-acts"><button type="button" class="pm-btn pm-chat" id="ocrPickCam"><span class="pm-btn-l"><span class="pm-ic">📸</span><span class="pm-tx"><b>Открыть камеру</b><small>Сфотографировать накладную</small></span></span><span class="pm-arr">›</span></button><button type="button" class="pm-btn pm-dm" id="ocrPickGal"><span class="pm-btn-l"><span class="pm-ic">🖼️</span><span class="pm-tx"><b>Выбрать из галереи</b><small>Загрузить готовый снимок</small></span></span><span class="pm-arr">›</span></button></div><button type="button" class="pm-cls" id="ocrPickNo">Отмена</button></div>';
+    document.body.appendChild(m);
+    const close = () => m.remove();
+    g('ocrPickNo').onclick = close; g('ocrPickX').onclick = close; m.onclick = e => { if (e.target === m) close(); };
+    g('ocrPickCam').onclick = () => { close(); cam.click(); }; g('ocrPickGal').onclick = () => { close(); gal.click(); };
+  };
   window.EUROBAZA_OCR_KEY = GKEY;
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
-  else mount();
 })();
