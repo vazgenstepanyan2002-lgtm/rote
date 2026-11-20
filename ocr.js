@@ -146,7 +146,7 @@
   };
 
   async function compressImage(file){
-    const maxSide = 1440;
+    const maxSide = 2048;
     if (window.createImageBitmap) {
       try {
         const bmp0 = await createImageBitmap(file);
@@ -161,7 +161,7 @@
         const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
         cv.getContext('2d').drawImage(bmp, 0, 0);
         bmp.close();
-        const out = cv.toDataURL('image/jpeg', 0.72).split(',').pop();
+        const out = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
         cv.width = cv.height = 0;
         return out;
       } catch (e) {}
@@ -175,7 +175,7 @@
         if (w > maxSide || h > maxSide) { if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; } else { w = Math.round(w * maxSide / h); h = maxSide; } }
         const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
         cv.getContext('2d').drawImage(img, 0, 0, w, h);
-        const out = cv.toDataURL('image/jpeg', 0.72).split(',').pop();
+        const out = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
         cv.width = cv.height = 0;
         res(out);
       };
@@ -392,7 +392,12 @@
     let stream = null;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1600 }, height: { ideal: 1200 } },
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 2560, min: 1280 },
+          height: { ideal: 1920, min: 720 },
+          focusMode: { ideal: 'continuous' }
+        },
         audio: false
       });
     } catch (e) {
@@ -402,7 +407,8 @@
     let ov = g('ocrLiveCam'); if (ov) ov.remove();
     ov = document.createElement('div'); ov.id = 'ocrLiveCam';
     ov.innerHTML = '<video id="ocrLiveVid" autoplay playsinline muted></video>'
-      + '<div class="olc-top"><button type="button" class="olc-btn" id="olcSys">📷 Системная</button><span>Наведите на накладную</span><button type="button" class="olc-btn" id="olcClose">✕</button></div>'
+      + '<div id="olcFocusRing" style="position:fixed;width:64px;height:64px;border:2px solid #fde047;border-radius:50%;pointer-events:none;opacity:0;transform:translate(-50%,-50%) scale(1.2);transition:opacity .2s,transform .2s;z-index:3"></div>'
+      + '<div class="olc-top"><button type="button" class="olc-btn" id="olcSys">📷 Системная</button><span>Коснитесь текста для фокуса</span><button type="button" class="olc-btn" id="olcClose">✕</button></div>'
       + '<div class="olc-frame"></div>'
       + '<div class="olc-bot"><button type="button" class="olc-btn" id="olcTorch" hidden>🔦 Свет</button><button type="button" class="olc-shot" id="olcShot" aria-label="Снять"></button><span style="width:68px"></span></div>';
     document.body.appendChild(ov);
@@ -424,11 +430,45 @@
         };
       }
     } catch (e) {}
+
+    // Фокусировка по касанию экрана
+    vid.onclick = async ev => {
+      const ring = g('olcFocusRing');
+      if (ring) {
+        ring.style.left = ev.clientX + 'px';
+        ring.style.top = ev.clientY + 'px';
+        ring.style.opacity = '1';
+        ring.style.transform = 'translate(-50%,-50%) scale(1)';
+        clearTimeout(ring._t);
+        ring._t = setTimeout(() => { ring.style.opacity = '0'; ring.style.transform = 'translate(-50%,-50%) scale(1.2)'; }, 700);
+      }
+      if (!track || !track.applyConstraints) return;
+      try {
+        await track.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] });
+        setTimeout(() => { track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {}); }, 800);
+      } catch (e) {}
+    };
+
     g('olcClose').onclick = stopCam;
     g('olcSys').onclick = () => { stopCam(); if (fallbackInput) fallbackInput.click(); };
     g('olcShot').onclick = async () => {
-      const vw = vid.videoWidth || 1280, vh = vid.videoHeight || 960;
-      const maxS = 1440;
+      const shotBtn = g('olcShot');
+      if (shotBtn) shotBtn.disabled = true;
+      // Пробуем сделать настоящий снимок через ImageCapture (максимальная чёткость на Android)
+      if (window.ImageCapture && track) {
+        try {
+          const ic = new ImageCapture(track);
+          const photoBlob = await ic.takePhoto();
+          stopCam();
+          if (photoBlob && photoBlob.size > 10000) {
+            scanBonusFile(photoBlob);
+            return;
+          }
+        } catch (e) {}
+      }
+      // Запасной вариант (iOS Safari): кадр из HD-потока в максимальном разрешении
+      const vw = vid.videoWidth || 1920, vh = vid.videoHeight || 1080;
+      const maxS = 2048;
       let w = vw, h = vh;
       if (w > maxS || h > maxS) { if (w > h) { h = Math.round(h * maxS / w); w = maxS; } else { w = Math.round(w * maxS / h); h = maxS; } }
       const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
@@ -437,7 +477,7 @@
       cv.toBlob(blob => {
         cv.width = cv.height = 0;
         if (blob) scanBonusFile(blob);
-      }, 'image/jpeg', 0.78);
+      }, 'image/jpeg', 0.88);
     };
   }
 
