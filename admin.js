@@ -44,7 +44,8 @@
  const auth=firebase.auth(),db=firebase.database();
 
  const CARS_LIST=['BB','CC','EE','XX','ZZ','RR','VV','GG'];
- let USERS={},LABELS={},ACCOUNTS={},CARS={},OCR_PEND={},CHAT=[],CHAT_OPEN=false,DMS={},DM_UID=null,FU=0,PUB=undefined,TAB='online',SEL='all';
+ let USERS={},LABELS={},ACCOUNTS={},CARS={},OCR_PEND={},OCR_MAP={},OCR_Q='',CHAT=[],CHAT_OPEN=false,DMS={},DM_UID=null,FU=0,PUB=undefined,TAB='online',SEL='all';
+ const OCR_CAT_NAMES={'other_a':'Другое · Стулья, стеллажи','other_b':'Другое · Стулья, столы','other_c':'Другое · Раковина','other_d':'Другое · Комоды','other_e':'Другое · Кровать','other_f':'Другое · Модули','other_g':'Другое · Матрасы','other_h':'Другое · Системы хранения','other_i':'Другое · Дверь','other_j':'Другое · Пуфы','other_k':'Другое · Тумбы','sofas_a':'Диваны · Кресло','sofas_b':'Диваны · Диван','sofas_c':'Диваны · Комплект','recep_a':'Ресепшен · До 1,6 м','recep_b':'Ресепшен · Более 1,6 м','kitchen_a':'Кухни · 1,6 м','kitchen_b':'Кухни · 2–3 м','living_a':'Гостиная · До 1,7 м','living_b':'Гостиная · Более 1,7 м','living_c':'Гостиная · Эксклюзив','bedroom_a':'Спальни · 2 двери','bedroom_b':'Спальни · 3 двери без комода','bedroom_c':'Спальни · 3 двери с комодом','bedroom_d':'Спальни · 4 двери','bedroom_e':'Спальни · 5 дверей','bedroom_f':'Спальни · 6 дверей','bedroom_g':'Спальни · 0,9*2','wardrobe_a':'Шкафы · 2 двери','wardrobe_b':'Шкафы · 3 двери','wardrobe_c':'Шкафы · 4 двери','wardrobe_d':'Шкафы · 5 дверей','wardrobe_e':'Шкафы · 6 дверей'};
  const SUB_EMAIL='diannakirakosyan@gmail.com';
  const isSubAdm=()=>((auth.currentUser&&auth.currentUser.email)||'').toLowerCase()===SUB_EMAIL;
  const admRawName=()=>isSubAdm()?'Доставка':'Админ';
@@ -100,6 +101,7 @@
   listen('accounts',v=>{ACCOUNTS=v||{};draw()});
   if(!isSubAdm())listen('dm',onDmSnap);
   listen('config/forceUpdate',v=>{FU=+v||0;draw()});
+  if(!isSubAdm())listen('config/ocrMap',v=>{OCR_MAP=v||{};if(TAB==='ocr')drawOcr()});
   listen('chat',v=>{const obj=v||{};const all=Object.keys(obj).map(k=>Object.assign({k:k},obj[k])).sort((a,b)=>(+a.t||0)-(+b.t||0));const list=all.length>50?(all.slice(0,all.length-50).forEach(x=>db.ref('chat/'+x.k).remove().catch(()=>{})),all.slice(-50)):all;if(_admChatInit){const fresh=list.filter(m=>(+m.t||0)>_admLastNotifT&&!m.adm);if(fresh.length){const lm=fresh[fresh.length-1];_admLastNotifT=+lm.t||Date.now();localStorage.setItem('ADM_CHAT_NOTIF_T',String(_admLastNotifT));if(!CHAT_OPEN||document.hidden)admNotify((lm.name||'Водитель'),String(lm.txt||'').slice(0,140))}}else if(list.length){const mx=Math.max.apply(null,list.map(m=>+m.t||0));if(mx>_admLastNotifT){_admLastNotifT=mx;localStorage.setItem('ADM_CHAT_NOTIF_T',String(_admLastNotifT))}}_admChatInit=true;CHAT=list;if(CHAT_OPEN&&!document.hidden){markAdmChatSeen();renderAdmChat()}else updAdmChatBdg()});
   loadPub();
   tick=setInterval(draw,15000);
@@ -308,7 +310,6 @@
  function drawOnline(){
   const L=devs(),now=Date.now();
   const on=L.filter(d=>now-(d.u.t||0)<TTL).length,day=L.filter(d=>now-(d.u.t||0)<864e5).length;
-  const OCR_CAT_NAMES={'other_a':'Другое · Стулья, стеллажи','other_b':'Другое · Стулья, столы','other_c':'Другое · Раковина','other_d':'Другое · Комоды','other_e':'Другое · Кровать','other_f':'Другое · Модули','other_g':'Другое · Матрасы','other_h':'Другое · Системы хранения','other_i':'Другое · Дверь','other_j':'Другое · Пуфы','other_k':'Другое · Тумбы','sofas_a':'Диваны · Кресло','sofas_b':'Диваны · Диван','sofas_c':'Диваны · Комплект','recep_a':'Ресепшен · До 1,6 м','recep_b':'Ресепшен · Более 1,6 м','kitchen_a':'Кухни · 1,6 м','kitchen_b':'Кухни · 2–3 м','living_a':'Гостиная · До 1,7 м','living_b':'Гостиная · Более 1,7 м','living_c':'Гостиная · Эксклюзив','bedroom_a':'Спальни · 2 двери','bedroom_b':'Спальни · 3 двери без комода','bedroom_c':'Спальни · 3 двери с комодом','bedroom_d':'Спальни · 4 двери','bedroom_e':'Спальни · 5 дверей','bedroom_f':'Спальни · 6 дверей','bedroom_g':'Спальни · 0,9*2','wardrobe_a':'Шкафы · 2 двери','wardrobe_b':'Шкафы · 3 двери','wardrobe_c':'Шкафы · 4 двери','wardrobe_d':'Шкафы · 5 дверей','wardrobe_e':'Шкафы · 6 дверей'};
   let h='<div class="tiles"><div class="tile"><b>'+on+'</b><span>онлайн</span></div><div class="tile"><b>'+day+'</b><span>за 24 часа</span></div><div class="tile"><b>'+L.length+'</b><span>всего</span></div></div>';
   const pendList=[];
   if(!isSubAdm()){
@@ -488,20 +489,41 @@ function drawTotals(){
    +'<button class="btn" data-act="force">🔄 Обновить у всех</button>';
   g('view').innerHTML=h;
  }
+ function drawOcr(){
+  const allKeys=Object.keys(OCR_MAP).filter(k=>OCR_MAP[k]&&OCR_CAT_NAMES[OCR_MAP[k]]).sort();
+  const q=OCR_Q.trim().toLowerCase();
+  const keys=q?allKeys.filter(k=>k.includes(q)||(OCR_CAT_NAMES[OCR_MAP[k]]||'').toLowerCase().includes(q)):allKeys;
+  let h='<div class="sum-dash"><div class="sum-top"><div><div class="sum-lbl">Общий словарь накладных</div><div class="sum-val">'+allKeys.length+' <span>правил</span></div></div><button type="button" data-act="ocr-add" style="height:40px;padding:0 14px;border-radius:12px;background:rgba(16,185,129,.22);border:1px solid rgba(52,211,153,.45);color:#6ee7b7;font-size:13.5px;font-weight:700;white-space:nowrap">➕ Добавить</button></div></div>';
+  h+='<input id="ocrSrchInp" class="sum-srch" type="search" value="'+esc(OCR_Q)+'" placeholder="Поиск по названию или категории..." style="margin-bottom:10px!important">';
+  if(!keys.length)h+='<div class="mut box">'+(allKeys.length?'Ничего не найдено по запросу.':'Словарь пуст. Правила появятся после сканирования накладных или добавления вручную.')+'</div>';
+  h+=keys.map(k=>{
+   const cd=OCR_MAP[k];
+   return '<div class="row" data-act="ocr-edit" data-k="'+esc(k)+'" style="padding:11px 12px">'
+    +'<div class="rm"><div class="rt" style="font-size:14px">📄 '+esc(k)+'</div>'
+    +'<div class="rs" style="color:#6ee7b7;font-weight:600">'+esc(OCR_CAT_NAMES[cd]||cd)+'</div></div>'
+    +'<button type="button" class="xb" data-act="ocr-del" data-k="'+esc(k)+'" aria-label="Удалить">✕</button></div>';
+  }).join('');
+  g('view').innerHTML=h;
+  const inp=g('ocrSrchInp');
+  if(inp)inp.oninput=e=>{OCR_Q=e.target.value;const p=inp.selectionStart;drawOcr();const ni=g('ocrSrchInp');if(ni){ni.focus();try{ni.setSelectionRange(p,p)}catch(err){}}};
+ }
  function draw(){
   if(g('panel').hidden)return;
   const sub=isSubAdm();
   const tabsEl=document.querySelector('.tabs');
-  if(tabsEl)tabsEl.style.gridTemplateColumns=sub?'repeat(3,1fr)':'repeat(4,1fr)';
+  if(tabsEl)tabsEl.style.gridTemplateColumns=sub?'repeat(3,1fr)':'repeat(5,1fr)';
   const mapTab=document.querySelector('.tabs button[data-tab="map"]');
+  const ocrTab=document.querySelector('.tabs button[data-tab="ocr"]');
   if(mapTab)mapTab.hidden=sub;
-  if(sub&&TAB==='map')TAB='online';
+  if(ocrTab)ocrTab.hidden=sub;
+  if(sub&&(TAB==='map'||TAB==='ocr'))TAB='online';
   document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===TAB));
   const st=window.scrollY;
   if(TAB!=='map'&&_map)destroyMap();
   if(TAB==='online')drawOnline();
   else if(TAB==='map')drawMap();
   else if(TAB==='totals')drawTotals();
+  else if(TAB==='ocr')drawOcr();
   else drawVer();
   window.scrollTo(0,st);
  }
@@ -591,7 +613,25 @@ function drawTotals(){
   return true;
  }
 
-function openCarModal(uid){
+function openOcrRuleModal(ruleKey, curCode){
+  const ov=document.createElement('div');ov.className='ov';
+  const items=Object.keys(OCR_CAT_NAMES).map(cd=>{
+   const on=cd===curCode;
+   return '<div class="sel-it'+(on?' on':'')+'" data-cd="'+cd+'"><div class="sel-it-l"><div><div class="sel-it-nm">'+esc(OCR_CAT_NAMES[cd])+'</div></div></div><div class="sel-it-r"><span class="sel-chk">✓</span></div></div>';
+  }).join('');
+  ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b style="font-size:15px">📄 '+esc(ruleKey)+'</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'+items+'</div></div>';
+  document.body.appendChild(ov);
+  const close=()=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),180)};
+  ov.querySelector('.sel-x').onclick=close;
+  ov.onclick=async e=>{
+   if(e.target===ov){close();return}
+   const it=e.target.closest('.sel-it');if(!it)return;
+   const nc=it.dataset.cd;close();
+   try{await db.ref('config/ocrMap/'+ruleKey).set(nc);toast('Правило сохранено')}catch(err){toast('Ошибка сохранения',true)}
+  };
+  requestAnimationFrame(()=>ov.classList.add('show'));
+ }
+ function openCarModal(uid){
   if(!uid||!USERS[uid])return;
   const d=parseDev(uid,USERS[uid]),curCar=String(d.u.car||'').toUpperCase();
   const ov=document.createElement('div');ov.className='ov';
@@ -679,6 +719,9 @@ function openSelectModal(){
   else if(a==='cpcur'){e.stopPropagation();const curList=allCars().filter(c=>c.qty>0||c.sum>0).map(c=>({name:'Экипаж '+c.code+(c.crew.length?' ('+c.crew.join(', ')+')':''),sum:c.sum,qty:c.qty})).sort((a,b)=>b.sum-a.sum);copyReport('Текущий месяц (по экипажам)',curList,curList.reduce((a,x)=>a+x.qty,0),curList.reduce((a,x)=>a+x.sum,0))}
   else if(a==='cpmonth'){e.stopPropagation();const mObj=aggCarMonths(allCars()).find(x=>x.m===b.dataset.m);if(mObj)copyReport(monthName(mObj.m),mObj.cars,mObj.qty,mObj.sum)}
   else if(a==='ocr-ok'){e.stopPropagation();const uid=b.dataset.uid,k=b.dataset.k,cd=b.dataset.code;if(!uid||!k||!cd)return;try{await db.ref('config/ocrMap/'+k).set(cd);await db.ref('users/'+uid+'/ocrPending/'+k).remove();toast('Правило добавлено для всех')}catch(err){toast('Ошибка сохранения',true)}}
+  else if(a==='ocr-add'){e.stopPropagation();const raw=await askInput('Новое правило OCR','Введите точное название товара из накладной','','Например: Ննջասենյակ կ. Մոնա Լիզա 40');if(!raw)return;const fk=raw.toLowerCase().replace(/[\"'«»().,]/g,' ').replace(/\s+/g,' ').trim().replace(/[.#$\[\]\/]+/g,'_').slice(0,120);if(!fk){toast('Некорректное название',true);return}openOcrRuleModal(fk,OCR_MAP[fk]||'')}
+  else if(a==='ocr-edit'){e.stopPropagation();const k=b.dataset.k;if(k)openOcrRuleModal(k,OCR_MAP[k]||'')}
+  else if(a==='ocr-del'){e.stopPropagation();const k=b.dataset.k;if(!k)return;if(!(await ask('Удалить правило «'+k+'» из общего словаря?',{title:'Удаление правила',okText:'Удалить',danger:true})))return;try{await db.ref('config/ocrMap/'+k).remove();toast('Правило удалено')}catch(err){toast('Ошибка удаления',true)}}
   else if(a==='ocr-no'){e.stopPropagation();const uid=b.dataset.uid,k=b.dataset.k;if(!uid||!k)return;try{await db.ref('users/'+uid+'/ocrPending/'+k).remove();toast('Запрос отклонён')}catch(err){toast('Ошибка удаления',true)}}
   else if(a==='mapfilter'){MAP_ONLY_ONLINE=!MAP_ONLY_ONLINE;_didFit=false;drawMap()}
   else if(a==='focus'){const mk=_markers[b.dataset.id];if(mk&&_map){_map.setView(mk.getLatLng(),16,{animate:true});mk.openPopup()}}
