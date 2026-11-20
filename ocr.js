@@ -211,7 +211,7 @@
       }
     }
     if (!j) throw new Error(lastErr || 'Сервер распознавания не ответил');
-    const cand = Array.isArray(j.candidates) ? j.candidates : null;
+    const cand = Array.isArray(j.candidates) ? j.candidates[0] : null;
     const parts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : [];
     const ans = parts.find(p => p && !p.thought && typeof p.text === 'string') || parts[parts.length - 1];
     const parsed = JSON.parse(((ans && ans.text) || '{}').replace(/```json|```/gi, '').trim());
