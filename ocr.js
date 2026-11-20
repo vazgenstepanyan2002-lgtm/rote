@@ -145,8 +145,29 @@
     return /(?:ереван|երևան|yerevan|աջափնյակ|արաբկիր|ավան|դավթաշեն|էրեբունի|կենտրոն|մալաթիա|նոր նորք|նորք-մարաշ|նուբարաշեն|շենգավիթ|քանաքեռ-զեյթուն|քանաքեռ|ачапняк|арабкир|аван|давидашен|эребуни|кентрон|малатия|нор норк|норк-мараш|нубарашен|шенгавит|канакер)/i.test(low);
   };
 
+  function sharpenCanvas(ctx, w, h){
+    try {
+      const imgData = ctx.getImageData(0, 0, w, h);
+      const d = imgData.data;
+      const copy = new Uint8ClampedArray(d);
+      const mix = 0.35;
+      for (let y = 1; y < h - 1; y++) {
+        for (let x = 1; x < w - 1; x++) {
+          const i = (y * w + x) * 4;
+          for (let c = 0; c < 3; c++) {
+            const val = 5 * copy[i + c]
+              - copy[i - 4 + c] - copy[i + 4 + c]
+              - copy[i - w * 4 + c] - copy[i + w * 4 + c];
+            d[i + c] = copy[i + c] * (1 - mix) + val * mix;
+          }
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+    } catch (e) {}
+  }
+
   async function compressImage(file){
-    const maxSide = 1600;
+    const maxSide = 1800;
     if (window.createImageBitmap) {
       try {
         const bmp0 = await createImageBitmap(file);
@@ -159,9 +180,13 @@
         bmp0.close();
         const bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
         const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
-        cv.getContext('2d').drawImage(bmp, 0, 0);
+        const ctx = cv.getContext('2d');
+        ctx.filter = 'contrast(1.12)';
+        ctx.drawImage(bmp, 0, 0);
+        ctx.filter = 'none';
         bmp.close();
-        const out = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
+        sharpenCanvas(ctx, cv.width, cv.height);
+        const out = cv.toDataURL('image/jpeg', 0.88).split(',').pop();
         cv.width = cv.height = 0;
         return out;
       } catch (e) {}
@@ -174,8 +199,12 @@
         let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
         if (w > maxSide || h > maxSide) { if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; } else { w = Math.round(w * maxSide / h); h = maxSide; } }
         const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
-        cv.getContext('2d').drawImage(img, 0, 0, w, h);
-        const out = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
+        const ctx = cv.getContext('2d');
+        ctx.filter = 'contrast(1.12)';
+        ctx.drawImage(img, 0, 0, w, h);
+        ctx.filter = 'none';
+        sharpenCanvas(ctx, w, h);
+        const out = cv.toDataURL('image/jpeg', 0.88).split(',').pop();
         cv.width = cv.height = 0;
         res(out);
       };
@@ -426,6 +455,16 @@
     let torchOn = false;
     try {
       const caps = track && track.getCapabilities && track.getCapabilities();
+      if (caps && track.applyConstraints) {
+        const adv = [];
+        if (caps.focusMode && caps.focusMode.includes('continuous')) adv.push({ focusMode: 'continuous' });
+        if (caps.zoom && caps.zoom.min <= 1.4 && caps.zoom.max >= 1.4) adv.push({ zoom: 1.4 });
+        const maxW = caps.width && caps.width.max ? Math.min(4096, caps.width.max) : 0;
+        const maxH = caps.height && caps.height.max ? Math.min(3072, caps.height.max) : 0;
+        const cObj = adv.length ? { advanced: adv } : {};
+        if (maxW >= 1920 && maxH >= 1080) { cObj.width = { ideal: maxW }; cObj.height = { ideal: maxH }; }
+        track.applyConstraints(cObj).catch(() => {});
+      }
       if (caps && caps.torch) {
         const tb = g('olcTorch'); tb.hidden = false;
         tb.onclick = async () => {
