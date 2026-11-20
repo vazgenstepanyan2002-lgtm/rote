@@ -146,7 +146,7 @@
   };
 
   async function compressImage(file){
-    const maxSide = 1280;
+    const maxSide = 1024;
     if (window.createImageBitmap) {
       try {
         const bmp0 = await createImageBitmap(file);
@@ -159,9 +159,12 @@
         bmp0.close();
         const bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
         const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
-        cv.getContext('2d').drawImage(bmp, 0, 0);
+        const ctx = cv.getContext('2d');
+        ctx.filter = 'grayscale(1) contrast(1.2)';
+        ctx.drawImage(bmp, 0, 0);
+        ctx.filter = 'none';
         bmp.close();
-        const out = cv.toDataURL('image/jpeg', 0.78).split(',').pop();
+        const out = cv.toDataURL('image/jpeg', 0.72).split(',').pop();
         cv.width = cv.height = 0;
         return out;
       } catch (e) {}
@@ -174,8 +177,11 @@
         let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
         if (w > maxSide || h > maxSide) { if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; } else { w = Math.round(w * maxSide / h); h = maxSide; } }
         const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
-        cv.getContext('2d').drawImage(img, 0, 0, w, h);
-        const out = cv.toDataURL('image/jpeg', 0.78).split(',').pop();
+        const ctx = cv.getContext('2d');
+        ctx.filter = 'grayscale(1) contrast(1.2)';
+        ctx.drawImage(img, 0, 0, w, h);
+        ctx.filter = 'none';
+        const out = cv.toDataURL('image/jpeg', 0.72).split(',').pop();
         cv.width = cv.height = 0;
         res(out);
       };
