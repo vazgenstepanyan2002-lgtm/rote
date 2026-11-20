@@ -35,8 +35,10 @@ const ctxPath = '../EuroBaza_CONTEXT.md';
 let tail = rulesSec;
 if (fs.existsSync(ctxPath)) {
   const old = fs.readFileSync(ctxPath, 'utf8');
-  const idx = old.indexOf('## Правила работы с проектом для ИИ');
-  if (idx !== -1) tail = old.slice(idx);
+  const marker = '\n## Правила работы с проектом для ИИ';
+  const idx = old.lastIndexOf(marker);
+  if (idx !== -1) tail = old.slice(idx + 1);
+  else if (old.startsWith('## Правила работы с проектом для ИИ')) tail = old;
 }
 
 fs.writeFileSync(ctxPath, head + codeSec + tail, 'utf8');
