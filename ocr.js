@@ -181,11 +181,31 @@
     let isCity = !!defaultIsCity;
     const rows = items.map(x => ({ name: x.name, qty: x.qty, code: x.code || '' }));
     saveOcrDraft(rows, isCity);
-    const groups = {};
-    BON_ITEMS.forEach(it => { (groups[it.cat] = groups[it.cat] || []).push(it); });
-    const optsHtml = '<option value="">— Выберите категорию бонусов —</option>' + Object.keys(groups).map(cat =>
-      '<optgroup label="' + esc(cat) + '">' + groups[cat].map(it => '<option value="' + it.code + '">' + esc(it.name) + ' (' + (it.one ? it.p1 : it.p1 + ' / ' + it.p2) + ' ' + CUR + ')</option>').join('') + '</optgroup>'
-    ).join('');
+    const CAT_ICO = { 'Другое': '📦', 'Диваны': '🛋️', 'Ресепшен': '🗄️', 'Кухни': '🍳', 'Гостиная': '📺', 'Спальни': '🛏️', 'Шкафы': '🚪' };
+    const catsList = Array.from(new Set(BON_ITEMS.map(x => x.cat)));
+    const openCatPicker = rowIdx => {
+      const r = rows[rowIdx]; if (!r) return;
+      let pm = g('ocrCatMdl'); if (pm) pm.remove();
+      let selCat = (r.code && BON_BY_CODE[r.code]) ? BON_BY_CODE[r.code].cat : 'all', q = '';
+      pm = document.createElement('div'); pm.id = 'ocrCatMdl'; pm.className = 'cm open';
+      pm.innerHTML = '<div class="cm-b ob-pk-box"><div class="ob-pk-hd"><div><b>Категория бонусов</b><small>' + esc(r.name) + '</small></div><button type="button" class="pt-x" id="obPkX">✕</button></div><div class="ob-pk-srch"><input id="obPkInp" type="search" placeholder="Поиск мебели..."></div><div class="ob-pk-chips" id="obPkChips"><button type="button" data-c="all" class="' + (selCat === 'all' ? 'on' : '') + '">Все</button>' + catsList.map(c => '<button type="button" data-c="' + esc(c) + '" class="' + (selCat === c ? 'on' : '') + '">' + (CAT_ICO[c] || '📦') + ' ' + esc(c) + '</button>').join('') + '</div><div class="ob-pk-list" id="obPkList"></div></div>';
+      document.body.appendChild(pm);
+      const closePk = () => pm.remove();
+      g('obPkX').onclick = closePk; pm.onclick = ev => { if (ev.target === pm) closePk(); };
+      const drawItems = () => {
+        const box = g('obPkList');
+        const list = BON_ITEMS.filter(it => (selCat === 'all' || it.cat === selCat) && (!q || it.name.toLowerCase().includes(q) || it.cat.toLowerCase().includes(q)));
+        if (!list.length) { box.innerHTML = '<div class="pt-empty">Ничего не найдено</div>'; return; }
+        box.innerHTML = list.map(it => {
+          const on = r.code === it.code, pr = it.one ? it.p1 : (isCity ? it.p1 : it.p2);
+          return '<button type="button" class="ob-pk-it' + (on ? ' on' : '') + '" data-code="' + it.code + '"><span>' + (CAT_ICO[it.cat] || '📦') + '</span><span class="ob-pk-tx"><b>' + esc(it.name) + '</b><small>' + esc(it.cat) + '</small></span><span class="ob-pk-pr">' + fm(pr) + ' ' + CUR + '</span></button>';
+        }).join('');
+      };
+      g('obPkChips').onclick = ev => { const b = ev.target.closest('button[data-c]'); if (!b) return; selCat = b.dataset.c; g('obPkChips').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); drawItems(); };
+      g('obPkInp').oninput = ev => { q = ev.target.value.trim().toLowerCase(); drawItems(); };
+      g('obPkList').onclick = ev => { const it = ev.target.closest('button[data-code]'); if (!it) return; r.code = it.dataset.code; saveCloudModel(r.name, r.code); closePk(); renderRows(); };
+      drawItems();
+    };
 
     m = document.createElement('div'); m.id = 'ocrBonMdl'; m.className = 'mdl open';
     m.innerHTML = '<div class="mdl-b pt-box ob-box"><div class="pt-hd"><div class="pt-hd-l"><div class="pt-hd-ic" style="background:rgba(250,204,21,.16);border-color:rgba(250,204,21,.42);color:#fde047">🧮</div><div><div class="pt-hd-t">Бонусы по накладной</div><div class="pt-hd-s" id="obSub"></div></div></div><button type="button" class="pt-x" id="obX">✕</button></div>'
@@ -207,19 +227,21 @@
         const info = r.code ? BON_BY_CODE[r.code] : null;
         const up = info ? (info.one ? info.p1 : (isCity ? info.p1 : info.p2)) : 0;
         tot += up * r.qty;
+        const pickLabel = info
+          ? '<span class="ob-pick-l"><span>' + (CAT_ICO[info.cat] || '📦') + '</span><b>' + esc(info.name) + '</b></span><span class="ob-pick-r"><span class="ob-pick-tag">' + fm(up) + ' ' + CUR + '</span><span>▾</span></span>'
+          : '<span class="ob-pick-l"><span>⚠️</span><b style="color:#fbbf24">Выберите категорию бонусов</b></span><span class="ob-pick-r"><span>▾</span></span>';
         return '<div class="ob-card' + (info ? '' : ' unk') + '"><div class="ob-top"><div class="ob-nm">' + esc(r.name) + '</div><button type="button" class="ob-del" data-i="' + i + '">✕</button></div>'
-          + '<select class="ob-sel" data-i="' + i + '">' + optsHtml + '</select>'
+          + '<button type="button" class="ob-pick' + (info ? '' : ' unk') + '" data-pick="' + i + '">' + pickLabel + '</button>'
           + '<div class="ob-bot"><div class="ob-qbox"><button type="button" class="ob-pm" data-act="dec" data-i="' + i + '">−</button><b>' + r.qty + ' шт</b><button type="button" class="ob-pm" data-act="inc" data-i="' + i + '">+</button></div>'
-          + '<div class="ob-pr">' + (info ? (fm(up) + ' × ' + r.qty + ' = <b>' + fm(up * r.qty) + ' ' + CUR + '</b>') : '<span style="color:#fbbf24">Выберите категорию</span>') + '</div></div></div>';
+          + '<div class="ob-pr">' + (info ? (fm(up) + ' × ' + r.qty + ' = <b>' + fm(up * r.qty) + ' ' + CUR + '</b>') : '<span style="color:#fbbf24">Не выбрано</span>') + '</div></div></div>';
       }).join('');
-      box.querySelectorAll('.ob-sel').forEach(sel => { const r = rows[+sel.dataset.i]; if (r && r.code) sel.value = r.code; });
       g('obTotSum').textContent = fm(tot) + ' ' + CUR;
       saveOcrDraft(rows, isCity);
     };
 
     g('obZoneSeg').onclick = e => { const b = e.target.closest('button[data-z]'); if (!b) return; isCity = b.dataset.z === 'city'; g('obZoneSeg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); renderRows(); };
-    g('obList').onchange = e => { const sel = e.target.closest('.ob-sel'); if (!sel) return; const r = rows[+sel.dataset.i]; if (r) { r.code = sel.value; saveCloudModel(r.name, sel.value); renderRows(); } };
     g('obList').onclick = e => {
+      const pk = e.target.closest('[data-pick]'); if (pk) { openCatPicker(+pk.dataset.pick); return; }
       const del = e.target.closest('.ob-del'); if (del) { rows.splice(+del.dataset.i, 1); renderRows(); return; }
       const pm = e.target.closest('.ob-pm'); if (pm && rows[+pm.dataset.i]) { rows[+pm.dataset.i].qty = pm.dataset.act === 'inc' ? rows[+pm.dataset.i].qty + 1 : Math.max(1, rows[+pm.dataset.i].qty - 1); renderRows(); }
     };
