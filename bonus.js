@@ -349,7 +349,7 @@
     +(oneS?'<span><i style="background:#34d399"></i>Фикс '+pOne+'% ('+fm(oneS)+')</span>':'')
     +'</div></div>':'')+'</div>';
   if(!rows.length)return html+'<div class="bn-empty">Ничего не выбрано.</div>';
-  html+='<div class="sum-tools"><div class="sum-seg" id="bnSeg"><button type="button" class="on" data-f="all">Все</button><button type="button" data-f="Город">Город</button><button type="button" data-f="Район">Район</button></div><input id="bnSrch" class="sum-srch" type="search" placeholder="Поиск позиции..."></div>';
+  html+='<div class="sum-tools"><div class="sum-seg" id="bnSeg"><button type="button" class="on" data-f="all">Все</button><button type="button" data-f="Город">Город</button><button type="button" data-f="Район">Район</button><button type="button" data-f="Шт">Фикс</button></div><input id="bnSrch" class="sum-srch" type="search" placeholder="Поиск позиции..."></div>';
   html+='<div id="bnCats">'+rows.map((c,idx)=>{
    const cq=cqOf(c),pct=totS?Math.round(c.sum*100/totS):0;
    const body=c.items.map(it=>'<div class="sum-it" data-name="'+esc(furnitureName(it.name).toLowerCase())+'"><div class="sum-it-t">'+esc(furnitureName(it.name))+'</div>'

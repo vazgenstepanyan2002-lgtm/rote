@@ -860,7 +860,7 @@ body{min-height:100dvh;padding:clamp(10px, 3vw, 16px)!important;padding-bottom:c
 .sum-leg span{display:inline-flex;align-items:center;gap:5px}
 .sum-leg i{width:7px;height:7px;border-radius:50%;display:inline-block}
 .sum-tools{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
-.sum-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;background:rgba(11,16,26,.85);border:1px solid rgba(255,255,255,.1);border-radius:13px}
+.sum-seg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:4px;background:rgba(11,16,26,.85);border:1px solid rgba(255,255,255,.1);border-radius:13px}
 .sum-seg button{height:32px!important;margin:0!important;padding:0 6px!important;border-radius:9px!important;font-size:12.5px!important;font-weight:700!important;background:transparent!important;border:none!important;color:#94a3b8!important;box-shadow:none!important}
 .sum-seg button.on{background:rgba(56,189,248,.18)!important;color:#7dd3fc!important;border:1px solid rgba(56,189,248,.35)!important}
 .sum-srch{width:100%;height:38px!important;padding:0 12px!important;border-radius:12px!important;background:rgba(11,16,26,.85)!important;border:1px solid rgba(255,255,255,.12)!important;font-size:13.5px!important;color:#f8fafc!important}
