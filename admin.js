@@ -614,22 +614,55 @@ function drawTotals(){
  }
 
 function openOcrRuleModal(ruleKey, curCode){
-  const ov=document.createElement('div');ov.className='ov';
-  const items=Object.keys(OCR_CAT_NAMES).map(cd=>{
-   const on=cd===curCode;
-   return '<div class="sel-it'+(on?' on':'')+'" data-cd="'+cd+'"><div class="sel-it-l"><div><div class="sel-it-nm">'+esc(OCR_CAT_NAMES[cd])+'</div></div></div><div class="sel-it-r"><span class="sel-chk">✓</span></div></div>';
-  }).join('');
-  ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b style="font-size:15px">📄 '+esc(ruleKey)+'</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'+items+'</div></div>';
+  const CAT_ICO = { 'Другое': '📦', 'Диваны': '🛋️', 'Ресепшен': '🗄️', 'Кухни': '🍳', 'Гостиная': '📺', 'Спальни': '🛏️', 'Шкафы': '🚪' };
+  const allItems = Object.keys(OCR_CAT_NAMES).map(cd => {
+   const parts = OCR_CAT_NAMES[cd].split(' · ');
+   return { cd, cat: parts[0] || 'Другое', name: parts[1] || OCR_CAT_NAMES[cd] };
+  });
+  const catsList = Array.from(new Set(allItems.map(x => x.cat)));
+  const curObj = allItems.find(x => x.cd === curCode);
+  let selCat = curObj ? curObj.cat : 'all', q = '';
+
+  const ov = document.createElement('div');
+  ov.className = 'ov';
+  ov.innerHTML = '<div class="dlg aop-box">'
+   + '<div class="aop-hd"><div><b>Категория бонусов</b><small>' + esc(ruleKey) + '</small></div><button type="button" class="sel-x">✕</button></div>'
+   + '<div class="aop-srch"><input id="aopInp" type="search" placeholder="Поиск мебели..."></div>'
+   + '<div class="aop-chips" id="aopChips"><button type="button" data-c="all" class="' + (selCat === 'all' ? 'on' : '') + '">Все</button>'
+   + catsList.map(c => '<button type="button" data-c="' + esc(c) + '" class="' + (selCat === c ? 'on' : '') + '">' + (CAT_ICO[c] || '📦') + ' ' + esc(c) + '</button>').join('')
+   + '</div><div class="aop-list" id="aopList"></div></div>';
   document.body.appendChild(ov);
-  const close=()=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),180)};
-  ov.querySelector('.sel-x').onclick=close;
-  ov.onclick=async e=>{
-   if(e.target===ov){close();return}
-   const it=e.target.closest('.sel-it');if(!it)return;
-   const nc=it.dataset.cd;close();
-   try{await db.ref('config/ocrMap/'+ruleKey).set(nc);toast('Правило сохранено')}catch(err){toast('Ошибка сохранения',true)}
+
+  const close = () => { ov.classList.remove('show'); setTimeout(() => ov.remove(), 180); };
+  ov.querySelector('.sel-x').onclick = close;
+  ov.onclick = e => { if (e.target === ov) close(); };
+
+  const drawItems = () => {
+   const box = g('aopList');
+   const list = allItems.filter(it => (selCat === 'all' || it.cat === selCat) && (!q || it.name.toLowerCase().includes(q) || it.cat.toLowerCase().includes(q)));
+   if (!list.length) { box.innerHTML = '<div class="mut" style="text-align:center;padding:20px">Ничего не найдено</div>'; return; }
+   box.innerHTML = list.map(it => {
+    const on = it.cd === curCode;
+    return '<button type="button" class="aop-it' + (on ? ' on' : '') + '" data-cd="' + it.cd + '"><span>' + (CAT_ICO[it.cat] || '📦') + '</span><span class="aop-tx"><b>' + esc(it.name) + '</b><small>' + esc(it.cat) + '</small></span><span class="sel-chk">' + (on ? '✓' : '') + '</span></button>';
+   }).join('');
   };
-  requestAnimationFrame(()=>ov.classList.add('show'));
+
+  g('aopChips').onclick = e => {
+   const b = e.target.closest('button[data-c]'); if (!b) return;
+   selCat = b.dataset.c;
+   g('aopChips').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+   drawItems();
+  };
+  g('aopInp').oninput = e => { q = e.target.value.trim().toLowerCase(); drawItems(); };
+  g('aopList').onclick = async e => {
+   const it = e.target.closest('button[data-cd]'); if (!it) return;
+   const nc = it.dataset.cd; close();
+   try { await db.ref('config/ocrMap/' + ruleKey).set(nc); toast('Правило сохранено'); }
+   catch (err) { toast('Ошибка сохранения', true); }
+  };
+
+  drawItems();
+  requestAnimationFrame(() => ov.classList.add('show'));
  }
  function openCarModal(uid){
   if(!uid||!USERS[uid])return;
