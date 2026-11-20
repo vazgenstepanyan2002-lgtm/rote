@@ -443,7 +443,7 @@
       + '<div id="olcFocusRing" style="position:fixed;width:64px;height:64px;border:2px solid #fde047;border-radius:50%;pointer-events:none;opacity:0;transform:translate(-50%,-50%) scale(1.2);transition:opacity .2s,transform .2s;z-index:3"></div>'
       + '<div class="olc-top"><button type="button" class="olc-btn" id="olcSys">📷 Системная</button><span>Коснитесь текста для фокуса</span><button type="button" class="olc-btn" id="olcClose">✕</button></div>'
       + '<div class="olc-frame"></div>'
-      + '<div class="olc-bot"><button type="button" class="olc-btn" id="olcTorch" hidden>🔦 Свет</button><button type="button" class="olc-shot" id="olcShot" aria-label="Снять"></button><span style="width:68px"></span></div>';
+      + '<div class="olc-bot"><button type="button" class="olc-btn" id="olcTorch">🔦 Свет</button><button type="button" class="olc-shot" id="olcShot" aria-label="Снять"></button><span style="width:68px"></span></div>';
     document.body.appendChild(ov);
     const vid = g('ocrLiveVid');
     vid.srcObject = stream;
@@ -465,11 +465,24 @@
         if (maxW >= 1920 && maxH >= 1080) { cObj.width = { ideal: maxW }; cObj.height = { ideal: maxH }; }
         track.applyConstraints(cObj).catch(() => {});
       }
-      if (caps && caps.torch) {
-        const tb = g('olcTorch'); tb.hidden = false;
+      const tb = g('olcTorch');
+      if (tb) {
+        if (caps && 'torch' in caps && !caps.torch) tb.hidden = true;
         tb.onclick = async () => {
+          if (!track || !track.applyConstraints) {
+            window.toast && toast('Вспышка не поддерживается в этом браузере', 'err');
+            return;
+          }
           torchOn = !torchOn;
-          try { await track.applyConstraints({ advanced: [{ torch: torchOn }] }); tb.style.borderColor = torchOn ? '#fde047' : ''; } catch (e) {}
+          try {
+            await track.applyConstraints({ advanced: [{ torch: torchOn }] });
+            tb.style.borderColor = torchOn ? '#fde047' : '';
+            tb.style.color = torchOn ? '#fde047' : '';
+            tb.style.background = torchOn ? 'rgba(250,204,21,.22)' : '';
+          } catch (e) {
+            torchOn = false;
+            window.toast && toast('Не удалось включить вспышку на этом устройстве', 'err');
+          }
         };
       }
     } catch (e) {}
