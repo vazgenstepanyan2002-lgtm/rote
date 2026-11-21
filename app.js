@@ -20,8 +20,8 @@ function inKentron(lat,lon){
 }
 const $=id=>document.getElementById(id);
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let P=JSON.parse(localStorage.getItem('P')||'[]');
-function save(){localStorage.setItem('P',JSON.stringify(P));draw()}
+let P=(window.StorageService?window.StorageService.getJSON('P',[]):JSON.parse(localStorage.getItem('P')||'[]'))||[];
+function save(){if(window.StorageService)window.StorageService.setJSON('P',P);else localStorage.setItem('P',JSON.stringify(P));draw()}
 function syncGoGrp(){const g=$('goGrp');if(g)g.classList.toggle('show',P.length>0||!!($('o')&&$('o').innerHTML.trim()))}
 function clearDone(){P=P.filter(p=>!p.done);save();window.toast&&toast('Выполненные адреса убраны')}
 function toggleP(i){if(!P[i])return;P[i].done=!P[i].done;const p=P[i];if(window.CUR){let ch=false;window.CUR.forEach(it=>{if(String(it.name||'').indexOf('🏁')===0)return;if(it.name===p.name||Math.hypot((it.lat-p.lat)*111000,(it.lon-p.lon)*85000)<35){it.done=!!p.done;ch=true}});if(ch){try{const sv=JSON.parse(localStorage.getItem('R_SAVE')||'{}')||{};sv.curOrder=window.CUR;localStorage.setItem('R_SAVE',JSON.stringify(sv));renderOut(window.CUR,sv.startPt,sv.totT,sv.totD,sv.approx)}catch(e){}}}save()}

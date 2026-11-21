@@ -100,7 +100,7 @@
 
  const ICO={other:'📦',sofas:'🛋️',recep:'🗄️',kitchen:'🍳',living:'📺',bedroom:'🛏️',wardrobe:'🚪'};
  let B=[];
- try{const v=JSON.parse(localStorage.getItem('BON')||'[]');if(Array.isArray(v))B=v.filter(c=>c&&Array.isArray(c.subs))}catch(e){}
+ try{const v=window.StorageService?window.StorageService.getJSON('BON',[]):JSON.parse(localStorage.getItem('BON')||'[]');if(Array.isArray(v))B=v.filter(c=>c&&Array.isArray(c.subs))}catch(e){}
  const save=(pk,sk,k,val)=>{
  if (!CAR_CODE || !window.firebase || !firebase.apps || !firebase.apps.length) return;
  if (pk && sk) {
@@ -110,7 +110,7 @@
  }
 };
  let CAR_CODE = "";
- try { CAR_CODE = localStorage.getItem("USER_CAR") || ""; } catch(e){}
+ try { CAR_CODE = window.StorageService ? window.StorageService.get("USER_CAR", "") : (localStorage.getItem("USER_CAR") || ""); } catch(e){}
  let _carRef = null, _carFn = null, _histRef = null, _histFn = null, _carHist = {};
 
  function updCarBadge(){
