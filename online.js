@@ -175,7 +175,7 @@
     const g = id => document.getElementById(id);
     const open = id => g(id) && g(id).classList.contains('open');
     return !!((g('a') && g('a').value.trim()) || (g('pn') && g('pn').value.trim()) ||
-      open('ptMdl') || open('cm') || open('mapM') || open('bnMdl'));
+      ['ptMdl','ptAddMdl','cm','mapM','bnMdl','chatMdl','dmMdl','setMdl','ocrBonMdl','ocrCatMdl','ocrSrcMdl','kzMdl'].some(open) || !!g('ocrLiveCam'));
   }
   async function applyFU(){
     lsSet('FU_SEEN', String(pendingFU));

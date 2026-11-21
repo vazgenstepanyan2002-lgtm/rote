@@ -85,12 +85,13 @@ function sysUrl(h){
  const q=new URLSearchParams(h.split('?')[1]||'');
  if(q.has('lat_via_0'))return gmapsUrl(h);
  const la=q.get('lat_to'),lo=q.get('lon_to');
- return 'geo:'+la+','+lo+'?q='+la+','+lo;
+ const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+ return isIOS?('https://maps.apple.com/?daddr='+la+','+lo+'&dirflg=d'):('geo:'+la+','+lo+'?q='+la+','+lo);
 }
 document.addEventListener('click',e=>{
  if(navMode()!=='sys')return;
  const a=e.target.closest&&e.target.closest('a[href^="yandexnavi://"]');if(!a)return;
- e.preventDefault();e.stopPropagation();
+ e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
  const url=sysUrl(a.getAttribute('href'));
  if(url.indexOf('geo:')===0){const t=document.createElement('a');t.href=url;document.body.appendChild(t);t.click();t.remove()}
  else window.open(url,'_blank');

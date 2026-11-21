@@ -137,9 +137,9 @@
             if (typeof uData.hist === "string" && uData.hist.length > 2) lsSet("BON_HIST", uData.hist);
             if (typeof uData.bonRaw === "string" && uData.bonRaw.length > 2) lsSet("BON", uData.bonRaw);
             if (typeof uData.specPts === "string" && uData.specPts.length > 1) lsSet("SPEC", uData.specPts);
+            if (uData.car) lsSet("USER_CAR", String(uData.car).toUpperCase()); else lsDel("USER_CAR");
           }
           m.remove();
-          if (window._onlineBeatNow) window._onlineBeatNow();
           if (window._onlineBeatNow) window._onlineBeatNow();
           bindDm(); if (window._admPushNow) window._admPushNow();
           reqNotifyPerm();
@@ -195,7 +195,7 @@
     if(!ms)return"";const d=new Date(ms),n=new Date();
     const sd=(x,y)=>x.getFullYear()===y.getFullYear()&&x.getMonth()===y.getMonth()&&x.getDate()===y.getDate();
     if(sd(d,n))return"Сегодня";const y=new Date(n);y.setDate(n.getDate()-1);if(sd(d,y))return"Вчера";
-    return d.toLocaleDateString("ru-RU",{day:"numeric",month:"long"});
+    const lg=(window.getLang&&window.getLang())||ls("LANG")||"ru";const loc=lg==="hy"?"hy-AM":(lg==="en"?"en-US":"ru-RU");return d.toLocaleDateString(loc,{day:"numeric",month:"long"});
   }
   function avColor(s){
     const c=["#2563eb","#0891b2","#059669","#7c3aed","#db2777","#d97706","#4f46e5"];let h=0;
@@ -449,7 +449,7 @@ function openProfileMenu(){
   g("pmSet").onclick=()=>{close();openUserSettings()};
   g("pmAdm").onclick=()=>{close();location.href="admin.html"};
   if(window.getVerText)window.getVerText(v=>{const ve=g("pmVer");if(ve)ve.textContent=v});
-  g("pmOut").onclick=async()=>{close();if(typeof askC==="function"&&!(await askC("Выйти из профиля «"+nm+"» на этом телефоне? Данные останутся в облаке.","Выйти","👤")))return;lsDel("USER_NAME");lsDel("USER_KEY");lsDel("ADM_UID");lsDel("BON");lsDel("BON_HIST");lsDel("SPEC");lsDel("USER_AVATAR");location.replace(location.pathname)};
+  g("pmOut").onclick=async()=>{close();if(typeof askC==="function"&&!(await askC("Выйти из профиля «"+nm+"» на этом телефоне? Данные останутся в облаке.","Выйти","👤")))return;lsDel("USER_NAME");lsDel("USER_KEY");lsDel("ADM_UID");lsDel("USER_CAR");lsDel("BON");lsDel("BON_HIST");lsDel("SPEC");lsDel("USER_AVATAR");lsDel("CHAT_SEEN");lsDel("CHAT_NOTIF_T");lsDel("DM_SEEN");lsDel("DM_NOTIF_T");location.replace(location.pathname)};
   updBadges();
 }
 let _blkBound = false;
@@ -461,7 +461,7 @@ let _blkBound = false;
     const kick = (byDev) => {
       if (byDev) _devBlocked = true;
       try { if (uid) db.ref("online/" + uid).remove(); } catch(e){}
-      lsDel("USER_NAME"); lsDel("USER_KEY"); lsDel("ADM_UID"); lsDel("BON"); lsDel("BON_HIST"); lsDel("SPEC");
+      lsDel("USER_NAME"); lsDel("USER_KEY"); lsDel("ADM_UID"); lsDel("USER_CAR"); lsDel("BON"); lsDel("BON_HIST"); lsDel("SPEC");
       ensureModal();
       const err = g("auErr"), btn = g("auGo");
       if (err) err.textContent = byDev ? "Это устройство заблокировано администратором" : "Ваш профиль заблокирован администратором";

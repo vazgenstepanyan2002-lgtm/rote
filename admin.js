@@ -366,7 +366,7 @@ function openAdmSumModal(code,subKey){
  const apply=()=>{
   let gS=0,gQ=0,gC=0;
   const catStats=[];
-  root.querySelectorAll(".sum-cat").forEach(cat=>{
+  root.querySelectorAll(".adm-sum .sum-cat").forEach(cat=>{
    let cS=0,cQ=0,vc=0;
    cat.querySelectorAll(".sum-it").forEach(it=>{
     const mn=!q||(it.dataset.name||"").includes(q);

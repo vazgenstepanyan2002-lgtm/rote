@@ -257,7 +257,7 @@
   const msg=rq>0?(CAR_CODE==='ADMIN'?'Обнулить '+fm(rq)+' шт на сумму '+fm(rs)+' '+CUR+'?':'Обнулить '+fm(rq)+' шт ('+fm(rs)+' '+CUR+') у экипажа '+CAR_CODE+' и очистить журнал накладных?'):'Количества по нулям. Очистить журнал накладных?';
   if(!await askC(msg,'Обнулить','🔄'))return;
   B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));
-  firebase.database().ref('cars/'+CAR_CODE+'/qty').remove().catch(()=>{});firebase.database().ref('cars/'+CAR_CODE+'/docs').remove().catch(()=>{});
+  if(window.firebase&&firebase.apps&&firebase.apps.length){firebase.database().ref('cars/'+CAR_CODE+'/qty').remove().catch(()=>{});firebase.database().ref('cars/'+CAR_CODE+'/docs').remove().catch(()=>{});}
   render();tst('Количества обнулены');
  }
 
@@ -283,7 +283,8 @@
  const cqOf=c=>c.items.reduce((a,it)=>a+it.parts.reduce((b,z)=>b+z.n,0),0);
  const MK=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
  const HIST=()=>_carHist||{};
- const saveHist=h=>{if(CAR_CODE&&window.firebase&&firebase.apps.length)firebase.database().ref('cars/'+CAR_CODE+'/hist').set(h).catch(()=>{})};
+ const saveHistRec=(id,rec)=>{if(CAR_CODE&&window.firebase&&firebase.apps&&firebase.apps.length)firebase.database().ref('cars/'+CAR_CODE+'/hist/'+id).set(rec).catch(()=>{})};
+ const delHistRec=id=>{if(CAR_CODE&&window.firebase&&firebase.apps&&firebase.apps.length)firebase.database().ref('cars/'+CAR_CODE+'/hist/'+id).remove().catch(()=>{})};
  const qtyOf=rows=>rows.reduce((a,c)=>a+cqOf(c),0);
  const sumOf=rows=>rows.reduce((a,c)=>a+c.sum,0);
  // ===== Названия месяцев на текущем языке =====
@@ -323,7 +324,7 @@
   const d=HIST()[k];if(!d)return;
   askC('Удалить эти итоги? Это действие нельзя отменить.','Удалить','🗑️').then(y=>{
    if(!y)return;
-   const h=HIST();delete h[k];saveHist(h);
+   const h=HIST();delete h[k];delHistRec(k);
    tst('Итоги удалены');histView();
   });
  }
@@ -414,7 +415,7 @@
   const cr=sumRows(),cs=sumOf(cr),cq=qtyOf(cr);
   let html='<div class="sum-dash sum-dash-btn" data-m="cur"><div class="sum-top"><div><div class="sum-lbl">Текущий месяц · открыть ›</div><div class="sum-val">'+fm(cs)+' <span>'+CUR+'</span></div></div><div class="sum-kpis"><div class="sum-kpi"><b>'+fm(cq)+'</b><span>штук</span></div></div></div></div>';
   html+='<div class="bn-sec">Архив по месяцам ('+ks.length+')</div>';
-  ks.forEach(k=>{const d=h[k];html+=rowHtml(k,monthName(d.m||k),new Date(d.t||0).toLocaleDateString('ru-RU',{day:'numeric',month:'short'}),d.sum,d.qty,false)});
+  ks.forEach(k=>{const d=h[k];html+=rowHtml(k,monthName(d.m||k),new Date(d.t||0).toLocaleDateString(curLang()==='hy'?'hy-AM':(curLang()==='en'?'en-US':'ru-RU'),{day:'numeric',month:'short'}),d.sum,d.qty,false)});
   if(!ks.length)html+='<div class="bn-tip">Нажмите «💾 Сохранить», когда захотите зафиксировать итоги. Количества тогда обнулятся.</div>';
   const box=g('bnSmList');box.innerHTML=html;bindSumTools(box);
   g('bnSmTot').textContent=fm(cs)+' '+CUR;g('bnSmQty').textContent=fm(cq);
@@ -429,7 +430,7 @@
   if(k==='cur'){CUR_VIEW={k:'cur',title:'Текущий месяц',rows:null};setFoot();return detailView(sumRows(),'Текущий месяц','')}
   const d=HIST()[k];if(!d)return;
   CUR_VIEW={k:k,title:monthName(d.m||k),rows:d.rows||[]};
-  setFoot(k);detailView(d.rows,monthName(d.m||k),new Date(d.t||0).toLocaleDateString('ru-RU',{day:'numeric',month:'long'}));
+  setFoot(k);detailView(d.rows,monthName(d.m||k),new Date(d.t||0).toLocaleDateString(curLang()==='hy'?'hy-AM':(curLang()==='en'?'en-US':'ru-RU'),{day:'numeric',month:'long'}));
  }
  async function saveMonth(){
   if(!CAR_CODE){tst('Экипаж не назначен администратором','err');return}
@@ -439,11 +440,11 @@
   const ok=await askC('Сохранить итоги за выбранный месяц и обнулить количества?','Сохранить','💾');
   if(!ok)return;
   const now=new Date(),id=now.getTime().toString(36);
-  const h=HIST();
-  h[id]={m:mk,t:now.getTime(),sum:sumOf(rows),qty:qtyOf(rows),rows:rows};
-  saveHist(h);
+  const h=HIST(),rec={m:mk,t:now.getTime(),sum:sumOf(rows),qty:qtyOf(rows),rows:rows};
+  h[id]=rec;
+  saveHistRec(id,rec);
   B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));
-  if(CAR_CODE){firebase.database().ref('cars/'+CAR_CODE+'/qty').remove().catch(()=>{});firebase.database().ref('cars/'+CAR_CODE+'/docs').remove().catch(()=>{});}render();histView();
+  if(CAR_CODE&&window.firebase&&firebase.apps&&firebase.apps.length){firebase.database().ref('cars/'+CAR_CODE+'/qty').remove().catch(()=>{});firebase.database().ref('cars/'+CAR_CODE+'/docs').remove().catch(()=>{});}render();histView();
   tst('Итоги сохранены');
  }
  function openSum(){
@@ -507,6 +508,7 @@
  }
 
  function openBon(noPush){
+  if(CAR_CODE&&!_carRef&&window.firebase&&firebase.apps&&firebase.apps.length)bindCarPool(CAR_CODE);
   const m=ensure();updCarBadge();render();if(!CAR_CODE)tst('Экипаж не назначен администратором','err');
   m.classList.add('open');lock(true);
   try{sessionStorage.setItem('BON_WAS_OPEN','1')}catch(e){}
@@ -518,7 +520,7 @@
   try{sessionStorage.removeItem('BON_WAS_OPEN')}catch(e){}
   if(src!=='pop'){try{if(history.state&&history.state.bn)setTimeout(()=>history.back(),0)}catch(e){}}
  }
- window.addEventListener('popstate',()=>{if(skipPop>0){skipPop--;return}if(g('ocrLiveCam')){const c=g('olcClose');if(c)c.click();return}if(g('ocrCatMdl')||g('ocrSrcMdl')||g('ocrBonMdl')||sessionStorage.getItem('OCR_CAM_PENDING')==='1')return;const o=g('bnSm');if(o&&o.classList.contains('open')){o.classList.remove('open');return}const m=g('bnMdl');if(m&&m.classList.contains('open'))closeBon('pop')});
+ window.addEventListener('popstate',()=>{if(skipPop>0){skipPop--;return}const repush=()=>{const m=g('bnMdl');if(m&&m.classList.contains('open'))try{history.pushState({bn:1},'')}catch(e){}};if(g('ocrLiveCam')){const c=g('olcClose');if(c)c.click();repush();return}if(g('ocrCatMdl')){const c=g('obPkX');if(c)c.click();repush();return}if(g('ocrSrcMdl')){const c=g('ocrPickNo');if(c)c.click();repush();return}if(g('ocrBonMdl')){const c=g('obX');if(c)c.click();repush();return}const o=g('bnSm');if(o&&o.classList.contains('open')){o.classList.remove('open');repush();return}const m=g('bnMdl');if(m&&m.classList.contains('open'))closeBon('pop')});
  const restoreBon=()=>{try{if(sessionStorage.getItem('BON_WAS_OPEN')==='1'&&(!g('bnMdl')||!g('bnMdl').classList.contains('open')))openBon(true)}catch(e){}};setTimeout(restoreBon,120);document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(restoreBon,150)});
 
  // Перерисовка названий мебели при смене языка приложения
