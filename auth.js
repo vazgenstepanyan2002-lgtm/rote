@@ -532,7 +532,7 @@ function openProfileMenu(){
   g("pmSet").onclick=()=>{close();openUserSettings()};
   g("pmAdm").onclick=()=>{close();location.href="admin.html"};
   if(window.getVerText)window.getVerText(v=>{const ve=g("pmVer");if(ve)ve.textContent=v});
-  g("pmOut").onclick=async()=>{close();if(typeof askC==="function"&&!(await askC("Выйти из профиля «"+nm+"» на этом телефоне? Данные останутся в облаке.","Выйти","👤")))return;lsDel("USER_NAME");lsDel("USER_KEY");lsDel("ADM_UID");lsDel("USER_CAR");lsDel("BON");lsDel("BON_HIST");lsDel("SPEC");lsDel("USER_AVATAR");lsDel("CHAT_SEEN");lsDel("CHAT_NOTIF_T");lsDel("DM_SEEN");lsDel("DM_NOTIF_T");location.replace(location.pathname)};
+  g("pmOut").onclick=async()=>{close();if(typeof askC==="function"&&!(await askC("Выйти из профиля «"+nm+"» на этом телефоне? Данные останутся в облаке.","Выйти","👤")))return;lsDel("USER_NAME");lsDel("USER_KEY");lsDel("ADM_UID");lsDel("USER_CAR");lsDel("BON");lsDel("BON_HIST");lsDel("SPEC");lsDel("USER_AVATAR");location.replace(location.pathname)};
   updBadges();
 }
 let _blkBound = false;
