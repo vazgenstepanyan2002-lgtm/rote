@@ -1158,7 +1158,7 @@ function openSelectModal(){
 /* ADM-MODAL-BACK */
 ;(function(){
   const getOpenOvs = () => Array.from(document.querySelectorAll(".ov")).filter(el => !el.hidden && (el.classList.contains("show") || getComputedStyle(el).display !== "none"));
-  let depth = 0, fromPop = false;
+  let depth = 0, fromPop = false, skipPop = 0;
   const sync = () => {
     const cur = getOpenOvs().length;
     if (cur > depth) {
@@ -1168,12 +1168,13 @@ function openSelectModal(){
     } else if (cur < depth && !fromPop) {
       const diff = depth - cur;
       for (let i = 0; i < diff; i++) {
-        try { if (history.state && history.state.admOv) history.back(); } catch (e) {}
+        try { if (history.state && history.state.admOv) { skipPop++; history.back(); } } catch (e) {}
       }
     }
     depth = cur;
   };
   window.addEventListener("popstate", () => {
+    if (skipPop > 0) { skipPop--; return; }
     const list = getOpenOvs();
     if (!list.length) return;
     window._admSkipBack = true;
