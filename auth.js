@@ -198,10 +198,10 @@
     updBadges();
   }
   function updBadges(){
-    const cN = unreadCount(), dN = dmUnreadCount(), tot = cN + dN;
+    const cN = unreadCount(), dN = dmUnreadCount();
     const nAdm = dmUnreadAdm(), nDlv = dmUnreadDlv();
     const setB = (id, v) => { const el = g(id); if (el){ el.textContent = v > 99 ? "99+" : String(v); el.hidden = v === 0; } };
-    setB("usrBadge", tot);
+    setB("usrBadge", dN);
     setB("pmDmBadge", dN);
     setB("dockChatBdg", cN);
     setB("dmTabAdmBdg", nAdm);
