@@ -22,9 +22,9 @@ const rulesSec = [
   '4. **Синхронизация версии и кэша PWA:** после каждого изменения кода обновлять 14-значную версию (`YYYYMMDDHHMMSS`) сразу в 4 файлах: `version.json`, `sw.js` (`CACHE_NAME`), `index.html` и `admin.html`, затем отправлять изменения на GitHub (`git add -A && git commit -m "..." && git push`).',
   '5. **Единый стиль интерфейса и модальных окон:** не использовать системные `alert()`, `confirm()` и `prompt()`. В основном приложении использовать `askC()` и `toast()`, в админ-панели — `ask()`, `askInput()` и `toast()`.',
   '6. **Совместимость и локализация:** учитывать 3 языка интерфейса (`ru`, `hy`, `en` в `i18n.js` и `auto-translations.json`), мобильную вёрстку, безопасные отступы iOS/Android и работу Service Worker в офлайн-режиме.',
-  '7. **Защита файла контекста:** при обновлении `../EuroBaza_CONTEXT.md` обновлять только секцию с версией и кодом файлов, обязательно сохраняя этот раздел с правилами.',
-  '8. **Команда «Обнови для ИИ»:** обновление `../EuroBaza_CONTEXT.md` и `../EuroBaza_SKELETON.md` выполняется командой `node update-context.js` в папке проекта (скрипт сам сохраняет раздел с правилами и заметками, обновляя версию и код). Если пользователь просит «Обнови для ИИ» — выдавать команду `cd /sdcard/Download/route && node update-context.js`.',
-  '9. **Сбор контекста для задачи в единый `.md` файл:** если пользователь просит что-то сделать и ИИ не хватает кода или данных, ИИ выдаёт готовую команду для Termux, которая удаляет старый `/sdcard/Download/EuroBaza_TASK.md` и записывает всю нужную для задачи информацию в новый `/sdcard/Download/EuroBaza_TASK.md`, чтобы пользователь скинул этот файл в чат (без накопления лишних файлов в Download).',
+  '7. **Защита файла контекста:** при обновлении `EuroBaza для ИИ/EuroBaza_CONTEXT.md` обновлять только секцию с версией и кодом файлов, обязательно сохраняя этот раздел с правилами.',
+  '8. **Команда «Обнови для ИИ»:** обновление `EuroBaza_CONTEXT.md` и `EuroBaza_SKELETON.md` выполняется командой `node update-context.js` в папке проекта (скрипт сам сохраняет раздел с правилами и заметками, обновляя версию и код). Если пользователь просит «Обнови для ИИ» — выдавать команду `cd "/sdcard/Download/EuroBaza Project" && node update-context.js`.',
+  '9. **Сбор контекста для задачи в единый `.md` файл:** если пользователь просит что-то сделать и ИИ не хватает кода или данных, ИИ выдаёт готовую команду для Termux, которая удаляет старый `/sdcard/Download/EuroBaza Project/EuroBaza для ИИ/EuroBaza_TASK.md` и записывает всю нужную для задачи информацию в новый `/sdcard/Download/EuroBaza Project/EuroBaza для ИИ/EuroBaza_TASK.md`, чтобы пользователь скинул этот файл в чат.',
   '10. **Краткость ответов:** писать как можно меньше текста, но чтобы пользователю всё было понятно.',
   '',
   '### Примечание для ИИ при работе напрямую в терминале Termux (локальный агент):',
@@ -37,7 +37,10 @@ const head = '# EuroBaza — Актуальный контекст проект�
   + '- **Актуальная версия:** `' + ver + '`\n'
   + '- **Файлы проекта (' + files.length + '):** ' + files.map(f => '`' + f + '`').join(', ') + '\n\n';
 
-const ctxPath = '../EuroBaza_CONTEXT.md';
+const aiDir = 'EuroBaza для ИИ';
+if (!fs.existsSync(aiDir)) fs.mkdirSync(aiDir, { recursive: true });
+
+const ctxPath = aiDir + '/EuroBaza_CONTEXT.md';
 let tail = rulesSec;
 if (fs.existsSync(ctxPath)) {
   const old = fs.readFileSync(ctxPath, 'utf8');
@@ -47,8 +50,8 @@ if (fs.existsSync(ctxPath)) {
 }
 fs.writeFileSync(ctxPath, head + tail.trim() + '\n\n' + codeSec.trim() + '\n', 'utf8');
 
-const skelPath = '../EuroBaza_SKELETON.md';
-const partsDir = '../EuroBaza_parts';
+const skelPath = aiDir + '/EuroBaza_SKELETON.md';
+const partsDir = aiDir + '/EuroBaza_parts';
 if (!fs.existsSync(partsDir)) fs.mkdirSync(partsDir, { recursive: true });
 
 const SK_SKIP = new Set(['leaflet.min.js', 'leaflet.min.css']);
@@ -139,6 +142,6 @@ for (const f of files) {
 
 const skelOut = [head.trim(), tail.trim(), skToc.join('\n'), skJson.join('\n\n'), skCode.join('\n\n')].filter(Boolean).join('\n\n') + '\n';
 fs.writeFileSync(skelPath, skelOut, 'utf8');
-console.log('✓ Обновлён ../EuroBaza_SKELETON.md | Размер:', (Buffer.byteLength(skelOut, 'utf8') / 1024).toFixed(1), 'КБ');
+console.log('✓ Обновлён ' + skelPath + ' | Размер:', (Buffer.byteLength(skelOut, 'utf8') / 1024).toFixed(1), 'КБ');
 
-console.log('✔ Обновлён ../EuroBaza_CONTEXT.md | Версия:', ver, '| Файлов:', files.length);
+console.log('✔ Обновлён ' + ctxPath + ' | Версия:', ver, '| Файлов:', files.length);
