@@ -354,10 +354,28 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
   const on=L.filter(d=>now-(d.u.t||0)<TTL).length,day=L.filter(d=>now-(d.u.t||0)<864e5).length;
   let h='<div class="tiles"><div class="tile"><b>'+on+'</b><span>онлайн</span></div><div class="tile"><b>'+day+'</b><span>за 24 часа</span></div><div class="tile"><b>'+L.length+'</b><span>всего</span></div></div>';
 
-  const chips=[['all','Все'],...CARS_LIST.map(c=>[c,c]),['none','Без экипажа']];
-  h+='<div class="onl-flts">'+chips.map(([v,lbl])=>'<button type="button" class="onl-chip'+(ONL_CAR===v?' on':'')+'" data-act="onlcar" data-c="'+v+'">'+lbl+'</button>').join('')+'</div>';
+  const crewCount = c => L.filter(d => String(d.u.car||'').toUpperCase() === c).length;
+  const crewOnCount = c => L.filter(d => String(d.u.car||'').toUpperCase() === c && now - (d.u.t||0) < TTL).length;
+  const noCrewCount = L.filter(d => !String(d.u.car||'').trim()).length;
+  const noCrewOnCount = L.filter(d => !String(d.u.car||'').trim() && now - (d.u.t||0) < TTL).length;
+
+  let btnLabel = '🚚 Все экипажи';
+  let btnBadge = '<span class="onl-badge">' + L.length + '</span>';
+  if(ONL_CAR === 'none'){
+    btnLabel = '🚫 Без экипажа';
+    btnBadge = '<span class="onl-badge' + (noCrewOnCount ? ' on' : '') + '">' + (noCrewOnCount ? '🟢 ' : '') + noCrewCount + '</span>';
+  } else if(ONL_CAR !== 'all'){
+    const cc = crewCount(ONL_CAR), co = crewOnCount(ONL_CAR);
+    btnLabel = '🚚 ' + ONL_CAR;
+    btnBadge = '<span class="onl-badge' + (co ? ' on' : '') + '">' + (co ? '🟢 ' : '') + cc + '</span>';
+  }
+
+  h += '<div class="onl-bar">'
+     + '<button type="button" id="btnCrewFlt" class="onl-btn' + (ONL_CAR !== 'all' ? ' active' : '') + '" data-act="open-onl-flt">'
+     + '<span>' + btnLabel + '</span>' + btnBadge + '<span style="opacity:.6;font-size:10px;margin-left:2px">▾</span></button>'
+     + '<input id="onlSrch" class="sum-srch" type="search" value="' + esc(ONL_Q) + '" placeholder="Поиск по имени или экипажу...">'
+     + '</div><div id="onlRows">';
   const FL=ONL_CAR==='all'?L:ONL_CAR==='none'?L.filter(d=>!String(d.u.car||'').trim()):L.filter(d=>String(d.u.car||'').toUpperCase()===ONL_CAR);
-  h+='<input id="onlSrch" class="sum-srch" type="search" value="'+esc(ONL_Q)+'" placeholder="Поиск водителя или экипажа..." style="margin-bottom:10px!important"><div id="onlRows">';
   const qn=ONL_Q.trim().toLowerCase(),FL2=qn?FL.filter(d=>(dispName(d)+' '+(d.u.car||'')+' '+devName(d.u.ua)).toLowerCase().includes(qn)):FL;
   const rowsHtml=(!FL2.length?'<div class="mut box">'+(L.length?'Ничего не найдено.':'Данных пока нет.')+'</div>':'')+FL2.map(d=>{
    const live=now-(d.u.t||0)<TTL,acc=accByUid(d.id),blk=!!((acc&&acc.blocked)||d.u.blocked);
@@ -806,7 +824,48 @@ function openOcrRuleModal(ruleKey, curCode, isNew = false){
   drawItems();
   requestAnimationFrame(() => ov.classList.add('show'));
  }
- function openCarModal(uid){
+ 
+function openOnlCrewModal(){
+  const L=devs(),now=Date.now();
+  const crewCount = c => L.filter(d => String(d.u.car||'').toUpperCase() === c).length;
+  const crewOnCount = c => L.filter(d => String(d.u.car||'').toUpperCase() === c && now - (d.u.t||0) < TTL).length;
+  const noCrewCount = L.filter(d => !String(d.u.car||'').trim()).length;
+  const noCrewOnCount = L.filter(d => !String(d.u.car||'').trim() && now - (d.u.t||0) < TTL).length;
+  const onTotal = L.filter(d => now - (d.u.t||0) < TTL).length;
+
+  const ov=document.createElement('div');ov.className='ov';
+  let items = '<div class="sel-it' + (ONL_CAR === 'all' ? ' on' : '') + '" data-c="all">'
+            + '<div class="sel-it-l"><span class="sel-ic">🌐</span><div><div class="sel-it-nm">Все экипажи</div><div class="sel-it-sb">Все водители и устройства</div></div></div>'
+            + '<div class="sel-it-r"><span class="onl-badge' + (onTotal ? ' on' : '') + '">' + (onTotal ? '🟢 ' + onTotal + ' / ' : '') + L.length + '</span></div></div>';
+
+  CARS_LIST.forEach(c => {
+    const total = crewCount(c), on = crewOnCount(c);
+    const badge = '<span class="onl-badge' + (on ? ' on' : '') + '">' + (on ? '🟢 ' + on + ' / ' : '') + total + '</span>';
+    const crewNames = devs().filter(x => String(x.u.car||'').toUpperCase() === c).map(x => dispName(x)).join(', ');
+    items += '<div class="sel-it' + (ONL_CAR === c ? ' on' : '') + '" data-c="' + c + '">'
+           + '<div class="sel-it-l"><span class="sel-ic">🚚</span><div><div class="sel-it-nm">Экипаж ' + c + '</div><div class="sel-it-sb">' + (crewNames ? esc(crewNames) : 'Нет назначенных водителей') + '</div></div></div>'
+           + '<div class="sel-it-r">' + badge + '</div></div>';
+  });
+
+  items += '<div class="sel-it' + (ONL_CAR === 'none' ? ' on' : '') + '" data-c="none">'
+         + '<div class="sel-it-l"><span class="sel-ic" style="background:rgba(245,158,11,.14);border-color:rgba(245,158,11,.35);color:#fbbf24">🚫</span><div><div class="sel-it-nm">Без экипажа</div><div class="sel-it-sb">Водители без назначенного экипажа</div></div></div>'
+         + '<div class="sel-it-r"><span class="onl-badge' + (noCrewOnCount ? ' on' : '') + '">' + (noCrewOnCount ? '🟢 ' + noCrewOnCount + ' / ' : '') + noCrewCount + '</span></div></div>';
+
+  ov.innerHTML = '<div class="dlg sel-dlg"><div class="sel-hd"><b>🚚 Фильтр по экипажам</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">' + items + '</div></div>';
+  document.body.appendChild(ov);
+  const close = () => { ov.classList.remove('show'); setTimeout(() => ov.remove(), 180); };
+  ov.querySelector('.sel-x').onclick = close;
+  ov.onclick = e => {
+    if(e.target === ov){ close(); return; }
+    const it = e.target.closest('.sel-it'); if(!it) return;
+    ONL_CAR = it.dataset.c || 'all';
+    close();
+    drawOnline();
+  };
+  requestAnimationFrame(() => ov.classList.add('show'));
+}
+
+function openCarModal(uid){
   if(!uid||!USERS[uid])return;
   const d=parseDev(uid,USERS[uid]),curCar=String(d.u.car||'').toUpperCase();
   const ov=document.createElement('div');ov.className='ov';
@@ -914,6 +973,7 @@ function openSelectModal(){
   else if(a==='ocr-del'){e.stopPropagation();const k=b.dataset.k;if(!k)return;if(!(await ask('Удалить правило «'+k+'» из общего словаря?',{title:'Удаление правила',okText:'Удалить',danger:true})))return;try{await db.ref('config/ocrMap/'+k).remove();toast('Правило удалено')}catch(err){toast('Ошибка удаления',true)}}
   else if(a==='ocr-no'){e.stopPropagation();const uid=b.dataset.uid,k=b.dataset.k;if(!uid||!k)return;try{await db.ref('users/'+uid+'/ocrPending/'+k).remove();toast('Запрос отклонён')}catch(err){toast('Ошибка удаления',true)}}
   else if(a==='onlcar'){ONL_CAR=b.dataset.c||'all';drawOnline()}
+  else if(a==='open-onl-flt'){openOnlCrewModal()}
   else if(a==='del-car-hist'){e.stopPropagation();if(isSubAdm())return;const car=b.dataset.car,hk=b.dataset.hk,rec=CARS[car]&&CARS[car].hist&&CARS[car].hist[hk];if(!car||!hk)return;if(!await ask('Удалить сохранённый итог за «'+monthName(rec&&rec.m||hk)+'» у экипажа '+car+'?',{title:'Удаление итога',okText:'Удалить',danger:true}))return;try{await db.ref('cars/'+car+'/hist/'+hk).remove();toast('Итог удалён')}catch(err){toast('Ошибка удаления',true)}}
   else if(a==='csv-single-cur'){e.stopPropagation();const car=b.dataset.car||SEL,c=parseCar(car);exportCarDetailCsv(car,'Текущий_месяц',c.rows,c.qty,c.sum)}
   else if(a==='mapfilter'){MAP_ONLY_ONLINE=!MAP_ONLY_ONLINE;_didFit=false;drawMap()}
