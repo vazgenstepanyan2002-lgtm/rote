@@ -186,9 +186,13 @@
   }
   function updBadges(){
     const cN = unreadCount(), dN = dmUnreadCount(), tot = cN + dN;
+    const seen = +(ls("DM_SEEN") || 0);
+    const nAdm = _dmList.filter(m => (+m.t || 0) > seen && !!m.adm).length;
+    const nDlv = _dmDlvList.filter(m => (+m.t || 0) > seen && !!m.adm).length;
     const setB = (id, v) => { const el = g(id); if (el){ el.textContent = v > 99 ? "99+" : String(v); el.hidden = v === 0; } };
     setB("usrBadge", tot);
-    setB("pmDmBadge", dN);
+    setB("pmDmBadge", nAdm);
+    setB("pmDmDlvBadge", nDlv);
     setB("dockChatBdg", cN);
   }
   function dayLabel(ms){
@@ -245,54 +249,100 @@
     
   }
   window.openChat = openChat;
-  let _dmList = [], _dmOpen = false, _dmBound = false, _dmInit = false, _dmLastNotifT = +(ls("DM_NOTIF_T") || 0);
+  let _dmList = [], _dmDlvList = [], _dmOpen = false, _dmActiveCh = "adm", _dmBound = false, _dmInit = false, _dmLastNotifT = +(ls("DM_NOTIF_T") || 0);
   function dmUnreadCount(){
     const seen = +(ls("DM_SEEN") || 0);
-    return _dmList.filter(m => (+m.t || 0) > seen && !!m.adm).length;
+    const nAdm = _dmList.filter(m => (+m.t || 0) > seen && !!m.adm).length;
+    const nDlv = _dmDlvList.filter(m => (+m.t || 0) > seen && !!m.adm).length;
+    return nAdm + nDlv;
   }
   function markDmSeen(){
-    if (!_dmList.length) return;
-    const maxT = Math.max.apply(null, _dmList.map(m => +m.t || 0));
+    const max1 = _dmList.length ? Math.max.apply(null, _dmList.map(m => +m.t || 0)) : 0;
+    const max2 = _dmDlvList.length ? Math.max.apply(null, _dmDlvList.map(m => +m.t || 0)) : 0;
+    const maxT = Math.max(max1, max2);
     if (maxT > 0) lsSet("DM_SEEN", String(maxT));
     updBadges();
   }
   function renderDmRows(){
     const box=g("dmMsgs");if(!box)return;
-    if(!_dmList.length){box.innerHTML='<div class="ch-empty">Сообщений пока нет</div>';return}
+    const curList = _dmActiveCh === "dlv" ? _dmDlvList : _dmList;
+    if(!curList.length){
+      box.innerHTML='<div class="ch-empty">'+(_dmActiveCh === "dlv" ? "Сообщений от доставки пока нет" : "Сообщений от админа пока нет")+'</div>';
+      return;
+    }
     let ld="",h="";
-    _dmList.forEach(m=>{
+    curList.forEach(m=>{
       const dl=dayLabel(m.t);if(dl&&dl!==ld){ld=dl;h+='<div class="ch-day">'+esc(dl)+'</div>'}
-      const adm=!!m.adm,au=adm?'<div class="ch-au">Администратор</div>':'';
-      h+='<div class="ch-row'+(!adm?" mine":"")+'"><div class="ch-msg'+(!adm?" mine":" adm")+'">'+au+'<div class="ch-body"><span class="ch-txt">'+esc(m.txt||"")+'</span><span class="ch-tm">'+fmtTime(m.t)+'</span></div></div></div>';
+      const adm=!!m.adm;
+      const isDeliv=adm&&(m.role==="delivery"||m.name==="Доставка"||_dmActiveCh==="dlv");
+      const au=adm?(isDeliv?'<div class="ch-au" style="color:#7dd3fc">👩‍💼 Доставка</div>':'<div class="ch-au" style="color:#fde047">👑 Администратор</div>'):'';
+      h+='<div class="ch-row'+(!adm?" mine":"")+'"><div class="ch-msg'+(!adm?" mine":(isDeliv?" dlv":" adm"))+'">'+au+'<div class="ch-body"><span class="ch-txt">'+esc(m.txt||"")+'</span><span class="ch-tm">'+fmtTime(m.t)+'</span></div></div></div>';
     });
     box.innerHTML=h;box.scrollTop=box.scrollHeight;
   }
-  function openDmChat(){
+  function openDmChat(targetCh){
     reqNotifyPerm();
+    if(targetCh === "dlv" || targetCh === "adm") _dmActiveCh = targetCh;
     _dmOpen = true; markDmSeen();
     let m = g("dmMdl");
-    if (!m){
-      m = document.createElement("div"); m.id = "dmMdl"; m.className = "mdl";
-      m.innerHTML = '<div class="mdl-b ch-box"><div class="ch-hd"><div class="ch-hd-l"><div class="ch-hd-ic">✉️</div><div><div class="ch-hd-t">Личный чат</div><div class="ch-hd-s">Прямая связь с администратором</div></div></div><button type="button" class="ch-x" id="dmClose" aria-label="Закрыть">✕</button></div><div id="dmMsgs" class="ch-list"></div><div class="ch-bar"><input id="dmInp" maxlength="300" placeholder="Сообщение админу..."><button type="button" id="dmSend" aria-label="Отправить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></div>';
-      document.body.appendChild(m);
-      const close = () => { _dmOpen = false; m.classList.remove("open"); };
-      g("dmClose").onclick = close;
-      m.onclick = e => { if (e.target === m) close(); };
-      const inp = g("dmInp"), snd = g("dmSend");
-      const sendMsg = async () => {
-        const txt = inp.value.trim(); if (!txt) return;
-        const myUid = ls("ADM_UID") || "";
-        if (!myUid || !window.firebase || !firebase.apps || !firebase.apps.length){ window.toast && toast("Нет соединения с сервером", "err"); return; }
-        inp.value = ""; snd.disabled = true;
-        try {
-          const ref = firebase.database().ref("dm/" + myUid);
-          await ref.push({ uid: myUid, name: ls("USER_NAME") || "Водитель", adm: false, txt: txt, t: firebase.database.ServerValue.TIMESTAMP });
-        } catch(e){ inp.value = txt; window.toast && toast("Не удалось отправить сообщение", "err"); }
-        snd.disabled = false; inp.blur();
-      };
-      snd.onclick = sendMsg;
-      inp.onkeydown = e => { if (e.key === "Enter"){ e.preventDefault(); sendMsg(); } };
-    }
+    if (m) m.remove();
+    m = document.createElement("div"); m.id = "dmMdl"; m.className = "mdl";
+    
+    const isDlv = _dmActiveCh === "dlv";
+    m.innerHTML = '<div class="mdl-b ch-box">'
+      + '<div class="ch-hd">'
+      + '  <div class="ch-hd-l"><div class="ch-hd-ic">✉️</div><div><div class="ch-hd-t" id="dmHdTitle">'+(isDlv?'Чат с отделом доставки':'Личный чат с администратором')+'</div><div class="ch-hd-s">Прямой защищённый канал связи</div></div></div>'
+      + '  <button type="button" class="ch-x" id="dmClose" aria-label="Закрыть">✕</button>'
+      + '</div>'
+      + '<div style="display:flex;gap:6px;padding:6px 14px 2px;background:rgba(15,23,36,.9);border-bottom:1px solid rgba(255,255,255,.08)">'
+      + '  <button type="button" id="dmTabAdm" style="flex:1;padding:7px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(isDlv?'transparent':'rgba(250,204,21,.5)')+';background:'+(isDlv?'transparent':'rgba(250,204,21,.18)')+';color:'+(isDlv?'#94a3b8':'#fde047')+';cursor:pointer">👑 Директор / Админ</button>'
+      + '  <button type="button" id="dmTabDlv" style="flex:1;padding:7px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(isDlv?'rgba(56,189,248,.5)':'transparent')+';background:'+(isDlv?'rgba(56,189,248,.18)':'transparent')+';color:'+(isDlv?'#7dd3fc':'#94a3b8')+';cursor:pointer">🚚 Отдел доставки</button>'
+      + '</div>'
+      + '<div id="dmMsgs" class="ch-list"></div>'
+      + '<div class="ch-bar">'
+      + '  <input id="dmInp" maxlength="300" placeholder="'+(isDlv?'Сообщение в отдел доставки...':'Сообщение админу...')+'">'
+      + '  <button type="button" id="dmSend" aria-label="Отправить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button>'
+      + '</div>'
+      + '</div>';
+    document.body.appendChild(m);
+
+    const close = () => { _dmOpen = false; m.classList.remove("open"); };
+    g("dmClose").onclick = close;
+    m.onclick = e => { if (e.target === m) close(); };
+
+    const tabAdm = g("dmTabAdm"), tabDlv = g("dmTabDlv"), titleEl = g("dmHdTitle"), inp = g("dmInp"), snd = g("dmSend");
+    tabAdm.onclick = () => {
+      _dmActiveCh = "adm";
+      tabAdm.style.borderColor = 'rgba(250,204,21,.5)'; tabAdm.style.background = 'rgba(250,204,21,.18)'; tabAdm.style.color = '#fde047';
+      tabDlv.style.borderColor = 'transparent'; tabDlv.style.background = 'transparent'; tabDlv.style.color = '#94a3b8';
+      titleEl.textContent = 'Личный чат с администратором';
+      inp.placeholder = 'Сообщение админу...';
+      renderDmRows();
+    };
+    tabDlv.onclick = () => {
+      _dmActiveCh = "dlv";
+      tabDlv.style.borderColor = 'rgba(56,189,248,.5)'; tabDlv.style.background = 'rgba(56,189,248,.18)'; tabDlv.style.color = '#7dd3fc';
+      tabAdm.style.borderColor = 'transparent'; tabAdm.style.background = 'transparent'; tabAdm.style.color = '#94a3b8';
+      titleEl.textContent = 'Чат с отделом доставки';
+      inp.placeholder = 'Сообщение в отдел доставки...';
+      renderDmRows();
+    };
+
+    const sendMsg = async () => {
+      const txt = inp.value.trim(); if (!txt) return;
+      const myUid = ls("ADM_UID") || "";
+      if (!myUid || !window.firebase || !firebase.apps || !firebase.apps.length){ window.toast && toast("Нет соединения с сервером", "err"); return; }
+      inp.value = ""; snd.disabled = true;
+      try {
+        const path = "dm/" + myUid + (_dmActiveCh === "dlv" ? "/dlv" : "/adm");
+        const ref = firebase.database().ref(path);
+        await ref.push({ uid: myUid, name: ls("USER_NAME") || "Водитель", adm: false, txt: txt, t: firebase.database.ServerValue.TIMESTAMP });
+      } catch(e){ inp.value = txt; window.toast && toast("Не удалось отправить сообщение", "err"); }
+      snd.disabled = false; inp.blur();
+    };
+    snd.onclick = sendMsg;
+    inp.onkeydown = e => { if (e.key === "Enter"){ e.preventDefault(); sendMsg(); } };
+
     m.classList.add("open"); renderDmRows();
   }
   window.openDmChat = openDmChat;
@@ -300,25 +350,41 @@
     const myUid = ls("ADM_UID") || "";
     if (_dmBound || !myUid || !window.firebase || !firebase.apps || !firebase.apps.length) return;
     _dmBound = true;
-    firebase.database().ref("dm/" + myUid).limitToLast(50).on("value", snap => {
+    firebase.database().ref("dm/" + myUid).on("value", snap => {
       const val = snap.val() || {};
-      const nextList = Object.keys(val).map(k => Object.assign({ k: k }, val[k])).sort((a, b) => (+a.t || 0) - (+b.t || 0));
+      const parseList = data => {
+        if (!data || typeof data !== "object") return [];
+        return Object.keys(data).map(k => Object.assign({ k: k }, data[k])).sort((a, b) => (+a.t || 0) - (+b.t || 0)).slice(-50);
+      };
+      let nextAdm = [], nextDlv = [];
+      if (val.dlv && typeof val.dlv === "object") {
+        nextDlv = parseList(val.dlv);
+        const admRaw = (val.adm && typeof val.adm === "object") ? val.adm : (Array.isArray(val) ? {} : val);
+        nextAdm = parseList(admRaw);
+      } else if (val.adm && typeof val.adm === "object") {
+        nextAdm = parseList(val.adm);
+      } else {
+        nextAdm = parseList(val);
+      }
+      const combined = [...nextAdm, ...nextDlv];
       if (_dmInit) {
-        const fresh = nextList.filter(m => (+m.t || 0) > _dmLastNotifT && !!m.adm);
+        const fresh = combined.filter(m => (+m.t || 0) > _dmLastNotifT && !!m.adm);
         if (fresh.length) {
           const lastMsg = fresh[fresh.length - 1];
           _dmLastNotifT = +lastMsg.t || Date.now();
           lsSet("DM_NOTIF_T", String(_dmLastNotifT));
           if (!_dmOpen || document.hidden) {
-            pushSysNotify("👑 Админ (лично)", String(lastMsg.txt || "").slice(0, 140), { tag: "eurobaza-dm", action: "OPEN_DM" });
+            const isDlv = lastMsg.role === "delivery" || lastMsg.name === "Доставка";
+            pushSysNotify(isDlv ? "👩‍💼 Отдел доставки" : "👑 Админ (лично)", String(lastMsg.txt || "").slice(0, 140), { tag: "eurobaza-dm", action: "OPEN_DM" });
           }
         }
-      } else if (nextList.length) {
-        const mx = Math.max.apply(null, nextList.map(m => +m.t || 0));
+      } else if (combined.length) {
+        const mx = Math.max.apply(null, combined.map(m => +m.t || 0));
         if (mx > _dmLastNotifT){ _dmLastNotifT = mx; lsSet("DM_NOTIF_T", String(_dmLastNotifT)); }
       }
       _dmInit = true;
-      _dmList = nextList;
+      _dmList = nextAdm;
+      _dmDlvList = nextDlv;
       if (_dmOpen && !document.hidden){ markDmSeen(); renderDmRows(); } else updBadges();
     }, () => {});
   }
@@ -436,7 +502,8 @@ function openProfileMenu(){
     +'<div class="sh-name">'+esc(nm)+'</div>'
     +'<div class="sh-meta"><span class="sh-dot"></span><span>В сети</span>'+(car&&car!=="ADMIN"?' · <b style="color:#6ee7b7">Экипаж '+esc(car)+'</b>':'')+'</div></div>'
     +'<div class="sh-group">'
-    +'<button type="button" class="sh-row" id="pmDm"><span class="sh-ico" style="background:rgba(56,189,248,.16);color:#38bdf8">✉️</span><span class="sh-lbl">Личный чат с админом</span><span id="pmDmBadge" class="pm-bdg" hidden>0</span><span class="sh-chev">›</span></button>'
+    +'<button type="button" class="sh-row" id="pmDm"><span class="sh-ico" style="background:rgba(250,204,21,.16);color:#fde047">👑</span><span class="sh-lbl">Личный чат с директором</span><span id="pmDmBadge" class="pm-bdg" hidden>0</span><span class="sh-chev">›</span></button>'
+    +'<button type="button" class="sh-row" id="pmDmDlv"><span class="sh-ico" style="background:rgba(56,189,248,.16);color:#38bdf8">🚚</span><span class="sh-lbl">Чат с отделом доставки</span><span id="pmDmDlvBadge" class="pm-bdg" hidden>0</span><span class="sh-chev">›</span></button>'
     +'<button type="button" class="sh-row" id="pmSet"><span class="sh-ico" style="background:rgba(148,163,184,.16);color:#e2e8f0">⚙️</span><span class="sh-lbl">Настройки</span><span class="sh-chev">›</span></button>'
     +'<button type="button" class="sh-row" id="pmAdm"><span class="sh-ico" style="background:rgba(250,204,21,.15);color:#fde047">🛡️</span><span class="sh-lbl">Админ-панель</span><span class="sh-chev">›</span></button>'
     +'</div><div class="sh-group" style="margin-top:10px">'
@@ -446,7 +513,8 @@ function openProfileMenu(){
   const close=()=>m.remove();
   m.onclick=ev=>{if(ev.target===m)close()};g("pmX").onclick=close;
   g("pmAvBtn").onclick=async()=>{const d=await pickLocalAvatar();if(!d)return;lsSet("USER_AVATAR",d);const b=g("pmAvBox");if(b)b.innerHTML='<img src="'+d+'">';window.toast&&toast("Фото сохранено")};
-  g("pmDm").onclick=()=>{close();openDmChat()};
+  g("pmDm").onclick=()=>{close();openDmChat("adm")};
+  g("pmDmDlv").onclick=()=>{close();openDmChat("dlv")};
   g("pmSet").onclick=()=>{close();openUserSettings()};
   g("pmAdm").onclick=()=>{close();location.href="admin.html"};
   if(window.getVerText)window.getVerText(v=>{const ve=g("pmVer");if(ve)ve.textContent=v});

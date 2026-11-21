@@ -45,7 +45,7 @@
 
  const CARS_LIST=['BB','CC','EE','XX','ZZ','RR','VV','GG'];
 const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
- let USERS={},LABELS={},ACCOUNTS={},CARS={},OCR_PEND={},OCR_MAP={},OCR_Q='',CHAT=[],CHAT_OPEN=false,DMS={},DM_UID=null,FU=0,PUB=undefined,TAB='online',SEL='all',ONL_CAR='all',ONL_Q='';
+ let USERS={},LABELS={},ACCOUNTS={},CARS={},OCR_PEND={},OCR_MAP={},OCR_Q='',CHAT=[],CHAT_OPEN=false,DMS={},DM_UID=null,DM_TAB='adm',FU=0,PUB=undefined,TAB='online',SEL='all',ONL_CAR='all',ONL_Q='';
  const OCR_CAT_NAMES={'other_a':'Другое · Стулья, стеллажи','other_b':'Другое · Стулья, столы','other_c':'Другое · Раковина','other_d':'Другое · Комоды','other_e':'Другое · Кровать','other_f':'Другое · Модули','other_g':'Другое · Матрасы','other_h':'Другое · Системы хранения','other_i':'Другое · Дверь','other_j':'Другое · Пуфы','other_k':'Другое · Тумбы','sofas_a':'Диваны · Кресло','sofas_b':'Диваны · Диван','sofas_c':'Диваны · Комплект','recep_a':'Ресепшен · До 1,6 м','recep_b':'Ресепшен · Более 1,6 м','kitchen_a':'Кухни · 1,6 м','kitchen_b':'Кухни · 2–3 м','living_a':'Гостиная · До 1,7 м','living_b':'Гостиная · Более 1,7 м','living_c':'Гостиная · Эксклюзив','bedroom_a':'Спальни · 2 двери','bedroom_b':'Спальни · 3 двери без комода','bedroom_c':'Спальни · 3 двери с комодом','bedroom_d':'Спальни · 4 двери','bedroom_e':'Спальни · 5 дверей','bedroom_f':'Спальни · 6 дверей','bedroom_g':'Спальни · 0,9*2','wardrobe_a':'Шкафы · 2 двери','wardrobe_b':'Шкафы · 3 двери','wardrobe_c':'Шкафы · 4 двери','wardrobe_d':'Шкафы · 5 дверей','wardrobe_e':'Шкафы · 6 дверей'};
  const SUB_EMAIL='diannakirakosyan@gmail.com';
  const isSubAdm=()=>((auth.currentUser&&auth.currentUser.email)||'').toLowerCase()===SUB_EMAIL;
@@ -100,9 +100,9 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
   listen('cars',v=>{CARS=v||{};draw()});
   listen('labels',v=>{LABELS=v||{};draw()});
   listen('accounts',v=>{ACCOUNTS=v||{};draw()});
-  if(!isSubAdm())listen('dm',onDmSnap);
+  listen('dm',onDmSnap);
   listen('config/forceUpdate',v=>{FU=+v||0;draw()});
-  if(!isSubAdm())listen('config/ocrMap',v=>{OCR_MAP=v||{};if(TAB==='ocr')drawOcr()});
+  listen('config/ocrMap',v=>{OCR_MAP=v||{};if(TAB==='ocr')drawOcr()});
   listen('chat',v=>{const obj=v||{};const all=Object.keys(obj).map(k=>Object.assign({k:k},obj[k])).sort((a,b)=>(+a.t||0)-(+b.t||0));const list=all.length>50?(all.slice(0,all.length-50).forEach(x=>db.ref('chat/'+x.k).remove().catch(()=>{})),all.slice(-50)):all;if(_admChatInit){const fresh=list.filter(m=>(+m.t||0)>_admLastNotifT&&!m.adm);if(fresh.length){const lm=fresh[fresh.length-1];_admLastNotifT=+lm.t||Date.now();localStorage.setItem('ADM_CHAT_NOTIF_T',String(_admLastNotifT));if(!CHAT_OPEN||document.hidden)admNotify((lm.name||'Водитель'),String(lm.txt||'').slice(0,140))}}else if(list.length){const mx=Math.max.apply(null,list.map(m=>+m.t||0));if(mx>_admLastNotifT){_admLastNotifT=mx;localStorage.setItem('ADM_CHAT_NOTIF_T',String(_admLastNotifT))}}_admChatInit=true;CHAT=list;if(CHAT_OPEN&&!document.hidden){markAdmChatSeen();renderAdmChat()}else updAdmChatBdg()});
   loadPub();
   tick=setInterval(draw,15000);
@@ -385,8 +385,8 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
    const blkBadge=blk?' <span style="display:inline-block;background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.45);color:#fca5a5;font-size:10px;font-weight:800;padding:1px 6px;border-radius:99px;vertical-align:middle;margin-left:4px">🚫 БЛОК</span>':'';
    const rowStyle=blk?' style="cursor:default;border-color:rgba(239,68,68,.45);background:linear-gradient(180deg,rgba(45,18,24,.88) 0%,rgba(22,12,16,.95) 100%)"':' style="cursor:default"';
    const sub=isSubAdm();
-   const un=sub?0:dmUnread(d.id);
-   const dmBtn=sub?'':'<button class="dm-btn" data-act="dm" data-id="'+esc(d.id)+'" aria-label="Личный чат">✉️'+(un?'<span class="dm-bdg">'+(un>99?'99+':un)+'</span>':'')+'</button>';
+   const un=dmUnread(d.id);
+   const dmBtn='<button class="dm-btn" data-act="dm" data-id="'+esc(d.id)+'" aria-label="Личный чат">✉️'+(un?'<span class="dm-bdg">'+(un>99?'99+':un)+'</span>':'')+'</button>';
    const pinBtn=(!sub&&acc)?'<button class="xb" style="background:rgba(250,204,21,.14);border-color:rgba(250,204,21,.35);color:#fde047" data-act="pin" data-key="'+esc(acc.key)+'" aria-label="ПИН">🔑</button>':'';
    const blkBtn=sub?'':(blk
     ?'<button class="xb" style="background:rgba(16,185,129,.18);border-color:rgba(52,211,153,.4);color:#34d399" data-act="block" data-id="'+esc(d.id)+'" data-key="'+esc(acc?acc.key:'')+'" data-blk="1" aria-label="Разблокировать">✅</button>'
@@ -556,14 +556,12 @@ function drawTotals(){
  }
  function getOcrPending(){
   const list=[];
-  if(!isSubAdm()){
-   Object.keys(USERS).forEach(uid=>{
-    const op=USERS[uid]&&USERS[uid].ocrPending;
-    if(op&&typeof op==='object'){
-     Object.keys(op).forEach(k=>{if(op[k]&&op[k].code)list.push({uid,k,p:op[k]})});
-    }
-   });
-  }
+  Object.keys(USERS).forEach(uid=>{
+   const op=USERS[uid]&&USERS[uid].ocrPending;
+   if(op&&typeof op==='object'){
+    Object.keys(op).forEach(k=>{if(op[k]&&op[k].code)list.push({uid,k,p:op[k]})});
+   }
+  });
   return list;
  }
  function updOcrTabBdg(){
@@ -624,12 +622,12 @@ function drawTotals(){
   updOcrTabBdg();
   const sub=isSubAdm();
   const tabsEl=document.querySelector('.tabs');
-  if(tabsEl)tabsEl.style.gridTemplateColumns=sub?'repeat(3,1fr)':'repeat(5,1fr)';
+  if(tabsEl)tabsEl.style.gridTemplateColumns=sub?'repeat(4,1fr)':'repeat(5,1fr)';
   const mapTab=document.querySelector('.tabs button[data-tab="map"]');
   const ocrTab=document.querySelector('.tabs button[data-tab="ocr"]');
   if(mapTab)mapTab.hidden=sub;
-  if(ocrTab)ocrTab.hidden=sub;
-  if(sub&&(TAB==='map'||TAB==='ocr'))TAB='online';
+  if(ocrTab)ocrTab.hidden=false;
+  if(sub&&TAB==='map')TAB='online';
   if(sub&&SEL==='ADMIN')SEL='all';
   document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===TAB));
   const st=window.scrollY;
@@ -818,7 +816,9 @@ function openOcrRuleModal(ruleKey, curCode, isNew = false){
    const on=curCar===c,crew=crewOf(c);
    return '<div class="sel-it'+(on?' on':'')+'" data-c="'+c+'"><div class="sel-it-l"><span class="sel-ic">🚚</span><div><div class="sel-it-nm">Экипаж '+c+'</div><div class="sel-it-sb">'+(crew?esc(crew):'Экипаж свободен')+'</div></div></div><div class="sel-it-r"><span class="sel-chk">✓</span></div></div>';
   }).join('');
-  items+='<div class="sel-it'+(curCar==="ADMIN"?' on':'')+'" data-c="ADMIN"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(167,139,250,.15);border-color:rgba(167,139,250,.4);color:#c4b5fd">🛡️</span><div><div class="sel-it-nm">Админ</div><div class="sel-it-sb">Открыть бонусы (скрыто из списков)</div></div></div><div class="sel-it-r"><span class="sel-chk">✓</span></div></div>';
+  if(!isSubAdm()){
+   items+='<div class="sel-it'+(curCar==="ADMIN"?' on':'')+'" data-c="ADMIN"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(167,139,250,.15);border-color:rgba(167,139,250,.4);color:#c4b5fd">🛡️</span><div><div class="sel-it-nm">Админ</div><div class="sel-it-sb">Открыть бонусы (скрыто из списков)</div></div></div><div class="sel-it-r"><span class="sel-chk">✓</span></div></div>';
+  }
   ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>🚚 Экипаж: '+esc(dispName(d))+'</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'+items+'</div></div>';
   document.body.appendChild(ov);
   const close=()=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),180)};
@@ -884,9 +884,9 @@ function openSelectModal(){
   if(a==='pub'){e.preventDefault();PUB=undefined;draw();loadPub()}
   else if(a==='force')force();
   else if(a==='del'){e.stopPropagation();if(!isSubAdm())del(b.dataset.id)}
-  else if(a==='setcar'){e.stopPropagation();if(!isSubAdm())openCarModal(b.dataset.id)}
+  else if(a==='setcar'){e.stopPropagation();openCarModal(b.dataset.id)}
   else if(a==='rename'){if(!isSubAdm())rename(b.dataset.id)}
-  else if(a==='dm'){e.stopPropagation();if(!isSubAdm())openAdmDm(b.dataset.id)}
+  else if(a==='dm'){e.stopPropagation();openAdmDm(b.dataset.id)}
   else if(a==='block'){e.stopPropagation();const id=b.dataset.id,k=b.dataset.key,isBlk=b.dataset.blk==='1',du=USERS[id]||{};const who=dispName(parseDev(id,du));const ok=await ask(isBlk?'Разблокировать водителя и телефон «'+who+'»?':'Заблокировать водителя и этот телефон («'+who+'»)? Он сразу выйдет и не сможет войти даже под новым именем.',{title:isBlk?'Разблокировка':'Блокировка',okText:isBlk?'Разблокировать':'Заблокировать',danger:!isBlk});if(!ok)return;try{const nv=isBlk?null:true;await db.ref('users/'+id+'/blocked').set(nv);if(k)await db.ref('accounts/'+k+'/blocked').set(nv);if(du.devId)await db.ref('accounts/__dev_'+du.devId).set(isBlk?null:{blocked:true});if(!isBlk)await db.ref('online/'+id).remove();toast(isBlk?'Разблокировано':'Заблокировано')}catch(err){toast('Ошибка сохранения',true)}}
   else if(a==='pin'){e.stopPropagation();const k=b.dataset.key,cur=ACCOUNTS[k]&&ACCOUNTS[k].pin||'';const np=await askInput('Смена ПИН-кода','Введите новый 4-значный код для водителя',cur,'Например: 1234');if(np===null)return;const clean=np.replace(/\D/g,'');if(clean.length!==4){toast('Нужно ровно 4 цифры',true);return}try{await db.ref('accounts/'+k+'/pin').set(clean);toast('ПИН-код обновлён')}catch(err){toast('Ошибка сохранения',true)}}
   else if(a==='month'){OPEN[b.dataset.key]=!OPEN[b.dataset.key];draw()}
@@ -960,12 +960,26 @@ function openSelectModal(){
   }catch(e){}
  }
  let _admDmInit=false,_admDmSeen=(()=>{try{return JSON.parse(localStorage.getItem('ADM_DM_SEEN')||'{}')}catch(e){return{}}})(),_admDmNotif=(()=>{try{return JSON.parse(localStorage.getItem('ADM_DM_NOTIF')||'{}')}catch(e){return{}}})();
+ function getDmList(uid, channel){
+  const obj=DMS[uid]||{};
+  const ch=channel||(isSubAdm()?'dlv':DM_TAB);
+  if(Array.isArray(obj)) return ch==='dlv'?[]:obj;
+  const list=(ch==='dlv'?obj.dlv:obj.adm)||[];
+  return Array.isArray(list)?list:[];
+ }
  function dmUnread(uid){
-  const list=DMS[uid]||[],seen=+(_admDmSeen[uid]||0);
-  return list.filter(m=>(+m.t||0)>seen&&!m.adm).length;
+  const seen=+(_admDmSeen[uid]||0);
+  if(isSubAdm()){
+   const l=getDmList(uid,'dlv');
+   return l.filter(m=>(+m.t||0)>seen&&!m.adm).length;
+  }
+  const lAdm=getDmList(uid,'adm'),lDlv=getDmList(uid,'dlv');
+  const nAdm=lAdm.filter(m=>(+m.t||0)>seen&&!m.adm).length;
+  const nDlv=lDlv.filter(m=>(+m.t||0)>seen&&!m.adm).length;
+  return nAdm+nDlv;
  }
  function markAdmDmSeen(uid){
-  const list=DMS[uid]||[];
+  const list=getDmList(uid,isSubAdm()?'dlv':DM_TAB);
   if(!list.length)return;
   const mx=Math.max.apply(null,list.map(m=>+m.t||0));
   if(mx>0){_admDmSeen[uid]=mx;try{localStorage.setItem('ADM_DM_SEEN',JSON.stringify(_admDmSeen))}catch(e){}}
@@ -974,12 +988,26 @@ function openSelectModal(){
   const raw=v||{},next={};
   Object.keys(raw).forEach(uid=>{
    const obj=raw[uid]||{};
-   const all=Object.keys(obj).map(k=>Object.assign({k:k},obj[k])).sort((a,b)=>(+a.t||0)-(+b.t||0));
-   if(all.length>50){all.slice(0,all.length-50).forEach(x=>db.ref('dm/'+uid+'/'+x.k).remove().catch(()=>{}));next[uid]=all.slice(-50)}
-   else next[uid]=all;
+   const parseCh=data=>{
+    if(!data||typeof data!=='object')return[];
+    const all=Object.keys(data).map(k=>Object.assign({k:k},data[k])).sort((a,b)=>(+a.t||0)-(+b.t||0));
+    return all.slice(-50);
+   };
+   let admMsgs=[],dlvMsgs=[];
+   if(obj.dlv&&typeof obj.dlv==='object'){
+    dlvMsgs=parseCh(obj.dlv);
+    const admObj=obj.adm&&typeof obj.adm==='object'?obj.adm:(Array.isArray(obj)?{}:obj);
+    admMsgs=parseCh(admObj);
+   }else if(obj.adm&&typeof obj.adm==='object'){
+    admMsgs=parseCh(obj.adm);
+   }else{
+    admMsgs=parseCh(obj);
+   }
+   next[uid]={adm:admMsgs,dlv:dlvMsgs};
+   const relevant=isSubAdm()?dlvMsgs:[...admMsgs,...dlvMsgs];
    if(_admDmInit){
     const prevN=+(_admDmNotif[uid]||0);
-    const fresh=next[uid].filter(m=>(+m.t||0)>prevN&&!m.adm);
+    const fresh=relevant.filter(m=>(+m.t||0)>prevN&&!m.adm);
     if(fresh.length){
      const lm=fresh[fresh.length-1];
      _admDmNotif[uid]=+lm.t||Date.now();
@@ -989,8 +1017,8 @@ function openSelectModal(){
       admNotify(who+' (лично)',String(lm.txt||'').slice(0,140),{tag:'eurobaza-dm-'+uid,action:'OPEN_DM',uid:uid});
      }
     }
-   }else if(next[uid].length){
-    const mx=Math.max.apply(null,next[uid].map(m=>+m.t||0));
+   }else if(relevant.length){
+    const mx=Math.max.apply(null,relevant.map(m=>+m.t||0));
     if(mx>(+(_admDmNotif[uid]||0))){_admDmNotif[uid]=mx;try{localStorage.setItem('ADM_DM_NOTIF',JSON.stringify(_admDmNotif))}catch(e){}}
    }
   });
@@ -1053,11 +1081,19 @@ function openSelectModal(){
 
  function renderAdmDm(){
   const box=g('admDmList');if(!box||!DM_UID)return;
-  const list=DMS[DM_UID]||[];
-  if(!list.length){box.innerHTML='<div class="mut" style="text-align:center;padding:24px">Сообщений пока нет. Напишите водителю первым!</div>';return}
+  const curCh=isSubAdm()?'dlv':DM_TAB;
+  const list=getDmList(DM_UID,curCh);
+  if(!list.length){
+   const emptyHint=curCh==='dlv'?'Сообщений от доставки пока нет. Напишите водителю!':'Личных сообщений от админа пока нет.';
+   box.innerHTML='<div class="mut" style="text-align:center;padding:24px">'+emptyHint+'</div>';
+   return;
+  }
   box.innerHTML=list.map(m=>{
    const d=m.t?new Date(m.t):null,tm=d?String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'';
-   return '<div class="ach-m'+(m.adm?' adm':'')+'"><div class="ach-mt"><span>'+(m.adm?'👑 Админ':esc(m.name||'Водитель'))+'</span><button type="button" class="ach-del" data-dk="'+esc(m.k)+'" aria-label="Удалить">✕</button></div><div class="ach-bd"><span class="ach-tx">'+esc(m.txt||'')+'</span><span class="ach-tm">'+tm+'</span></div></div>';
+   const isDeliv=m.adm&&(m.role==='delivery'||m.name==='Доставка');
+   const who=m.adm?(isDeliv?'👩‍💼 Доставка':'👑 Админ'):esc(m.name||'Водитель');
+   const dBtn=!isSubAdm()?'<button type="button" class="ach-del" data-dk="'+esc(m.k)+'" aria-label="Удалить">✕</button>':'';
+   return '<div class="ach-m'+(m.adm?(isDeliv?' dlv':' adm'):'')+'"><div class="ach-mt"><span>'+who+'</span>'+dBtn+'</div><div class="ach-bd"><span class="ach-tx">'+esc(m.txt||'')+'</span><span class="ach-tm">'+tm+'</span></div></div>';
   }).join('');
   box.scrollTop=box.scrollHeight;
  }
@@ -1065,23 +1101,78 @@ function openSelectModal(){
   if(!uid)return;
   reqAdmNotify();
   const old=g('admDmOv');if(old)old.remove();
-  DM_UID=uid;markAdmDmSeen(uid);if(TAB==='online')drawOnline();
+  DM_UID=uid;
+  if(isSubAdm()) DM_TAB='dlv';
+  markAdmDmSeen(uid);if(TAB==='online')drawOnline();
   const who=USERS[uid]?dispName(parseDev(uid,USERS[uid])):'Водитель';
   const ov=document.createElement('div');ov.id='admDmOv';ov.className='ov';
-  ov.innerHTML='<div class="dlg ach-box"><div class="ach-hd"><div class="ach-hd-l"><div class="ach-hd-ic">✉️</div><div><b>'+esc(who)+'</b><small>Личная переписка (до 50 сообщ.)</small></div></div><div class="ach-acts"><button type="button" id="admDmClr" class="ach-clr">Очистить</button><button type="button" id="admDmX" class="ach-x">✕</button></div></div><div id="admDmList" class="ach-list"></div><div class="ach-bar"><input id="admDmInp" maxlength="300" placeholder="Личное сообщение водителю..."><button type="button" id="admDmSnd" aria-label="Отправить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></div>';
+  
+  const tabsHtml=!isSubAdm()
+   ? '<div style="display:flex;gap:6px;padding:8px 14px 4px;background:#131c2c;border-bottom:1px solid rgba(255,255,255,.08)">'
+     + '<button type="button" id="admDmTabAdm" style="flex:1;padding:6px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(DM_TAB==='adm'?'rgba(250,204,21,.5)':'transparent')+';background:'+(DM_TAB==='adm'?'rgba(250,204,21,.18)':'transparent')+';color:'+(DM_TAB==='adm'?'#fde047':'#94a3b8')+';cursor:pointer">👑 Чат с Админом</button>'
+     + '<button type="button" id="admDmTabDlv" style="flex:1;padding:6px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(DM_TAB==='dlv'?'rgba(56,189,248,.5)':'transparent')+';background:'+(DM_TAB==='dlv'?'rgba(56,189,248,.18)':'transparent')+';color:'+(DM_TAB==='dlv'?'#7dd3fc':'#94a3b8')+';cursor:pointer">🚚 Чат с Доставкой</button>'
+     + '</div>'
+   : '';
+
+  ov.innerHTML='<div class="dlg ach-box"><div class="ach-hd"><div class="ach-hd-l"><div class="ach-hd-ic">✉️</div><div><b>'+esc(who)+'</b><small>'+(isSubAdm()?'Чат отдела доставки':'Личная переписка (до 50 сообщ.)')+'</small></div></div><div class="ach-acts">'+(isSubAdm()?'':'<button type="button" id="admDmClr" class="ach-clr">Очистить</button>')+'<button type="button" id="admDmX" class="ach-x">✕</button></div></div>'+tabsHtml+'<div id="admDmList" class="ach-list"></div><div class="ach-bar"><input id="admDmInp" maxlength="300" placeholder="'+(isSubAdm()?'Сообщение водителю от отдела доставки...':'Личное сообщение водителю...')+'"><button type="button" id="admDmSnd" aria-label="Отправить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></div>';
   document.body.appendChild(ov);
   const close=()=>{DM_UID=null;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
   const onK=e=>{if(e.key==='Escape')close()};
   g('admDmX').onclick=close;ov.onclick=e=>{if(e.target===ov)close()};
-  g('admDmClr').onclick=async()=>{if(await ask('Удалить всю личную переписку с водителем «'+who+'»?',{title:'Очистка чата',okText:'Очистить',danger:true}))db.ref('dm/'+uid).remove().then(()=>toast('Переписка очищена')).catch(()=>toast('Ошибка',true))};
-  g('admDmList').onclick=e=>{const b=e.target.closest('[data-dk]');if(b)db.ref('dm/'+uid+'/'+b.dataset.dk).remove().catch(()=>{})};
+
+  if(!isSubAdm()){
+   const tAdm=g('admDmTabAdm'), tDlv=g('admDmTabDlv');
+   if(tAdm&&tDlv){
+    tAdm.onclick=()=>{
+     DM_TAB='adm';
+     tAdm.style.borderColor='rgba(250,204,21,.5)'; tAdm.style.background='rgba(250,204,21,.18)'; tAdm.style.color='#fde047';
+     tDlv.style.borderColor='transparent'; tDlv.style.background='transparent'; tDlv.style.color='#94a3b8';
+     renderAdmDm();
+    };
+    tDlv.onclick=()=>{
+     DM_TAB='dlv';
+     tDlv.style.borderColor='rgba(56,189,248,.5)'; tDlv.style.background='rgba(56,189,248,.18)'; tDlv.style.color='#7dd3fc';
+     tAdm.style.borderColor='transparent'; tAdm.style.background='transparent'; tAdm.style.color='#94a3b8';
+     renderAdmDm();
+    };
+   }
+  }
+
+  const clrBtn=g('admDmClr');
+  if(clrBtn){
+   clrBtn.onclick=async()=>{
+    const curCh=isSubAdm()?'dlv':DM_TAB;
+    if(await ask('Удалить переписку ('+(curCh==='dlv'?'Доставка':'Админ')+') с водителем «'+who+'»?',{title:'Очистка чата',okText:'Очистить',danger:true})){
+     const chPath='dm/'+uid+(curCh==='dlv'?'/dlv':'/adm');
+     db.ref(chPath).remove().then(()=>toast('Переписка очищена')).catch(()=>toast('Ошибка',true));
+    }
+   };
+  }
+  g('admDmList').onclick=e=>{
+   if(isSubAdm())return;
+   const b=e.target.closest('[data-dk]');
+   if(b){
+    const curCh=isSubAdm()?'dlv':DM_TAB;
+    const chPath='dm/'+uid+(curCh==='dlv'?'/dlv':'/adm')+'/'+b.dataset.dk;
+    db.ref(chPath).remove().catch(()=>{});
+   }
+  };
   const inp=g('admDmInp'),snd=g('admDmSnd');
   const send=async()=>{
    const txt=inp.value.trim();if(!txt)return;
    inp.value='';snd.disabled=true;
+   const curCh=isSubAdm()?'dlv':DM_TAB;
    try{
-    const dref=db.ref('dm/'+uid);
-    await dref.push({uid:'admin',name:'Админ',adm:true,txt:txt,t:firebase.database.ServerValue.TIMESTAMP});
+    const chPath='dm/'+uid+(curCh==='dlv'?'/dlv':'/adm');
+    const dref=db.ref(chPath);
+    await dref.push({
+     uid:admTag(),
+     name:admRawName(),
+     role:admTag(),
+     adm:true,
+     txt:txt,
+     t:firebase.database.ServerValue.TIMESTAMP
+    });
     const s=await dref.once('value'),av=s.val()||{},ks=Object.keys(av).sort((a,b)=>(+av[a].t||0)-(+av[b].t||0));
     if(ks.length>50)ks.slice(0,ks.length-50).forEach(k=>dref.child(k).remove().catch(()=>{}));
    }catch(e){inp.value=txt;toast('Не удалось отправить',true)}
