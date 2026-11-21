@@ -177,6 +177,7 @@
     return m;
   }
 
+  let _chatList = [], _chatOpen = false, _chatBound = false;
   function playMsgTone(){
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
