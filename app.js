@@ -1,24 +1,4 @@
-const KENTRON_POLY=[
-  [40.1881,44.5094],
-  [40.1891,44.5152],
-  [40.1877,44.5221],
-  [40.1826,44.5238],
-  [40.1759,44.5202],
-  [40.1731,44.5155],
-  [40.1748,44.5081],
-  [40.1795,44.5061],
-  [40.1846,44.5068]
-];
-function inKentron(lat,lon){
-  let ins=false;
-  for(let i=0,j=KENTRON_POLY.length-1;i<KENTRON_POLY.length;j=i++){
-    const a=KENTRON_POLY[i],b=KENTRON_POLY[j];
-    const yi=a[0],xi=a[1],yj=b[0],xj=b[1];
-    if(((yi>lat)!==(yj>lat))&&(lon<(xj-xi)*(lat-yi)/((yj-yi)||1e-12)+xi))ins=!ins;
-  }
-  return ins;
-}
-const $=id=>document.getElementById(id);
+const $ = id => document.getElementById(id);
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let P=(window.StorageService?window.StorageService.getJSON('P',[]):JSON.parse(localStorage.getItem('P')||'[]'))||[];
 function save(){if(window.StorageService)window.StorageService.setJSON('P',P);else localStorage.setItem('P',JSON.stringify(P));draw()}
