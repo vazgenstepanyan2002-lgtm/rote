@@ -209,6 +209,7 @@
   const fixOcrName = s => String(s || '')
     .replace(/դուռ(\s+կրաֆտ)/gi, 'դուբ$1')
     .replace(/սանղոմա/gi, 'սանոմա')
+    .replace(/(^|[\s/])շիմ(?=$|[\s/])/gi, '$1շիմո')
     .replace(/(^|\s)ալու(\s+լայթ)/gi, '$1Ալսու$2');
 
   const FUZZY_TYPES = [
@@ -367,8 +368,8 @@
 async function compressImage(file){
     if (file && file._preB64) return file._preB64;
     const isCrop = !!(file && file._isCropped);
-    const maxSide = isCrop ? 896 : 1280;
-    const q = 0.76;
+    const maxSide = isCrop ? 1280 : 1600;
+    const q = 0.85;
     const encodeCv = cv => {
       try {
         const wUrl = cv.toDataURL('image/webp', q);
@@ -431,7 +432,7 @@ async function askGemini(b64){
     const cleanB64 = String(b64 || '');
     const mime = cleanB64.indexOf('UklGR') === 0 ? 'image/webp' : (cleanB64.indexOf('iVBOR') === 0 ? 'image/png' : 'image/jpeg');
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
-    const prompt = 'Накладная EuroBaza (HY/RU/EN). doc=номер из Բեռնափոխադրման թերթիկ № или Վաճառքի փաստաթուղթ № (цифры и дефис). addr=ТОЛЬКО город или область (1-2 слова из Տեղափոխման հասցե, без улицы и телефонов). items=[{name:точное название из Ապրանքի անվանումը, qty:целое число из Քանակ}] без доставки (Տեղափոխություն/Տեղափոխուտյուն), сборки (Հավաքում/Сборка) и фурнитуры.';
+    const prompt = 'Накладная EuroBaza (HY/RU/EN). doc=номер из Բեռնափոխադրման թերթիկ № или Վաճառքի փաստաթուղթ № (цифры и дефис). addr=ТОЛЬКО город или область (1-2 слова из Տեղափոխման հասցե, без улицы и телефонов). items=[{name:ДОСЛОВНО символ-в-символ из Ապրանքի անվանումը (не сокращай слова, не пропускай буквы и точки, напр. շիմո, կ.), qty:целое число из Քանակ}] без доставки (Տեղափոխություն/Տեղափոխուտյուն), сборки (Հավաքում/Сборка) и фурнитуры.';
     const schema = {
       type: 'OBJECT',
       properties: {
