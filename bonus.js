@@ -575,12 +575,12 @@
    +'<div class="bn-btns"><button id="bnSumB">📋 Итоги</button><button id="bnRst">🔄 Обнулить</button></div></div></div>'
    +'<div class="bn-ov" id="bnSm"><div class="mdl-b bn-b"><div class="bn-hd"><div class="bn-hd-l"><div class="bn-hd-ic bn-hd-ic2"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h6"/></svg></div><div><div class="bn-hd-t">Итоги</div><div class="bn-hd-s">Сводка и история начислений</div></div></div><button type="button" class="bn-x-btn" id="bnSmX" aria-label="Закрыть">✕</button></div><div id="bnSmList"></div>'
    +'<div class="bn-ft"><div class="bn-tr"><span>Общая сумма</span><b id="bnSmTot">0</b></div><div class="bn-tr bn-sm"><span>Всего штук: <b id="bnSmQty">0</b></span></div>'
-   +'<div class="bn-btns"><button id="bnSave">💾 Сохранить</button><button id="bnSmCp">📄 Скопировать</button><button id="bnSmCsv" style="background:linear-gradient(135deg,rgba(56,189,248,.22),rgba(14,165,233,.14))!important;color:#7dd3fc!important;border:1px solid rgba(56,189,248,.42)!important">📥 Excel</button></div></div></div></div>';
+   +'<div class="bn-btns"><button id="bnSave">💾 Сохранить</button><button id="bnSmCsv" style="background:linear-gradient(135deg,rgba(56,189,248,.24),rgba(14,165,233,.16))!important;color:#7dd3fc!important;border:1px solid rgba(56,189,248,.42)!important">📥 Excel</button></div></div></div></div>';
   document.body.appendChild(m);
   m.onclick=e=>{if(e.target===m)closeBon()};
   g('bnX').onclick=()=>closeBon();if(g('bnDocsBtn'))g('bnDocsBtn').onclick=openDocsLog;if(g('bnCamBtn'))g('bnCamBtn').onclick=()=>{if(!CAR_CODE){showNoCrewAlert();return}if(window.openBonusScanner)window.openBonusScanner()};
   g('bnRst').onclick=resetQty;
-  g('bnSumB').onclick=openSum;g('bnSmList').addEventListener('click',e=>{const r=e.target.closest('[data-m]');if(r)showMonth(r.dataset.m)});g('bnSmX').onclick=()=>closeSum();g('bnSmCp').onclick=copySum;if(g('bnSmCsv'))g('bnSmCsv').onclick=exportBonusMonthCsv;g('bnSave').onclick=saveMonth;g('bnSm').onclick=e=>{if(e.target===g('bnSm'))closeSum()};
+  g('bnSumB').onclick=openSum;g('bnSmList').addEventListener('click',e=>{const r=e.target.closest('[data-m]');if(r)showMonth(r.dataset.m)});g('bnSmX').onclick=()=>closeSum();if(g('bnSmCsv'))g('bnSmCsv').onclick=exportBonusMonthCsv;g('bnSave').onclick=saveMonth;g('bnSm').onclick=e=>{if(e.target===g('bnSm'))closeSum()};
   const l=g('bnList');
   l.addEventListener('input',onInput);
   l.addEventListener('click',onClick);
