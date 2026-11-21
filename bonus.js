@@ -548,8 +548,12 @@
  }
 
  function openBon(noPush){
-  if(CAR_CODE&&!_carRef&&window.firebase&&firebase.apps&&firebase.apps.length)bindCarPool(CAR_CODE);
-  const m=ensure();updCarBadge();render();if(!CAR_CODE)showNoCrewAlert();
+  if (!CAR_CODE) {
+   showNoCrewAlert();
+   return;
+  }
+  if(!_carRef&&window.firebase&&firebase.apps&&firebase.apps.length)bindCarPool(CAR_CODE);
+  const m=ensure();updCarBadge();render();
   m.classList.add('open');lock(true);
   try{sessionStorage.setItem('BON_WAS_OPEN','1')}catch(e){}
   if(!noPush){try{history.pushState({bn:1},'')}catch(e){}}
