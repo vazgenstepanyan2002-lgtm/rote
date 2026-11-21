@@ -58,30 +58,29 @@
 
       const m = document.createElement('div');
       m.id = 'tvMdl';
-      m.className = 'cm open';
-      m.style.zIndex = '99999';
+      m.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;padding:12px;touch-action:auto;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)';
 
       m.innerHTML = `
-        <div class="cm-b tv-box" style="max-width:540px;width:95vw;height:min(86dvh,640px);display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:18px;background:#0d131f;border:1px solid rgba(255,255,255,.14);box-shadow:0 18px 45px rgba(0,0,0,.75)">
+        <div class="tv-box" style="max-width:540px;width:100%;height:min(86dvh,640px);display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:18px;background:#0d131f;border:1px solid rgba(255,255,255,.16);box-shadow:0 18px 45px rgba(0,0,0,.75);animation:cmIn .16s ease-out">
           <div class="tv-hd" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0">
             <div style="min-width:0">
               <div style="font-size:15px;font-weight:800;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📊 ${esc(title || 'Ведомость')}</div>
               <div style="font-size:11.5px;color:#94a3b8;margin-top:2px">Строк: <b id="tvRowCount">${rows.length}</b></div>
             </div>
-            <button type="button" class="pt-x" id="tvClose" style="background:transparent;border:none;color:#94a3b8;font-size:18px;cursor:pointer;padding:4px 8px">✕</button>
+            <button type="button" id="tvClose" style="width:32px!important;height:32px!important;margin:0!important;padding:0!important;background:transparent!important;border:none!important;color:#94a3b8!important;font-size:18px!important;cursor:pointer;display:flex!important;align-items:center;justify-content:center;border-radius:8px;box-shadow:none!important">✕</button>
           </div>
 
-          <div class="tv-bar" style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:rgba(0,0,0,.15);border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0">
-            <input type="search" id="tvSearch" placeholder="🔍 Поиск..." style="flex:1;min-width:0;height:34px;padding:0 10px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#f8fafc;font-size:12px;outline:none;box-sizing:border-box">
-            <button type="button" id="tvShare" title="Поделиться" style="height:34px;padding:0 9px;border-radius:9px;background:linear-gradient(135deg,rgba(56,189,248,.25),rgba(2,132,199,.15));border:1px solid rgba(56,189,248,.5);color:#7dd3fc;font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;flex-shrink:0">
+          <div class="tv-bar" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(0,0,0,.15);border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;box-sizing:border-box">
+            <input type="search" id="tvSearch" placeholder="🔍 Поиск..." style="flex:1 1 auto;width:auto;min-width:0;height:34px;margin:0;padding:0 10px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#f8fafc;font-size:12.5px;outline:none;box-sizing:border-box">
+            <button type="button" id="tvShare" title="Поделиться" style="width:auto!important;margin:0!important;height:34px!important;padding:0 10px!important;border-radius:9px!important;background:linear-gradient(135deg,rgba(56,189,248,.25),rgba(2,132,199,.15))!important;border:1px solid rgba(56,189,248,.5)!important;color:#7dd3fc!important;font-size:12px!important;font-weight:700!important;display:inline-flex!important;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:none!important">
               📤 Поделиться
             </button>
-            <button type="button" id="tvDownload" title="Скачать Excel" style="height:34px;padding:0 9px;border-radius:9px;background:rgba(16,185,129,.18);border:1px solid rgba(52,211,153,.45);color:#6ee7b7;font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;flex-shrink:0">
+            <button type="button" id="tvDownload" title="Скачать Excel" style="width:auto!important;margin:0!important;height:34px!important;padding:0 10px!important;border-radius:9px!important;background:rgba(16,185,129,.18)!important;border:1px solid rgba(52,211,153,.45)!important;color:#6ee7b7!important;font-size:12px!important;font-weight:700!important;display:inline-flex!important;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:none!important">
               📥 Excel
             </button>
           </div>
 
-          <div class="tv-scroll" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:0;max-width:100%;min-width:0">
+          <div class="tv-scroll" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:0;max-width:100%;min-width:0;touch-action:pan-x pan-y">
             <table id="tvTable" style="width:max-content;min-width:100%;border-collapse:collapse;font-size:12px;line-height:1.35;text-align:left">
               <thead>
                 <tr style="background:#131c2e;position:sticky;top:0;z-index:2;box-shadow:0 1px 0 rgba(255,255,255,.1)">
