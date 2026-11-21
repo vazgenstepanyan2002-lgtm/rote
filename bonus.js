@@ -527,9 +527,19 @@
     });
    });
   });
-  data.push([H[6],'','',totQ,'',totS]);
+  const totalRow=[H[6],'','',totQ,'',totS];
   const fn=('EuroBaza_'+(CAR_CODE||'CREW')+'_'+(isCur?'Текущий_месяц':CUR_VIEW.title).replace(/[\s\/:*?"<>|]+/g,'_')+'.csv');
-  downloadBonusCsv(fn,[header,...data]);
+  if(window.TableViewer){
+   TableViewer.open({
+    title:(isCur?'Текущий месяц':CUR_VIEW.title)+' · Экипаж '+(CAR_CODE||''),
+    filename:fn,
+    headers:header,
+    rows:data,
+    totalRow:totalRow
+   });
+   return;
+  }
+  downloadBonusCsv(fn,[header,...data,totalRow]);
  }
  function copySum(){
   const isCur=!CUR_VIEW||CUR_VIEW.k==='cur';
@@ -550,20 +560,39 @@
  async function openDocsLog(){
   if(!CAR_CODE){showNoCrewAlert();return}
   let m=g('bnDocsMdl');if(m)m.remove();m=document.createElement('div');m.id='bnDocsMdl';m.className='cm open';
-  m.innerHTML='<div class="cm-b ob-pk-box" style="max-width:400px;height:min(78dvh,520px)"><div class="ob-pk-hd"><div><b>🧾 Журнал накладных</b><small>Экипаж '+esc(CAR_CODE)+'</small></div><button type="button" class="pt-x" id="bdX">✕</button></div><div class="ob-pk-list" id="bdList" style="padding:12px"><div class="pt-empty">Загрузка...</div></div></div>';
+  m.innerHTML='<div class="cm-b ob-pk-box" style="max-width:420px;height:min(82dvh,580px);display:flex;flex-direction:column;padding:0;overflow:hidden"><div class="ob-pk-hd" style="padding:14px 16px;flex-shrink:0"><div><b>🧾 Журнал накладных</b><small>Экипаж '+esc(CAR_CODE)+'</small></div><button type="button" class="pt-x" id="bdX">✕</button></div><div style="padding:8px 12px;background:rgba(0,0,0,.18);border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0"><input id="bdSearch" type="search" placeholder="🔍 Поиск по номеру накладной или позиции..." style="width:100%;height:36px;padding:0 12px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#f8fafc;font-size:12.5px;outline:none;box-sizing:border-box"></div><div class="ob-pk-list" id="bdList" style="flex:1;overflow:auto;padding:12px"><div class="pt-empty">Загрузка...</div></div></div>';
   document.body.appendChild(m);const cl=()=>m.remove();g('bdX').onclick=cl;m.onclick=ev=>{if(ev.target===m)cl()};
   try{
    const val=(await firebase.database().ref('cars/'+CAR_CODE+'/docs').once('value')).val()||{};
-   const list=Object.keys(val).map(k=>val[k]).filter(Boolean).sort((a,b)=>(+b.t||0)-(+a.t||0)),box=g('bdList');if(!box)return;
-   if(!list.length){box.innerHTML='<div class="pt-empty">Отсканированных накладных пока нет.</div>';return}
-   let totS=0,totQ=0;list.forEach(x=>{totS+=(+x.sum||0);totQ+=(+x.qty||0)});
-   const headHtml='<div class="bd-sum"><span>Накладных: <b>'+list.length+'</b></span>'+((totQ||totS)?'<span><b>'+fm(totQ)+' шт</b> · <b style="color:#fde047">'+fm(totS)+' '+CUR+'</b></span>':'')+'</div>';
-   box.innerHTML=headHtml+list.map(x=>{
-    const d=x.t?new Date(x.t):null,tm=d?d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'';
-    const zn=x.z===1?'Город':(x.z===2?'Район':'');const rp=x.rep>1?'<span class="bd-rep">\u{1f501} <span>Повтор</span>'+(x.rep>2?' \u00d7'+x.rep:'')+'</span>':'';
-    const right=(x.qty||x.sum)?'<div class="bd-r"><b>'+fm(+x.sum||0)+' '+CUR+'</b><small>'+fm(+x.qty||0)+' шт</small></div>':'';
-    return '<div class="bd-card"><div class="bd-top"><div class="bd-l"><span class="bd-ic">🧾</span><div><div class="bd-num"><span>№ '+esc(x.doc||'—')+'</span>'+(zn?'<span class="bd-z">'+zn+'</span>':'')+rp+'</div><div class="bd-meta">'+esc(x.by||'Водитель')+(tm?' · '+tm:'')+'</div></div></div>'+right+'</div></div>';
-   }).join('');
+   const allList=Object.keys(val).map(k=>val[k]).filter(Boolean).sort((a,b)=>(+b.t||0)-(+a.t||0)),box=g('bdList');if(!box)return;
+   if(!allList.length){box.innerHTML='<div class="pt-empty">Отсканированных накладных пока нет.</div>';return}
+
+   const renderDocs=list=>{
+    if(!list.length){box.innerHTML='<div class="pt-empty">Ничего не найдено</div>';return}
+    let totS=0,totQ=0;list.forEach(x=>{totS+=(+x.sum||0);totQ+=(+x.qty||0)});
+    const headHtml='<div class="bd-sum"><span>Накладных: <b>'+list.length+'</b></span>'+((totQ||totS)?'<span><b>'+fm(totQ)+' шт</b> · <b style="color:#fde047">'+fm(totS)+' '+CUR+'</b></span>':'')+'</div>';
+    box.innerHTML=headHtml+list.map(x=>{
+     const d=x.t?new Date(x.t):null,tm=d?d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'';
+     const zn=x.z===1?'Город':(x.z===2?'Район':'');const rp=x.rep>1?'<span class="bd-rep">\u{1f501} <span>Повтор</span>'+(x.rep>2?' \u00d7'+x.rep:'')+'</span>':'';
+     const right=(x.qty||x.sum)?'<div class="bd-r"><b>'+fm(+x.sum||0)+' '+CUR+'</b><small>'+fm(+x.qty||0)+' шт</small></div>':'';
+     return '<div class="bd-card"><div class="bd-top"><div class="bd-l"><span class="bd-ic">🧾</span><div><div class="bd-num"><span>№ '+esc(x.doc||'—')+'</span>'+(zn?'<span class="bd-z">'+zn+'</span>':'')+rp+'</div><div class="bd-meta">'+esc(x.by||'Водитель')+(tm?' · '+tm:'')+'</div></div></div>'+right+'</div></div>';
+    }).join('');
+   };
+   renderDocs(allList);
+
+   const sinp=g('bdSearch');
+   if(sinp){
+    sinp.oninput=()=>{
+     const q=sinp.value.trim().toLowerCase();
+     if(!q){renderDocs(allList);return}
+     renderDocs(allList.filter(x=>{
+      const docNum=String(x.doc||'').toLowerCase();
+      const who=String(x.by||'').toLowerCase();
+      const pKeys=x.p&&typeof x.p==='object'?Object.keys(x.p).join(' ').toLowerCase():'';
+      return docNum.includes(q)||who.includes(q)||pKeys.includes(q);
+     }));
+    };
+   }
   }catch(e){const box=g('bdList');if(box)box.innerHTML='<div class="pt-empty">Ошибка загрузки журнала</div>'}
  }
  function ensure(){

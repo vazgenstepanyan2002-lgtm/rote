@@ -164,9 +164,19 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
   if(!items||!items.length){toast('Нет данных для выгрузки',true);return}
   const header=['Экипаж / Водители','Количество (шт)','Сумма (֏)'];
   const data=items.map(it=>[it.name,it.qty,it.sum]);
-  data.push(['ИТОГО',totQty,totSum]);
+  const totalRow=['ИТОГО',totQty,totSum];
   const fn=('EuroBaza_'+title.replace(/[\s\/:*?"<>|]+/g,'_')+'.csv');
-  downloadCsv(fn,[header,...data]);
+  if(window.TableViewer){
+   TableViewer.open({
+    title:'Ведомость по экипажам · '+title.replace(/_/g,' '),
+    filename:fn,
+    headers:header,
+    rows:data,
+    totalRow:totalRow
+   });
+   return;
+  }
+  downloadCsv(fn,[header,...data,totalRow]);
  }
  function exportCarDetailCsv(code,title,rows,totQty,totSum){
   if(!rows||!rows.length){toast('Нет данных для выгрузки',true);return}
@@ -179,9 +189,19 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
     });
    });
   });
-  data.push(['ИТОГО','','',totQty,'',totSum]);
+  const totalRow=['ИТОГО','','',totQty,'',totSum];
   const fn=('EuroBaza_Экипаж_'+code+'_'+title.replace(/[\s\/:*?"<>|]+/g,'_')+'.csv');
-  downloadCsv(fn,[header,...data]);
+  if(window.TableViewer){
+   TableViewer.open({
+    title:'Итоги: Экипаж '+code+' · '+title.replace(/_/g,' '),
+    filename:fn,
+    headers:header,
+    rows:data,
+    totalRow:totalRow
+   });
+   return;
+  }
+  downloadCsv(fn,[header,...data,totalRow]);
  }
  function copyReport(title,items,totQty,totSum){
   if(!items||!items.length){toast('Нет данных для копирования',true);return}
