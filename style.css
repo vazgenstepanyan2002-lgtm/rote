@@ -1058,6 +1058,7 @@ body:has(.cm.open)>*:not(.cm):not(#toast):not(#busy){pointer-events:none!importa
 .ob-pr b{color:#fde047;font-size:14px}
 .ob-tot{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;padding:0 2px;font-size:13.5px;color:#cbd5e1}
 .ob-tot b{font-size:18px;font-weight:800;color:#fde047}
+.ob-q-tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:11.5px;font-weight:800;background:rgba(56,189,248,.16);border:1px solid rgba(56,189,248,.42);color:#7dd3fc;line-height:1.2}
 
 /* OCR-CUSTOM-PICKER */
 .ob-pick{width:100%!important;min-height:40px!important;margin:0!important;padding:6px 10px!important;border-radius:11px!important;background:#0b111d!important;border:1px solid rgba(255,255,255,.16)!important;display:flex!important;align-items:center;justify-content:space-between;gap:6px;text-align:left;box-shadow:none!important}

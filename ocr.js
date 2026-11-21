@@ -630,13 +630,13 @@ async function askGemini(b64){
     } catch (e) {}
   };
 
-  function openBonusInvoiceModal(items, defaultIsCity, docNum){
+  function openBonusInvoiceModal(items, defaultIsCity, docNum, batchOpts){
     const cleanDoc = String(docNum || '').trim();
     const docKey = cleanDoc.replace(/[^0-9A-Za-z_-]+/g, '_').replace(/^_+|_+$/g, '');
     if (!Array.isArray(items) || !items.length) return;
     let m = g('ocrBonMdl'); if (m) m.remove();
     let isCity = !!defaultIsCity;
-    const rows = items.map(x => ({ name: x.name, qty: x.qty, code: x.code || '', origCode: x.code || '' }));
+    const rows = items.map(x => { const c = x.code || classifyProduct(x.name).code || ''; return { name: x.name, qty: x.qty, code: c, origCode: c }; });
     saveOcrDraft(rows, isCity, cleanDoc);
     const CAT_ICO = { 'Другое': '📦', 'Диваны': '🛋️', 'Ресепшен': '🗄️', 'Кухни': '🍳', 'Гостиная': '📺', 'Спальни': '🛏️', 'Шкафы': '🚪' };
     const catsList = Array.from(new Set(BON_ITEMS.map(x => x.cat)));
@@ -671,13 +671,14 @@ async function askGemini(b64){
     };
 
     m = document.createElement('div'); m.id = 'ocrBonMdl'; m.className = 'mdl open';
-    m.innerHTML = '<div class="mdl-b pt-box ob-box"><div class="pt-hd"><div class="pt-hd-l"><div class="pt-hd-ic" style="background:rgba(250,204,21,.16);border-color:rgba(250,204,21,.42);color:#fde047">🧮</div><div><div class="pt-hd-t">Бонусы по накладной</div><div class="pt-hd-s" id="obSub"></div></div></div><button type="button" class="pt-x" id="obX">✕</button></div>'
+    m.innerHTML = '<div class="mdl-b pt-box ob-box"><div class="pt-hd"><div class="pt-hd-l"><div class="pt-hd-ic" style="background:rgba(250,204,21,.16);border-color:rgba(250,204,21,.42);color:#fde047">🧮</div><div><div class="pt-hd-t" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span>Бонусы по накладной</span>' + (batchOpts && batchOpts.total > 1 ? '<span class="ob-q-tag">' + batchOpts.idx + ' / ' + batchOpts.total + '</span>' : '') + '</div><div class="pt-hd-s" id="obSub"></div></div></div><button type="button" class="pt-x" id="obX">✕</button></div>'
       + '<div class="ob-zone-w"><div class="ob-seg" id="obZoneSeg"><button type="button" data-z="city" class="' + (isCity ? 'on' : '') + '">🏙️ Город (Ереван)</button><button type="button" data-z="reg" class="' + (!isCity ? 'on' : '') + '">🛣️ Район (Области)</button></div></div>'
       + '<div class="pt-list" id="obList"></div>'
       + '<div class="pt-ft"><div class="ob-tot"><span>Будет начислено:</span><b id="obTotSum">0 ' + CUR + '</b></div><button type="button" class="pt-add" id="obSaveBtn"><span>➕ Добавить в бонусы</span></button></div></div>';
     document.body.appendChild(m);
-    const close = () => { saveOcrDraft(null); m.remove(); };
-    g('obX').onclick = close; m.onclick = e => { if (e.target === m) close(); };
+    let _obDone = false;
+    const close = reason => { saveOcrDraft(null); m.remove(); if (!_obDone && batchOpts && typeof batchOpts.onDone === 'function') { _obDone = true; batchOpts.onDone(reason || 'closed'); } };
+    g('obX').onclick = () => close('closed'); m.onclick = e => { if (e.target === m) close('closed'); };
 
     const carCode = (() => { try { return (localStorage.getItem('USER_CAR') || '').trim().toUpperCase(); } catch (e) { return ''; } })();
     const docTag = cleanDoc ? ' · № ' + esc(cleanDoc) : '';
@@ -744,7 +745,7 @@ async function askGemini(b64){
             if (!isAdmRole) sentReq = true;
           }
         });
-        close();
+        close('saved');
         window.toast && toast(sentReq ? 'Начислено: +' + q + ' шт · правило отправлено на проверку админу' : 'Начислено: +' + q + ' шт (' + fm(s) + ' ' + CUR + ')');
       } catch (err) { g('obSaveBtn').disabled = false; window.toast && toast('Ошибка записи в базу', 'err'); }
     };
@@ -760,20 +761,96 @@ async function askGemini(b64){
         el.id = id;
         el.accept = 'image/*';
         el.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0';
-        if (cap) el.setAttribute('capture', 'environment');
-        el.addEventListener('change', () => {
-          const f = el.files && el.files[0];
-          el.value = '';
-          if (f) scanBonusFile(f);
-        });
+        if (cap) el.setAttribute('capture', 'environment'); else el.multiple = true;
+      el.addEventListener('change', () => {
+        const files = Array.from(el.files || []);
+        el.value = '';
+        if (files.length === 1) scanBonusFile(files[0]);
+        else if (files.length > 1) scanBonusFiles(files);
+      });
         document.body.appendChild(el);
       }
       return el;
     };
     return { cam: mk('bnCamFile', 1), gal: mk('bnGalFile', 0) };
   };
+  let _batchTok = 0;
+  async function scanBonusFiles(files){
+    const list = Array.from(files || []).filter(Boolean);
+    if (!list.length) return;
+    if (list.length === 1) return scanBonusFile(list[0]);
+    const tok = ++_batchTok, total = list.length;
+    if (window.openBon && (!g("bnMdl") ||
+      !g("bnMdl").classList.contains("open"))) window.openBon(true);
+    const btn = g("bnCamBtn"); let busyOn = false;
+    const setBusy = on => { const nx = !!on; if (nx === busyOn) return;
+      busyOn = nx; window._ocrScanning = nx;
+      if (btn) btn.classList.toggle("busy", nx);
+      if (typeof busy === "function") busy(nx ? 1 : 0); };
+    const slots = new Array(total), waits = new Array(total);
+    const wake = i => { if (waits[i]) { const f = waits[i];
+      waits[i] = null; f(); } };
+    const getSlot = i => slots[i] ? Promise.resolve(slots[i])
+      : new Promise(r => { waits[i] = () => r(slots[i]); });
+    (async () => { for (let i = 0; i < total; i++) {
+      if (tok !== _batchTok) return; let b64 = "";
+      try { b64 = await compressImage(list[i]);
+        if (tok !== _batchTok) return;
+        slots[i] = { ok: true, res: await askGemini(b64) };
+      } catch (e) { slots[i] = { ok: false,
+        err: (e && e.message) || String(e || ""), b64 }; }
+      wake(i); } })();
+    let saved = 0;
+    const next = async (idx, lastReason) => {
+      if (tok !== _batchTok) return;
+      if (idx >= total) { setBusy(false);
+        if (saved > 1 && lastReason === "saved") setTimeout(() => {
+          if (tok === _batchTok && window.toast) toast(
+            "Готово: добавлено накладных " + saved + " из " + total);
+        }, 2100); else if (lastReason !== "saved" && window.toast)
+          toast("Загрузка накладных завершена"); return; }
+      if (!slots[idx]) { setBusy(true); window.toast && toast(
+        "Распознаю накладную " + (idx + 1) + " из " + total + "..."); }
+      let sl = await getSlot(idx);
+      if (tok !== _batchTok) return; setBusy(false);
+      while (!sl.ok) { const msg = sl.err || "Ошибка";
+        const q = /дневной лимит|quota|free.?tier/i.test(msg);
+        if (!q && typeof askC === "function") {
+          const cm = g("cm"); if (cm) document.body.appendChild(cm);
+          const bs = /high demand|503|таймаут|timeout|нет связи|overloaded|unavailable/i.test(msg);
+          const qt = (bs ? "Сервер распознавания временно перегружен. Повторить отправку фото " : ("Ошибка распознавания (" + (idx + 1) + "/" + total + "): " + msg + "\n\nПовторить отправку фото ")) + (idx + 1) + " из " + total + "?";
+          const ok = await askC(qt, "Повторить", "🔄",
+            idx + 1 < total ? "Пропустить" : "Отмена");
+          if (tok !== _batchTok) return;
+          if (ok) { setBusy(true); window.toast && toast(
+            "Повторяю отправку " + (idx + 1) + "/" + total + "...");
+            try { const b = sl.b64 || await compressImage(list[idx]);
+              sl = { ok: true, res: await askGemini(b) };
+            } catch (e2) { sl = { ok: false, b64: sl.b64,
+              err: (e2 && e2.message) || String(e2 || "") }; }
+            setBusy(false); if (tok !== _batchTok) return; continue;
+          } } else window.toast && toast("Ошибка OCR (" +
+            (idx + 1) + "/" + total + "): " + msg, "err");
+        next(idx + 1, "skip"); return; }
+      const { doc, addr, items } = sl.res;
+      if (!items.length) { window.toast && toast("Товары в накладной не найдены (" + (idx + 1) + "/" + total + ")", "err");
+        next(idx + 1, "empty"); return; }
+      openBonusInvoiceModal(items, isYerevanAddress(addr), doc, {
+        idx: idx + 1, total, onDone: async rsn => {
+          if (tok !== _batchTok) return;
+          if (rsn === "saved") { saved++; next(idx + 1, "saved"); return; }
+          const rem = total - (idx + 1);
+          if (rem > 0 && typeof askC === "function") {
+            const cm = g("cm"); if (cm) document.body.appendChild(cm);
+            const go = await askC("Пропустить эту накладную и перейти к следующей? (осталось " + rem + ")", "Следующая", "📄", "Остановить все");
+            if (tok !== _batchTok) return;
+            if (go) next(idx + 1, "skip"); else { _batchTok++;
+              window.toast && toast("Загрузка остальных накладных отменена"); }
+          } } }); };
+    next(0, "");
+  }
   let _ebLastOcrB64 = "";
-  async function scanBonusFile(file){
+  async function scanBonusFile(file){ _batchTok++;
     if (!file) return;
     if (window.openBon && (!g("bnMdl") || !g("bnMdl").classList.contains("open"))) window.openBon(true);
     const btn = g("bnCamBtn");
@@ -1401,7 +1478,7 @@ const _fastShot = () => {
     const { cam, gal } = ensureOcrInputs();
     let m = g('ocrSrcMdl'); if (m) m.remove();
     m = document.createElement('div'); m.id = 'ocrSrcMdl'; m.className = 'cm open';
-    m.innerHTML = '<div class="cm-b ocr-src-box"><button type="button" class="pm-x" id="ocrPickX">✕</button><div class="ocr-src-top"><div class="ocr-src-ring"><div class="ocr-src-in">📷</div></div><div class="ocr-src-pill"><i></i>Smart OCR</div><div class="ocr-src-t">Сканировать накладную</div><div class="ocr-src-s">Автоподсчёт бонусов по фото документа</div></div><div class="pm-acts"><button type="button" class="pm-btn pm-chat" id="ocrPickCam"><span class="pm-btn-l"><span class="pm-ic">📸</span><span class="pm-tx"><b>Открыть камеру</b><small>Сфотографировать накладную</small></span></span><span class="pm-arr">›</span></button><button type="button" class="pm-btn pm-dm" id="ocrPickGal"><span class="pm-btn-l"><span class="pm-ic">🖼️</span><span class="pm-tx"><b>Выбрать из галереи</b><small>Загрузить готовый снимок</small></span></span><span class="pm-arr">›</span></button></div><button type="button" class="pm-cls" id="ocrPickNo">Отмена</button></div>';
+    m.innerHTML = '<div class="cm-b ocr-src-box"><button type="button" class="pm-x" id="ocrPickX">✕</button><div class="ocr-src-top"><div class="ocr-src-ring"><div class="ocr-src-in">📷</div></div><div class="ocr-src-pill"><i></i>Smart OCR</div><div class="ocr-src-t">Сканировать накладную</div><div class="ocr-src-s">Автоподсчёт бонусов по фото документа</div></div><div class="pm-acts"><button type="button" class="pm-btn pm-chat" id="ocrPickCam"><span class="pm-btn-l"><span class="pm-ic">📸</span><span class="pm-tx"><b>Открыть камеру</b><small>Сфотографировать накладную</small></span></span><span class="pm-arr">›</span></button><button type="button" class="pm-btn pm-dm" id="ocrPickGal"><span class="pm-btn-l"><span class="pm-ic">🖼️</span><span class="pm-tx"><b>Выбрать из галереи</b><small>Один или несколько снимков</small></span></span><span class="pm-arr">›</span></button></div><button type="button" class="pm-cls" id="ocrPickNo">Отмена</button></div>';
     document.body.appendChild(m);
     const close = () => m.remove();
     g('ocrPickNo').onclick = close; g('ocrPickX').onclick = close; m.onclick = e => { if (e.target === m) close(); };
