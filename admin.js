@@ -727,7 +727,7 @@ function drawTotals(){
   return true;
  }
 
-function openOcrRuleModal(ruleKey, curCode){
+function openOcrRuleModal(ruleKey, curCode, isNew = false){
   const CAT_ICO = { 'Другое': '📦', 'Диваны': '🛋️', 'Ресепшен': '🗄️', 'Кухни': '🍳', 'Гостиная': '📺', 'Спальни': '🛏️', 'Шкафы': '🚪' };
   const allItems = Object.keys(OCR_CAT_NAMES).map(cd => {
    const parts = OCR_CAT_NAMES[cd].split(' · ');
@@ -735,20 +735,29 @@ function openOcrRuleModal(ruleKey, curCode){
   });
   const catsList = Array.from(new Set(allItems.map(x => x.cat)));
   const curObj = allItems.find(x => x.cd === curCode);
-  let selCat = curObj ? curObj.cat : 'all', q = '';
+  let selCat = curObj ? curObj.cat : 'all', q = '', selectedCd = curCode || '';
 
   const ov = document.createElement('div');
   ov.className = 'ov';
-  ov.innerHTML = '<div class="dlg aop-box">'
-   + '<div class="aop-hd"><div><b>Категория бонусов</b><small>' + esc(ruleKey) + '</small></div><button type="button" class="sel-x">✕</button></div>'
-   + '<div class="aop-srch"><input id="aopInp" type="search" placeholder="Поиск мебели..."></div>'
+  ov.style.zIndex = '99999';
+
+  ov.innerHTML = '<div class="dlg aop-box" style="max-width:440px;height:min(88dvh,620px)">'
+   + '<div class="aop-hd"><div><b>' + (isNew ? '➕ Новое правило OCR' : '✏️ Настройка правила') + '</b><small>' + (isNew ? 'Сопоставление товара из накладной с каталогом' : esc(ruleKey)) + '</small></div><button type="button" class="sel-x">✕</button></div>'
+   + (isNew ? '<div style="padding:10px 14px 6px;flex-shrink:0"><label style="display:block;font-size:11.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Текст из накладной (как написано в чеке):</label><input id="aopRuleKeyInp" type="text" value="' + esc(ruleKey || '') + '" placeholder="Например: Ննջասենյակ կ. Մոնա Լիզա" style="width:100%;height:38px;padding:0 12px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#f8fafc;font-size:13px;outline:none;box-sizing:border-box"></div>' : '')
+   + '<div style="padding:4px 14px 0;flex-shrink:0"><label style="display:block;font-size:11.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Выберите категорию и модель для начисления бонуса:</label></div>'
+   + '<div class="aop-srch"><input id="aopInp" type="search" placeholder="🔍 Быстрый поиск мебели..."></div>'
    + '<div class="aop-chips" id="aopChips"><button type="button" data-c="all" class="' + (selCat === 'all' ? 'on' : '') + '">Все</button>'
    + catsList.map(c => '<button type="button" data-c="' + esc(c) + '" class="' + (selCat === c ? 'on' : '') + '">' + (CAT_ICO[c] || '📦') + ' ' + esc(c) + '</button>').join('')
-   + '</div><div class="aop-list" id="aopList"></div></div>';
+   + '</div><div class="aop-list" id="aopList"></div>'
+   + '<div style="padding:10px 14px;background:rgba(0,0,0,.2);border-top:1px solid rgba(255,255,255,.08);display:flex;gap:8px;flex-shrink:0">'
+   + '<button type="button" id="aopCancelBtn" style="flex:1;height:40px;border-radius:11px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#94a3b8;font-size:13px;font-weight:700;cursor:pointer">Отмена</button>'
+   + '<button type="button" id="aopSaveBtn" style="flex:1.4;height:40px;border-radius:11px;background:linear-gradient(135deg,#10b981,#059669);border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(16,185,129,.35)">✓ Сохранить правило</button>'
+   + '</div></div>';
   document.body.appendChild(ov);
 
   const close = () => { ov.classList.remove('show'); setTimeout(() => ov.remove(), 180); };
   ov.querySelector('.sel-x').onclick = close;
+  ov.querySelector('#aopCancelBtn').onclick = close;
   ov.onclick = e => { if (e.target === ov) close(); };
 
   const drawItems = () => {
@@ -763,7 +772,7 @@ function openOcrRuleModal(ruleKey, curCode){
    });
    if (!list.length) { box.innerHTML = '<div class="mut" style="text-align:center;padding:20px">Ничего не найдено</div>'; return; }
    box.innerHTML = list.map(it => {
-    const on = it.cd === curCode;
+    const on = it.cd === selectedCd;
     return '<button type="button" class="aop-it' + (on ? ' on' : '') + '" data-cd="' + it.cd + '"><span>' + (CAT_ICO[it.cat] || '📦') + '</span><span class="aop-tx"><b>' + esc(it.name) + '</b><small>' + esc(it.cat) + '</small></span><span class="sel-chk">' + (on ? '✓' : '') + '</span></button>';
    }).join('');
   };
@@ -775,11 +784,25 @@ function openOcrRuleModal(ruleKey, curCode){
    drawItems();
   };
   g('aopInp').oninput = e => { q = e.target.value.trim().toLowerCase(); drawItems(); };
-  g('aopList').onclick = async e => {
+  g('aopList').onclick = e => {
    const it = e.target.closest('button[data-cd]'); if (!it) return;
-   const nc = it.dataset.cd; close();
-   try { await db.ref('config/ocrMap/' + ruleKey).set(nc); toast('Правило сохранено'); }
-   catch (err) { toast('Ошибка сохранения', true); }
+   selectedCd = it.dataset.cd;
+   drawItems();
+  };
+
+  g('aopSaveBtn').onclick = async () => {
+   const finalKey = isNew ? (g('aopRuleKeyInp') ? g('aopRuleKeyInp').value : '') : ruleKey;
+   const cleanKey = String(finalKey || '').toLowerCase().replace(/[\"'«»().,]/g,' ').replace(/\s+/g,' ').trim().replace(/[.#$\[\]\/]+/g,'_').slice(0,120);
+   if (!cleanKey) { toast('Введите название товара из накладной', true); return; }
+   if (!selectedCd) { toast('Выберите категорию мебели из списка', true); return; }
+   close();
+   try {
+    await db.ref('config/ocrMap/' + cleanKey).set(selectedCd);
+    toast('Правило успешно сохранено');
+    if (typeof drawOcr === 'function') drawOcr();
+   } catch (err) {
+    toast('Ошибка сохранения: ' + err.message, true);
+   }
   };
 
   drawItems();
@@ -886,8 +909,8 @@ function openSelectModal(){
    else toast('Нет данных за этот месяц',true);
   }
   else if(a==='ocr-ok'){e.stopPropagation();const uid=b.dataset.uid,k=b.dataset.k,cd=b.dataset.code;if(!uid||!k||!cd)return;try{await db.ref('config/ocrMap/'+k).set(cd);await db.ref('users/'+uid+'/ocrPending/'+k).remove();toast('Правило добавлено для всех')}catch(err){toast('Ошибка сохранения',true)}}
-  else if(a==='ocr-add'){e.stopPropagation();const raw=await askInput('Новое правило OCR','Введите точное название товара из накладной','','Например: Ննջասենյակ կ. Մոնա Լիզա 40');if(!raw)return;const fk=raw.toLowerCase().replace(/[\"'«»().,]/g,' ').replace(/\s+/g,' ').trim().replace(/[.#$\[\]\/]+/g,'_').slice(0,120);if(!fk){toast('Некорректное название',true);return}openOcrRuleModal(fk,OCR_MAP[fk]||'')}
-  else if(a==='ocr-edit'){e.stopPropagation();const k=b.dataset.k;if(k)openOcrRuleModal(k,OCR_MAP[k]||'')}
+  else if(a==='ocr-add'){e.stopPropagation();openOcrRuleModal('','',true)}
+  else if(a==='ocr-edit'){e.stopPropagation();const k=b.dataset.k;if(k)openOcrRuleModal(k,OCR_MAP[k]||'',false)}
   else if(a==='ocr-del'){e.stopPropagation();const k=b.dataset.k;if(!k)return;if(!(await ask('Удалить правило «'+k+'» из общего словаря?',{title:'Удаление правила',okText:'Удалить',danger:true})))return;try{await db.ref('config/ocrMap/'+k).remove();toast('Правило удалено')}catch(err){toast('Ошибка удаления',true)}}
   else if(a==='ocr-no'){e.stopPropagation();const uid=b.dataset.uid,k=b.dataset.k;if(!uid||!k)return;try{await db.ref('users/'+uid+'/ocrPending/'+k).remove();toast('Запрос отклонён')}catch(err){toast('Ошибка удаления',true)}}
   else if(a==='onlcar'){ONL_CAR=b.dataset.c||'all';drawOnline()}
