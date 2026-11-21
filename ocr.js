@@ -1146,16 +1146,25 @@ async function askGemini(b64){
     const sw = Math.max(20, Math.min(srcW - sx, Math.round((nx2 - nx1) * visW)));
     const sh = Math.max(20, Math.min(srcH - sy, Math.round((ny2 - ny1) * visH)));
 
-    const maxOut = 2400;
+    const maxOut = 1440;
     let outW = sw, outH = sh;
     if (outW > maxOut || outH > maxOut) {
       if (outW > outH) { outH = Math.round(outH * maxOut / outW); outW = maxOut; }
       else { outW = Math.round(outW * maxOut / outH); outH = maxOut; }
     }
-    const cv = document.createElement("canvas");
+    const cv = document.createElement('canvas');
     cv.width = outW; cv.height = outH;
-    cv.getContext("2d").drawImage(src, sx, sy, sw, sh, 0, 0, outW, outH);
-    return new Promise(res => cv.toBlob(b => { cv.width = cv.height = 0; if (b) b._isCropped = true; res(b); }, "image/jpeg", 0.9));
+    const cx = cv.getContext('2d');
+    cx.filter = 'grayscale(1) contrast(1.18)';
+    cx.drawImage(src, sx, sy, sw, sh, 0, 0, outW, outH);
+    cx.filter = 'none';
+    let b64 = '';
+    try { const wu = cv.toDataURL('image/webp', 0.85);
+      if (wu && wu.indexOf('data:image/webp') === 0) b64 = wu.split(',').pop();
+    } catch (e) {}
+    if (!b64) b64 = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
+    cv.width = cv.height = 0;
+    return b64 ? { size: b64.length, _preB64: b64, _isCropped: true } : null;
   }
 
   async function openLiveCamera(fallbackInput){
@@ -1415,19 +1424,21 @@ const _fastShot = () => {
           }
           if (sw < 100 || sh < 100) { sx = 0; sy = 0; sw = vw; sh = vh; }
           let dw = Math.round(sw), dh = Math.round(sh);
-          if (dw > 896 || dh > 896) {
-            if (dw > dh) { dh = Math.round(dh * 896 / dw); dw = 896; }
-            else { dw = Math.round(dw * 896 / dh); dh = 896; }
+          if (dw > 1280 || dh > 1280) {
+            if (dw > dh) { dh = Math.round(dh * 1280 / dw); dw = 1280; }
+            else { dw = Math.round(dw * 1280 / dh); dh = 1280; }
           }
           const cv = document.createElement('canvas'); cv.width = dw; cv.height = dh;
           const ctx = cv.getContext('2d');
+          ctx.filter = 'grayscale(1) contrast(1.18)';
           ctx.drawImage(vid, sx, sy, sw, sh, 0, 0, dw, dh);
+          ctx.filter = 'none';
           let out = '';
           try {
-            const wu = cv.toDataURL('image/webp', 0.76);
+            const wu = cv.toDataURL('image/webp', 0.85);
             if (wu && wu.indexOf('data:image/webp') === 0) out = wu.split(',').pop();
           } catch (e) {}
-          if (!out) out = cv.toDataURL('image/jpeg', 0.76).split(',').pop();
+          if (!out) out = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
           cv.width = cv.height = 0;
           return out;
         } catch (e) { return ''; }
