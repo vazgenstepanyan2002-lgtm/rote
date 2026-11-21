@@ -145,6 +145,44 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
    return x;
   }).sort((a,b)=>a.m<b.m?1:a.m>b.m?-1:0);
  }
+ function downloadCsv(filename,rows){
+  if(!rows||!rows.length){toast('Нет данных для выгрузки',true);return}
+  const csvContent='\uFEFF'+rows.map(r=>r.map(v=>{
+   const s=String(v===null||v===undefined?'':v).replace(/"/g,'""');
+   return /[",\n\r;]/.test(s)?('"'+s+'"'):s;
+  }).join(';')).join('\r\n');
+  const blob=new Blob([csvContent],{type:'text/csv;charset=utf-8;'});
+  const link=document.createElement('a');
+  link.href=URL.createObjectURL(blob);
+  link.download=filename;
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(()=>{link.remove();URL.revokeObjectURL(link.href)},500);
+  toast('Таблица Excel скачана');
+ }
+ function exportCrewMonthCsv(title,items,totQty,totSum){
+  if(!items||!items.length){toast('Нет данных для выгрузки',true);return}
+  const header=['Экипаж / Водители','Количество (шт)','Сумма (֏)'];
+  const data=items.map(it=>[it.name,it.qty,it.sum]);
+  data.push(['ИТОГО',totQty,totSum]);
+  const fn=('EuroBaza_'+title.replace(/[\s\/:*?"<>|]+/g,'_')+'.csv');
+  downloadCsv(fn,[header,...data]);
+ }
+ function exportCarDetailCsv(code,title,rows,totQty,totSum){
+  if(!rows||!rows.length){toast('Нет данных для выгрузки',true);return}
+  const header=['Категория','Позиция мебели','Зона','Кол-во (шт)','Тариф (֏)','Сумма (֏)'];
+  const data=[];
+  rows.forEach(c=>{
+   (c.items||[]).forEach(it=>{
+    (it.parts||[]).forEach(z=>{
+     data.push([c.name,it.name,z.l||'Шт',+z.n||0,+z.p||0,+z.v||0]);
+    });
+   });
+  });
+  data.push(['ИТОГО','','',totQty,'',totSum]);
+  const fn=('EuroBaza_Экипаж_'+code+'_'+title.replace(/[\s\/:*?"<>|]+/g,'_')+'.csv');
+  downloadCsv(fn,[header,...data]);
+ }
  function copyReport(title,items,totQty,totSum){
   if(!items||!items.length){toast('Нет данных для копирования',true);return}
   const lines=['📋 Ведомость EuroBaza — '+title,''];
@@ -381,9 +419,14 @@ function openAdmSumModal(code,subKey,openDocs){
  const subHd=c.crew.length?"Экипаж: "+c.crew.join(", "):"Экипаж не назначен";
  const ov=document.createElement("div");ov.id="admSumOv";ov.className="ov";
  const delH=(!isCur&&!isSubAdm())?"<button type=\"button\" id=\"admSumDel\" class=\"ach-clr\" style=\"margin-right:6px\">🗑️ Удалить</button>":"";
- ov.innerHTML="<div class=\"dlg ach-box\" style=\"max-width:440px;height:88vh\"><div class=\"ach-hd\"><div class=\"ach-hd-l\"><div class=\"ach-hd-ic\">🚚</div><div><b>Экипаж "+esc(code)+"</b><small>"+esc(subHd)+"</small></div></div><div class=\"ach-acts\">"+delH+"<button type=\"button\" id=\"admSumX\" class=\"ach-x\">✕</button></div></div><div id=\"admSumB\" class=\"ach-list\" style=\"background-image:none;padding:12px;display:block\">"+build(openDocs)+"</div></div>";
+ const expH="<button type=\"button\" id=\"admSumCsv\" class=\"ach-clr\" style=\"background:rgba(16,185,129,.16);border-color:rgba(52,211,153,.4);color:#6ee7b7;margin-right:6px\">📥 Excel</button>";
+ ov.innerHTML="<div class=\"dlg ach-box\" style=\"max-width:440px;height:88vh\"><div class=\"ach-hd\"><div class=\"ach-hd-l\"><div class=\"ach-hd-ic\">🚚</div><div><b>Экипаж "+esc(code)+"</b><small>"+esc(subHd)+"</small></div></div><div class=\"ach-acts\">"+expH+delH+"<button type=\"button\" id=\"admSumX\" class=\"ach-x\">✕</button></div></div><div id=\"admSumB\" class=\"ach-list\" style=\"background-image:none;padding:12px;display:block\">"+build(openDocs)+"</div></div>";
  document.body.appendChild(ov);
  const close=()=>{ov.classList.remove("show");setTimeout(()=>ov.remove(),180)};
+ if(g("admSumCsv"))g("admSumCsv").onclick=()=>{
+  const cNow=parseCar(code),rowsNow=isCur?cNow.rows:(rec.rows||[]),totSNow=isCur?cNow.sum:(+rec.sum||0),totQNow=isCur?cNow.qty:(+rec.qty||0);
+  exportCarDetailCsv(code,title,rowsNow,totQNow,totSNow);
+ };
  if(g("admSumDel"))g("admSumDel").onclick=async()=>{if(!await ask("Удалить сохранённый итог за «"+title+"» у экипажа "+code+"?",{title:"Удаление итога",okText:"Удалить",danger:true}))return;try{await db.ref("cars/"+code+"/hist/"+subKey).remove();close();toast("Итог удалён")}catch(e){toast("Ошибка удаления",true)}};
  g("admSumX").onclick=close;ov.onclick=e=>{if(e.target===ov)close()};
  const root=g("admSumB");let flt="all",q="";
@@ -438,11 +481,11 @@ function drawTotals(){
  if(SEL==="all"){
   const curList=CL.filter(c=>c.qty>0||c.sum>0||c.crew.length>0).sort((a,b)=>b.sum-a.sum);
   const sum=curList.reduce((a,x)=>a+x.sum,0),qty=curList.reduce((a,x)=>a+x.qty,0);
-  h+="<div class=\"sum-dash\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">Текущий месяц · по экипажам</div><div class=\"sum-val\">"+fm(sum)+" <span>"+CUR+"</span></div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b>"+fm(qty)+"</b><span>штук</span></div><div class=\"sum-kpi\"><b>"+curList.length+"</b><span>экипажей</span></div></div></div>"+(curList.length?"<button type=\"button\" class=\"cp-btn\" style=\"margin-top:12px\" data-act=\"cpcur\">📄 Скопировать ведомость по экипажам</button>":"")+"</div>";
+  h+="<div class=\"sum-dash\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">Текущий месяц · по экипажам</div><div class=\"sum-val\">"+fm(sum)+" <span>"+CUR+"</span></div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b>"+fm(qty)+"</b><span>штук</span></div><div class=\"sum-kpi\"><b>"+curList.length+"</b><span>экипажей</span></div></div></div>"+(curList.length?"<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px\"><button type=\"button\" class=\"cp-btn\" style=\"margin-top:0\" data-act=\"cpcur\">📄 Скопировать</button><button type=\"button\" class=\"cp-btn\" style=\"margin-top:0;background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.4);color:#7dd3fc\" data-act=\"csvcur\">📥 Скачать Excel</button></div>":"")+"</div>";
   if(curList.length){h+="<div class=\"sec\">Экипажи в текущем месяце ("+curList.length+")</div>"+curList.map(x=>{const dc=Object.keys((CARS[x.code]&&CARS[x.code].docs)||{}).length;return"<div class=\"st-row\" data-act=\"open-car-sum\" data-id=\""+esc(x.code)+"\" data-sub=\"cur\"><div style=\"display:flex;align-items:center;gap:10px;min-width:0\">"+badge(x.code)+"<div style=\"min-width:0\"><div class=\"st-nm\">Экипаж "+esc(x.code)+"</div><div class=\"st-qt\">"+fm(x.qty)+" шт"+(dc?" · 🧾 "+dc:"")+(x.crew.length?" · "+esc(x.crew.join(", ")):"")+"</div></div></div><div class=\"rv\" style=\"font-size:13.5px\">"+money(x.sum)+" ›</div></div>"}).join("")}
   const ms=aggCarMonths(CL);h+="<div class=\"sec\">Архив сохранённых месяцев ("+ms.length+")</div>";
   if(!ms.length)h+="<div class=\"mut box\">Сохранённых итогов по экипажам пока нет.</div>";
-  h+=ms.map(x=>{const key="all|"+x.m,op=!!OPEN[key];return"<div class=\"mr col\" data-act=\"month\" data-key=\""+esc(key)+"\"><div class=\"mrt\"><div class=\"rm\"><div class=\"rt\">📅 "+esc(monthName(x.m))+"</div><div class=\"rs\">"+fm(x.qty)+" шт · машин: "+x.cars.length+"</div></div><div class=\"rv\">"+money(x.sum)+"</div><span class=\"ar\">"+(op?"▾":"▸")+"</span></div>"+(op?"<div class=\"dt\" onclick=\"event.stopPropagation()\">"+x.cars.map(cv=>"<div class=\"st-row\" data-act=\"open-car-month\" data-id=\""+esc(cv.code)+"\" data-m=\""+esc(x.m)+"\"><div style=\"display:flex;align-items:center;gap:10px;min-width:0\">"+badge(cv.code)+"<div style=\"min-width:0\"><div class=\"st-nm\">Экипаж "+esc(cv.code)+"</div><div class=\"st-qt\">"+fm(cv.qty)+" шт"+(cv.crew&&cv.crew.length?" · "+esc(cv.crew.join(", ")):"")+"</div></div></div><div class=\"rv\" style=\"font-size:13.5px\">"+money(cv.sum)+" ›</div></div>").join("")+"<button type=\"button\" class=\"cp-btn\" data-act=\"cpmonth\" data-m=\""+esc(x.m)+"\">📄 Скопировать ведомость за "+esc(monthName(x.m))+"</button></div>":"")+"</div>"}).join("");
+  h+=ms.map(x=>{const key="all|"+x.m,op=!!OPEN[key];return"<div class=\"mr col\" data-act=\"month\" data-key=\""+esc(key)+"\"><div class=\"mrt\"><div class=\"rm\"><div class=\"rt\">📅 "+esc(monthName(x.m))+"</div><div class=\"rs\">"+fm(x.qty)+" шт · машин: "+x.cars.length+"</div></div><div class=\"rv\">"+money(x.sum)+"</div><span class=\"ar\">"+(op?"▾":"▸")+"</span></div>"+(op?"<div class=\"dt\" onclick=\"event.stopPropagation()\">"+x.cars.map(cv=>"<div class=\"st-row\" data-act=\"open-car-month\" data-id=\""+esc(cv.code)+"\" data-m=\""+esc(x.m)+"\"><div style=\"display:flex;align-items:center;gap:10px;min-width:0\">"+badge(cv.code)+"<div style=\"min-width:0\"><div class=\"st-nm\">Экипаж "+esc(cv.code)+"</div><div class=\"st-qt\">"+fm(cv.qty)+" шт"+(cv.crew&&cv.crew.length?" · "+esc(cv.crew.join(", ")):"")+"</div></div></div><div class=\"rv\" style=\"font-size:13.5px\">"+money(cv.sum)+" ›</div></div>").join("")+"<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px\"><button type=\"button\" class=\"cp-btn\" style=\"margin-top:0\" data-act=\"cpmonth\" data-m=\""+esc(x.m)+"\">📄 Скопировать</button><button type=\"button\" class=\"cp-btn\" style=\"margin-top:0;background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.4);color:#7dd3fc\" data-act=\"csvmonth\" data-m=\""+esc(x.m)+"\">📥 Скачать Excel</button></div></div>":"")+"</div>"}).join("");
  }else{
   const c=parseCar(SEL);
   h+="<div class=\"sum-dash sum-dash-btn\" data-act=\"subopen\" data-sub=\"cur\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">Текущий месяц · открыть ›</div><div class=\"sum-val\">"+fm(c.sum)+" <span>"+CUR+"</span></div><div style=\"font-size:12px;color:#8b9bb4;margin-top:4px\">"+(c.crew.length?"Экипаж: "+esc(c.crew.join(", ")):"Экипаж не назначен")+"</div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b>"+fm(c.qty)+"</b><span>штук</span></div></div></div></div><div class=\"sec\">Сохранённые итоги</div>";
@@ -787,7 +830,9 @@ function openSelectModal(){
   else if(a==='open-car-month'){e.stopPropagation();const cv=parseCar(b.dataset.id);const hk=Object.keys(cv.hist).find(k=>cv.hist[k]&&cv.hist[k].m===b.dataset.m);if(hk)openAdmSumModal(b.dataset.id,hk);else{SEL=b.dataset.id;draw()}}
   else if(a==='opensel'){e.stopPropagation();openSelectModal()}
   else if(a==='cpcur'){e.stopPropagation();const curList=allCars().filter(c=>c.qty>0||c.sum>0).map(c=>({name:'Экипаж '+c.code+(c.crew.length?' ('+c.crew.join(', ')+')':''),sum:c.sum,qty:c.qty})).sort((a,b)=>b.sum-a.sum);copyReport('Текущий месяц (по экипажам)',curList,curList.reduce((a,x)=>a+x.qty,0),curList.reduce((a,x)=>a+x.sum,0))}
+  else if(a==='csvcur'){e.stopPropagation();const curList=allCars().filter(c=>c.qty>0||c.sum>0).map(c=>({name:'Экипаж '+c.code+(c.crew.length?' ('+c.crew.join(', ')+')':''),sum:c.sum,qty:c.qty})).sort((a,b)=>b.sum-a.sum);exportCrewMonthCsv('Текущий_месяц_по_экипажам',curList,curList.reduce((a,x)=>a+x.qty,0),curList.reduce((a,x)=>a+x.sum,0))}
   else if(a==='cpmonth'){e.stopPropagation();const mObj=aggCarMonths(allCars()).find(x=>x.m===b.dataset.m);if(mObj)copyReport(monthName(mObj.m),mObj.cars,mObj.qty,mObj.sum)}
+  else if(a==='csvmonth'){e.stopPropagation();const mObj=aggCarMonths(allCars()).find(x=>x.m===b.dataset.m);if(mObj)exportCrewMonthCsv(monthName(mObj.m),mObj.cars,mObj.qty,mObj.sum)}
   else if(a==='ocr-ok'){e.stopPropagation();const uid=b.dataset.uid,k=b.dataset.k,cd=b.dataset.code;if(!uid||!k||!cd)return;try{await db.ref('config/ocrMap/'+k).set(cd);await db.ref('users/'+uid+'/ocrPending/'+k).remove();toast('Правило добавлено для всех')}catch(err){toast('Ошибка сохранения',true)}}
   else if(a==='ocr-add'){e.stopPropagation();const raw=await askInput('Новое правило OCR','Введите точное название товара из накладной','','Например: Ննջասենյակ կ. Մոնա Լիզա 40');if(!raw)return;const fk=raw.toLowerCase().replace(/[\"'«»().,]/g,' ').replace(/\s+/g,' ').trim().replace(/[.#$\[\]\/]+/g,'_').slice(0,120);if(!fk){toast('Некорректное название',true);return}openOcrRuleModal(fk,OCR_MAP[fk]||'')}
   else if(a==='ocr-edit'){e.stopPropagation();const k=b.dataset.k;if(k)openOcrRuleModal(k,OCR_MAP[k]||'')}

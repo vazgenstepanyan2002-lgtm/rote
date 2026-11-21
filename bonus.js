@@ -490,6 +490,46 @@
   o.classList.remove('open');
   try{if(history.state&&history.state.bs){skipPop++;setTimeout(()=>history.back(),0)}}catch(e){}
  }
+ function downloadBonusCsv(filename,rows){
+  if(!rows||!rows.length){tst('Нет данных для выгрузки','err');return}
+  const csvContent='\uFEFF'+rows.map(r=>r.map(v=>{
+   const s=String(v===null||v===undefined?'':v).replace(/"/g,'""');
+   return /[",\n\r;]/.test(s)?('"'+s+'"'):s;
+  }).join(';')).join('\r\n');
+  const blob=new Blob([csvContent],{type:'text/csv;charset=utf-8;'});
+  const link=document.createElement('a');
+  link.href=URL.createObjectURL(blob);
+  link.download=filename;
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(()=>{link.remove();URL.revokeObjectURL(link.href)},500);
+  tst('Таблица Excel скачана');
+ }
+ function exportBonusMonthCsv(){
+  const isCur=!CUR_VIEW||CUR_VIEW.k==='cur';
+  const rows=isCur?sumRows():(CUR_VIEW.rows||[]);
+  if(!rows.length){tst('Пока ничего не выбрано','err');return}
+  const L=curLang();
+  const H={
+   ru:['Категория','Позиция мебели','Зона','Кол-во (шт)','Тариф (֏)','Сумма (֏)','ИТОГО'],
+   hy:['Կատեգորիա','Ապրանքի անվանում','Գոտի','Քանակ (հատ)','Սակագին (֏)','Գումար (֏)','ԸՆԴԱՄԵՆԸ'],
+   en:['Category','Furniture item','Zone','Quantity (pcs)','Rate (֏)','Amount (֏)','TOTAL']
+  }[L]||['Категория','Позиция мебели','Зона','Кол-во (шт)','Тариф (֏)','Сумма (֏)','ИТОГО'];
+  const header=[H[0],H[1],H[2],H[3],H[4],H[5]];
+  const data=[];let totQ=0,totS=0;
+  rows.forEach(c=>{
+   (c.items||[]).forEach(it=>{
+    (it.parts||[]).forEach(z=>{
+     const zn=z.l==='Район'?(L==='hy'?'Մարզ':(L==='en'?'Region':'Район')):(z.l==='Город'?(L==='hy'?'Քաղաք':(L==='en'?'City':'Город')):(L==='hy'?'Հատ':(L==='en'?'Pcs':'Шт')));
+     totQ+=+z.n||0;totS+=+z.v||0;
+     data.push([furnitureName(c.name),furnitureName(it.name),zn,+z.n||0,+z.p||0,+z.v||0]);
+    });
+   });
+  });
+  data.push([H[6],'','',totQ,'',totS]);
+  const fn=('EuroBaza_'+(CAR_CODE||'CREW')+'_'+(isCur?'Текущий_месяц':CUR_VIEW.title).replace(/[\s\/:*?"<>|]+/g,'_')+'.csv');
+  downloadBonusCsv(fn,[header,...data]);
+ }
  function copySum(){
   const isCur=!CUR_VIEW||CUR_VIEW.k==='cur';
   const rows=isCur?sumRows():(CUR_VIEW.rows||[]);
@@ -535,12 +575,12 @@
    +'<div class="bn-btns"><button id="bnSumB">📋 Итоги</button><button id="bnRst">🔄 Обнулить</button></div></div></div>'
    +'<div class="bn-ov" id="bnSm"><div class="mdl-b bn-b"><div class="bn-hd"><div class="bn-hd-l"><div class="bn-hd-ic bn-hd-ic2"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h6"/></svg></div><div><div class="bn-hd-t">Итоги</div><div class="bn-hd-s">Сводка и история начислений</div></div></div><button type="button" class="bn-x-btn" id="bnSmX" aria-label="Закрыть">✕</button></div><div id="bnSmList"></div>'
    +'<div class="bn-ft"><div class="bn-tr"><span>Общая сумма</span><b id="bnSmTot">0</b></div><div class="bn-tr bn-sm"><span>Всего штук: <b id="bnSmQty">0</b></span></div>'
-   +'<div class="bn-btns"><button id="bnSave">💾 Сохранить</button><button id="bnSmCp">📄 Скопировать</button></div></div></div></div>';
+   +'<div class="bn-btns"><button id="bnSave">💾 Сохранить</button><button id="bnSmCp">📄 Скопировать</button><button id="bnSmCsv" style="background:linear-gradient(135deg,rgba(56,189,248,.22),rgba(14,165,233,.14))!important;color:#7dd3fc!important;border:1px solid rgba(56,189,248,.42)!important">📥 Excel</button></div></div></div></div>';
   document.body.appendChild(m);
   m.onclick=e=>{if(e.target===m)closeBon()};
   g('bnX').onclick=()=>closeBon();if(g('bnDocsBtn'))g('bnDocsBtn').onclick=openDocsLog;if(g('bnCamBtn'))g('bnCamBtn').onclick=()=>{if(!CAR_CODE){showNoCrewAlert();return}if(window.openBonusScanner)window.openBonusScanner()};
   g('bnRst').onclick=resetQty;
-  g('bnSumB').onclick=openSum;g('bnSmList').addEventListener('click',e=>{const r=e.target.closest('[data-m]');if(r)showMonth(r.dataset.m)});g('bnSmX').onclick=()=>closeSum();g('bnSmCp').onclick=copySum;g('bnSave').onclick=saveMonth;g('bnSm').onclick=e=>{if(e.target===g('bnSm'))closeSum()};
+  g('bnSumB').onclick=openSum;g('bnSmList').addEventListener('click',e=>{const r=e.target.closest('[data-m]');if(r)showMonth(r.dataset.m)});g('bnSmX').onclick=()=>closeSum();g('bnSmCp').onclick=copySum;if(g('bnSmCsv'))g('bnSmCsv').onclick=exportBonusMonthCsv;g('bnSave').onclick=saveMonth;g('bnSm').onclick=e=>{if(e.target===g('bnSm'))closeSum()};
   const l=g('bnList');
   l.addEventListener('input',onInput);
   l.addEventListener('click',onClick);

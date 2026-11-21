@@ -650,6 +650,7 @@ body.dock-hide .fab{
 #bnMdl .bn-btns #bnSumB,#bnMdl .bn-btns #bnSave{background:linear-gradient(135deg,rgba(16,185,129,.26),rgba(5,150,105,.18))!important;color:#6ee7b7!important;border:1px solid rgba(52,211,153,.45)!important;box-shadow:0 6px 16px rgba(16,185,129,.16)!important}
 #bnMdl .bn-btns #bnRst,#bnMdl .bn-btns #bnSave.bn-del{background:linear-gradient(135deg,rgba(239,68,68,.24),rgba(185,28,28,.16))!important;color:#fca5a5!important;border:1px solid rgba(248,113,113,.42)!important;box-shadow:0 6px 16px rgba(239,68,68,.14)!important}
 #bnMdl .bn-btns #bnSmCp{background:linear-gradient(135deg,rgba(56,189,248,.24),rgba(14,165,233,.16))!important;color:#7dd3fc!important;border:1px solid rgba(56,189,248,.42)!important}
+#bnMdl .bn-btns #bnSmCsv{background:linear-gradient(135deg,rgba(167,139,250,.24),rgba(139,92,246,.16))!important;color:#c4b5fd!important;border:1px solid rgba(167,139,250,.42)!important}
 .bn-ov{background:rgba(4,7,13,.84)!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;padding:12px!important}
 
 /* PT-ADD-MODAL */
