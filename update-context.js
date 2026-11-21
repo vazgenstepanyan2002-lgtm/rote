@@ -52,8 +52,6 @@ if (fs.existsSync(ctxPath)) {
 fs.writeFileSync(ctxPath, head + tail.trim() + '\n\n' + codeSec.trim() + '\n', 'utf8');
 
 const skelPath = aiDir + '/EuroBaza_SKELETON.md';
-const partsDir = aiDir + '/EuroBaza_parts';
-if (!fs.existsSync(partsDir)) fs.mkdirSync(partsDir, { recursive: true });
 
 const SK_SKIP = new Set(['leaflet.min.js', 'leaflet.min.css']);
 const SK_KW = new Set(['if', 'for', 'while', 'switch', 'catch', 'with', 'return', 'typeof', 'else', 'new']);
@@ -125,8 +123,6 @@ for (const f of files) {
     skCode.push('### ' + f + ' (' + kb + ' КБ) — сторонняя библиотека');
     continue;
   }
-
-  fs.writeFileSync(partsDir + '/' + f, body, 'utf8');
 
   if (low.endsWith('.json')) {
     let jTxt = body;
