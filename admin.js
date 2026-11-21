@@ -959,9 +959,17 @@ function openSelectModal(){
    new Notification(title,{body:body,icon:'icon-192.png',tag:opts.tag||'eurobaza-adm-chat'});
   }catch(e){}
  }
+ function getDmSeenDlvStorageKey(){
+  return isSubAdm() ? 'SUBADM_DM_SEEN_DLV' : 'ADM_DM_SEEN_DLV';
+ }
+ function getDmSeenDlv(){
+  try{ return JSON.parse(localStorage.getItem(getDmSeenDlvStorageKey())||'{}'); }catch(e){ return {}; }
+ }
+ function setDmSeenDlv(obj){
+  try{ localStorage.setItem(getDmSeenDlvStorageKey(), JSON.stringify(obj)); }catch(e){}
+ }
  let _admDmInit=false,
-     _admDmSeenAdm=(()=>{try{return JSON.parse(localStorage.getItem('ADM_DM_SEEN_ADM')||localStorage.getItem('ADM_DM_SEEN')||'{}')}catch(e){return{}}})(),
-     _admDmSeenDlv=(()=>{try{return JSON.parse(localStorage.getItem('ADM_DM_SEEN_DLV')||localStorage.getItem('ADM_DM_SEEN')||'{}')}catch(e){return{}}})(),
+     _admDmSeenAdm=(()=>{try{return JSON.parse(localStorage.getItem('ADM_DM_SEEN_ADM')||'{}')}catch(e){return{}}})(),
      _admDmNotif=(()=>{try{return JSON.parse(localStorage.getItem('ADM_DM_NOTIF')||'{}')}catch(e){return{}}})();
  function getDmList(uid, channel){
   const obj=DMS[uid]||{};
@@ -976,7 +984,7 @@ function openSelectModal(){
   return lAdm.filter(m=>(+m.t||0)>seen&&!m.adm).length;
  }
  function dmUnreadDlv(uid){
-  const seen=+(_admDmSeenDlv[uid]||0);
+  const seen=+(getDmSeenDlv()[uid]||0);
   const lDlv=getDmList(uid,'dlv');
   return lDlv.filter(m=>(+m.t||0)>seen&&!m.adm).length;
  }
@@ -993,8 +1001,9 @@ function openSelectModal(){
   const mx=Math.max.apply(null,list.map(m=>+m.t||0));
   if(mx>0){
    if(targetCh === 'dlv' || isSubAdm()){
-    _admDmSeenDlv[uid]=mx;
-    try{localStorage.setItem('ADM_DM_SEEN_DLV',JSON.stringify(_admDmSeenDlv))}catch(e){}
+    const curDlv = getDmSeenDlv();
+    curDlv[uid]=mx;
+    setDmSeenDlv(curDlv);
    } else {
     _admDmSeenAdm[uid]=mx;
     try{localStorage.setItem('ADM_DM_SEEN_ADM',JSON.stringify(_admDmSeenAdm))}catch(e){}
@@ -1145,8 +1154,8 @@ function openSelectModal(){
   
   const tabsHtml=!isSubAdm()
    ? '<div style="display:flex;gap:6px;padding:8px 14px 4px;background:#131c2c;border-bottom:1px solid rgba(255,255,255,.08)">'
-     + '<button type="button" id="admDmTabAdm" style="position:relative;flex:1;padding:6px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(DM_TAB==='adm'?'rgba(250,204,21,.5)':'transparent')+';background:'+(DM_TAB==='adm'?'rgba(250,204,21,.18)':'transparent')+';color:'+(DM_TAB==='adm'?'#fde047':'#94a3b8')+';cursor:pointer">👑 Чат с Админом<span id="admDmTabAdmBdg" class="dock-bdg" style="top:2px;right:4px" hidden>0</span></button>'
-     + '<button type="button" id="admDmTabDlv" style="position:relative;flex:1;padding:6px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(DM_TAB==='dlv'?'rgba(56,189,248,.5)':'transparent')+';background:'+(DM_TAB==='dlv'?'rgba(56,189,248,.18)':'transparent')+';color:'+(DM_TAB==='dlv'?'#7dd3fc':'#94a3b8')+';cursor:pointer">🚚 Чат с Доставкой<span id="admDmTabDlvBdg" class="dock-bdg" style="top:2px;right:4px" hidden>0</span></button>'
+     + '<button type="button" id="admDmTabAdm" style="display:inline-flex;align-items:center;justify-content:center;flex:1;padding:6px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(DM_TAB==='adm'?'rgba(250,204,21,.5)':'transparent')+';background:'+(DM_TAB==='adm'?'rgba(250,204,21,.18)':'transparent')+';color:'+(DM_TAB==='adm'?'#fde047':'#94a3b8')+';cursor:pointer"><span>👑 Чат с Админом</span><span id="admDmTabAdmBdg" class="dm-tab-bdg" hidden>0</span></button>'
+     + '<button type="button" id="admDmTabDlv" style="display:inline-flex;align-items:center;justify-content:center;flex:1;padding:6px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(DM_TAB==='dlv'?'rgba(56,189,248,.5)':'transparent')+';background:'+(DM_TAB==='dlv'?'rgba(56,189,248,.18)':'transparent')+';color:'+(DM_TAB==='dlv'?'#7dd3fc':'#94a3b8')+';cursor:pointer"><span>🚚 Чат с Доставкой</span><span id="admDmTabDlvBdg" class="dm-tab-bdg" hidden>0</span></button>'
      + '</div>'
    : '';
 

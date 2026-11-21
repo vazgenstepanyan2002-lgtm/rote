@@ -321,7 +321,7 @@
       else if(uDlv > 0) _dmActiveCh = "dlv";
       else _dmActiveCh = "adm";
     }
-    _dmOpen = true; markDmSeen(_dmActiveCh);
+    _dmOpen = true;
     let m = g("dmMdl");
     if (m) m.remove();
     m = document.createElement("div"); m.id = "dmMdl"; m.className = "mdl";
@@ -333,8 +333,8 @@
       + '  <button type="button" class="ch-x" id="dmClose" aria-label="Закрыть">✕</button>'
       + '</div>'
       + '<div style="display:flex;gap:6px;padding:6px 14px 2px;background:rgba(15,23,36,.9);border-bottom:1px solid rgba(255,255,255,.08)">'
-      + '  <button type="button" id="dmTabAdm" style="position:relative;flex:1;padding:7px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(isDlv?'transparent':'rgba(250,204,21,.5)')+';background:'+(isDlv?'transparent':'rgba(250,204,21,.18)')+';color:'+(isDlv?'#94a3b8':'#fde047')+';cursor:pointer">👑 Чат с Админом<span id="dmTabAdmBdg" class="dock-bdg" style="top:2px;right:4px" hidden>0</span></button>'
-      + '  <button type="button" id="dmTabDlv" style="position:relative;flex:1;padding:7px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(isDlv?'rgba(56,189,248,.5)':'transparent')+';background:'+(isDlv?'rgba(56,189,248,.18)':'transparent')+';color:'+(isDlv?'#7dd3fc':'#94a3b8')+';cursor:pointer">🚚 Чат с Доставкой<span id="dmTabDlvBdg" class="dock-bdg" style="top:2px;right:4px" hidden>0</span></button>'
+      + '  <button type="button" id="dmTabAdm" style="display:inline-flex;align-items:center;justify-content:center;flex:1;padding:7px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(isDlv?'transparent':'rgba(250,204,21,.5)')+';background:'+(isDlv?'transparent':'rgba(250,204,21,.18)')+';color:'+(isDlv?'#94a3b8':'#fde047')+';cursor:pointer"><span>👑 Чат с Админом</span><span id="dmTabAdmBdg" class="dm-tab-bdg" hidden>0</span></button>'
+      + '  <button type="button" id="dmTabDlv" style="display:inline-flex;align-items:center;justify-content:center;flex:1;padding:7px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(isDlv?'rgba(56,189,248,.5)':'transparent')+';background:'+(isDlv?'rgba(56,189,248,.18)':'transparent')+';color:'+(isDlv?'#7dd3fc':'#94a3b8')+';cursor:pointer"><span>🚚 Чат с Доставкой</span><span id="dmTabDlvBdg" class="dm-tab-bdg" hidden>0</span></button>'
       + '</div>'
       + '<div id="dmMsgs" class="ch-list"></div>'
       + '<div class="ch-bar">'
@@ -383,7 +383,9 @@
     snd.onclick = sendMsg;
     inp.onkeydown = e => { if (e.key === "Enter"){ e.preventDefault(); sendMsg(); } };
 
-    m.classList.add("open"); renderDmRows();
+    m.classList.add("open");
+    renderDmRows();
+    markDmSeen(_dmActiveCh);
   }
   window.openDmChat = openDmChat;
   function bindDm(){

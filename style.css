@@ -1130,6 +1130,8 @@ ol#l li.done .done-btn{background:#10b981;border-color:#10b981;color:#042414}
 #ft{display:none!important}
 .dock-bdg{background:#ef4444;color:#fff;font-size:10.5px;font-weight:800;padding:1px 6px;border-radius:99px;line-height:1.25;flex-shrink:0}
 .dock-bdg[hidden]{display:none!important}
+.dm-tab-bdg{display:inline-flex;align-items:center;justify-content:center;background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:1px 6px;border-radius:99px;line-height:1.2;margin-left:6px;box-shadow:0 2px 6px rgba(0,0,0,.4);vertical-align:middle}
+.dm-tab-bdg[hidden]{display:none!important}
 .sh-ver{text-align:center;font-size:11.5px;color:#64748b;margin-top:12px}
 .l-tog{width:100%!important;height:40px!important;margin:12px 0 0!important;padding:0 14px!important;border-radius:14px!important;background:rgba(18,25,36,.72)!important;border:1px solid rgba(255,255,255,.14)!important;color:#cbd5e1!important;font-size:13.5px!important;font-weight:700!important;display:flex!important;align-items:center;justify-content:space-between;box-shadow:none!important}
 ol#l.col,#clrDoneBtn.col{display:none!important}
