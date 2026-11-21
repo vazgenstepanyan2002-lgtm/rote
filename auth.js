@@ -295,6 +295,7 @@
     }
     m.classList.add("open"); renderDmRows();
   }
+  window.openDmChat = openDmChat;
   function bindDm(){
     const myUid = ls("ADM_UID") || "";
     if (_dmBound || !myUid || !window.firebase || !firebase.apps || !firebase.apps.length) return;

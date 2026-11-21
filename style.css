@@ -1015,6 +1015,22 @@ body:has(.cm.open)>*:not(.cm):not(#toast):not(#busy){pointer-events:none!importa
 #chatMdl .ch-bar input,#dmMdl .ch-bar input{height:42px!important;border-radius:21px!important;background:#0b111d!important;border:1px solid rgba(255,255,255,.1)!important}
 #chatMdl .ch-bar button,#dmMdl .ch-bar button{width:38px!important;height:38px!important;background:#10b981!important;color:#fff!important;box-shadow:none!important}
 
+/* NO-CREW-ALERT-MODAL */
+#noCrewMdl{background:rgba(4,7,13,.86)!important;backdrop-filter:blur(14px)!important;-webkit-backdrop-filter:blur(14px)!important;z-index:230!important}
+.nc-box{position:relative;max-width:376px!important;padding:24px 18px 18px!important;border-radius:28px!important;background:linear-gradient(180deg,rgba(24,31,48,.98) 0%,rgba(10,15,25,.99) 100%)!important;border:1px solid rgba(251,191,36,.32)!important;box-shadow:0 30px 70px rgba(0,0,0,.88),0 0 48px rgba(245,158,11,.16)!important;overflow:hidden;text-align:center!important}
+.nc-box::before{content:"";position:absolute;top:0;left:28px;right:28px;height:1px;background:linear-gradient(90deg,transparent,rgba(251,191,36,.85),rgba(245,158,11,.6),transparent)}
+.nc-ring{width:62px;height:62px;margin:0 auto 12px;border-radius:20px;padding:1.5px;background:linear-gradient(135deg,rgba(251,191,36,.95),rgba(245,158,11,.7),rgba(255,255,255,.12));box-shadow:0 12px 28px rgba(245,158,11,.24)}
+.nc-in{width:100%;height:100%;border-radius:18.5px;background:#0f1422;display:flex;align-items:center;justify-content:center;color:#fbbf24}
+.nc-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:99px;background:rgba(245,158,11,.14);border:1px solid rgba(251,191,36,.38);color:#fde047;font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px}
+.nc-pill i{width:6px;height:6px;border-radius:50%;background:#f59e0b;box-shadow:0 0 8px #f59e0b}
+.nc-t{font-size:19.5px;font-weight:800;color:#fff;letter-spacing:-.25px;line-height:1.22;margin-bottom:8px}
+.nc-s{font-size:13.5px;color:#94a3b8;line-height:1.45;margin-bottom:18px;text-wrap:pretty}
+.nc-acts{display:grid;grid-template-columns:1.2fr 1fr;gap:9px}
+.nc-acts button{height:48px!important;margin:0!important;padding:0 12px!important;border-radius:14px!important;font-size:14px!important;font-weight:700!important;display:flex!important;align-items:center;justify-content:center;gap:6px;transition:.14s}
+.nc-acts button:active{transform:scale(.97)}
+.nc-chat{border:none!important;color:#042414!important;background:linear-gradient(135deg,#6ee7b7 0%,#10b981 55%,#059669 100%)!important;box-shadow:0 10px 24px rgba(16,185,129,.28),inset 0 1px 0 rgba(255,255,255,.42)!important}
+.nc-ok{background:rgba(255,255,255,.07)!important;border:1px solid rgba(255,255,255,.14)!important;color:#cbd5e1!important;box-shadow:none!important}
+
 /* KENTRON-ALERT-MODAL */
 #kzMdl{background:rgba(4,7,13,.84)!important;backdrop-filter:blur(14px)!important;-webkit-backdrop-filter:blur(14px)!important;z-index:220!important}
 .kz-box{position:relative;max-width:376px!important;padding:24px 18px 18px!important;border-radius:28px!important;background:linear-gradient(180deg,rgba(24,31,48,.98) 0%,rgba(10,15,25,.99) 100%)!important;border:1px solid rgba(248,113,113,.28)!important;box-shadow:0 30px 70px rgba(0,0,0,.88),0 0 48px rgba(239,68,68,.16)!important;overflow:hidden;text-align:center!important}

@@ -121,7 +121,8 @@
   } else if (CAR_CODE) {
    sub.innerHTML = '<span style="display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:99px;background:rgba(16,185,129,.18);border:1px solid rgba(52,211,153,.4);color:#6ee7b7;font-weight:700;font-size:11.5px">🚚 Экипаж ' + esc(CAR_CODE) + '</span>';
   } else {
-   sub.innerHTML = '<span style="color:#fbbf24;font-weight:600">⚠️ Экипаж не назначен администратором</span>';
+   sub.innerHTML = '<span style="color:#fbbf24;font-weight:600;cursor:pointer" id="bnNoCrewHdr">⚠️ Экипаж не назначен администратором</span>';
+   const hBtn = g('bnNoCrewHdr'); if (hBtn) hBtn.onclick = () => showNoCrewAlert();
   }
  }
 
@@ -227,10 +228,42 @@
   upd();
  }
 
+ function showNoCrewAlert(){
+  let m=g('noCrewMdl');if(m)m.remove();
+  const L=curLang();
+  const T={
+   ru:{pill:'Доступ ограничен',title:'Экипаж не назначен',text:'Чтобы сохранять бонусы и журнал накладных, обратитесь к администратору — он назначит экипаж и откроет доступ к общему котлу.',chat:'Написать админу',ok:'Понятно'},
+   hy:{pill:'Մուտքը սահմանափակ է',title:'Անձնակազմը նշանակված չէ',text:'Բոնուսներն ու ապրանքագրերի մատյանը պահպանելու համար դիմեք ադմինիստրատորին՝ անձնակազմ նշանակելու և մուտք տրամադրելու համար։',chat:'Գրել ադմինին',ok:'Պարզ է'},
+   en:{pill:'Access restricted',title:'Crew not assigned',text:'To save bonuses and the invoice log, please contact the administrator to assign a crew and grant access to the shared pool.',chat:'Message admin',ok:'Got it'}
+  }[L]||{pill:'Доступ ограничен',title:'Экипаж не назначен',text:'Чтобы сохранять бонусы и журнал накладных, обратитесь к администратору — он назначит экипаж и откроет доступ к общему котлу.',chat:'Написать админу',ok:'Понятно'};
+
+  m=document.createElement('div');m.id='noCrewMdl';m.className='cm open';
+  m.innerHTML='<div class="cm-b nc-box">'
+    +'<button type="button" class="pm-x" id="ncX" aria-label="Закрыть">✕</button>'
+    +'<div class="nc-ring"><div class="nc-in"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div></div>'
+    +'<div class="nc-pill"><i></i><span>'+esc(T.pill)+'</span></div>'
+    +'<div class="nc-t">'+esc(T.title)+'</div>'
+    +'<div class="nc-s">'+esc(T.text)+'</div>'
+    +'<div class="nc-acts">'
+    +'<button type="button" class="nc-chat" id="ncChat"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>'+esc(T.chat)+'</span></button>'
+    +'<button type="button" class="nc-ok" id="ncOk">'+esc(T.ok)+'</button>'
+    +'</div></div>';
+  document.body.appendChild(m);
+  const close=()=>m.remove();
+  g('ncX').onclick=close;
+  g('ncOk').onclick=close;
+  m.onclick=ev=>{if(ev.target===m)close()};
+  g('ncChat').onclick=()=>{
+   close();
+   if(window.openDmChat)window.openDmChat();
+   else if(window.toast)toast(T.text);
+  };
+ }
+
  function onInput(e){
   const t=e.target,c=B[+t.dataset.c],s=c&&c.subs[+t.dataset.s];
   if(!c||!s||!t.classList.contains('bn-q'))return;
-  if(!CAR_CODE){t.value=0;tst('Экипаж не назначен администратором','err');return}
+  if(!CAR_CODE){t.value=0;showNoCrewAlert();return}
   const kk='qty'+(t.dataset.k||'');s[kk]=num(t.value);
   save(c.pk,s.sk,t.dataset.k||'',s[kk]);upd();
  }
@@ -241,7 +274,7 @@
   if(!c)return;
   if(a==='inc'||a==='dec'){
    if(!s)return;
-   if(!CAR_CODE){tst('Экипаж не назначен администратором','err');return}
+   if(!CAR_CODE){showNoCrewAlert();return}
    const kk='qty'+(b.dataset.k||'');
    s[kk]=Math.max(0,r3(num(s[kk])+(a==='inc'?1:-1)));
    const q=b.parentNode.querySelector('.bn-q');if(q)q.value=s[kk];
@@ -252,7 +285,7 @@
  }
 
  async function resetQty(){
-  if(!CAR_CODE){tst('Экипаж не назначен администратором','err');return}
+  if(!CAR_CODE){showNoCrewAlert();return}
   let rs=0,rq=0;B.forEach(c=>c.subs.forEach(s=>{const q1=num(s.qty),q2=num(s.qty2);rs+=q1*num(s.price)+q2*num(s.price2);rq+=q1+q2}));
   const msg=rq>0?(CAR_CODE==='ADMIN'?'Обнулить '+fm(rq)+' шт на сумму '+fm(rs)+' '+CUR+'?':'Обнулить '+fm(rq)+' шт ('+fm(rs)+' '+CUR+') у экипажа '+CAR_CODE+' и очистить журнал накладных?'):'Количества по нулям. Очистить журнал накладных?';
   if(!await askC(msg,'Обнулить','🔄'))return;
@@ -433,7 +466,7 @@
   setFoot(k);detailView(d.rows,monthName(d.m||k),new Date(d.t||0).toLocaleDateString(curLang()==='hy'?'hy-AM':(curLang()==='en'?'en-US':'ru-RU'),{day:'numeric',month:'long'}));
  }
  async function saveMonth(){
-  if(!CAR_CODE){tst('Экипаж не назначен администратором','err');return}
+  if(!CAR_CODE){showNoCrewAlert();return}
   const rows=sumRows();
   if(!rows.length){tst('Пока ничего не выбрано','err');return}
   const mk=await pickMonth();if(!mk)return;
@@ -474,7 +507,7 @@
  }
 
  async function openDocsLog(){
-  if(!CAR_CODE){tst('Экипаж не назначен администратором','err');return}
+  if(!CAR_CODE){showNoCrewAlert();return}
   let m=g('bnDocsMdl');if(m)m.remove();m=document.createElement('div');m.id='bnDocsMdl';m.className='cm open';
   m.innerHTML='<div class="cm-b ob-pk-box" style="max-width:400px;height:min(78dvh,520px)"><div class="ob-pk-hd"><div><b>🧾 Журнал накладных</b><small>Экипаж '+esc(CAR_CODE)+'</small></div><button type="button" class="pt-x" id="bdX">✕</button></div><div class="ob-pk-list" id="bdList" style="padding:12px"><div class="pt-empty">Загрузка...</div></div></div>';
   document.body.appendChild(m);const cl=()=>m.remove();g('bdX').onclick=cl;m.onclick=ev=>{if(ev.target===m)cl()};
@@ -505,7 +538,7 @@
    +'<div class="bn-btns"><button id="bnSave">💾 Сохранить</button><button id="bnSmCp">📄 Скопировать</button></div></div></div></div>';
   document.body.appendChild(m);
   m.onclick=e=>{if(e.target===m)closeBon()};
-  g('bnX').onclick=()=>closeBon();if(g('bnDocsBtn'))g('bnDocsBtn').onclick=openDocsLog;if(g('bnCamBtn'))g('bnCamBtn').onclick=()=>{if(!CAR_CODE){tst('Экипаж не назначен администратором','err');return}if(window.openBonusScanner)window.openBonusScanner()};
+  g('bnX').onclick=()=>closeBon();if(g('bnDocsBtn'))g('bnDocsBtn').onclick=openDocsLog;if(g('bnCamBtn'))g('bnCamBtn').onclick=()=>{if(!CAR_CODE){showNoCrewAlert();return}if(window.openBonusScanner)window.openBonusScanner()};
   g('bnRst').onclick=resetQty;
   g('bnSumB').onclick=openSum;g('bnSmList').addEventListener('click',e=>{const r=e.target.closest('[data-m]');if(r)showMonth(r.dataset.m)});g('bnSmX').onclick=()=>closeSum();g('bnSmCp').onclick=copySum;g('bnSave').onclick=saveMonth;g('bnSm').onclick=e=>{if(e.target===g('bnSm'))closeSum()};
   const l=g('bnList');
@@ -516,7 +549,7 @@
 
  function openBon(noPush){
   if(CAR_CODE&&!_carRef&&window.firebase&&firebase.apps&&firebase.apps.length)bindCarPool(CAR_CODE);
-  const m=ensure();updCarBadge();render();if(!CAR_CODE)tst('Экипаж не назначен администратором','err');
+  const m=ensure();updCarBadge();render();if(!CAR_CODE)showNoCrewAlert();
   m.classList.add('open');lock(true);
   try{sessionStorage.setItem('BON_WAS_OPEN','1')}catch(e){}
   if(!noPush){try{history.pushState({bn:1},'')}catch(e){}}
