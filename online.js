@@ -239,6 +239,7 @@
   let lastGeo = 0;
 
   async function canLocate(){
+    if(window.GeoService)return window.GeoService.hasPermission();
     if (!navigator.geolocation) return false;
     try {
       if (navigator.permissions && navigator.permissions.query){
@@ -256,6 +257,19 @@
     if (!(await canLocate())) return;
     const aid = ls("ADM_UID");
     if (!aid || !window.firebase || !firebase.apps || !firebase.apps.length) return;
+
+    if (window.GeoService) {
+      window.GeoService.getPosition({ timeout: 10000, maximumAge: 15000 }).then(g => {
+        lastGeo = Date.now();
+        firebase.database().ref("users/" + aid).update({
+          lat: +g.lat.toFixed(6),
+          lon: +g.lon.toFixed(6),
+          spd: g.speed,
+          gt: lastGeo
+        }).catch(() => {});
+      }).catch(() => {});
+      return;
+    }
 
     navigator.geolocation.getCurrentPosition(pos => {
       lastGeo = Date.now();

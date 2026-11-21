@@ -38,7 +38,10 @@ function draw(){
 function del(i){P.splice(i,1);save();window.toast&&toast('Адрес удалён')}
 function pin(i){const v=!P[i].pin;P.forEach(x=>x.pin=false);P[i].pin=v;save()}
 
-function pos(){return new Promise((ok,no)=>navigator.geolocation.getCurrentPosition(p=>ok({lat:p.coords.latitude,lon:p.coords.longitude}),no,{enableHighAccuracy:true,timeout:15000}))}
+function pos(){
+  if(window.GeoService)return window.GeoService.getPosition();
+  return new Promise((ok,no)=>navigator.geolocation.getCurrentPosition(p=>ok({lat:p.coords.latitude,lon:p.coords.longitude}),no,{enableHighAccuracy:true,timeout:15000}));
+}
 $('a').onkeydown=ev=>{if(ev.key==='Enter')add()};
 draw();
 
