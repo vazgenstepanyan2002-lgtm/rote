@@ -723,7 +723,7 @@ async function askGemini(b64){
       try {
         const db = firebase.database();
         let dup = null, allDocs = {}, sameDocs = [];
-        if (docKey && code !== 'ADMIN') {
+        if (docKey) {
           allDocs = (await db.ref('cars/' + code + '/docs').once('value')).val() || {};
           sameDocs = Object.keys(allDocs).filter(k => allDocs[k] && (
             k === docKey || k.indexOf(docKey + '__') === 0 ||
@@ -732,8 +732,8 @@ async function askGemini(b64){
           dup = sameDocs[0] || null;
           if (dup && typeof askC === 'function') {
             const cmEl = g('cm'); if (cmEl) document.body.appendChild(cmEl);
-            const byWho = dup.by || 'коллега';
-            const ok = await askC('Из вашего экипажа «' + byWho + '» уже добавил эти данные' + (cleanDoc ? ' (№ ' + cleanDoc + ')' : '') + ' в бонусы.\n\nПродолжить или отменить?', 'Продолжить', '⚠️');
+            const byWho = dup.by || (code === 'ADMIN' ? 'админ' : 'коллега');
+            const ok = await askC((code === 'ADMIN' ? 'В экипаже ADMIN' : 'Из вашего экипажа') + ' «' + byWho + '» уже добавил эти данные' + (cleanDoc ? ' (№ ' + cleanDoc + ')' : '') + ' в бонусы.\n\nПродолжить или отменить?', 'Продолжить', '⚠️');
             if (!ok) { close(); return; }
           }
         }
@@ -745,10 +745,11 @@ async function askGemini(b64){
           s += (info.one ? info.p1 : (isCity ? info.p1 : info.p2)) * r.qty; q += r.qty;
         });
         await qRef.update(patch); await db.ref('cars/' + code + '/t').set(Date.now());
-        if (docKey && code !== 'ADMIN') {
-          const meName = (() => { try { return localStorage.getItem('USER_NAME') || 'Водитель'; } catch (e) { return 'Водитель'; } })();
-          const sk = !allDocs[docKey] ? docKey : (docKey + '__' + Date.now().toString(36));
-          const rec = { doc: cleanDoc, by: meName, t: Date.now(), sum: s, qty: q, z: isCity ? 1 : 2, p: docP };
+        {
+          const meName = (() => { try { return localStorage.getItem('USER_NAME') || (code === 'ADMIN' ? 'Администратор' : 'Водитель'); } catch (e) { return code === 'ADMIN' ? 'Администратор' : 'Водитель'; } })();
+          const baseKey = docKey || ('doc_' + Date.now().toString(36));
+          const sk = (!allDocs[baseKey] && docKey) ? baseKey : (baseKey + '__' + Date.now().toString(36));
+          const rec = { doc: cleanDoc || '—', by: meName, t: Date.now(), sum: s, qty: q, z: isCity ? 1 : 2, p: docP };
           if (sameDocs.length) rec.rep = sameDocs.length + 1;
           await db.ref('cars/' + code + '/docs/' + sk).set(rec);
         }
