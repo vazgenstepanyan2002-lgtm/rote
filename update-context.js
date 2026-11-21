@@ -42,4 +42,99 @@ if (fs.existsSync(ctxPath)) {
 }
 
 fs.writeFileSync(ctxPath, head + codeSec + tail, 'utf8');
+
+const skelPath = '../EuroBaza_SKELETON.md';
+const partsDir = '../EuroBaza_parts';
+if (!fs.existsSync(partsDir)) fs.mkdirSync(partsDir, { recursive: true });
+
+const SK_SKIP = new Set(['leaflet.min.js', 'leaflet.min.css']);
+const SK_KW = new Set(['if', 'for', 'while', 'switch', 'catch', 'with', 'return', 'typeof', 'else', 'new']);
+
+function skelJs(code) {
+  const out = [];
+  for (const l of code.split(/\r?\n/)) {
+    const s = l.trim();
+    if (!s || s.startsWith('//') || s.startsWith('*') || s.startsWith('/*')) continue;
+    const indent = l.length - l.replace(/^[ \t]+/, '').length;
+    let m;
+    if (/^(export\s+)?(async\s+)?function\s+[\w$]+\s*\(/.test(s)) {
+      out.push(s.slice(0, 110));
+    } else if (/^(export\s+)?(const|let|var)\s+[\w$]+\s*=\s*(async\s+)?(\([^)]*\)|[\w$]+)\s*=>/.test(s)) {
+      out.push(s.split('=>')[0].trim() + ' => ...');
+    } else if (/^(export\s+)?(const|let|var)\s+[\w$]+\s*=\s*(async\s+)?function\b/.test(s)) {
+      out.push(s.slice(0, 110));
+    } else if (/^window\.[\w$]+\s*=/.test(s)) {
+      out.push(s.slice(0, 100));
+    } else if (/^(export\s+)?class\s+[\w$]+/.test(s)) {
+      out.push(s.slice(0, 100));
+    } else if ((m = s.match(/^(async\s+)?([\w$]+)\s*\(([^()]*)\)\s*\{/)) && !SK_KW.has(m[2])) {
+      out.push('  ' + s.slice(0, 100));
+    } else if (indent <= 2 && /^(const|let|var)\s+[A-ZА-Я0-9_a-z$]+\s*=/.test(s)) {
+      out.push(s.slice(0, 90) + (s.length > 90 ? ' ...' : ''));
+    } else if (s.includes('addEventListener(')) {
+      out.push('  ' + s.slice(0, 95));
+    }
+  }
+  return out.join('\n');
+}
+
+function skelHtml(code) {
+  const out = [];
+  for (const l of code.split(/\r?\n/)) {
+    const s = l.trim();
+    if (!s) continue;
+    if (['<title', '<script', '<link', '<form', 'id=', 'onclick=', 'onchange='].some(k => s.includes(k))) {
+      const c = s.replace(/data:[^"'\s>]{40,}/g, 'data:...');
+      out.push(c.slice(0, 120) + (c.length > 120 ? '...' : ''));
+    }
+  }
+  return out.join('\n');
+}
+
+function skelCss(code) {
+  const vars = [...new Set(code.match(/--[\w-]+/g) || [])].sort();
+  const ids = [...new Set(code.match(/(#[\w-]+)(?=[^;{}]*\{)/g) || [])].sort();
+  const medias = [...new Set((code.match(/@media[^{]+/g) || []).map(m => m.trim()))].sort();
+  const parts = [];
+  if (vars.length) parts.push('CSS vars: ' + vars.slice(0, 40).join(', ') + (vars.length > 40 ? ' (+' + (vars.length - 40) + ')' : ''));
+  if (ids.length) parts.push('IDs: ' + ids.slice(0, 60).join(', ') + (ids.length > 60 ? ' (+' + (ids.length - 60) + ')' : ''));
+  if (medias.length) parts.push('Media: ' + medias.slice(0, 10).join(' | '));
+  return parts.join('\n');
+}
+
+const skToc = ['## Карта файлов'];
+const skJson = [];
+const skCode = ['## Скелет кода'];
+
+for (const f of files) {
+  const body = fs.readFileSync(f, 'utf8').replace(/\s+$/, '');
+  const linesCnt = body.split(/\r?\n/).length;
+  const kb = (Buffer.byteLength(body, 'utf8') / 1024).toFixed(1);
+  const low = f.toLowerCase();
+  skToc.push('- `' + f + '` (' + kb + ' КБ, ' + linesCnt + ' строк)');
+
+  if (SK_SKIP.has(low)) {
+    skCode.push('### ' + f + ' (' + kb + ' КБ) — сторонняя библиотека');
+    continue;
+  }
+
+  fs.writeFileSync(partsDir + '/' + f, body, 'utf8');
+
+  if (low.endsWith('.json')) {
+    let jTxt = body;
+    try { jTxt = JSON.stringify(JSON.parse(body)); } catch (e) {}
+    skJson.push('### ' + f + '\n```json\n' + (jTxt.length < 4000 ? jTxt : jTxt.slice(0, 1500) + '...') + '\n```');
+  } else if (low.endsWith('.js')) {
+    skCode.push('### ' + f + ' (' + kb + ' КБ, ' + linesCnt + ' строк)\n```\n' + skelJs(body) + '\n```');
+  } else if (low.endsWith('.html')) {
+    skCode.push('### ' + f + ' (' + kb + ' КБ, ' + linesCnt + ' строк)\n```\n' + skelHtml(body) + '\n```');
+  } else if (low.endsWith('.css')) {
+    skCode.push('### ' + f + ' (' + kb + ' КБ, ' + linesCnt + ' строк)\n```\n' + skelCss(body) + '\n```');
+  }
+}
+
+const skelOut = [head.trim(), tail.trim(), skToc.join('\n'), skJson.join('\n\n'), skCode.join('\n\n')].filter(Boolean).join('\n\n') + '\n';
+fs.writeFileSync(skelPath, skelOut, 'utf8');
+console.log('✓ Обновлён ../EuroBaza_SKELETON.md | Размер:', (Buffer.byteLength(skelOut, 'utf8') / 1024).toFixed(1), 'КБ');
+
 console.log('✔ Обновлён ../EuroBaza_CONTEXT.md | Версия:', ver, '| Файлов:', files.length);
