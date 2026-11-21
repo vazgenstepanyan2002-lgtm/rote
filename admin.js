@@ -282,10 +282,28 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
     const bel=document.createElement("div");bel.className="drv-pin";bel.innerHTML='<div class="drv-b base"><i></i><span>База EuroBaza</span></div>';
     _baseMk=new maplibregl.Marker({element:bel,anchor:"center"}).setLngLat(baseLL).setPopup(new maplibregl.Popup({offset:18}).setHTML('<div class="pop-t">🏁 '+esc(BASE_PT.name)+'</div>')).addTo(_map);
     let sr=false,fc=0,om=[],hs=false;
+    const boostAdmLabels=sat=>{
+     if(!_map)return;
+     const tc=sat?"#ffffff":"#f1f5f9";
+     const hc=sat?"#000000":"#0f172a";
+     const hw=sat?2:1.2;
+     om.forEach(l=>{
+      if(l.type!=="symbol"||!_map.getLayer(l.id))return;
+      try{
+       if(_map.getPaintProperty(l.id,"text-color")!==undefined){
+        _map.setPaintProperty(l.id,"text-color",tc);
+        _map.setPaintProperty(l.id,"text-halo-color",hc);
+        _map.setPaintProperty(l.id,"text-halo-width",hw);
+        _map.setPaintProperty(l.id,"text-halo-blur",0.5);
+       }
+      }catch(e){}
+     });
+    };
     _applyAdmSat=sat=>{
      if(!_map||!_map.getLayer("adm-sat-layer"))return;
      _map.setLayoutProperty("adm-sat-layer","visibility",sat?"visible":"none");
      om.forEach(l=>{if(!_map.getLayer(l.id))return;let v=l.vis;if(sat)v=(l.type==="symbol"||(l.type==="line"&&/admin|boundary/i.test(l.id)))?l.vis:"none";try{_map.setLayoutProperty(l.id,"visibility",v)}catch(e){}});
+     boostAdmLabels(sat);
     };
     _map.on("style.load",()=>{
      if(!_map)return;sr=true;const st=_map.getStyle(),ls=(st&&st.layers)?st.layers.slice():[];

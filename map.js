@@ -173,6 +173,23 @@
   });
 
   let routeCoords=ll.slice(),routeDashed=true,styleReady=false,failCount=0,origMeta=[],hasSym=false;
+  const boostMapLabels=sat=>{
+   if(_map!==map)return;
+   const tc=sat?'#ffffff':'#f1f5f9';
+   const hc=sat?'#000000':'#0f172a';
+   const hw=sat?2:1.2;
+   origMeta.forEach(l=>{
+    if(l.type!=='symbol'||!map.getLayer(l.id))return;
+    try{
+     if(map.getPaintProperty(l.id,'text-color')!==undefined){
+      map.setPaintProperty(l.id,'text-color',tc);
+      map.setPaintProperty(l.id,'text-halo-color',hc);
+      map.setPaintProperty(l.id,'text-halo-width',hw);
+      map.setPaintProperty(l.id,'text-halo-blur',0.5);
+     }
+    }catch(e){}
+   });
+  };
   const applySat=sat=>{
    if(_map!==map||!map.getLayer('sat-layer'))return;
    map.setLayoutProperty('sat-layer','visibility',sat?'visible':'none');
@@ -186,6 +203,7 @@
     }
     try{map.setLayoutProperty(l.id,'visibility',v)}catch(e){}
    });
+   boostMapLabels(sat);
   };
   satBtn.onclick=()=>{
    isSat=!isSat;
