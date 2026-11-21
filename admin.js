@@ -361,21 +361,26 @@ async function cancelAdmDoc(code,dk,btn){
   await db.ref('cars/'+code+'/docs/'+dk).remove();
   if(CARS[code]&&CARS[code].docs)delete CARS[code].docs[dk];
   await db.ref('cars/'+code+'/t').set(Date.now());
-  openAdmSumModal(code,'cur',true);toast('Накладная отменена');
+  const ov=g('admSumOv');if(ov&&ov._refresh)ov._refresh();else openAdmSumModal(code,'cur',true);toast('Накладная отменена');
  }catch(e){if(btn)btn.disabled=false;toast('Ошибка отмены',true)}
 }
 function openAdmSumModal(code,subKey,openDocs){
  if(!CARS_LIST.includes(code))return;const old=g("admSumOv");if(old)old.remove();
  const c=parseCar(code),isCur=subKey==="cur",rec=isCur?null:c.hist[subKey];if(!isCur&&!rec)return;
- const rows=isCur?c.rows:(rec.rows||[]),title=isCur?"Текущий месяц":monthName(rec.m||subKey),sub=isCur?"не сохранён":("сохранено "+ago(rec.t)),totS=isCur?c.sum:(+rec.sum||0),totQ=isCur?c.qty:(+rec.qty||0);
+ const title=isCur?"Текущий месяц":monthName(rec.m||subKey),sub=isCur?"не сохранён":("сохранено "+ago(rec.t));
+ const build=(op)=>{
+  const c=parseCar(code);
+   const rows=isCur?c.rows:(rec.rows||[]),totS=isCur?c.sum:(+rec.sum||0),totQ=isCur?c.qty:(+rec.qty||0);
  const dObj=(CARS[code]&&CARS[code].docs)||{},dList=isCur?Object.keys(dObj).map(k=>dObj[k]?Object.assign({_k:k},dObj[k]):null).filter(Boolean).sort((a,b)=>(+b.t||0)-(+a.t||0)):[];
  const dTotS=dList.reduce((a,x)=>a+(+x.sum||0),0),dTotQ=dList.reduce((a,x)=>a+(+x.qty||0),0);
- const docsHtml=(isCur&&dList.length)?'<div class="sum-cat'+(openDocs?' open':'')+'"><div class="sum-cat-h" data-atog="1"><div class="sum-cat-l"><span class="sum-chv">'+(openDocs?'▾':'\u25b8')+'</span><div><div class="sum-cat-n">🧾 Накладные за смену</div><div class="sum-cat-s">Отсканировано: '+dList.length+(dTotQ?' · '+fm(dTotQ)+' шт':'')+'</div></div></div><div class="sum-cat-r">'+(dTotS?fm(dTotS)+' '+CUR:dList.length+' шт')+'</div></div><div class="sum-cat-b">'+dList.map(x=>{const dd=x.t?new Date(x.t):null,tm=dd?(dd.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' '+String(dd.getHours()).padStart(2,'0')+':'+String(dd.getMinutes()).padStart(2,'0')):'';const zn=x.z===1?'Город':(x.z===2?'Район':'');const rp=x.rep>1?' <span class="sum-doc-rep">\u{1f501} Повтор'+(x.rep>2?' \u00d7'+x.rep:'')+'</span>':'';const rSum=(x.sum||x.qty)?'<span class="sum-v">'+fm(+x.sum||0)+' '+CUR+'</span>':'';return '<div class="sum-it"><div class="sum-doc-hd"><div class="sum-it-t" style="margin:0">🧾 № '+esc(x.doc||'\u2014')+(zn?' <span class="sum-doc-z">'+zn+'</span>':'')+rp+'</div>'+rSum+'</div><div class="sum-doc-ft"><span class="sum-f">'+esc(x.by||'Водитель')+(tm?' · '+tm:'')+(x.qty?' · '+fm(+x.qty)+' шт':'')+'</span><button type="button" class="sum-doc-del" data-doc-del="'+esc(x._k)+'">✕ Отменить</button></div></div>'}).join('')+'</div></div>':'';
+ const docsHtml=(isCur&&dList.length)?'<div class="sum-cat'+(op?' open':'')+'"><div class="sum-cat-h" data-atog="1"><div class="sum-cat-l"><span class="sum-chv">'+(op?'▾':'\u25b8')+'</span><div><div class="sum-cat-n">🧾 Накладные за смену</div><div class="sum-cat-s">Отсканировано: '+dList.length+(dTotQ?' · '+fm(dTotQ)+' шт':'')+'</div></div></div><div class="sum-cat-r">'+(dTotS?fm(dTotS)+' '+CUR:dList.length+' шт')+'</div></div><div class="sum-cat-b">'+dList.map(x=>{const dd=x.t?new Date(x.t):null,tm=dd?(dd.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' '+String(dd.getHours()).padStart(2,'0')+':'+String(dd.getMinutes()).padStart(2,'0')):'';const zn=x.z===1?'Город':(x.z===2?'Район':'');const rp=x.rep>1?' <span class="sum-doc-rep">\u{1f501} Повтор'+(x.rep>2?' \u00d7'+x.rep:'')+'</span>':'';const rSum=(x.sum||x.qty)?'<span class="sum-v">'+fm(+x.sum||0)+' '+CUR+'</span>':'';return '<div class="sum-it"><div class="sum-doc-hd"><div class="sum-it-t" style="margin:0">🧾 № '+esc(x.doc||'\u2014')+(zn?' <span class="sum-doc-z">'+zn+'</span>':'')+rp+'</div>'+rSum+'</div><div class="sum-doc-ft"><span class="sum-f">'+esc(x.by||'Водитель')+(tm?' · '+tm:'')+(x.qty?' · '+fm(+x.qty)+' шт':'')+'</span><button type="button" class="sum-doc-del" data-doc-del="'+esc(x._k)+'">✕ Отменить</button></div></div>'}).join('')+'</div></div>':'';
  const head="<div class=\"sum-dash\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">"+esc(title)+" · "+esc(sub)+"</div><div class=\"sum-val\" id=\"admTotVal\">"+fm(totS)+" <span>"+CUR+"</span></div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b id=\"admTotQty\">"+fm(totQ)+"</b><span>штук</span></div><div class=\"sum-kpi\"><b id=\"admTotCat\">"+rows.length+"</b><span>катег.</span></div></div></div></div>";
+  return head+docsHtml+detail(rows);
+ };
  const subHd=c.crew.length?"Экипаж: "+c.crew.join(", "):"Экипаж не назначен";
  const ov=document.createElement("div");ov.id="admSumOv";ov.className="ov";
  const delH=(!isCur&&!isSubAdm())?"<button type=\"button\" id=\"admSumDel\" class=\"ach-clr\" style=\"margin-right:6px\">🗑️ Удалить</button>":"";
- ov.innerHTML="<div class=\"dlg ach-box\" style=\"max-width:440px;height:88vh\"><div class=\"ach-hd\"><div class=\"ach-hd-l\"><div class=\"ach-hd-ic\">🚚</div><div><b>Экипаж "+esc(code)+"</b><small>"+esc(subHd)+"</small></div></div><div class=\"ach-acts\">"+delH+"<button type=\"button\" id=\"admSumX\" class=\"ach-x\">✕</button></div></div><div id=\"admSumB\" class=\"ach-list\" style=\"background-image:none;padding:12px;display:block\">"+head+docsHtml+detail(rows)+"</div></div>";
+ ov.innerHTML="<div class=\"dlg ach-box\" style=\"max-width:440px;height:88vh\"><div class=\"ach-hd\"><div class=\"ach-hd-l\"><div class=\"ach-hd-ic\">🚚</div><div><b>Экипаж "+esc(code)+"</b><small>"+esc(subHd)+"</small></div></div><div class=\"ach-acts\">"+delH+"<button type=\"button\" id=\"admSumX\" class=\"ach-x\">✕</button></div></div><div id=\"admSumB\" class=\"ach-list\" style=\"background-image:none;padding:12px;display:block\">"+build(openDocs)+"</div></div>";
  document.body.appendChild(ov);
  const close=()=>{ov.classList.remove("show");setTimeout(()=>ov.remove(),180)};
  if(g("admSumDel"))g("admSumDel").onclick=async()=>{if(!await ask("Удалить сохранённый итог за «"+title+"» у экипажа "+code+"?",{title:"Удаление итога",okText:"Удалить",danger:true}))return;try{await db.ref("cars/"+code+"/hist/"+subKey).remove();close();toast("Итог удалён")}catch(e){toast("Ошибка удаления",true)}};
@@ -418,6 +423,10 @@ function openAdmSumModal(code,subKey,openDocs){
  };
  root.addEventListener("click",e=>{const dl=e.target.closest("[data-doc-del]");if(dl){cancelAdmDoc(code,dl.dataset.docDel,dl);return}const fb=e.target.closest("[data-aseg] button");if(fb){flt=fb.dataset.f;root.querySelectorAll("[data-aseg] button").forEach(b=>b.classList.toggle("on",b===fb));apply();return}const tg=e.target.closest("[data-atog]");if(tg){const card=tg.closest(".sum-cat");if(card){card.classList.toggle("open");const ch=card.querySelector(".sum-chv");if(ch)ch.textContent=card.classList.contains("open")?"▾":"▸"}}});
  root.addEventListener("input",e=>{if(e.target&&e.target.matches("[data-asrch]")){q=e.target.value.trim().toLowerCase();apply()}});
+ ov._refresh=()=>{const st=root.scrollTop;root.innerHTML=build(true);
+  if(flt!=="all")root.querySelectorAll("[data-aseg] button").forEach(b=>b.classList.toggle("on",b.dataset.f===flt));
+  const si=root.querySelector("[data-asrch]");if(si&&q)si.value=q;
+  if(flt!=="all"||q)apply();root.scrollTop=st};
  if(openDocs)ov.classList.add("show");else requestAnimationFrame(()=>ov.classList.add("show"));
 }
 function drawTotals(){
