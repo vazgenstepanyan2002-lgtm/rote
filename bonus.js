@@ -297,6 +297,7 @@
  let skipPop=0;
  const SUMM=[['','Город'],['2','Район']];
  function sumRows(){
+  if(window.BonusEngine)return window.BonusEngine.computeSummaryRows(B);
   const out=[];
   B.forEach(c=>{
    const items=[];let cs=0;
@@ -313,13 +314,13 @@
   return out;
  }
  // ===== Итоги: сохранение по кнопке и просмотр =====
- const cqOf=c=>c.items.reduce((a,it)=>a+it.parts.reduce((b,z)=>b+z.n,0),0);
+ const cqOf=c=>window.BonusEngine?window.BonusEngine.categoryQuantity(c):c.items.reduce((a,it)=>a+it.parts.reduce((b,z)=>b+z.n,0),0);
  const MK=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
  const HIST=()=>_carHist||{};
  const saveHistRec=(id,rec)=>{if(CAR_CODE&&window.firebase&&firebase.apps&&firebase.apps.length)firebase.database().ref('cars/'+CAR_CODE+'/hist/'+id).set(rec).catch(()=>{})};
  const delHistRec=id=>{if(CAR_CODE&&window.firebase&&firebase.apps&&firebase.apps.length)firebase.database().ref('cars/'+CAR_CODE+'/hist/'+id).remove().catch(()=>{})};
- const qtyOf=rows=>rows.reduce((a,c)=>a+cqOf(c),0);
- const sumOf=rows=>rows.reduce((a,c)=>a+c.sum,0);
+ const qtyOf=rows=>window.BonusEngine?window.BonusEngine.totalQuantity(rows):rows.reduce((a,c)=>a+cqOf(c),0);
+ const sumOf=rows=>window.BonusEngine?window.BonusEngine.totalSum(rows):rows.reduce((a,c)=>a+c.sum,0);
  // ===== Названия месяцев на текущем языке =====
  const MN={ru:['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'],hy:['Հունվար','Փետրվար','Մարտ','Ապրիլ','Մայիս','Հունիս','Հուլիս','Օգոստոս','Սեպտեմբեր','Հոկտեմբեր','Նոյեմբեր','Դեկտեմբեր'],en:['January','February','March','April','May','June','July','August','September','October','November','December']};
  function curLang(){try{return window.getLang?window.getLang():'ru'}catch(e){return 'ru'}}
