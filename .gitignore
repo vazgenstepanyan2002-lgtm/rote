@@ -2,3 +2,6 @@
 route_backup_*.tar.gz
 EuroBaza для ИИ/
 EuroBaza Каталоги/
+
+.agents/
+EuroBaza СубАгенты/
