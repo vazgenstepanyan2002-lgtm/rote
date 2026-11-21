@@ -287,9 +287,13 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
      const tc=sat?"#ffffff":"#f1f5f9";
      const hc=sat?"#000000":"#0f172a";
      const hw=sat?2:1.2;
+     const hyExpr=["coalesce",["get","name:hy"],["get","name:arm"],["get","name:nonlatin"],["get","name"],["get","name_en"]];
      om.forEach(l=>{
       if(l.type!=="symbol"||!_map.getLayer(l.id))return;
       try{
+       if(_map.getLayoutProperty(l.id,"text-field")!==undefined){
+        _map.setLayoutProperty(l.id,"text-field",hyExpr);
+       }
        if(_map.getPaintProperty(l.id,"text-color")!==undefined){
         _map.setPaintProperty(l.id,"text-color",tc);
         _map.setPaintProperty(l.id,"text-halo-color",hc);
