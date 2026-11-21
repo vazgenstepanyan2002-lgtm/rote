@@ -47,7 +47,9 @@
 
   function setCount(n){
     const b = ensureBadge();
-    b.innerHTML = '<i class="on-dot"></i><b id="onCnt">' + n + '</b>';
+    const connState = window._firebaseConnected !== false && navigator.onLine;
+    const dotClass = !navigator.onLine ? "on-dot off" : (window._firebaseConnected === false ? "on-dot connecting" : "on-dot");
+    b.innerHTML = '<i class="' + dotClass + '"></i><b id="onCnt">' + n + '</b>';
     b.dataset.n = n;
   }
 
@@ -55,12 +57,36 @@
   const TTL = 60 * 1000, HB = 20 * 1000;
   let last = {};
 
+  function syncConnStatus(connected){
+    window._firebaseConnected = connected;
+    const b = g('onlineBadge');
+    if (!b) return;
+    const dot = b.querySelector('.on-dot');
+    if (!dot) return;
+    if (!navigator.onLine){
+      dot.className = 'on-dot off';
+      b.title = 'Офлайн (нет интернета)';
+    } else if (!connected){
+      dot.className = 'on-dot connecting';
+      b.title = 'Подключение к серверу...';
+    } else {
+      dot.className = 'on-dot';
+      b.title = 'Сейчас в приложении: ' + (b.dataset.n || '1');
+    }
+  }
+
   function start(){
     if (!window.firebase) return;
     try { firebase.initializeApp(FIREBASE_CONFIG); } catch(e){ }
     db = firebase.database();
     ref = db.ref('online');
     ref.on('value', snap => { last = snap.val() || {}; render(); });
+
+    db.ref('.info/connected').on('value', snap => {
+      syncConnStatus(!!snap.val());
+    });
+    window.addEventListener('online', () => syncConnStatus(true));
+    window.addEventListener('offline', () => syncConnStatus(false));
 
     const beat = () => {
       if (document.hidden) return;

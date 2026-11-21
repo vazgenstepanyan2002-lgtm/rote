@@ -701,6 +701,8 @@ a.nav:active{transform:scale(.975);background:linear-gradient(135deg,rgba(250,20
 .online-badge,#onlineBadge{height:34px!important;padding:0 10px!important;border-radius:11px!important;background:linear-gradient(135deg,rgba(16,185,129,.2) 0%,rgba(5,150,105,.12) 100%)!important;border:1px solid rgba(52,211,153,.45)!important;color:#6ee7b7!important;font-size:13.5px!important;font-weight:700!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:7px!important;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 4px 12px rgba(16,185,129,.14),inset 0 1px 0 rgba(255,255,255,.16)!important;white-space:nowrap;flex-shrink:0}
 .online-badge b,#onlineBadge b{font-weight:800;color:#ecfdf5}
 .on-dot{width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 8px #34d399,0 0 2px #fff;display:inline-block;flex-shrink:0;animation:onPulse 2.2s infinite ease-in-out}
+.on-dot.connecting{background:#facc15;box-shadow:0 0 8px #facc15;animation:onPulse 1.2s infinite ease-in-out}
+.on-dot.off{background:#f87171;box-shadow:0 0 8px #f87171;animation:none}
 @keyframes onPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.82)}}
 .hdr-lg{backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 4px 12px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.16)!important}
 

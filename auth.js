@@ -177,7 +177,32 @@
     return m;
   }
 
-  let _chatList = [], _chatOpen = false, _chatBound = false;
+  function playMsgTone(){
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.18, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.28);
+    } catch(e){}
+  }
+  function alertNewDm(isDlv){
+    try {
+      if (ls("NO_VIB") !== "1" && "vibrate" in navigator) {
+        navigator.vibrate([120, 70, 120]);
+      }
+      playMsgTone();
+    } catch(e){}
+  }
   const esc = t => String(t == null ? "" : t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const fmtTime = ms => ms ? String(new Date(ms).getHours()).padStart(2, "0") + ":" + String(new Date(ms).getMinutes()).padStart(2, "0") : "";
 
@@ -244,10 +269,13 @@
       g("chClose").onclick = close;
       m.onclick = e => { if (e.target === m) close(); };
       const inp = g("chInp"), snd = g("chSend");
+      try { const saved = sessionStorage.getItem("DRAFT_CHAT"); if (saved) inp.value = saved; } catch(e){}
+      inp.oninput = () => { try { sessionStorage.setItem("DRAFT_CHAT", inp.value); } catch(e){} };
       const sendMsg = async () => {
         const txt = inp.value.trim(); if (!txt) return;
         if (!window.firebase || !firebase.apps || !firebase.apps.length){ window.toast && toast("Нет соединения с сервером", "err"); return; }
         inp.value = ""; snd.disabled = true;
+        try { sessionStorage.removeItem("DRAFT_CHAT"); } catch(e){}
         try {
           const ref = firebase.database().ref("chat");
           await ref.push({ uid: ls("ADM_UID") || "", name: ls("USER_NAME") || "Водитель", txt: txt, t: firebase.database.ServerValue.TIMESTAMP });
@@ -349,12 +377,23 @@
     m.onclick = e => { if (e.target === m) close(); };
 
     const tabAdm = g("dmTabAdm"), tabDlv = g("dmTabDlv"), titleEl = g("dmHdTitle"), inp = g("dmInp"), snd = g("dmSend");
+    const loadDraft = () => {
+      try {
+        const dKey = "DRAFT_DM_" + _dmActiveCh;
+        inp.value = sessionStorage.getItem(dKey) || "";
+      } catch(e){}
+    };
+    loadDraft();
+    inp.oninput = () => {
+      try { sessionStorage.setItem("DRAFT_DM_" + _dmActiveCh, inp.value); } catch(e){}
+    };
     tabAdm.onclick = () => {
       _dmActiveCh = "adm";
       tabAdm.style.borderColor = 'rgba(250,204,21,.5)'; tabAdm.style.background = 'rgba(250,204,21,.18)'; tabAdm.style.color = '#fde047';
       tabDlv.style.borderColor = 'transparent'; tabDlv.style.background = 'transparent'; tabDlv.style.color = '#94a3b8';
       titleEl.textContent = 'Личный чат с Админом';
       inp.placeholder = 'Сообщение админу...';
+      loadDraft();
       markDmSeen("adm");
       renderDmRows();
     };
@@ -364,6 +403,7 @@
       tabAdm.style.borderColor = 'transparent'; tabAdm.style.background = 'transparent'; tabAdm.style.color = '#94a3b8';
       titleEl.textContent = 'Личный чат с Отделом доставки';
       inp.placeholder = 'Сообщение в отдел доставки...';
+      loadDraft();
       markDmSeen("dlv");
       renderDmRows();
     };
@@ -373,6 +413,7 @@
       const myUid = ls("ADM_UID") || "";
       if (!myUid || !window.firebase || !firebase.apps || !firebase.apps.length){ window.toast && toast("Нет соединения с сервером", "err"); return; }
       inp.value = ""; snd.disabled = true;
+      try { sessionStorage.removeItem("DRAFT_DM_" + _dmActiveCh); } catch(e){}
       try {
         const path = "dm/" + myUid + (_dmActiveCh === "dlv" ? "/dlv" : "/adm");
         const ref = firebase.database().ref(path);
@@ -417,6 +458,7 @@
           lsSet("DM_NOTIF_T", String(_dmLastNotifT));
           if (!_dmOpen || document.hidden) {
             const isDlv = lastMsg.role === "delivery" || lastMsg.name === "Доставка";
+            alertNewDm(isDlv);
             pushSysNotify(isDlv ? "👩‍💼 Отдел доставки" : "👑 Админ (лично)", String(lastMsg.txt || "").slice(0, 140), { tag: "eurobaza-dm", action: "OPEN_DM" });
           }
         }
