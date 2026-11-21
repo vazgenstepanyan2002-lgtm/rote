@@ -138,6 +138,8 @@
             if (typeof uData.bonRaw === "string" && uData.bonRaw.length > 2) lsSet("BON", uData.bonRaw);
             if (typeof uData.specPts === "string" && uData.specPts.length > 1) lsSet("SPEC", uData.specPts);
             if (uData.car) lsSet("USER_CAR", String(uData.car).toUpperCase()); else lsDel("USER_CAR");
+            if (uData.chatSeen) lsSet("CHAT_SEEN", String(uData.chatSeen));
+            if (uData.dmSeen) lsSet("DM_SEEN", String(uData.dmSeen));
           }
           m.remove();
           if (window._onlineBeatNow) window._onlineBeatNow();
@@ -181,7 +183,13 @@
   function markChatSeen(){
     if (!_chatList.length) return;
     const maxT = Math.max.apply(null, _chatList.map(m => +m.t || 0));
-    if (maxT > 0) lsSet("CHAT_SEEN", String(maxT));
+    if (maxT > 0){
+      lsSet("CHAT_SEEN", String(maxT));
+      const uid = ls("ADM_UID");
+      if (uid && window.firebase && firebase.apps && firebase.apps.length){
+        try { firebase.database().ref("users/" + uid + "/chatSeen").set(maxT); } catch(e){}
+      }
+    }
     updBadges();
   }
   function updBadges(){
@@ -260,7 +268,13 @@
     const max1 = _dmList.length ? Math.max.apply(null, _dmList.map(m => +m.t || 0)) : 0;
     const max2 = _dmDlvList.length ? Math.max.apply(null, _dmDlvList.map(m => +m.t || 0)) : 0;
     const maxT = Math.max(max1, max2);
-    if (maxT > 0) lsSet("DM_SEEN", String(maxT));
+    if (maxT > 0){
+      lsSet("DM_SEEN", String(maxT));
+      const uid = ls("ADM_UID");
+      if (uid && window.firebase && firebase.apps && firebase.apps.length){
+        try { firebase.database().ref("users/" + uid + "/dmSeen").set(maxT); } catch(e){}
+      }
+    }
     updBadges();
   }
   function renderDmRows(){
