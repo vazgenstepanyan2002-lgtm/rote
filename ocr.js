@@ -722,10 +722,14 @@ async function askGemini(b64){
       g('obSaveBtn').disabled = true;
       try {
         const db = firebase.database();
-        let dup = null;
+        let dup = null, allDocs = {}, sameDocs = [];
         if (docKey && code !== 'ADMIN') {
-          const dupSnap = await db.ref('cars/' + code + '/docs/' + docKey).once('value');
-          dup = dupSnap.val();
+          allDocs = (await db.ref('cars/' + code + '/docs').once('value')).val() || {};
+          sameDocs = Object.keys(allDocs).filter(k => allDocs[k] && (
+            k === docKey || k.indexOf(docKey + '__') === 0 ||
+            (cleanDoc && allDocs[k].doc === cleanDoc))).map(k => allDocs[k])
+            .sort((a, b) => (+b.t || 0) - (+a.t || 0));
+          dup = sameDocs[0] || null;
           if (dup && typeof askC === 'function') {
             const cmEl = g('cm'); if (cmEl) document.body.appendChild(cmEl);
             const byWho = dup.by || 'коллега';
@@ -733,19 +737,20 @@ async function askGemini(b64){
             if (!ok) { close(); return; }
           }
         }
-        const qRef = db.ref('cars/' + code + '/qty'), cur = (await qRef.once('value')).val() || {}, patch = {};
+        const qRef = db.ref('cars/' + code + '/qty'), cur = (await qRef.once('value')).val() || {}, patch = {}, docP = {};
         let s = 0, q = 0;
         valid.forEach(r => {
           const info = BON_BY_CODE[r.code], k = info.one ? r.code : (isCity ? r.code : r.code + '_2');
-          patch[k] = (+cur[k] || 0) + r.qty;
+          patch[k] = (+cur[k] || 0) + r.qty; docP[k] = (docP[k] || 0) + r.qty;
           s += (info.one ? info.p1 : (isCity ? info.p1 : info.p2)) * r.qty; q += r.qty;
         });
         await qRef.update(patch); await db.ref('cars/' + code + '/t').set(Date.now());
-        if (docKey && code !== 'ADMIN' && !dup) {
+        if (docKey && code !== 'ADMIN') {
           const meName = (() => { try { return localStorage.getItem('USER_NAME') || 'Водитель'; } catch (e) { return 'Водитель'; } })();
-          await db.ref('cars/' + code + '/docs/' + docKey).set({
-            doc: cleanDoc, by: meName, t: Date.now(), sum: s, qty: q, z: isCity ? 1 : 2
-          });
+          const sk = !allDocs[docKey] ? docKey : (docKey + '__' + Date.now().toString(36));
+          const rec = { doc: cleanDoc, by: meName, t: Date.now(), sum: s, qty: q, z: isCity ? 1 : 2, p: docP };
+          if (sameDocs.length) rec.rep = sameDocs.length + 1;
+          await db.ref('cars/' + code + '/docs/' + sk).set(rec);
         }
         const isAdmRole = code === 'ADMIN';
         let sentReq = false;

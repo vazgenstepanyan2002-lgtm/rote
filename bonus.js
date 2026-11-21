@@ -486,9 +486,9 @@
    const headHtml='<div class="bd-sum"><span>Накладных: <b>'+list.length+'</b></span>'+((totQ||totS)?'<span><b>'+fm(totQ)+' шт</b> · <b style="color:#fde047">'+fm(totS)+' '+CUR+'</b></span>':'')+'</div>';
    box.innerHTML=headHtml+list.map(x=>{
     const d=x.t?new Date(x.t):null,tm=d?d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'';
-    const zn=x.z===1?'Город':(x.z===2?'Район':'');
+    const zn=x.z===1?'Город':(x.z===2?'Район':'');const rp=x.rep>1?'<span class="bd-rep">\u{1f501} <span>Повтор</span>'+(x.rep>2?' \u00d7'+x.rep:'')+'</span>':'';
     const right=(x.qty||x.sum)?'<div class="bd-r"><b>'+fm(+x.sum||0)+' '+CUR+'</b><small>'+fm(+x.qty||0)+' шт</small></div>':'';
-    return '<div class="bd-card"><div class="bd-top"><div class="bd-l"><span class="bd-ic">🧾</span><div><div class="bd-num"><span>№ '+esc(x.doc||'—')+'</span>'+(zn?'<span class="bd-z">'+zn+'</span>':'')+'</div><div class="bd-meta">'+esc(x.by||'Водитель')+(tm?' · '+tm:'')+'</div></div></div>'+right+'</div></div>';
+    return '<div class="bd-card"><div class="bd-top"><div class="bd-l"><span class="bd-ic">🧾</span><div><div class="bd-num"><span>№ '+esc(x.doc||'—')+'</span>'+(zn?'<span class="bd-z">'+zn+'</span>':'')+rp+'</div><div class="bd-meta">'+esc(x.by||'Водитель')+(tm?' · '+tm:'')+'</div></div></div>'+right+'</div></div>';
    }).join('');
   }catch(e){const box=g('bdList');if(box)box.innerHTML='<div class="pt-empty">Ошибка загрузки журнала</div>'}
  }
