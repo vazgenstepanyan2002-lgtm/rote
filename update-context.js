@@ -23,7 +23,8 @@ const rulesSec = [
   '5. **Единый стиль интерфейса и модальных окон:** не использовать системные `alert()`, `confirm()` и `prompt()`. В основном приложении использовать `askC()` и `toast()`, в админ-панели — `ask()`, `askInput()` и `toast()`.',
   '6. **Совместимость и локализация:** учитывать 3 языка интерфейса (`ru`, `hy`, `en` в `i18n.js` и `auto-translations.json`), мобильную вёрстку, безопасные отступы iOS/Android и работу Service Worker в офлайн-режиме.',
   '7. **Защита файла контекста:** при обновлении `../EuroBaza_CONTEXT.md` обновлять только секцию с версией и кодом файлов, обязательно сохраняя этот раздел с правилами.',
-  '8. **Команда «Обнови для ИИ»:** если пользователь говорит «Обнови для ИИ» — правила, комментарии и любые пользовательские заметки в `../EuroBaza_CONTEXT.md` не трогаем и не перезаписываем, к ним только подставляется актуальный рабочий код и текущая версия проекта.',
+  '8. **Команда «Обнови для ИИ»:** обновление `../EuroBaza_CONTEXT.md` и `../EuroBaza_SKELETON.md` выполняется командой `node update-context.js` в папке проекта (скрипт сам сохраняет раздел с правилами и заметками, обновляя версию и код). Если пользователь просит «Обнови для ИИ» — выдавать команду `cd /sdcard/Download/route && node update-context.js`.',
+  '9. **Сбор контекста для задачи в единый `.md` файл:** если пользователь просит что-то сделать и ИИ не хватает кода или данных, ИИ выдаёт готовую команду для Termux, которая удаляет старый `/sdcard/Download/EuroBaza_TASK.md` и записывает всю нужную для задачи информацию в новый `/sdcard/Download/EuroBaza_TASK.md`, чтобы пользователь скинул этот файл в чат (без накопления лишних файлов в Download).',
   ''
 ].join('\n');
 
@@ -35,13 +36,11 @@ const ctxPath = '../EuroBaza_CONTEXT.md';
 let tail = rulesSec;
 if (fs.existsSync(ctxPath)) {
   const old = fs.readFileSync(ctxPath, 'utf8');
-  const marker = '\n## Правила работы с проектом для ИИ';
-  const idx = old.lastIndexOf(marker);
-  if (idx !== -1) tail = old.slice(idx + 1);
-  else if (old.startsWith('## Правила работы с проектом для ИИ')) tail = old;
+  const rx = /(?:^|\n)(## Правила работы с проектом для ИИ[\s\S]*?)(?=\n## Актуальный код файлов|$)/;
+  const m = old.match(rx);
+  if (m && m[1]) tail = m[1].trim() + '\n';
 }
-
-fs.writeFileSync(ctxPath, head + codeSec + tail, 'utf8');
+fs.writeFileSync(ctxPath, head + tail.trim() + '\n\n' + codeSec.trim() + '\n', 'utf8');
 
 const skelPath = '../EuroBaza_SKELETON.md';
 const partsDir = '../EuroBaza_parts';

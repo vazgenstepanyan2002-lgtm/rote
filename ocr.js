@@ -734,12 +734,21 @@ async function askGemini(b64){
           }
         }
         const qRef = db.ref('cars/' + code + '/qty'), cur = (await qRef.once('value')).val() || {}, patch = {};
-        let s = 0, q = 0;
-        valid.forEach(r => { const info = BON_BY_CODE[r.code], k = info.one ? r.code : (isCity ? r.code : r.code + '_2'); patch[k] = (+cur[k] || 0) + r.qty; s += (info.one ? info.p1 : (isCity ? info.p1 : info.p2)) * r.qty; q += r.qty; });
+        let s = 0, q = 0; const byCat = {};
+        valid.forEach(r => {
+          const info = BON_BY_CODE[r.code], k = info.one ? r.code : (isCity ? r.code : r.code + '_2');
+          const pr = info.one ? info.p1 : (isCity ? info.p1 : info.p2);
+          patch[k] = (+cur[k] || 0) + r.qty; s += pr * r.qty; q += r.qty;
+          if (!byCat[r.code]) byCat[r.code] = { n: info.name, q: 0, s: 0 };
+          byCat[r.code].q += r.qty; byCat[r.code].s += pr * r.qty;
+        });
         await qRef.update(patch); await db.ref('cars/' + code + '/t').set(Date.now());
         if (docKey && code !== 'ADMIN' && !dup) {
           const meName = (() => { try { return localStorage.getItem('USER_NAME') || 'Водитель'; } catch (e) { return 'Водитель'; } })();
-          await db.ref('cars/' + code + '/docs/' + docKey).set({ doc: cleanDoc, by: meName, t: Date.now() });
+          await db.ref('cars/' + code + '/docs/' + docKey).set({
+            doc: cleanDoc, by: meName, t: Date.now(), sum: s, qty: q,
+            z: isCity ? 1 : 2, items: Object.values(byCat)
+          });
         }
         const isAdmRole = code === 'ADMIN';
         let sentReq = false;

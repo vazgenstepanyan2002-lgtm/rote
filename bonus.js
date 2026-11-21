@@ -482,7 +482,16 @@
    const val=(await firebase.database().ref('cars/'+CAR_CODE+'/docs').once('value')).val()||{};
    const list=Object.keys(val).map(k=>val[k]).filter(Boolean).sort((a,b)=>(+b.t||0)-(+a.t||0)),box=g('bdList');if(!box)return;
    if(!list.length){box.innerHTML='<div class="pt-empty">Отсканированных накладных пока нет.</div>';return}
-   box.innerHTML=list.map(x=>{const d=x.t?new Date(x.t):null,tm=d?d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'';return'<div class="ob-pk-it" style="cursor:default"><span>🧾</span><span class="ob-pk-tx"><b>№ '+esc(x.doc||'—')+'</b><small>'+esc(x.by||'Водитель')+(tm?' · '+tm:'')+'</small></span></div>'}).join('');
+   let totS=0,totQ=0;list.forEach(x=>{totS+=(+x.sum||0);totQ+=(+x.qty||0)});
+   const headHtml='<div class="bd-sum"><span>Накладных: <b>'+list.length+'</b></span>'+((totQ||totS)?'<span><b>'+fm(totQ)+' шт</b> · <b style="color:#fde047">'+fm(totS)+' '+CUR+'</b></span>':'')+'</div>';
+   box.innerHTML=headHtml+list.map(x=>{
+    const d=x.t?new Date(x.t):null,tm=d?d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'';
+    const zn=x.z===1?'Город':(x.z===2?'Район':'');
+    const its=Array.isArray(x.items)?x.items.filter(Boolean):[];
+    const right=(x.qty||x.sum)?'<div class="bd-r"><b>'+fm(+x.sum||0)+' '+CUR+'</b><small>'+fm(+x.qty||0)+' шт</small></div>':'';
+    const itsH=its.length?'<div class="bd-items">'+its.map(it=>'<div class="bd-it"><span>'+esc(furnitureName(it.n||''))+' <i class="bd-iq">× '+(+it.q||0)+'</i></span><b>'+fm(+it.s||0)+' '+CUR+'</b></div>').join('')+'</div>':'';
+    return '<div class="bd-card"><div class="bd-top"><div class="bd-l"><span class="bd-ic">🧾</span><div><div class="bd-num"><span>№ '+esc(x.doc||'—')+'</span>'+(zn?'<span class="bd-z">'+zn+'</span>':'')+'</div><div class="bd-meta">'+esc(x.by||'Водитель')+(tm?' · '+tm:'')+'</div></div></div>'+right+'</div>'+itsH+'</div>';
+   }).join('');
   }catch(e){const box=g('bdList');if(box)box.innerHTML='<div class="pt-empty">Ошибка загрузки журнала</div>'}
  }
  function ensure(){
