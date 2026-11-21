@@ -139,7 +139,12 @@
             if (typeof uData.specPts === "string" && uData.specPts.length > 1) lsSet("SPEC", uData.specPts);
             if (uData.car) lsSet("USER_CAR", String(uData.car).toUpperCase()); else lsDel("USER_CAR");
             if (uData.chatSeen) lsSet("CHAT_SEEN", String(uData.chatSeen));
-            if (uData.dmSeen) lsSet("DM_SEEN", String(uData.dmSeen));
+            if (uData.dmSeenAdm) lsSet("DM_SEEN_ADM", String(uData.dmSeenAdm));
+            if (uData.dmSeenDlv) lsSet("DM_SEEN_DLV", String(uData.dmSeenDlv));
+            if (!uData.dmSeenAdm && !uData.dmSeenDlv && uData.dmSeen){
+              lsSet("DM_SEEN_ADM", String(uData.dmSeen));
+              lsSet("DM_SEEN_DLV", String(uData.dmSeen));
+            }
           }
           m.remove();
           if (window._onlineBeatNow) window._onlineBeatNow();
@@ -194,10 +199,13 @@
   }
   function updBadges(){
     const cN = unreadCount(), dN = dmUnreadCount(), tot = cN + dN;
+    const nAdm = dmUnreadAdm(), nDlv = dmUnreadDlv();
     const setB = (id, v) => { const el = g(id); if (el){ el.textContent = v > 99 ? "99+" : String(v); el.hidden = v === 0; } };
     setB("usrBadge", tot);
     setB("pmDmBadge", dN);
     setB("dockChatBdg", cN);
+    setB("dmTabAdmBdg", nAdm);
+    setB("dmTabDlvBdg", nDlv);
   }
   function dayLabel(ms){
     if(!ms)return"";const d=new Date(ms),n=new Date();
@@ -254,21 +262,34 @@
   }
   window.openChat = openChat;
   let _dmList = [], _dmDlvList = [], _dmOpen = false, _dmActiveCh = "adm", _dmBound = false, _dmInit = false, _dmLastNotifT = +(ls("DM_NOTIF_T") || 0);
-  function dmUnreadCount(){
-    const seen = +(ls("DM_SEEN") || 0);
-    const nAdm = _dmList.filter(m => (+m.t || 0) > seen && !!m.adm).length;
-    const nDlv = _dmDlvList.filter(m => (+m.t || 0) > seen && !!m.adm).length;
-    return nAdm + nDlv;
+  function dmUnreadAdm(){
+    const seen = +(ls("DM_SEEN_ADM") || ls("DM_SEEN") || 0);
+    return _dmList.filter(m => (+m.t || 0) > seen && !!m.adm).length;
   }
-  function markDmSeen(){
-    const max1 = _dmList.length ? Math.max.apply(null, _dmList.map(m => +m.t || 0)) : 0;
-    const max2 = _dmDlvList.length ? Math.max.apply(null, _dmDlvList.map(m => +m.t || 0)) : 0;
-    const maxT = Math.max(max1, max2);
+  function dmUnreadDlv(){
+    const seen = +(ls("DM_SEEN_DLV") || ls("DM_SEEN") || 0);
+    return _dmDlvList.filter(m => (+m.t || 0) > seen && !!m.adm).length;
+  }
+  function dmUnreadCount(){
+    return dmUnreadAdm() + dmUnreadDlv();
+  }
+  function markDmSeen(ch){
+    const target = ch || _dmActiveCh;
+    const curList = target === "dlv" ? _dmDlvList : _dmList;
+    const maxT = curList.length ? Math.max.apply(null, curList.map(m => +m.t || 0)) : 0;
     if (maxT > 0){
-      lsSet("DM_SEEN", String(maxT));
+      if (target === "dlv"){
+        lsSet("DM_SEEN_DLV", String(maxT));
+      } else {
+        lsSet("DM_SEEN_ADM", String(maxT));
+      }
+      lsSet("DM_SEEN", String(Math.max(+(ls("DM_SEEN_ADM") || 0), +(ls("DM_SEEN_DLV") || 0))));
       const uid = ls("ADM_UID");
       if (uid && window.firebase && firebase.apps && firebase.apps.length){
-        try { firebase.database().ref("users/" + uid + "/dmSeen").set(maxT); } catch(e){}
+        try {
+          const field = target === "dlv" ? "dmSeenDlv" : "dmSeenAdm";
+          firebase.database().ref("users/" + uid + "/" + field).set(maxT);
+        } catch(e){}
       }
     }
     updBadges();
@@ -292,8 +313,15 @@
   }
   function openDmChat(targetCh){
     reqNotifyPerm();
-    if(targetCh === "dlv" || targetCh === "adm") _dmActiveCh = targetCh;
-    _dmOpen = true; markDmSeen();
+    if(targetCh === "dlv" || targetCh === "adm") {
+      _dmActiveCh = targetCh;
+    } else {
+      const uAdm = dmUnreadAdm(), uDlv = dmUnreadDlv();
+      if(uAdm > 0) _dmActiveCh = "adm";
+      else if(uDlv > 0) _dmActiveCh = "dlv";
+      else _dmActiveCh = "adm";
+    }
+    _dmOpen = true; markDmSeen(_dmActiveCh);
     let m = g("dmMdl");
     if (m) m.remove();
     m = document.createElement("div"); m.id = "dmMdl"; m.className = "mdl";
@@ -305,8 +333,8 @@
       + '  <button type="button" class="ch-x" id="dmClose" aria-label="Закрыть">✕</button>'
       + '</div>'
       + '<div style="display:flex;gap:6px;padding:6px 14px 2px;background:rgba(15,23,36,.9);border-bottom:1px solid rgba(255,255,255,.08)">'
-      + '  <button type="button" id="dmTabAdm" style="flex:1;padding:7px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(isDlv?'transparent':'rgba(250,204,21,.5)')+';background:'+(isDlv?'transparent':'rgba(250,204,21,.18)')+';color:'+(isDlv?'#94a3b8':'#fde047')+';cursor:pointer">👑 Чат с Админом</button>'
-      + '  <button type="button" id="dmTabDlv" style="flex:1;padding:7px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(isDlv?'rgba(56,189,248,.5)':'transparent')+';background:'+(isDlv?'rgba(56,189,248,.18)':'transparent')+';color:'+(isDlv?'#7dd3fc':'#94a3b8')+';cursor:pointer">🚚 Чат с Отделом доставки</button>'
+      + '  <button type="button" id="dmTabAdm" style="position:relative;flex:1;padding:7px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(isDlv?'transparent':'rgba(250,204,21,.5)')+';background:'+(isDlv?'transparent':'rgba(250,204,21,.18)')+';color:'+(isDlv?'#94a3b8':'#fde047')+';cursor:pointer">👑 Чат с Админом<span id="dmTabAdmBdg" class="dock-bdg" style="top:2px;right:4px" hidden>0</span></button>'
+      + '  <button type="button" id="dmTabDlv" style="position:relative;flex:1;padding:7px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(isDlv?'rgba(56,189,248,.5)':'transparent')+';background:'+(isDlv?'rgba(56,189,248,.18)':'transparent')+';color:'+(isDlv?'#7dd3fc':'#94a3b8')+';cursor:pointer">🚚 Чат с Доставкой<span id="dmTabDlvBdg" class="dock-bdg" style="top:2px;right:4px" hidden>0</span></button>'
       + '</div>'
       + '<div id="dmMsgs" class="ch-list"></div>'
       + '<div class="ch-bar">'
@@ -327,6 +355,7 @@
       tabDlv.style.borderColor = 'transparent'; tabDlv.style.background = 'transparent'; tabDlv.style.color = '#94a3b8';
       titleEl.textContent = 'Личный чат с Админом';
       inp.placeholder = 'Сообщение админу...';
+      markDmSeen("adm");
       renderDmRows();
     };
     tabDlv.onclick = () => {
@@ -335,6 +364,7 @@
       tabAdm.style.borderColor = 'transparent'; tabAdm.style.background = 'transparent'; tabAdm.style.color = '#94a3b8';
       titleEl.textContent = 'Личный чат с Отделом доставки';
       inp.placeholder = 'Сообщение в отдел доставки...';
+      markDmSeen("dlv");
       renderDmRows();
     };
 
@@ -395,7 +425,7 @@
       _dmInit = true;
       _dmList = nextAdm;
       _dmDlvList = nextDlv;
-      if (_dmOpen && !document.hidden){ markDmSeen(); renderDmRows(); } else updBadges();
+      if (_dmOpen && !document.hidden){ markDmSeen(_dmActiveCh); renderDmRows(); } else updBadges();
     }, () => {});
   }
   function openUserSettings(){

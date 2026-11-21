@@ -959,7 +959,10 @@ function openSelectModal(){
    new Notification(title,{body:body,icon:'icon-192.png',tag:opts.tag||'eurobaza-adm-chat'});
   }catch(e){}
  }
- let _admDmInit=false,_admDmSeen=(()=>{try{return JSON.parse(localStorage.getItem('ADM_DM_SEEN')||'{}')}catch(e){return{}}})(),_admDmNotif=(()=>{try{return JSON.parse(localStorage.getItem('ADM_DM_NOTIF')||'{}')}catch(e){return{}}})();
+ let _admDmInit=false,
+     _admDmSeenAdm=(()=>{try{return JSON.parse(localStorage.getItem('ADM_DM_SEEN_ADM')||localStorage.getItem('ADM_DM_SEEN')||'{}')}catch(e){return{}}})(),
+     _admDmSeenDlv=(()=>{try{return JSON.parse(localStorage.getItem('ADM_DM_SEEN_DLV')||localStorage.getItem('ADM_DM_SEEN')||'{}')}catch(e){return{}}})(),
+     _admDmNotif=(()=>{try{return JSON.parse(localStorage.getItem('ADM_DM_NOTIF')||'{}')}catch(e){return{}}})();
  function getDmList(uid, channel){
   const obj=DMS[uid]||{};
   const ch=channel||(isSubAdm()?'dlv':DM_TAB);
@@ -967,22 +970,44 @@ function openSelectModal(){
   const list=(ch==='dlv'?obj.dlv:obj.adm)||[];
   return Array.isArray(list)?list:[];
  }
- function dmUnread(uid){
-  const seen=+(_admDmSeen[uid]||0);
-  if(isSubAdm()){
-   const l=getDmList(uid,'dlv');
-   return l.filter(m=>(+m.t||0)>seen&&!m.adm).length;
-  }
-  const lAdm=getDmList(uid,'adm'),lDlv=getDmList(uid,'dlv');
-  const nAdm=lAdm.filter(m=>(+m.t||0)>seen&&!m.adm).length;
-  const nDlv=lDlv.filter(m=>(+m.t||0)>seen&&!m.adm).length;
-  return nAdm+nDlv;
+ function dmUnreadAdm(uid){
+  const seen=+(_admDmSeenAdm[uid]||0);
+  const lAdm=getDmList(uid,'adm');
+  return lAdm.filter(m=>(+m.t||0)>seen&&!m.adm).length;
  }
- function markAdmDmSeen(uid){
-  const list=getDmList(uid,isSubAdm()?'dlv':DM_TAB);
+ function dmUnreadDlv(uid){
+  const seen=+(_admDmSeenDlv[uid]||0);
+  const lDlv=getDmList(uid,'dlv');
+  return lDlv.filter(m=>(+m.t||0)>seen&&!m.adm).length;
+ }
+ function dmUnread(uid){
+  if(isSubAdm()){
+   return dmUnreadDlv(uid);
+  }
+  return dmUnreadAdm(uid) + dmUnreadDlv(uid);
+ }
+ function markAdmDmSeen(uid, ch){
+  const targetCh = ch || (isSubAdm()?'dlv':DM_TAB);
+  const list=getDmList(uid, targetCh);
   if(!list.length)return;
   const mx=Math.max.apply(null,list.map(m=>+m.t||0));
-  if(mx>0){_admDmSeen[uid]=mx;try{localStorage.setItem('ADM_DM_SEEN',JSON.stringify(_admDmSeen))}catch(e){}}
+  if(mx>0){
+   if(targetCh === 'dlv' || isSubAdm()){
+    _admDmSeenDlv[uid]=mx;
+    try{localStorage.setItem('ADM_DM_SEEN_DLV',JSON.stringify(_admDmSeenDlv))}catch(e){}
+   } else {
+    _admDmSeenAdm[uid]=mx;
+    try{localStorage.setItem('ADM_DM_SEEN_ADM',JSON.stringify(_admDmSeenAdm))}catch(e){}
+   }
+  }
+  updAdmDmTabBadges();
+ }
+ function updAdmDmTabBadges(){
+  if(!DM_UID || isSubAdm()) return;
+  const uAdm = dmUnreadAdm(DM_UID), uDlv = dmUnreadDlv(DM_UID);
+  const setB = (id, v) => { const el = g(id); if (el){ el.textContent = v > 99 ? '99+' : String(v); el.hidden = v === 0; } };
+  setB('admDmTabAdmBdg', uAdm);
+  setB('admDmTabDlvBdg', uDlv);
  }
  function onDmSnap(v){
   const raw=v||{},next={};
@@ -1024,7 +1049,11 @@ function openSelectModal(){
   });
   _admDmInit=true;
   DMS=next;
-  if(DM_UID){if(!document.hidden)markAdmDmSeen(DM_UID);renderAdmDm()}
+  if(DM_UID){
+   if(!document.hidden)markAdmDmSeen(DM_UID, DM_TAB);
+   updAdmDmTabBadges();
+   renderAdmDm();
+  }
   if(TAB==='online')drawOnline();
  }
  function updAdmChatBdg(){
@@ -1102,20 +1131,28 @@ function openSelectModal(){
   reqAdmNotify();
   const old=g('admDmOv');if(old)old.remove();
   DM_UID=uid;
-  if(isSubAdm()) DM_TAB='dlv';
-  markAdmDmSeen(uid);if(TAB==='online')drawOnline();
+  if(isSubAdm()){
+   DM_TAB='dlv';
+  } else {
+   const uAdm = dmUnreadAdm(uid), uDlv = dmUnreadDlv(uid);
+   if(uAdm > 0) DM_TAB = 'adm';
+   else if(uDlv > 0) DM_TAB = 'dlv';
+   else DM_TAB = 'adm';
+  }
+  markAdmDmSeen(uid, DM_TAB);if(TAB==='online')drawOnline();
   const who=USERS[uid]?dispName(parseDev(uid,USERS[uid])):'Водитель';
   const ov=document.createElement('div');ov.id='admDmOv';ov.className='ov';
   
   const tabsHtml=!isSubAdm()
    ? '<div style="display:flex;gap:6px;padding:8px 14px 4px;background:#131c2c;border-bottom:1px solid rgba(255,255,255,.08)">'
-     + '<button type="button" id="admDmTabAdm" style="flex:1;padding:6px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(DM_TAB==='adm'?'rgba(250,204,21,.5)':'transparent')+';background:'+(DM_TAB==='adm'?'rgba(250,204,21,.18)':'transparent')+';color:'+(DM_TAB==='adm'?'#fde047':'#94a3b8')+';cursor:pointer">👑 Личный чат с Админом</button>'
-     + '<button type="button" id="admDmTabDlv" style="flex:1;padding:6px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(DM_TAB==='dlv'?'rgba(56,189,248,.5)':'transparent')+';background:'+(DM_TAB==='dlv'?'rgba(56,189,248,.18)':'transparent')+';color:'+(DM_TAB==='dlv'?'#7dd3fc':'#94a3b8')+';cursor:pointer">🚚 Чат с Отделом доставки</button>'
+     + '<button type="button" id="admDmTabAdm" style="position:relative;flex:1;padding:6px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(DM_TAB==='adm'?'rgba(250,204,21,.5)':'transparent')+';background:'+(DM_TAB==='adm'?'rgba(250,204,21,.18)':'transparent')+';color:'+(DM_TAB==='adm'?'#fde047':'#94a3b8')+';cursor:pointer">👑 Чат с Админом<span id="admDmTabAdmBdg" class="dock-bdg" style="top:2px;right:4px" hidden>0</span></button>'
+     + '<button type="button" id="admDmTabDlv" style="position:relative;flex:1;padding:6px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(DM_TAB==='dlv'?'rgba(56,189,248,.5)':'transparent')+';background:'+(DM_TAB==='dlv'?'rgba(56,189,248,.18)':'transparent')+';color:'+(DM_TAB==='dlv'?'#7dd3fc':'#94a3b8')+';cursor:pointer">🚚 Чат с Доставкой<span id="admDmTabDlvBdg" class="dock-bdg" style="top:2px;right:4px" hidden>0</span></button>'
      + '</div>'
    : '';
 
   ov.innerHTML='<div class="dlg ach-box"><div class="ach-hd"><div class="ach-hd-l"><div class="ach-hd-ic">✉️</div><div><b>'+esc(who)+'</b><small>'+(isSubAdm()?'Личный чат с Отделом доставки':'Личные чаты (Админ / Доставка)')+'</small></div></div><div class="ach-acts">'+(isSubAdm()?'':'<button type="button" id="admDmClr" class="ach-clr">Очистить</button>')+'<button type="button" id="admDmX" class="ach-x">✕</button></div></div>'+tabsHtml+'<div id="admDmList" class="ach-list"></div><div class="ach-bar"><input id="admDmInp" maxlength="300" placeholder="'+(isSubAdm()?'Сообщение водителю от отдела доставки...':'Личное сообщение водителю...')+'"><button type="button" id="admDmSnd" aria-label="Отправить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></div>';
   document.body.appendChild(ov);
+  updAdmDmTabBadges();
   const close=()=>{DM_UID=null;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
   const onK=e=>{if(e.key==='Escape')close()};
   g('admDmX').onclick=close;ov.onclick=e=>{if(e.target===ov)close()};
@@ -1127,12 +1164,16 @@ function openSelectModal(){
      DM_TAB='adm';
      tAdm.style.borderColor='rgba(250,204,21,.5)'; tAdm.style.background='rgba(250,204,21,.18)'; tAdm.style.color='#fde047';
      tDlv.style.borderColor='transparent'; tDlv.style.background='transparent'; tDlv.style.color='#94a3b8';
+     markAdmDmSeen(uid, 'adm');
+     if(TAB==='online')drawOnline();
      renderAdmDm();
     };
     tDlv.onclick=()=>{
      DM_TAB='dlv';
      tDlv.style.borderColor='rgba(56,189,248,.5)'; tDlv.style.background='rgba(56,189,248,.18)'; tDlv.style.color='#7dd3fc';
      tAdm.style.borderColor='transparent'; tAdm.style.background='transparent'; tAdm.style.color='#94a3b8';
+     markAdmDmSeen(uid, 'dlv');
+     if(TAB==='online')drawOnline();
      renderAdmDm();
     };
    }
