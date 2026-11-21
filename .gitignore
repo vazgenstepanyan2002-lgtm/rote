@@ -1,3 +1,4 @@
 # Архивы бэкапов не хранить в git
 route_backup_*.tar.gz
 EuroBaza для ИИ/
+EuroBaza Каталоги/
