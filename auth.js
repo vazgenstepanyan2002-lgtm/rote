@@ -291,12 +291,12 @@
     const isDlv = _dmActiveCh === "dlv";
     m.innerHTML = '<div class="mdl-b ch-box">'
       + '<div class="ch-hd">'
-      + '  <div class="ch-hd-l"><div class="ch-hd-ic">✉️</div><div><div class="ch-hd-t" id="dmHdTitle">'+(isDlv?'Чат с отделом доставки':'Личный чат с администратором')+'</div><div class="ch-hd-s">Прямой защищённый канал связи</div></div></div>'
+      + '  <div class="ch-hd-l"><div class="ch-hd-ic">✉️</div><div><div class="ch-hd-t" id="dmHdTitle">'+(isDlv?'Личный чат с Отделом доставки':'Личный чат с Админом')+'</div><div class="ch-hd-s">Прямой защищённый канал связи</div></div></div>'
       + '  <button type="button" class="ch-x" id="dmClose" aria-label="Закрыть">✕</button>'
       + '</div>'
       + '<div style="display:flex;gap:6px;padding:6px 14px 2px;background:rgba(15,23,36,.9);border-bottom:1px solid rgba(255,255,255,.08)">'
-      + '  <button type="button" id="dmTabAdm" style="flex:1;padding:7px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(isDlv?'transparent':'rgba(250,204,21,.5)')+';background:'+(isDlv?'transparent':'rgba(250,204,21,.18)')+';color:'+(isDlv?'#94a3b8':'#fde047')+';cursor:pointer">👑 Директор / Админ</button>'
-      + '  <button type="button" id="dmTabDlv" style="flex:1;padding:7px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(isDlv?'rgba(56,189,248,.5)':'transparent')+';background:'+(isDlv?'rgba(56,189,248,.18)':'transparent')+';color:'+(isDlv?'#7dd3fc':'#94a3b8')+';cursor:pointer">🚚 Отдел доставки</button>'
+      + '  <button type="button" id="dmTabAdm" style="flex:1;padding:7px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(isDlv?'transparent':'rgba(250,204,21,.5)')+';background:'+(isDlv?'transparent':'rgba(250,204,21,.18)')+';color:'+(isDlv?'#94a3b8':'#fde047')+';cursor:pointer">👑 Чат с Админом</button>'
+      + '  <button type="button" id="dmTabDlv" style="flex:1;padding:7px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid '+(isDlv?'rgba(56,189,248,.5)':'transparent')+';background:'+(isDlv?'rgba(56,189,248,.18)':'transparent')+';color:'+(isDlv?'#7dd3fc':'#94a3b8')+';cursor:pointer">🚚 Чат с Отделом доставки</button>'
       + '</div>'
       + '<div id="dmMsgs" class="ch-list"></div>'
       + '<div class="ch-bar">'
@@ -315,7 +315,7 @@
       _dmActiveCh = "adm";
       tabAdm.style.borderColor = 'rgba(250,204,21,.5)'; tabAdm.style.background = 'rgba(250,204,21,.18)'; tabAdm.style.color = '#fde047';
       tabDlv.style.borderColor = 'transparent'; tabDlv.style.background = 'transparent'; tabDlv.style.color = '#94a3b8';
-      titleEl.textContent = 'Личный чат с администратором';
+      titleEl.textContent = 'Личный чат с Админом';
       inp.placeholder = 'Сообщение админу...';
       renderDmRows();
     };
@@ -323,7 +323,7 @@
       _dmActiveCh = "dlv";
       tabDlv.style.borderColor = 'rgba(56,189,248,.5)'; tabDlv.style.background = 'rgba(56,189,248,.18)'; tabDlv.style.color = '#7dd3fc';
       tabAdm.style.borderColor = 'transparent'; tabAdm.style.background = 'transparent'; tabAdm.style.color = '#94a3b8';
-      titleEl.textContent = 'Чат с отделом доставки';
+      titleEl.textContent = 'Личный чат с Отделом доставки';
       inp.placeholder = 'Сообщение в отдел доставки...';
       renderDmRows();
     };
@@ -502,8 +502,8 @@ function openProfileMenu(){
     +'<div class="sh-name">'+esc(nm)+'</div>'
     +'<div class="sh-meta"><span class="sh-dot"></span><span>В сети</span>'+(car&&car!=="ADMIN"?' · <b style="color:#6ee7b7">Экипаж '+esc(car)+'</b>':'')+'</div></div>'
     +'<div class="sh-group">'
-    +'<button type="button" class="sh-row" id="pmDm"><span class="sh-ico" style="background:rgba(250,204,21,.16);color:#fde047">👑</span><span class="sh-lbl">Личный чат с директором</span><span id="pmDmBadge" class="pm-bdg" hidden>0</span><span class="sh-chev">›</span></button>'
-    +'<button type="button" class="sh-row" id="pmDmDlv"><span class="sh-ico" style="background:rgba(56,189,248,.16);color:#38bdf8">🚚</span><span class="sh-lbl">Чат с отделом доставки</span><span id="pmDmDlvBadge" class="pm-bdg" hidden>0</span><span class="sh-chev">›</span></button>'
+    +'<button type="button" class="sh-row" id="pmDm"><span class="sh-ico" style="background:rgba(250,204,21,.16);color:#fde047">👑</span><span class="sh-lbl">Личный чат с Админом</span><span id="pmDmBadge" class="pm-bdg" hidden>0</span><span class="sh-chev">›</span></button>'
+    +'<button type="button" class="sh-row" id="pmDmDlv"><span class="sh-ico" style="background:rgba(56,189,248,.16);color:#38bdf8">🚚</span><span class="sh-lbl">Личный чат с Отделом доставки</span><span id="pmDmDlvBadge" class="pm-bdg" hidden>0</span><span class="sh-chev">›</span></button>'
     +'<button type="button" class="sh-row" id="pmSet"><span class="sh-ico" style="background:rgba(148,163,184,.16);color:#e2e8f0">⚙️</span><span class="sh-lbl">Настройки</span><span class="sh-chev">›</span></button>'
     +'<button type="button" class="sh-row" id="pmAdm"><span class="sh-ico" style="background:rgba(250,204,21,.15);color:#fde047">🛡️</span><span class="sh-lbl">Админ-панель</span><span class="sh-chev">›</span></button>'
     +'</div><div class="sh-group" style="margin-top:10px">'
