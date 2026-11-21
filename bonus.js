@@ -487,10 +487,8 @@
    box.innerHTML=headHtml+list.map(x=>{
     const d=x.t?new Date(x.t):null,tm=d?d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'';
     const zn=x.z===1?'Город':(x.z===2?'Район':'');
-    const its=Array.isArray(x.items)?x.items.filter(Boolean):[];
     const right=(x.qty||x.sum)?'<div class="bd-r"><b>'+fm(+x.sum||0)+' '+CUR+'</b><small>'+fm(+x.qty||0)+' шт</small></div>':'';
-    const itsH=its.length?'<div class="bd-items">'+its.map(it=>'<div class="bd-it"><span>'+esc(furnitureName(it.n||''))+' <i class="bd-iq">× '+(+it.q||0)+'</i></span><b>'+fm(+it.s||0)+' '+CUR+'</b></div>').join('')+'</div>':'';
-    return '<div class="bd-card"><div class="bd-top"><div class="bd-l"><span class="bd-ic">🧾</span><div><div class="bd-num"><span>№ '+esc(x.doc||'—')+'</span>'+(zn?'<span class="bd-z">'+zn+'</span>':'')+'</div><div class="bd-meta">'+esc(x.by||'Водитель')+(tm?' · '+tm:'')+'</div></div></div>'+right+'</div>'+itsH+'</div>';
+    return '<div class="bd-card"><div class="bd-top"><div class="bd-l"><span class="bd-ic">🧾</span><div><div class="bd-num"><span>№ '+esc(x.doc||'—')+'</span>'+(zn?'<span class="bd-z">'+zn+'</span>':'')+'</div><div class="bd-meta">'+esc(x.by||'Водитель')+(tm?' · '+tm:'')+'</div></div></div>'+right+'</div></div>';
    }).join('');
   }catch(e){const box=g('bdList');if(box)box.innerHTML='<div class="pt-empty">Ошибка загрузки журнала</div>'}
  }
