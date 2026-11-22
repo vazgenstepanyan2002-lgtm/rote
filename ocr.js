@@ -435,15 +435,15 @@
   }
 
   const normEv = s => String(s || '').toLowerCase().replace(/և|եւ/g, 'եվ');
-  const isRegionAddress = s => /(?:կոտայք|քանաք[ե]?ռավան|աբովյան|հրազդան|չարենցավան|եղվարդ|եզվարդ|բյուրեղավան|նոր հաճ[ը]?ն|առինջ|պտղնի|ձորաղբյուր|ջրվեժ|զովունի|պռոշյան|քասախ|բալահովիտ|մայակովսկի|գառնի|արզնի|արարատ|մասիս|արտաշատ|վեդի|նոր խարբերդ|մերձավան|փարաքար|արգավանդ|արմավիր|վաղարշապատ|էջմիածին|մեծամոր|արագածոտն|աշտարակ|ապարան|թալին|օշական|կարբի|բյուրական|շիրակ|գյումրի|արթիկ|մարալիկ|լոռի|վանաձոր|ալավերդի|սպիտակ|ստեփանավան|տաշիր|տավուշ|իջեվան|դիլիջան|բերդ|նոյեմբերյան|գեղարքունիք|գավառ|սեվան|մարտունի|վարդենիս|ճամբարակ|վայոց ձոր|եղեգնաձոր|եզեգնաձոր|ջերմուկ|վայք|սյունիք|կապան|գորիս|սիսիան|մեղրի|քաջարան|մարզ|котайк|канакераван|абовян|раздан|чаренцаван|егвард|бюрегаван|нор ачин|ариндж|пхтни|дзорахпюр|джрвеж|зовуни|прошян|касах|гарни|арзни|арарат|масис|арташат|веди|мердзаван|паракар|аргаванд|армавир|вагаршапат|эчмиадзин|мецамор|арагацотн|аштарак|ширак|гюмри|лори|ванадзор|тавуш|иджеван|дилижан|гегаркуник|гавар|севан|мартуни|вайоц дзор|ехегнадзор|сюник|капан|горис|сисиан|область|марз)/i.test(normEv(s));
+  const isRegionAddress = s => /(?:կոտայք|քանաք[ե]?ռավան|աբովյան|հրազդան|չարենցավան|եղվարդ|եզվարդ|բյուրեղավան|նոր հաճ[ը]?ն|առինջ|պտղնի|ձորաղբյուր|ջրվեժ|զովունի|պռոշյան|քասախ|բալահովիտ|մայակովսկի|գառնի|արզնի|գետարգել|նոր գեղի|արամուս|կամարիս|նոր գյուղ|ակունք|գեղաշեն|գեղադիր|ողջաբերդ|ծաղկաձոր|աղվերան|բջնի|արզական|գետամեջ|մրգաշեն|նոր երզնկա|զովք|արարատ|մասիս|արտաշատ|վեդի|նոր խարբերդ|այնթապ|մարմարաշեն|հովտաշատ|դարբնիկ|խաչփառ|ղուկասավան|հայանիստ|դաշտավան|գեղանիստ|արբատ|ազատաշեն|մերձավան|փարաքար|արգավանդ|թաիրով|մուսալեռ|պտղունք|արմավիր|վաղարշապատ|էջմիածին|մեծամոր|արագածոտն|աշտարակ|ապարան|թալին|օշական|կարբի|բյուրական|շիրակ|գյումրի|արթիկ|մարալիկ|լոռի|վանաձոր|ալավերդի|սպիտակ|ստեփանավան|տաշիր|տավուշ|իջեվան|դիլիջան|բերդ|նոյեմբերյան|գեղարքունիք|գավառ|սեվան|մարտունի|վարդենիս|ճամբարակ|վայոց ձոր|եղեգնաձոր|եզեգնաձոր|ջերմուկ|վայք|սյունիք|կապան|գորիս|սիսիան|մեղրի|քաջարան|մարզ|котайк|канакераван|абовян|раздан|чаренцаван|егвард|бюрегаван|нор ачин|ариндж|пхтни|дзорахпюр|джрвеж|зовуни|прошян|касах|гарни|арзни|гетаргел|нор геги|арамус|гегашен|цагхкадзор|цахкадзор|арарат|масис|арташат|веди|айнтап|мердзаван|паракар|аргаванд|таиров|мусалер|армавир|вагаршапат|эчмиадзин|мецамор|арагацотн|аштарак|ширак|гюмри|лори|ванадзор|тавуш|иджеван|дилижан|гегаркуник|гавар|севан|мартуни|вайоц дзор|ехегнадзор|сюник|капан|горис|сисиан|область|марз|kotayk|abovyan|hrazdan|charentsavan|yeghvard|egvard|byureghavan|nor hachn|arinj|ptghni|dzoraghbyur|jrvezh|zovuni|proshyan|kasakh|garni|arzni|ararat|masis|artashat|vedi|merdzavan|parakar|argavand|tairov|armavir|vagharshapat|echmiadzin|ejmiatsin|metsamor|aragatsotn|ashtarak|aparan|talin|shirak|gyumri|artik|lori|vanadzor|alaverdi|spitak|stepanavan|tashir|tavush|ijevan|dilijan|berd|noyemberyan|gegharkunik|gavar|sevan|martuni|vardenis|vayots dzor|yeghegnadzor|jermuk|vayk|syunik|kapan|goris|sisian|meghri|kajaran|\bmarz\b)/i.test(normEv(s));
   const isYerevanAddress = s => {
     const low = normEv(s);
     if (isRegionAddress(low)) return false;
-    return /(?:ереван|երեվան|yerevan|աջափնյակ|արաբկիր|ավան|դավթաշեն|էրեբունի|կենտրոն|մալաթիա|նոր նորք|նորք-մարաշ|նուբարաշեն|շենգավիթ|քանաքեռ-զեյթուն|քանաքեռ|ачапняк|арабкир|аван|давидашен|эребуни|кентрон|малатия|нор норк|норк-мараш|нубарашен|шенгавит|канакер)/i.test(low);
+    return /(?:ереван|երեվան|երվան|yerevan|erevan|աջափնյակ|արաբկիր|ավան|դավթաշեն|էրեբունի|կենտրոն|մալաթիա|սեբաստիա|նոր նորք|նորք|նուբարաշեն|շենգավիթ|քանաքեռ|զեյթուն|չարբախ|նորագավիթ|մասիվ|բանգլադեշ|հաղթանակ|սարի թաղ|կոնդ|սիլիկյան|վարդաշեն|նոր արեշ|կարմիր բլուր|ачапняк|арабкир|аван|давидашен|эребуни|кентрон|малатия|себастия|нор норк|норк|нубарашен|шенгавит|канакер|зейтун|чарбах|норагавит|массив|бангладеш|ахтанак|сари таг|конд|ajapnyak|arabkir|avan|davtashen|erebuni|kentron|malatia|sebastia|nor nork|nork|nubarashen|shengavit|kanaker|zeytun|charbakh|noragavit)/i.test(low);
   };
   const detectZone = s => {
     const t = String(s || '').trim();
-    if (!t) return 'unknown';
+    if (!t || /^(?:none|null|n\/a|-|—|не указан|нет)$/i.test(t)) return 'unknown';
     if (isRegionAddress(t)) return 'reg';
     if (isYerevanAddress(t)) return 'city';
     return 'unknown';
@@ -580,7 +580,7 @@ async function askGemini(b64){
     const cleanB64 = String(b64 || '');
     const mime = cleanB64.indexOf('UklGR') === 0 ? 'image/webp' : (cleanB64.indexOf('iVBOR') === 0 ? 'image/png' : 'image/jpeg');
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
-    const prompt = 'Накладная EuroBaza (HY/RU/EN).\nВАЖНО: Если на фото НЕТ накладной, если снимок пустой, черный, темный, смазанный или это не накладная — верни items: [], doc: "", addr: "". Категорически запрещено выдумывать или генерировать несуществующие товары!\ndoc=номер СТРОГО только из строки «Վաճառքի փաստաթուղթ №» или «Վաճառքի փաստաթուղթ:» (цифры и дефис, обычно 0000-XXXXX, если строки нет — пустая строка). КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО брать номер из Բեռնափոխադրման թերթիկ.\naddr=ТОЛЬКО город или область (1-2 слова из Տեղափոխման հասցե, без улицы и телефонов, если нет — пустая строка).\nitems=[{name:ТОЛЬКО РЕАЛЬНЫЙ ТЕКСТ из таблицы Ապրանքի անվանումը, qty:целое число из Քանակ}] без доставки (Տեղափոխություն), сборки (Հավաքում) и фурнитуры. Если таблица с товарами не видна — items=[].';
+    const prompt = 'Накладная EuroBaza (HY/RU/EN).\nВАЖНО: Если на фото НЕТ накладной, если снимок пустой, черный, темный, смазанный или это не накладная — верни items: [], doc: "", addr: "". Категорически запрещено выдумывать или генерировать несуществующие товары!\ndoc=номер СТРОГО только из строки «Վաճառքի փաստաթուղթ №» или «Վաճառքի փաստաթուղթ:» (цифры и дефис, обычно 0000-XXXXX, если строки нет — пустая строка ""). КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО брать номер из Բեռնափոխադրման թերթիկ.\naddr=город, село, район или область из строки «Տեղափոխման հասցե» / «Հասցե» на языке оригинала HY/RU (1-3 слова, без номера дома и телефонов; если нет — пустая строка "", не писать none).\nitems=[{name:ТОЛЬКО РЕАЛЬНЫЙ ТЕКСТ из таблицы Ապրանքի անվանումը, qty:целое число из Քանակ}] без доставки (Տեղափոխություն), сборки (Հավաքում) и фурнитуры. Если таблица с товарами не видна — items=[].';
     const schema = {
       type: 'OBJECT',
       properties: {
@@ -798,13 +798,14 @@ async function askGemini(b64){
     } catch (e) {}
   };
 
-  function openBonusInvoiceModal(items, defaultIsCity, docNum, batchOpts){
+  function openBonusInvoiceModal(items, defaultIsCity, docNum, batchOpts, rawAddr){
     const cleanDoc = String(docNum || '').trim();
     const docKey = cleanDoc.replace(/[^0-9A-Za-z_-]+/g, '_').replace(/^_+|_+$/g, '');
     if (!Array.isArray(items) || !items.length) return;
     let m = g('ocrBonMdl'); if (m) m.remove();
     const zoneUnknown = defaultIsCity === 'unknown';
     let isCity = defaultIsCity === 'reg' ? false : (defaultIsCity === 'city' || zoneUnknown ? true : !!defaultIsCity);
+    const cleanAddr = String(rawAddr || '').replace(/^(?:none|null|n\/a|-|—)$/i, '').trim();
     const rows = items.map(x => { const c = x.code || classifyProduct(x.name).code || ''; return { name: x.name, qty: x.qty, code: c, origCode: c }; });
     saveOcrDraft(rows, isCity, cleanDoc);
     const CAT_ICO = { 'Другое': '📦', 'Диваны': '🛋️', 'Ресепшен': '🗄️', 'Кухни': '🍳', 'Гостиная': '📺', 'Спальни': '🛏️', 'Шкафы': '🚪' };
@@ -841,7 +842,7 @@ async function askGemini(b64){
 
     m = document.createElement('div'); m.id = 'ocrBonMdl'; m.className = 'mdl open';
     m.innerHTML = '<div class="mdl-b pt-box ob-box"><div class="pt-hd"><div class="pt-hd-l"><div class="pt-hd-ic" style="background:rgba(250,204,21,.16);border-color:rgba(250,204,21,.42);color:#fde047">🧮</div><div><div class="pt-hd-t" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span>Бонусы по накладной</span>' + (batchOpts && batchOpts.total > 1 ? '<span class="ob-q-tag">' + batchOpts.idx + ' / ' + batchOpts.total + '</span>' : '') + '</div><div class="pt-hd-s" id="obSub"></div></div></div><button type="button" class="pt-x" id="obX">✕</button></div>'
-      + '<div class="ob-zone-w">' + (zoneUnknown ? '<div id="obZoneWarn" style="margin:0 0 6px;padding:6px 10px;border-radius:9px;background:rgba(245,158,11,.15);border:1px solid rgba(251,191,36,.42);color:#fde68a;font-size:12px;font-weight:700;text-align:center">⚠️ Адрес не распознан — проверьте Город / Район</div>' : '') + '<div class="ob-seg" id="obZoneSeg"><button type="button" data-z="city" class="' + (isCity ? 'on' : '') + '">🏙️ Город (Ереван)</button><button type="button" data-z="reg" class="' + (!isCity ? 'on' : '') + '">🛣️ Район (Области)</button></div></div>'
+      + '<div class="ob-zone-w">' + (zoneUnknown ? '<div id="obZoneWarn" style="margin:0 0 6px;padding:6px 10px;border-radius:9px;background:rgba(245,158,11,.15);border:1px solid rgba(251,191,36,.42);color:#fde68a;font-size:12px;font-weight:700;text-align:center">⚠️ Адрес не распознан' + (cleanAddr ? ' («' + esc(cleanAddr.slice(0, 36)) + '»)' : '') + ' — проверьте Город / Район</div>' : '') + '<div class="ob-seg" id="obZoneSeg"><button type="button" data-z="city" class="' + (isCity ? 'on' : '') + '">🏙️ Город (Ереван)</button><button type="button" data-z="reg" class="' + (!isCity ? 'on' : '') + '">🛣️ Район (Области)</button></div></div>'
       + '<div class="pt-list" id="obList"></div>'
       + '<div class="pt-ft"><div class="ob-tot"><span>Будет начислено:</span><b id="obTotSum">0 ' + CUR + '</b></div><button type="button" class="pt-add" id="obSaveBtn"><span>➕ Добавить в бонусы</span></button></div></div>';
     document.body.appendChild(m);
@@ -1039,7 +1040,7 @@ async function askGemini(b64){
             if (tok !== _batchTok) return;
             if (go) next(idx + 1, "skip"); else { _batchTok++;
               window.toast && toast("Загрузка остальных накладных отменена"); }
-          } } }); };
+          } } }, addr); };
     next(0, "");
   }
   let _ebLastOcrB64 = "";
@@ -1084,7 +1085,7 @@ async function askGemini(b64){
             return;
           }
           window.toast && toast("Готово за " + ((Date.now() - _t0) / 1000).toFixed(1) + " сек");
-          openBonusInvoiceModal(items, detectZone(addr), doc);
+          openBonusInvoiceModal(items, detectZone(addr), doc, null, addr);
           return;
         } catch (e) {
           const msg = (e && e.message) || String(e || "");
