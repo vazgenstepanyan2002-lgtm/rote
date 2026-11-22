@@ -43,7 +43,9 @@
  firebase.initializeApp(CFG);
  const auth=firebase.auth(),db=firebase.database();
 
- const CARS_LIST=['BB','CC','EE','XX','ZZ','RR','VV','GG'];
+ const CARS_LIST=['BB','CC','VV','RR','EE','GG','XX','ZZ'];
+ const CREW_OFF={BB:1,CC:2,VV:3,RR:4,EE:5,GG:6,XX:0,ZZ:0};
+ const CREW_OFF_LBL={BB:'Пн',CC:'Вт',VV:'Ср',RR:'Чт',EE:'Пт',GG:'Сб',XX:'Вс',ZZ:'Вс'};
 const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
  let USERS={},LABELS={},ACCOUNTS={},CARS={},OCR_PEND={},OCR_MAP={},OCR_Q='',CHAT=[],CHAT_OPEN=false,DMS={},DM_UID=null,DM_TAB='adm',FU=0,PUB=undefined,TAB='online',SEL='all',ONL_CAR='all',ONL_Q='';
  let ATT={},ATT_ERR=false,ATT_SCROLLED_YM='',ATT_YM=(()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')})();
@@ -738,21 +740,24 @@ function drawTotals(){
 
   let thead='<tr><th class="att-nm-col">Экипаж / Сотрудник</th>';
   for(let d=1;d<=daysInMonth;d++){
-   const wd=new Date(yr,mo,d).getDay(),isWk=wd===0||wd===6,isTd=d===todayDay;
-   thead+='<th class="att-dth'+(isTd?' td':(isWk?' wk':''))+'"'+(isTd?' id="attTdCol"':'')+'>'+d+'<small>'+ATT_WD[wd]+'</small></th>';
+   const wd=new Date(yr,mo,d).getDay(),isTd=d===todayDay;
+   thead+='<th class="att-dth'+(isTd?' td':'')+'"'+(isTd?' id="attTdCol"':'')+'>'+d+'<small>'+ATT_WD[wd]+'</small></th>';
   }
   thead+='<th class="att-tot-col">Проп.</th></tr>';
 
   let tbody='';
   groups.forEach(gr=>{
    const isNone=!gr.code;
+   const offWd=(!isNone && CREW_OFF[gr.code]!==undefined)?CREW_OFF[gr.code]:-1;
+   const offLbl=(!isNone && CREW_OFF_LBL[gr.code])?CREW_OFF_LBL[gr.code]:'';
    const grpTot=gCounts[gr.code]||0;
    tbody+='<tr class="att-grp"><td class="att-nm-col"><div class="att-grp-hd">'
-    +'<span class="att-grp-t'+(isNone?' none':'')+'">'+(isNone?'🚫 Без экипажа':'🚚 '+esc(gr.code))+'</span>'
+    +'<span class="att-grp-t'+(isNone?' none':'')+'">'+(isNone?'🚫 Без экипажа':'🚚 '+esc(gr.code)+(offLbl?' <span class="att-off-b" title="Выходной: '+offLbl+'">'+offLbl+'</span>':''))+'</span>'
     +'<button type="button" class="att-grp-add" data-act="att-add" data-car="'+esc(gr.code)+'" title="Добавить рабочего в '+(isNone?'Без экипажа':'экипаж '+esc(gr.code))+'">+</button>'
     +'</div></td>';
    for(let d=1;d<=daysInMonth;d++){
-    tbody+='<td></td>';
+    const wd=new Date(yr,mo,d).getDay();
+    tbody+='<td class="'+(wd===offWd?'att-grp-off':'')+'"></td>';
    }
    tbody+='<td class="att-tot-col">'+(grpTot||'')+'</td></tr>';
 
@@ -763,8 +768,11 @@ function drawTotals(){
      :'<button type="button" class="att-nm-btn" data-act="att-worker" data-w="'+esc(m.wid)+'"><span>'+esc(m.name)+'</span><i>✎</i></button>';
     let row='<tr><td class="att-nm-col">'+nmCell+'</td>';
     for(let d=1;d<=daysInMonth;d++){
-     const wd=new Date(yr,mo,d).getDay(),isWk=wd===0||wd===6,isTd=d===todayDay,on=!!wm[d];
-     row+='<td class="'+(isTd?'att-td-td':(isWk?'att-td-wk':''))+'"><button type="button" class="att-chk'+(on?' on':'')+'" data-act="att-tog" data-w="'+esc(m.pid)+'" data-d="'+d+'" aria-label="'+esc(m.name)+' '+d+'">'+(on?'✓':'')+'</button></td>';
+     const wd=new Date(yr,mo,d).getDay(),isOff=wd===offWd,isTd=d===todayDay,on=!!wm[d];
+     const tdCls=isTd?'att-td-td':(isOff?'att-td-off':'');
+     const btnCls='att-chk'+(on?' on':(isOff?' off':''));
+     const btnTxt=on?'✓':(isOff?'В':'');
+     row+='<td class="'+tdCls+'"><button type="button" class="'+btnCls+'" data-act="att-tog" data-w="'+esc(m.pid)+'" data-d="'+d+'" aria-label="'+esc(m.name)+' '+d+'">'+btnTxt+'</button></td>';
     }
     row+='<td class="att-tot-col" style="'+(mCounts[m.pid]?'color:#fca5a5':'color:#64748b')+'">'+mCounts[m.pid]+'</td></tr>';
     tbody+=row;
@@ -779,7 +787,7 @@ function drawTotals(){
   tfoot+='<td class="att-tot-col">'+totalAbs+'</td></tr>';
 
   h+='<div id="attWrap" class="att-wrap"><table class="att-tbl"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody><tfoot>'+tfoot+'</tfoot></table></div>';
-  h+='<div class="mut hint">📱 — пользователь приложения. Нажмите «+» в строке экипажа, чтобы добавить рабочего без приложения. Нажмите на клетку дня, чтобы поставить ✓ (не вышел на работу).</div>';
+  h+='<div class="mut hint">📱 — пользователь приложения · <b style="color:#fbbf24">В</b> — плановый выходной экипажа · <b style="color:#fca5a5">✓</b> — не вышел на работу. Нажмите «+» в строке экипажа, чтобы добавить рабочего без приложения.</div>';
   g('view').innerHTML=h;
 
   const wrap=g('attWrap');
@@ -888,11 +896,13 @@ function drawTotals(){
   let tot=0;
   const rows=[];
   groups.forEach(gr=>{
+   const offWd=(gr.code&&CREW_OFF[gr.code]!==undefined)?CREW_OFF[gr.code]:-1;
    gr.members.forEach(m=>{
-    const wm=mData[m.pid]||{},r=[gr.code?('Экипаж '+gr.code):'Без экипажа',m.name+(m.isApp?'':' (без прил.)')];
+    const wm=mData[m.pid]||{},r=[gr.code?('Экипаж '+gr.code+(CREW_OFF_LBL[gr.code]?' ('+CREW_OFF_LBL[gr.code]+')':'')):'Без экипажа',m.name+(m.isApp?'':' (без прил.)')];
     let c=0;
     for(let d=1;d<=dim;d++){
-     if(wm[d]){r.push('✓');c++;dayT[d]++;tot++;}else r.push('');
+     const wd=new Date(yr,mo,d).getDay();
+     if(wm[d]){r.push('✓');c++;dayT[d]++;tot++;}else r.push(wd===offWd?'В':'');
     }
     r.push(c);
     rows.push(r);
