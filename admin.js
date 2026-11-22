@@ -703,7 +703,7 @@ function drawTotals(){
   const fmtTot=(a,w)=>{
    if(!a&&!w)return '<span style="color:#64748b">0</span>';
    let s='';
-   if(a)s+='<span style="color:#fca5a5">'+a+'</span>';
+   if(a)s+='<span style="color:#fca5a5">-'+a+'</span>';
    if(w)s+=(a?' ':'')+'<span style="color:#6ee7b7">+'+w+'</span>';
    return s;
   };
@@ -848,7 +848,7 @@ function drawTotals(){
    const wd=new Date(yr,mo,d).getDay(),isTd=d===todayDay;
    thead+='<th class="att-dth'+(isTd?' td':'')+'"'+(isTd?' id="attTdCol"':'')+'>'+d+'<small>'+ATT_WD[wd]+'</small></th>';
   }
-  thead+='<th class="att-tot-col">Проп.</th></tr>';
+  thead+='<th class="att-tot-col">Итог</th></tr>';
 
   h+='<div id="attWrap" class="att-wrap" data-ym="'+esc(ATT_YM)+'" data-sk="'+esc(structKey)+'"><table class="att-tbl"><thead>'+thead+'</thead><tbody id="attBody">'+tbody+'</tbody><tfoot id="attFoot">'+tfoot+'</tfoot></table></div>';
   h+='<div class="mut hint">📱 — приложение · <b style="color:#fbbf24">В</b> — выходной · <b style="color:#fca5a5">✕</b> — не вышел на смену · <b style="color:#6ee7b7">✓</b> — вышел в выходной.</div>';
