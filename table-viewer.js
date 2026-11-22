@@ -175,6 +175,11 @@
         } else {
           const str = String(val);
           if (str === '' && !isHead && !isTot) continue;
+          if (!isHead && !isTot) {
+            if (str === '✕') styleId = 7;
+            else if (str === '✓') styleId = 8;
+            else if (str === 'В') styleId = 9;
+          }
           cells.push(`<c r="${ref}" t="inlineStr" s="${styleId}"><is><t>${xmlEsc(str)}</t></is></c>`);
         }
       }
@@ -208,18 +213,24 @@
 
     const styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
       + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-      + '<fonts count="2">'
+      + '<fonts count="5">'
       + '<font><sz val="11"/><name val="Calibri"/></font>'
       + '<font><b/><sz val="11"/><name val="Calibri"/></font>'
+      + '<font><b/><sz val="11"/><color rgb="FFB91C1C"/><name val="Calibri"/></font>'
+      + '<font><b/><sz val="11"/><color rgb="FF047857"/><name val="Calibri"/></font>'
+      + '<font><b/><sz val="11"/><color rgb="FFB45309"/><name val="Calibri"/></font>'
       + '</fonts>'
-      + '<fills count="3">'
+      + '<fills count="6">'
       + '<fill><patternFill patternType="none"/></fill>'
       + '<fill><patternFill patternType="gray125"/></fill>'
       + '<fill><patternFill patternType="solid"><fgColor rgb="FFE2E8F0"/></patternFill></fill>'
+      + '<fill><patternFill patternType="solid"><fgColor rgb="FFFECACA"/></patternFill></fill>'
+      + '<fill><patternFill patternType="solid"><fgColor rgb="FFA7F3D0"/></patternFill></fill>'
+      + '<fill><patternFill patternType="solid"><fgColor rgb="FFFEF3C7"/></patternFill></fill>'
       + '</fills>'
       + '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
       + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
-      + '<cellXfs count="7">'
+      + '<cellXfs count="10">'
       + '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
       + '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>'
       + '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
@@ -227,6 +238,9 @@
       + '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
       + '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
       + '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+      + '<xf numFmtId="0" fontId="2" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+      + '<xf numFmtId="0" fontId="3" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+      + '<xf numFmtId="0" fontId="4" fillId="5" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
       + '</cellXfs>'
       + '</styleSheet>';
 
@@ -430,6 +444,16 @@
               if (mergeFirstCol && idx === 0) {
                 if (spans[rIdx] === 0) return '';
                 return `<td rowspan="${spans[rIdx]}" style="padding:9px 14px;white-space:nowrap;text-align:center;vertical-align:middle;font-weight:800;color:#6ee7b7;border-right:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.1)">${esc(c)}</td>`;
+              }
+              const s = String(c == null ? '' : c);
+              if (s === '✕') {
+                return `<td style="padding:9px 14px;white-space:nowrap;text-align:center;font-weight:800;color:#fca5a5;background:rgba(239,68,68,.26)">✕</td>`;
+              }
+              if (s === '✓') {
+                return `<td style="padding:9px 14px;white-space:nowrap;text-align:center;font-weight:800;color:#6ee7b7;background:rgba(16,185,129,.26)">✓</td>`;
+              }
+              if (s === 'В') {
+                return `<td style="padding:9px 14px;white-space:nowrap;text-align:center;font-weight:700;color:#fbbf24;background:rgba(245,158,11,.12)">В</td>`;
               }
               const isNum = typeof c === 'number' || (!isNaN(+c) && idx > 1);
               return `<td style="padding:9px 14px;white-space:nowrap;color:#cbd5e1;${idx > 1 ? 'text-align:right;' : ''}${idx === r.length - 1 ? 'font-weight:700;color:#f8fafc;' : ''}">${esc(isNum && typeof c === 'number' ? fm(c) : c)}</td>`;
