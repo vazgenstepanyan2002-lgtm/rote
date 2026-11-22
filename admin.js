@@ -46,6 +46,7 @@
  const CARS_LIST=['BB','CC','EE','XX','ZZ','RR','VV','GG'];
 const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
  let USERS={},LABELS={},ACCOUNTS={},CARS={},OCR_PEND={},OCR_MAP={},OCR_Q='',CHAT=[],CHAT_OPEN=false,DMS={},DM_UID=null,DM_TAB='adm',FU=0,PUB=undefined,TAB='online',SEL='all',ONL_CAR='all',ONL_Q='';
+ let ATT={},ATT_ERR=false,ATT_SCROLLED_YM='',ATT_YM=(()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')})();
  const OCR_CAT_NAMES={'other_a':'Другое · Стулья, стеллажи','other_b':'Другое · Стулья, столы','other_c':'Другое · Раковина','other_d':'Другое · Комоды','other_e':'Другое · Кровать','other_f':'Другое · Модули','other_g':'Другое · Матрасы','other_h':'Другое · Системы хранения','other_i':'Другое · Дверь','other_j':'Другое · Пуфы','other_k':'Другое · Тумбы','sofas_a':'Диваны · Кресло','sofas_b':'Диваны · Диван','sofas_c':'Диваны · Комплект','recep_a':'Ресепшен · До 1,6 м','recep_b':'Ресепшен · Более 1,6 м','kitchen_a':'Кухни · 1,6 м','kitchen_b':'Кухни · 2–3 м','living_a':'Гостиная · До 1,7 м','living_b':'Гостиная · Более 1,7 м','living_c':'Гостиная · Эксклюзив','bedroom_a':'Спальни · 2 двери','bedroom_b':'Спальни · 3 двери без комода','bedroom_c':'Спальни · 3 двери с комодом','bedroom_d':'Спальни · 4 двери','bedroom_e':'Спальни · 5 дверей','bedroom_f':'Спальни · 6 дверей','bedroom_g':'Спальни · 0,9*2','wardrobe_a':'Шкафы · 2 двери','wardrobe_b':'Шкафы · 3 двери','wardrobe_c':'Шкафы · 4 двери','wardrobe_d':'Шкафы · 5 дверей','wardrobe_e':'Шкафы · 6 дверей'};
  const SUB_EMAIL='diannakirakosyan@gmail.com';
  const isSubAdm=()=>((auth.currentUser&&auth.currentUser.email)||'').toLowerCase()===SUB_EMAIL;
@@ -103,6 +104,11 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
   listen('dm',onDmSnap);
   listen('config/forceUpdate',v=>{FU=+v||0;draw()});
   listen('config/ocrMap',v=>{OCR_MAP=v||{};if(TAB==='ocr')drawOcr()});
+  {
+   const attRef=db.ref('attendance');
+   const attFn=attRef.on('value',s=>{ATT=s.val()||{};ATT_ERR=false;if(TAB==='att')drawAtt()},()=>{ATT_ERR=true;if(TAB==='att')drawAtt()});
+   offs.push(()=>attRef.off('value',attFn));
+  }
   listen('chat',v=>{const obj=v||{};const all=Object.keys(obj).map(k=>Object.assign({k:k},obj[k])).sort((a,b)=>(+a.t||0)-(+b.t||0));const list=all.length>50?(all.slice(0,all.length-50).forEach(x=>db.ref('chat/'+x.k).remove().catch(()=>{})),all.slice(-50)):all;if(_admChatInit){const fresh=list.filter(m=>(+m.t||0)>_admLastNotifT&&!m.adm);if(fresh.length){const lm=fresh[fresh.length-1];_admLastNotifT=+lm.t||Date.now();localStorage.setItem('ADM_CHAT_NOTIF_T',String(_admLastNotifT));if(!CHAT_OPEN||document.hidden)admNotify((lm.name||'Водитель'),String(lm.txt||'').slice(0,140))}}else if(list.length){const mx=Math.max.apply(null,list.map(m=>+m.t||0));if(mx>_admLastNotifT){_admLastNotifT=mx;localStorage.setItem('ADM_CHAT_NOTIF_T',String(_admLastNotifT))}}_admChatInit=true;CHAT=list;if(CHAT_OPEN&&!document.hidden){markAdmChatSeen();renderAdmChat()}else updAdmChatBdg()});
   loadPub();
   tick=setInterval(draw,15000);
@@ -636,15 +642,224 @@ function drawTotals(){
   const inp=g('ocrSrchInp');
   if(inp)inp.oninput=e=>{OCR_Q=e.target.value;renderList()};
  }
+ // ===== Табель пропусков (учёт отсутствий по месяцам) =====
+ const ATT_WD=['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+ function attCurYm(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
+ function attShiftYm(ym,delta){
+  const p=String(ym||attCurYm()).split('-');
+  const d=new Date((+p[0]||new Date().getFullYear()),(+p[1]||1)-1+delta,1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+ }
+ function attWorkersList(){
+  const w=(ATT&&ATT.workers)||{};
+  return Object.keys(w).map(k=>({id:k,name:String((w[k]&&w[k].name)||'').trim(),createdAt:+(w[k]&&w[k].createdAt)||0})).filter(x=>x.name).sort((a,b)=>(a.createdAt-b.createdAt)||a.name.localeCompare(b.name,'ru'));
+ }
+ function drawAtt(){
+  const prevWrap=g('attWrap'),prevScroll=prevWrap?prevWrap.scrollLeft:null;
+  const now=new Date(),curYm=attCurYm(),isCurMonth=ATT_YM===curYm,todayDay=isCurMonth?now.getDate():-1;
+  const parts=ATT_YM.split('-'),yr=+parts[0]||now.getFullYear(),mo=(+parts[1]||1)-1;
+  const daysInMonth=new Date(yr,mo+1,0).getDate();
+  const workers=attWorkersList();
+  const mData=(ATT&&ATT.months&&ATT.months[ATT_YM])||{};
+
+  let totalAbs=0,todayAbs=0;
+  const dayTotals=new Array(daysInMonth+1).fill(0);
+  const wCounts={};
+  workers.forEach(w=>{
+   const wm=mData[w.id]||{};
+   let c=0;
+   for(let d=1;d<=daysInMonth;d++){
+    if(wm[d]){c++;dayTotals[d]++;totalAbs++;if(d===todayDay)todayAbs++;}
+   }
+   wCounts[w.id]=c;
+  });
+
+  let h='<div class="tiles">'
+   +'<div class="tile"><b>'+workers.length+'</b><span>рабочих</span></div>'
+   +'<div class="tile"><b style="color:#f87171">'+totalAbs+'</b><span>пропусков</span></div>'
+   +'<div class="tile"><b>'+(isCurMonth?todayAbs:'—')+'</b><span>'+(isCurMonth?'не вышли сегодня':'не тек. месяц')+'</span></div>'
+   +'</div>';
+
+  h+='<div class="att-bar">'
+   +'<button type="button" class="att-nav" data-act="att-prev" aria-label="Предыдущий месяц">◀</button>'
+   +'<div class="att-m-title"><span>📅 '+esc(monthName(ATT_YM))+'</span>'+(isCurMonth?'':'<button type="button" class="att-today-btn" data-act="att-today">Сегодня</button>')+'</div>'
+   +'<button type="button" class="att-nav" data-act="att-next" aria-label="Следующий месяц">▶</button>'
+   +'</div>';
+
+  h+='<div class="att-acts">'
+   +'<button type="button" class="att-act-btn add" data-act="att-add">➕ Рабочий</button>'
+   +'<button type="button" class="att-act-btn sec-b" data-act="att-copy">📋 Отчёт</button>'
+   +'<button type="button" class="att-act-btn sec-b" data-act="att-csv">📊 Excel</button>'
+   +'</div>';
+
+  if(ATT_ERR){
+   h+='<div class="box" style="border-color:rgba(239,68,68,.45);color:#fca5a5">Нет доступа к разделу <b>attendance</b> в Firebase. Добавьте правило <code>attendance</code> в консоли Firebase (см. <code>Правила FireBase.md</code>).</div>';
+   g('view').innerHTML=h;
+   return;
+  }
+
+  if(!workers.length){
+   h+='<div class="box" style="text-align:center;padding:24px 16px"><div style="font-size:28px;margin-bottom:8px">📋</div><div style="font-weight:700;color:#f8fafc;margin-bottom:4px">Список рабочих пуст</div><div class="mut">Нажмите «➕ Рабочий», чтобы добавить сотрудников и отмечать пропуски в таблице месяца.</div></div>';
+   g('view').innerHTML=h;
+   return;
+  }
+
+  let thead='<tr><th class="att-nm-col">Сотрудник</th>';
+  for(let d=1;d<=daysInMonth;d++){
+   const wd=new Date(yr,mo,d).getDay(),isWk=wd===0||wd===6,isTd=d===todayDay;
+   thead+='<th class="att-dth'+(isTd?' td':(isWk?' wk':''))+'"'+(isTd?' id="attTdCol"':'')+'>'+d+'<small>'+ATT_WD[wd]+'</small></th>';
+  }
+  thead+='<th class="att-tot-col">Проп.</th></tr>';
+
+  const tbody=workers.map(w=>{
+   const wm=mData[w.id]||{};
+   let row='<tr><td class="att-nm-col"><button type="button" class="att-nm-btn" data-act="att-worker" data-w="'+esc(w.id)+'"><span>'+esc(w.name)+'</span><i>✎</i></button></td>';
+   for(let d=1;d<=daysInMonth;d++){
+    const wd=new Date(yr,mo,d).getDay(),isWk=wd===0||wd===6,isTd=d===todayDay,on=!!wm[d];
+    row+='<td class="'+(isTd?'att-td-td':(isWk?'att-td-wk':''))+'"><button type="button" class="att-chk'+(on?' on':'')+'" data-act="att-tog" data-w="'+esc(w.id)+'" data-d="'+d+'" aria-label="'+esc(w.name)+' '+d+'">'+(on?'✓':'')+'</button></td>';
+   }
+   row+='<td class="att-tot-col" style="'+(wCounts[w.id]?'color:#fca5a5':'color:#64748b')+'">'+wCounts[w.id]+'</td></tr>';
+   return row;
+  }).join('');
+
+  let tfoot='<tr class="att-foot"><td class="att-nm-col">Итого</td>';
+  for(let d=1;d<=daysInMonth;d++){
+   const v=dayTotals[d];
+   tfoot+='<td class="'+(v?'has':'')+'">'+(v||'')+'</td>';
+  }
+  tfoot+='<td class="att-tot-col">'+totalAbs+'</td></tr>';
+
+  h+='<div id="attWrap" class="att-wrap"><table class="att-tbl"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody><tfoot>'+tfoot+'</tfoot></table></div>';
+  h+='<div class="mut hint">Нажмите на клетку дня, чтобы поставить ✓ (не вышел на работу). Нажмите на имя сотрудника для редактирования или удаления.</div>';
+  g('view').innerHTML=h;
+
+  const wrap=g('attWrap');
+  if(wrap){
+   if(prevScroll!==null&&ATT_SCROLLED_YM===ATT_YM){
+    wrap.scrollLeft=prevScroll;
+   }else{
+    ATT_SCROLLED_YM=ATT_YM;
+    const tdEl=g('attTdCol');
+    if(tdEl){
+     const target=Math.max(0,tdEl.offsetLeft-160);
+     wrap.scrollLeft=target;
+    }
+   }
+  }
+ }
+ async function attAddWorker(){
+  const v=await askInput('Новый рабочий','Введите имя сотрудника для табеля','','Например: Армен');
+  if(v===null)return;
+  const clean=v.trim().slice(0,32);
+  if(!clean){toast('Введите имя рабочего',true);return}
+  try{
+   await db.ref('attendance/workers').push({name:clean,createdAt:Date.now()});
+   toast('Добавлен: '+clean);
+  }catch(e){toast('Ошибка сохранения: '+((e&&e.message)||e),true)}
+ }
+ async function attToggle(wid,day){
+  if(!wid||!day)return;
+  const isSet=!!(ATT&&ATT.months&&ATT.months[ATT_YM]&&ATT.months[ATT_YM][wid]&&ATT.months[ATT_YM][wid][day]);
+  try{
+   const ref=db.ref('attendance/months/'+ATT_YM+'/'+wid+'/'+day);
+   if(isSet)await ref.remove();
+   else await ref.set(true);
+  }catch(e){toast('Ошибка сохранения',true)}
+ }
+ function openAttWorkerModal(wid){
+  const w=(ATT&&ATT.workers&&ATT.workers[wid]);
+  if(!w)return;
+  const ov=document.createElement('div');ov.className='ov';
+  ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>👷 '+esc(w.name)+'</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'
+   +'<div class="sel-it" data-op="ren"><div class="sel-it-l"><span class="sel-ic">✏️</span><div><div class="sel-it-nm">Переименовать</div><div class="sel-it-sb">Изменить имя сотрудника</div></div></div></div>'
+   +'<div class="sel-it" data-op="del" style="border-color:rgba(239,68,68,.3)"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.38);color:#f87171">🗑️</span><div><div class="sel-it-nm" style="color:#fca5a5">Удалить рабочего</div><div class="sel-it-sb">Убрать сотрудника из таблицы</div></div></div></div>'
+   +'</div></div>';
+  document.body.appendChild(ov);
+  const close=()=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),180)};
+  ov.querySelector('.sel-x').onclick=close;
+  ov.onclick=async e=>{
+   if(e.target===ov){close();return}
+   const it=e.target.closest('.sel-it');if(!it)return;
+   const op=it.dataset.op;close();
+   if(op==='ren'){
+    const nv=await askInput('Переименовать рабочего','Введите новое имя сотрудника',w.name,'Имя...');
+    if(nv===null)return;
+    const clean=nv.trim().slice(0,32);
+    if(!clean){toast('Имя не может быть пустым',true);return}
+    try{await db.ref('attendance/workers/'+wid+'/name').set(clean);toast('Имя обновлено')}
+    catch(err){toast('Ошибка сохранения',true)}
+   }else if(op==='del'){
+    if(!(await ask('Удалить «'+w.name+'» из списка рабочих?',{title:'Удаление рабочего',okText:'Удалить',danger:true})))return;
+    try{await db.ref('attendance/workers/'+wid).remove();toast('Сотрудник удалён')}
+    catch(err){toast('Ошибка удаления',true)}
+   }
+  };
+  requestAnimationFrame(()=>ov.classList.add('show'));
+ }
+ function attExportCsv(){
+  const workers=attWorkersList();
+  if(!workers.length){toast('Список рабочих пуст',true);return}
+  const p=ATT_YM.split('-'),yr=+p[0],mo=(+p[1]||1)-1;
+  const dim=new Date(yr,mo+1,0).getDate();
+  const mData=(ATT&&ATT.months&&ATT.months[ATT_YM])||{};
+  const header=['Сотрудник'];
+  for(let d=1;d<=dim;d++)header.push(String(d));
+  header.push('Итого');
+  const dayT=new Array(dim+1).fill(0);
+  let tot=0;
+  const rows=workers.map(w=>{
+   const wm=mData[w.id]||{},r=[w.name];
+   let c=0;
+   for(let d=1;d<=dim;d++){
+    if(wm[d]){r.push('✓');c++;dayT[d]++;tot++;}else r.push('');
+   }
+   r.push(c);
+   return r;
+  });
+  const totalRow=['ИТОГО'];
+  for(let d=1;d<=dim;d++)totalRow.push(dayT[d]||'');
+  totalRow.push(tot);
+  const title=monthName(ATT_YM);
+  const fn='EuroBaza_Табель_'+title.replace(/[\s\/:*?"<>|]+/g,'_')+'.csv';
+  if(window.TableViewer){
+   TableViewer.open({title:'Табель пропусков · '+title,filename:fn,headers:header,rows:rows,totalRow:totalRow});
+   return;
+  }
+  downloadCsv(fn,[header,...rows,totalRow]);
+ }
+ function attCopyReport(){
+  const workers=attWorkersList();
+  if(!workers.length){toast('Список рабочих пуст',true);return}
+  const p=ATT_YM.split('-'),yr=+p[0],mo=(+p[1]||1)-1;
+  const dim=new Date(yr,mo+1,0).getDate();
+  const mData=(ATT&&ATT.months&&ATT.months[ATT_YM])||{};
+  let tot=0;
+  const lines=['📅 Табель пропусков — '+monthName(ATT_YM),''];
+  workers.forEach(w=>{
+   const wm=mData[w.id]||{},days=[];
+   for(let d=1;d<=dim;d++)if(wm[d])days.push(d);
+   tot+=days.length;
+   lines.push('• '+w.name+': '+days.length+' дн.'+(days.length?' ('+days.join(', ')+')':''));
+  });
+  lines.push('','Всего пропусков: '+tot);
+  const txt=lines.join('\n');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+   navigator.clipboard.writeText(txt).then(()=>toast('Отчёт скопирован')).catch(()=>toast('Не удалось скопировать',true));
+  }else{toast('Буфер обмена недоступен',true)}
+ }
  function draw(){
   if(g('panel').hidden)return;
   updOcrTabBdg();
   const sub=isSubAdm();
   const tabsEl=document.querySelector('.tabs');
-  if(tabsEl)tabsEl.style.gridTemplateColumns=sub?'repeat(4,1fr)':'repeat(5,1fr)';
+  if(tabsEl)tabsEl.style.gridTemplateColumns='repeat(5,1fr)';
   const mapTab=document.querySelector('.tabs button[data-tab="map"]');
+  const attTab=document.querySelector('.tabs button[data-tab="att"]');
   const ocrTab=document.querySelector('.tabs button[data-tab="ocr"]');
+  const admAttBtn=g('admAttBtn');
   if(mapTab)mapTab.hidden=sub;
+  if(attTab)attTab.hidden=!sub;
+  if(admAttBtn){admAttBtn.hidden=sub;admAttBtn.classList.toggle('adm-att-on',TAB==='att');}
   if(ocrTab)ocrTab.hidden=false;
   if(sub&&TAB==='map')TAB='online';
   if(sub&&SEL==='ADMIN')SEL='all';
@@ -653,6 +868,7 @@ function drawTotals(){
   if(TAB!=='map'&&_map)destroyMap();
   if(TAB==='online')drawOnline();
   else if(TAB==='map')drawMap();
+  else if(TAB==='att')drawAtt();
   else if(TAB==='totals')drawTotals();
   else if(TAB==='ocr')drawOcr();
   else drawVer();
@@ -1012,6 +1228,14 @@ function openSelectModal(){
   else if(a==='mapfilter'){MAP_ONLY_ONLINE=!MAP_ONLY_ONLINE;_didFit=false;drawMap()}
   else if(a==='mapsat'){ADM_SAT=!ADM_SAT;try{localStorage.setItem('ADM_MAP_SAT',ADM_SAT?'1':'0')}catch(e){}if(_applyAdmSat)_applyAdmSat(ADM_SAT);const sb=g('admSatBtn');if(sb){sb.classList.toggle('on',ADM_SAT);sb.textContent=ADM_SAT?'🛰️ Спутник':'🗺️ Схема'}}
   else if(a==='focus'){const mk=_markers[b.dataset.id];if(mk&&_map){_map.easeTo({center:mk.getLngLat(),zoom:16,duration:400});const p=mk.getPopup();if(p&&!p.isOpen())mk.togglePopup()}}
+  else if(a==='att-prev'){ATT_YM=attShiftYm(ATT_YM,-1);ATT_SCROLLED_YM='';drawAtt()}
+  else if(a==='att-next'){ATT_YM=attShiftYm(ATT_YM,1);ATT_SCROLLED_YM='';drawAtt()}
+  else if(a==='att-today'){ATT_YM=attCurYm();ATT_SCROLLED_YM='';drawAtt()}
+  else if(a==='att-add'){attAddWorker()}
+  else if(a==='att-tog'){attToggle(b.dataset.w,+b.dataset.d)}
+  else if(a==='att-worker'){openAttWorkerModal(b.dataset.w)}
+  else if(a==='att-csv'){attExportCsv()}
+  else if(a==='att-copy'){attCopyReport()}
  });
  document.querySelectorAll('.tabs button').forEach(b=>b.onclick=async ()=>{TAB=b.dataset.tab;draw()});
 
@@ -1373,6 +1597,7 @@ function openSelectModal(){
   requestAnimationFrame(()=>{ov.classList.add('show');});
  }
  if(g('chgPwBtn'))g('chgPwBtn').onclick=openChangePw;
+ if(g('admAttBtn'))g('admAttBtn').onclick=()=>{TAB='att';draw()};
  g('admChatBtn').onclick=openAdmChat;
  g('out').onclick=async ()=>auth.signOut();
  auth.onAuthStateChanged(u=>{
@@ -1380,7 +1605,7 @@ function openSelectModal(){
    g('login').hidden=true;g('panel').hidden=false;g('who').textContent=(isSubAdm()?'Доставка · ':'')+(u.email||'');
    start();draw();
   }else{
-   stop();USERS={};LABELS={};ACCOUNTS={};
+   stop();USERS={};LABELS={};ACCOUNTS={};ATT={};ATT_ERR=false;
    g('panel').hidden=true;g('login').hidden=false;
   }
  });
