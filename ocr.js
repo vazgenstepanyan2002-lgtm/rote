@@ -1353,7 +1353,7 @@ async function askGemini(b64){
     ov.innerHTML = '<video id="ocrLiveVid" autoplay playsinline muted></video>'
       + '<div id="olcFocusRing" style="position:fixed;width:64px;height:64px;border:2px solid #fde047;border-radius:50%;pointer-events:none;opacity:0;transform:translate(-50%,-50%) scale(1.2);transition:opacity .2s,transform .2s;z-index:3"></div>'
       + '<div class="olc-top"><button type="button" class="olc-btn" id="olcSys">📷 Системная</button><span>Коснитесь текста для фокуса</span><button type="button" class="olc-btn" id="olcClose" aria-label="Закрыть">✕</button></div>'
-      + '<div class="olc-frame" id="olcFrame"><div class="olc-hdl" id="olcHdl" aria-label="Размер рамки"><i></i></div></div>'
+      + '<div class="olc-frame" id="olcFrame"><div class="olc-hdl" id="olcHdl" aria-label="Размер рамки" style="position:absolute;left:50%;bottom:-22px;transform:translateX(-50%);width:130px;height:44px;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none;z-index:4"><i style="display:flex;align-items:center;justify-content:center;width:64px;height:18px;border-radius:99px;background:rgba(16,185,129,.92);border:1.5px solid #ecfdf5;box-shadow:0 2px 10px rgba(0,0,0,.75);color:#042414;font-style:normal;font-size:12px;font-weight:900;line-height:1">↕</i></div></div>'
       + '<div class="olc-bot"><button type="button" class="olc-btn" id="olcTorch">🔦 Свет</button><button type="button" class="olc-shot" id="olcShot" aria-label="Снять"></button><button type="button" class="olc-btn" id="olcLens"></button></div>';
     document.body.appendChild(ov);
     const vid = g("ocrLiveVid");
