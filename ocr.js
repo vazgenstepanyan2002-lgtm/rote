@@ -600,7 +600,7 @@ async function askGemini(b64){
       },
       required: ['doc', 'addr', 'items']
     };
-    const baseModels = ['gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.1-flash-lite'];
+    const baseModels = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-flash-lite-latest'];
     const readSkip = () => {
       try {
         const raw = JSON.parse(localStorage.getItem('OCR_SKIP_MDL') || '{}') || {};
@@ -619,6 +619,7 @@ async function askGemini(b64){
     const getOrderedModels = () => {
       const skip = readSkip();
       let list = baseModels.filter(m => !skip[m]);
+      if (!list.length) list = baseModels.slice();
       try {
         const fc = JSON.parse(localStorage.getItem('OCR_FAST_MDL_V2') || 'null');
         if (fc && fc.m && /lite/.test(fc.m) && fc.t > Date.now() - 20 * 60000 && list.includes(fc.m)) {
@@ -673,6 +674,8 @@ async function askGemini(b64){
             if (res.status === 429) {
               const isDaily = /per\s*day|free\s*tier|limit:\s*0/i.test(msg);
               markSkip(mdl, isDaily ? 60 : 5);
+            } else if (res.status === 503 || /high demand|overloaded|unavailable/i.test(msg)) {
+              markSkip(mdl, 3);
             } else if (res.status === 404) {
               markSkip(mdl, 720);
             }
@@ -744,8 +747,8 @@ async function askGemini(b64){
       return { doc, addr: String((parsed && parsed.addr) || '').trim(), items };
     };
 
-    const passTimeouts = [5200, 7500, 10500];
-    const passWaits = [0, 300, 900];
+    const passTimeouts = [7200, 10500];
+    const passWaits = [0, 350];
     let j = null, winMdl = '', lastErr = '';
     for (let p = 0; p < passTimeouts.length; p++) {
       if (passWaits[p] > 0) await new Promise(r => setTimeout(r, passWaits[p]));
