@@ -979,8 +979,8 @@ async function askGemini(b64){
   };
   async function tryOpenVideo(baseVideo, extraAdv){
     const tiers = [
-      Object.assign({ width: { ideal: 3840 }, height: { ideal: 2160 } }, baseVideo),
-      Object.assign({ width: { ideal: 1920 }, height: { ideal: 1080 } }, baseVideo),
+      Object.assign({ width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30, max: 30 } }, baseVideo),
+      Object.assign({ width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } }, baseVideo),
       Object.assign({}, baseVideo)
     ];
     for (const c of tiers) {
@@ -990,22 +990,12 @@ async function askGemini(b64){
           const st = await navigator.mediaDevices.getUserMedia({ video: c, audio: false });
           const tr = st.getVideoTracks()[0];
           if (tr && tr.applyConstraints) {
-            const cp = getCaps(tr), sets = tr.getSettings ? (tr.getSettings() || {}) : {};
-            const maxCap = Math.max((cp.width && cp.width.max) || 0, (cp.height && cp.height.max) || 0);
-            const curMax = Math.max(sets.width || 0, sets.height || 0);
-            const tw = Math.min(3840, (cp.width && cp.width.max) || 3840);
-            const th = Math.min(2160, (cp.height && cp.height.max) || 2160);
+            const cp = getCaps(tr);
             const adv = [];
             if (Array.isArray(cp.focusMode) && cp.focusMode.includes("continuous")) adv.push({ focusMode: "continuous" });
             if (extraAdv && extraAdv.length) adv.push(...extraAdv);
             try {
-              const up = {};
-              if (tw >= 1280 && curMax < Math.min(3840, maxCap || 3840) * 0.85) {
-                up.width = { ideal: tw };
-                up.height = { ideal: th };
-              }
-              if (adv.length) up.advanced = adv;
-              if (Object.keys(up).length) await tr.applyConstraints(up);
+              if (adv.length) await tr.applyConstraints({ advanced: adv });
             } catch (e) {}
           }
           return st;
@@ -1047,6 +1037,7 @@ async function askGemini(b64){
     const sig = allVideo.map(d => d.deviceId).sort().join("|");
     const cacheValid = cached && cached.sig === sig && Array.isArray(cached.lenses) && cached.lenses.length;
 
+    // Если текущая камера уже со вспышкой и автофокусом, не тратим время на опрос других камер
     if (curTorch && curAF) {
       let lenses = cacheValid ? cached.lenses.slice() : rearCandidates.map(d => ({
         deviceId: d.deviceId,
@@ -1089,10 +1080,11 @@ async function askGemini(b64){
       .filter(d => d.deviceId !== curId)
       .sort((a, b) => (/camera2\s*0\b|back|rear|\b0\b/i.test(b.label) ? 1 : 0) - (/camera2\s*0\b|back|rear|\b0\b/i.test(a.label) ? 1 : 0));
 
-    if (toProbe.length) {
+    // На Android не перебираем все камеры подряд при каждом запуске, если уже есть задняя камера
+    if (toProbe.length && (!curId || !curTorch)) {
       stopStream(stream);
       stream = null;
-      await sleep(50);
+      await sleep(40);
       for (const d of toProbe) {
         const st = await tryOpenVideo({ deviceId: { exact: d.deviceId } });
         if (!st) continue;
@@ -1110,7 +1102,7 @@ async function askGemini(b64){
           });
         }
         stopStream(st);
-        await sleep(40);
+        await sleep(30);
       }
     }
 

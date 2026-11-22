@@ -1107,8 +1107,8 @@ body:has(.cm.open)>*:not(.cm):not(#toast):not(#busy){pointer-events:none!importa
 .ob-pk-pr{font-size:12.5px;font-weight:800;color:#fde047;white-space:nowrap;flex-shrink:0}
 
 /* IN-APP-CAMERA */
-#ocrLiveCam{position:fixed;inset:0;z-index:270;background:#000;display:flex;flex-direction:column;justify-content:space-between;touch-action:none}
-#ocrLiveVid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+#ocrLiveCam{position:fixed;inset:0;z-index:270;background:#000;display:flex;flex-direction:column;justify-content:space-between;touch-action:none;transform:translateZ(0);backface-visibility:hidden}
+#ocrLiveVid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000;transform:translateZ(0);will-change:transform}
 .olc-top{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:calc(12px + env(safe-area-inset-top,0px)) 14px 12px;background:linear-gradient(180deg,rgba(0,0,0,.8),transparent)}
 .olc-top span{flex:1 1 auto;min-width:0;text-align:center;font-size:13px;font-weight:700;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .olc-btn{width:auto!important;min-width:44px!important;min-height:44px!important;height:44px!important;margin:0!important;padding:0 13px!important;border-radius:14px!important;background:rgba(15,23,34,.8)!important;border:1px solid rgba(255,255,255,.24)!important;color:#fff!important;font-size:13px!important;font-weight:700!important;display:inline-flex!important;align-items:center;justify-content:center;gap:5px;white-space:nowrap;flex-shrink:0;backdrop-filter:blur(8px);box-shadow:none!important}
