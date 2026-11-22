@@ -969,7 +969,7 @@ function drawTotals(){
   groups.forEach(gr=>{
    const offWd=(gr.code&&CREW_OFF[gr.code]!==undefined)?CREW_OFF[gr.code]:-1;
    gr.members.forEach(m=>{
-    const wm=mData[m.pid]||{},r=[gr.code?gr.code:'—',m.name+(m.isApp?'':' (без прил.)')];
+    const wm=mData[m.pid]||{},r=[gr.code?gr.code:'—',m.name];
     let ca=0,cw=0;
     for(let d=1;d<=dim;d++){
      const isOff=new Date(yr,mo,d).getDay()===offWd;
@@ -1013,7 +1013,7 @@ function drawTotals(){
      else absDays.push(d);
     }
     totA+=absDays.length;totW+=workDays.length;
-    let line='• '+m.name+(m.isApp?'':' (без прил.)')+': ✕ '+absDays.length+(absDays.length?' ('+absDays.join(', ')+')':'');
+    let line='• '+m.name+': ✕ '+absDays.length+(absDays.length?' ('+absDays.join(', ')+')':'');
     if(workDays.length)line+=' · ✓ в вых. '+workDays.length+' ('+workDays.join(', ')+')';
     lines.push(line);
    });
