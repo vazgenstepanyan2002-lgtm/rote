@@ -112,7 +112,7 @@
     return s;
   }
 
-  function createXlsxBlob(allRows, hasTotal) {
+  function createXlsxBlob(allRows, hasTotal, mergeFirstCol) {
     const colCount = allRows.reduce((m, r) => Math.max(m, (r && r.length) || 0), 0);
     const widths = new Array(colCount).fill(0);
 
@@ -134,16 +134,42 @@
       return `<col min="${i + 1}" max="${i + 1}" width="${cw}" customWidth="1"/>`;
     }).join('') + '</cols>';
 
+    // Объединение одинаковых подряд идущих ячеек в первом столбце (например, экипажи)
+    const merges = [];
+    const skipFirstCol = new Set();
+    if (mergeFirstCol && allRows.length > 2) {
+      const lastDataIdx = hasTotal ? allRows.length - 2 : allRows.length - 1;
+      let i = 1;
+      while (i <= lastDataIdx) {
+        const val = String((allRows[i] && allRows[i][0]) || '');
+        let j = i;
+        while (j + 1 <= lastDataIdx && String((allRows[j + 1] && allRows[j + 1][0]) || '') === val) {
+          j++;
+        }
+        if (val && j > i) {
+          merges.push(`A${i + 1}:A${j + 1}`);
+          for (let k = i + 1; k <= j; k++) skipFirstCol.add(k);
+        }
+        i = j + 1;
+      }
+    }
+
     const rowsXml = allRows.map((row, rIdx) => {
       const rNum = rIdx + 1;
       const isHead = rIdx === 0;
       const isTot = hasTotal && rIdx === allRows.length - 1;
       const cells = [];
       for (let c = 0; c < colCount; c++) {
-        const val = row && row[c] !== undefined && row[c] !== null ? row[c] : '';
         const ref = colLetter(c) + rNum;
+        if (c === 0 && skipFirstCol.has(rIdx)) {
+          cells.push(`<c r="${ref}" s="6"/>`);
+          continue;
+        }
+        const val = row && row[c] !== undefined && row[c] !== null ? row[c] : '';
         const isShort = widths[c] <= 3.5;
-        const styleId = isHead ? (isShort ? 2 : 1) : (isTot ? (isShort ? 4 : 3) : (isShort ? 5 : 0));
+        let styleId = isHead ? (isShort ? 2 : 1) : (isTot ? (isShort ? 4 : 3) : (isShort ? 5 : 0));
+        if (mergeFirstCol && c === 0 && !isHead && !isTot) styleId = 6;
+        if (mergeFirstCol && c === 0 && isHead) styleId = 2;
         if (typeof val === 'number' && isFinite(val)) {
           cells.push(`<c r="${ref}" s="${styleId}"><v>${val}</v></c>`);
         } else {
@@ -193,20 +219,26 @@
       + '</fills>'
       + '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
       + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
-      + '<cellXfs count="6">'
+      + '<cellXfs count="7">'
       + '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
       + '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>'
-      + '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center"/></xf>'
+      + '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
       + '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
-      + '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center"/></xf>'
-      + '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center"/></xf>'
+      + '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+      + '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+      + '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
       + '</cellXfs>'
       + '</styleSheet>';
+
+    const mergeXml = merges.length
+      ? `<mergeCells count="${merges.length}">${merges.map(ref => `<mergeCell ref="${ref}"/>`).join('')}</mergeCells>`
+      : '';
 
     const sheet1 = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
       + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
       + colsXml
       + '<sheetData>' + rowsXml + '</sheetData>'
+      + mergeXml
       + '</worksheet>';
 
     return makeZip([
@@ -257,7 +289,7 @@
 
   const TableViewer = {
     // Открыть модальное окно с таблицей
-    open({ title, filename, headers = [], rows = [], totalRow = null }) {
+    open({ title, filename, headers = [], rows = [], totalRow = null, mergeFirstCol = false }) {
       const old = document.getElementById('tvMdl');
       if (old) {
         if (typeof old._tvClose === 'function') old._tvClose();
@@ -266,7 +298,7 @@
 
       const xlsxName = String(filename || 'EuroBaza.xlsx').replace(/\.csv$/i, '.xlsx');
       const allRows = [headers, ...rows, ...(totalRow ? [totalRow] : [])];
-      const blob = createXlsxBlob(allRows, !!totalRow);
+      const blob = createXlsxBlob(allRows, !!totalRow, !!mergeFirstCol);
 
       const prevHtmlOv = document.documentElement.style.overflow;
       const prevBodyOv = document.body.style.overflow;
@@ -307,7 +339,7 @@
                 </tr>
               </thead>
               <tbody id="tvTbody">
-                ${this.renderRowsHtml(rows)}
+                ${this.renderRowsHtml(rows, mergeFirstCol)}
               </tbody>
               ${totalRow ? `
               <tfoot>
@@ -361,26 +393,44 @@
       searchInp.oninput = () => {
         const q = searchInp.value.trim().toLowerCase();
         if (!q) {
-          tbody.innerHTML = this.renderRowsHtml(rows);
+          tbody.innerHTML = this.renderRowsHtml(rows, mergeFirstCol);
           countEl.textContent = rows.length;
           return;
         }
         const filtered = rows.filter(r => r.some(cell => String(cell || '').toLowerCase().includes(q)));
-        tbody.innerHTML = this.renderRowsHtml(filtered);
+        tbody.innerHTML = this.renderRowsHtml(filtered, mergeFirstCol);
         countEl.textContent = filtered.length;
       };
     },
 
     // Отрисовка строк таблицы
-    renderRowsHtml(rows) {
+    renderRowsHtml(rows, mergeFirstCol = false) {
       if (!rows.length) {
         return `<tr><td colspan="10" style="padding:28px 12px;text-align:center;color:#64748b">Ничего не найдено</td></tr>`;
+      }
+      const spans = new Array(rows.length).fill(1);
+      if (mergeFirstCol) {
+        let i = 0;
+        while (i < rows.length) {
+          const v = String((rows[i] && rows[i][0]) || '');
+          let j = i;
+          while (j + 1 < rows.length && String((rows[j + 1] && rows[j + 1][0]) || '') === v) j++;
+          if (v && j > i) {
+            spans[i] = j - i + 1;
+            for (let k = i + 1; k <= j; k++) spans[k] = 0;
+          }
+          i = j + 1;
+        }
       }
       return rows.map((r, rIdx) => {
         const bg = rIdx % 2 === 1 ? 'background:rgba(255,255,255,.02);' : '';
         return `
           <tr style="${bg}border-bottom:1px solid rgba(255,255,255,.04)">
             ${r.map((c, idx) => {
+              if (mergeFirstCol && idx === 0) {
+                if (spans[rIdx] === 0) return '';
+                return `<td rowspan="${spans[rIdx]}" style="padding:9px 14px;white-space:nowrap;text-align:center;vertical-align:middle;font-weight:800;color:#6ee7b7;border-right:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.1)">${esc(c)}</td>`;
+              }
               const isNum = typeof c === 'number' || (!isNaN(+c) && idx > 1);
               return `<td style="padding:9px 14px;white-space:nowrap;color:#cbd5e1;${idx > 1 ? 'text-align:right;' : ''}${idx === r.length - 1 ? 'font-weight:700;color:#f8fafc;' : ''}">${esc(isNum && typeof c === 'number' ? fm(c) : c)}</td>`;
             }).join('')}

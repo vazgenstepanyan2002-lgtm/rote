@@ -969,7 +969,7 @@ function drawTotals(){
   groups.forEach(gr=>{
    const offWd=(gr.code&&CREW_OFF[gr.code]!==undefined)?CREW_OFF[gr.code]:-1;
    gr.members.forEach(m=>{
-    const wm=mData[m.pid]||{},r=[gr.code?('Экипаж '+gr.code+(CREW_OFF_LBL[gr.code]?' ('+CREW_OFF_LBL[gr.code]+')':'')):'Без экипажа',m.name+(m.isApp?'':' (без прил.)')];
+    const wm=mData[m.pid]||{},r=[gr.code?gr.code:'—',m.name+(m.isApp?'':' (без прил.)')];
     let ca=0,cw=0;
     for(let d=1;d<=dim;d++){
      const isOff=new Date(yr,mo,d).getDay()===offWd;
@@ -988,7 +988,7 @@ function drawTotals(){
   const title=monthName(ATT_YM);
   const fn='EuroBaza_Табель_'+title.replace(/[\s\/:*?"<>|]+/g,'_')+'.csv';
   if(window.TableViewer){
-   TableViewer.open({title:'Табель · '+title,filename:fn,headers:header,rows:rows,totalRow:totalRow});
+   TableViewer.open({title:'Табель · '+title,filename:fn,headers:header,rows:rows,totalRow:totalRow,mergeFirstCol:true});
    return;
   }
   downloadCsv(fn,[header,...rows,totalRow]);
