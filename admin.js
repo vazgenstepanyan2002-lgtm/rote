@@ -405,6 +405,7 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
    const sub=isSubAdm();
    const un=dmUnread(d.id);
    const dmBtn='<button class="dm-btn" data-act="dm" data-id="'+esc(d.id)+'" aria-label="Личный чат">✉️'+(un?'<span class="dm-bdg">'+(un>99?'99+':un)+'</span>':'')+'</button>';
+   const editNameBtn=sub?'':'<button class="xb" style="background:rgba(168,85,247,.16);border-color:rgba(192,132,252,.38);color:#d8b4fe" data-act="editname" data-id="'+esc(d.id)+'" aria-label="Изменить имя">✏️</button>';
    const pinBtn=(!sub&&acc)?'<button class="xb" style="background:rgba(250,204,21,.14);border-color:rgba(250,204,21,.35);color:#fde047" data-act="pin" data-key="'+esc(acc.key)+'" aria-label="ПИН">🔑</button>':'';
    const blkBtn=sub?'':(blk
     ?'<button class="xb" style="background:rgba(16,185,129,.18);border-color:rgba(52,211,153,.4);color:#34d399" data-act="block" data-id="'+esc(d.id)+'" data-key="'+esc(acc?acc.key:'')+'" data-blk="1" aria-label="Разблокировать">✅</button>'
@@ -416,9 +417,9 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
     +'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">'+row1.join('')+'</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:4px">'+row2.join('')+'</div></div>'
     +'<div class="rv">'+money(car && car !== "ADMIN" ? parseCar(car).sum : (car === "ADMIN" ? 0 : d.cur.sum))+'</div>'
-    +dmBtn+pinBtn+blkBtn+delBtn+'</div>';
+    +dmBtn+editNameBtn+pinBtn+blkBtn+delBtn+'</div>';
   }).join('');
-  const tail='</div>'+(L.length&&!isSubAdm()?'<div class="mut hint">Нажмите на имя водителя, чтобы задать префикс.</div>':'');
+  const tail='</div>'+(L.length&&!isSubAdm()?'<div class="mut hint">Нажмите на имя водителя, чтобы задать префикс. Кнопка ✏️ меняет имя профиля.</div>':'');
   if(g('onlSrch')&&document.activeElement===g('onlSrch')&&g('onlRows')){g('onlRows').innerHTML=rowsHtml;return}
   g('view').innerHTML=h+rowsHtml+tail;
   const si=g('onlSrch');if(si)si.oninput=e=>{ONL_Q=e.target.value;drawOnline()};
@@ -932,6 +933,37 @@ function openSelectModal(){
   try{if(t)await db.ref('labels/'+id).set(t);else await db.ref('labels/'+id).remove();toast('Сохранено')}
   catch(e){toast('Не удалось: '+((e&&e.message)||e),true)}
  }
+ async function editUserName(id){
+  if(!id)return;
+  const du=USERS[id]||{},acc=accByUid(id);
+  const cur=(acc&&acc.name)||du.uname||'';
+  const v=await askInput('Имя пользователя', 'Новое имя профиля (для входа и отображения у водителя)', cur, 'Введите новое имя...');
+  if(v===null)return;
+  const newName=v.trim().slice(0,32);
+  if(newName.length<2){toast('Введите имя (минимум 2 буквы)',true);return}
+  const newKey=newName.toLowerCase().replace(/[.#$\[\]\/]+/g,'_').replace(/\s+/g,' ');
+  if(!newKey||newKey.startsWith('__dev_')){toast('Недопустимое имя',true);return}
+  if(newName===cur&&(!acc||acc.key===newKey))return;
+  try{
+   const exSnap=await db.ref('accounts/'+newKey).once('value');
+   const ex=exSnap.val();
+   if(ex&&ex.uid&&ex.uid!==id){toast('Имя «'+newName+'» уже занято',true);return}
+   if(acc){
+    if(newKey!==acc.key){
+     const oldSnap=await db.ref('accounts/'+acc.key).once('value');
+     const base=oldSnap.val()||Object.assign({},ACCOUNTS[acc.key]);
+     const nextAcc=Object.assign({},base,{uid:id,name:newName});
+     delete nextAcc.key;
+     await db.ref('accounts/'+newKey).set(nextAcc);
+     await db.ref('accounts/'+acc.key).remove();
+    }else{
+     await db.ref('accounts/'+newKey+'/name').set(newName);
+    }
+   }
+   await db.ref('users/'+id).update({uname:newName,ukey:newKey});
+   toast('Имя изменено: '+newName);
+  }catch(e){toast('Не удалось: '+((e&&e.message)||e),true)}
+ }
  async function del(id){
   if(!(await ask('Удалить запись об этом устройстве из панели? Данные в самом приложении останутся.', { title: 'Удалить устройство', okText: 'Удалить', danger: true })))return;
   try{const acc=accByUid(id);await db.ref('users/'+id).remove();await db.ref('labels/'+id).remove();if(acc)await db.ref('accounts/'+acc.key).remove();toast('Удалено')}
@@ -945,6 +977,7 @@ function openSelectModal(){
   else if(a==='del'){e.stopPropagation();if(!isSubAdm())del(b.dataset.id)}
   else if(a==='setcar'){e.stopPropagation();openCarModal(b.dataset.id)}
   else if(a==='rename'){if(!isSubAdm())rename(b.dataset.id)}
+  else if(a==='editname'){e.stopPropagation();if(!isSubAdm())editUserName(b.dataset.id)}
   else if(a==='dm'){e.stopPropagation();openAdmDm(b.dataset.id)}
   else if(a==='block'){e.stopPropagation();const id=b.dataset.id,k=b.dataset.key,isBlk=b.dataset.blk==='1',du=USERS[id]||{};const who=dispName(parseDev(id,du));const ok=await ask(isBlk?'Разблокировать водителя и телефон «'+who+'»?':'Заблокировать водителя и этот телефон («'+who+'»)? Он сразу выйдет и не сможет войти даже под новым именем.',{title:isBlk?'Разблокировка':'Блокировка',okText:isBlk?'Разблокировать':'Заблокировать',danger:!isBlk});if(!ok)return;try{const nv=isBlk?null:true;await db.ref('users/'+id+'/blocked').set(nv);if(k)await db.ref('accounts/'+k+'/blocked').set(nv);if(du.devId)await db.ref('accounts/__dev_'+du.devId).set(isBlk?null:{blocked:true});if(!isBlk)await db.ref('online/'+id).remove();toast(isBlk?'Разблокировано':'Заблокировано')}catch(err){toast('Ошибка сохранения',true)}}
   else if(a==='pin'){e.stopPropagation();const k=b.dataset.key,cur=ACCOUNTS[k]&&ACCOUNTS[k].pin||'';const np=await askInput('Смена ПИН-кода','Введите новый 4-значный код для водителя',cur,'Например: 1234');if(np===null)return;const clean=np.replace(/\D/g,'');if(clean.length!==4){toast('Нужно ровно 4 цифры',true);return}try{await db.ref('accounts/'+k+'/pin').set(clean);toast('ПИН-код обновлён')}catch(err){toast('Ошибка сохранения',true)}}

@@ -233,11 +233,47 @@
         if (window._setDriverCar) window._setDriverCar(c);
       }, () => {});
     };
+
+    const normKey = s => String(s || "").trim().toLowerCase().replace(/[.#$\[\]\/]+/g, "_").replace(/\s+/g, " ");
+    const applySrvName = val => {
+      const srv = String(val || "").trim();
+      if (!srv || srv === ls("USER_NAME")) return;
+      lsSet("USER_NAME", srv);
+      lsSet("USER_KEY", normKey(srv));
+      lastSig = "";
+      if (window._renderUserBtn) window._renderUserBtn();
+      const pm = document.getElementById("profMdl");
+      if (pm) {
+        const sn = pm.querySelector(".sh-name");
+        if (sn) sn.textContent = srv;
+        const av = document.getElementById("pmAvBox");
+        if (av && !av.querySelector("img")) av.textContent = srv.slice(0, 2).toUpperCase();
+      }
+    };
+    let _watchedNameUid = "";
+    const watchName = () => {
+      const uid = ls("ADM_UID") || "";
+      if (!uid || uid === _watchedNameUid) return;
+      _watchedNameUid = uid;
+      db.ref("users/" + uid + "/uname").on("value", snap => {
+        applySrvName(snap.val());
+      }, () => {});
+    };
+
     watchCar();
-    setInterval(watchCar, 3000);
+    watchName();
+    setInterval(() => { watchCar(); watchName(); }, 3000);
 
     window._admPushNow = push;
-    push();
+    const initUid = ls("ADM_UID") || "";
+    if (initUid) {
+      db.ref("users/" + initUid + "/uname").once("value").then(snap => {
+        applySrvName(snap.val());
+        push();
+      }).catch(() => push());
+    } else {
+      push();
+    }
     setInterval(() => { if (!document.hidden) push(); }, 30000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden){ push(); tryFU(); } });
     db.ref('config/forceUpdate').on('value', snap => {

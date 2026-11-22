@@ -268,7 +268,7 @@ body:has(#login:not([hidden])){height:100dvh;overflow:hidden;overscroll-behavior
 .dm-tab-bdg[hidden]{display:none!important}
 
 /* Двухрядная сетка карточки водителя во вкладке Онлайн */
-.row:has(.rv){display:grid;grid-template-columns:10px 1fr repeat(4,auto);align-items:center;column-gap:7px;row-gap:8px;padding:10px 12px;margin-bottom:8px}
+.row:has(.rv){display:grid;grid-template-columns:10px 1fr repeat(5,auto);align-items:center;column-gap:7px;row-gap:8px;padding:10px 12px;margin-bottom:8px}
 .row:has(.rv) .dot{grid-column:1;grid-row:1;align-self:start;margin-top:6px}
 .row:has(.rv) .rm{grid-column:2/-1;grid-row:1;padding-left:4px}
 .row:has(.rv) .rv{grid-column:1/3;grid-row:2;justify-self:start;padding-top:7px;border-top:1px solid rgba(255,255,255,.08);width:100%;display:flex;align-items:center;background:none;border-left:none;border-right:none;border-bottom:none;border-radius:0;padding-left:0;padding-right:0;font-size:14px}
@@ -276,9 +276,10 @@ body:has(#login:not([hidden])){height:100dvh;overflow:hidden;overscroll-behavior
 .row:has(.rv) .rv-pill{display:inline-block}
 .row:has(.rv) .dm-btn,.row:has(.rv) .xb{grid-row:2;margin-top:7px;width:30px;height:30px;border-radius:10px;font-size:13.5px}
 .row:has(.rv) [data-act="dm"]{grid-column:3}
-.row:has(.rv) [data-act="pin"]{grid-column:4}
-.row:has(.rv) [data-act="block"]{grid-column:5}
-.row:has(.rv) [data-act="del"]{grid-column:6}
+.row:has(.rv) [data-act="editname"]{grid-column:4}
+.row:has(.rv) [data-act="pin"]{grid-column:5}
+.row:has(.rv) [data-act="block"]{grid-column:6}
+.row:has(.rv) [data-act="del"]{grid-column:7}
 body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behavior:none!important}
 
 /* ADMIN-ADAPTIVE */
@@ -470,13 +471,13 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
   </div>
  </div>
 </div>
-<script src="storage.js?v=20261122230559"></script>
-<script src="geo.js?v=20261122230559"></script>
-<script src="zones.js?v=20261122230559"></script>
-<script src="bonus-engine.js?v=20261122230559"></script>
-<script src="table-viewer.js?v=20261122230559"></script>
-<script src="yandex.js?v=20261122230559"></script>
-<script src="admin.js?v=20261122230559"></script>
+<script src="storage.js?v=20261123000657"></script>
+<script src="geo.js?v=20261123000657"></script>
+<script src="zones.js?v=20261123000657"></script>
+<script src="bonus-engine.js?v=20261123000657"></script>
+<script src="table-viewer.js?v=20261123000657"></script>
+<script src="yandex.js?v=20261123000657"></script>
+<script src="admin.js?v=20261123000657"></script>
 <script>
 ['lgEm','lgPw'].forEach(id=>{
  const el=document.getElementById(id);

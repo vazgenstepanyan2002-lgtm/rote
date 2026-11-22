@@ -723,6 +723,7 @@ let _blkBound = false;
     b.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>' + esc(uname) + '</span><span id="usrBadge" class="usr-bdg" hidden>0</span>';
     b.onclick = openProfileMenu; updBadges();
   }
+  window._renderUserBtn = renderUserBtn;
   function boot(){
     if (navigator.serviceWorker) {
       navigator.serviceWorker.addEventListener("message", e => {
