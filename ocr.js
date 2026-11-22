@@ -534,9 +534,12 @@ async function compressImage(file){
         const bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
         const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
         const ctx = cv.getContext('2d');
+        const hasFilter = typeof ctx.filter === 'string';
+        if (!isCrop && hasFilter) ctx.filter = 'grayscale(1) contrast(1.18)';
         ctx.drawImage(bmp, 0, 0);
+        if (!isCrop && hasFilter) ctx.filter = 'none';
         bmp.close();
-        if (!isCrop) enhanceInvoiceCanvas(cv);
+        if (!isCrop && !hasFilter) enhanceInvoiceCanvas(cv);
         const out = encodeCv(cv);
         cv.width = cv.height = 0;
         return out;
@@ -551,8 +554,11 @@ async function compressImage(file){
         if (w > maxSide || h > maxSide) { if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; } else { w = Math.round(w * maxSide / h); h = maxSide; } }
         const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
         const ctx = cv.getContext('2d');
+        const hasFilter = typeof ctx.filter === 'string';
+        if (!isCrop && hasFilter) ctx.filter = 'grayscale(1) contrast(1.18)';
         ctx.drawImage(img, 0, 0, w, h);
-        if (!isCrop) enhanceInvoiceCanvas(cv);
+        if (!isCrop && hasFilter) ctx.filter = 'none';
+        if (!isCrop && !hasFilter) enhanceInvoiceCanvas(cv);
         const out = encodeCv(cv);
         cv.width = cv.height = 0;
         res(out);
@@ -594,7 +600,7 @@ async function askGemini(b64){
       },
       required: ['doc', 'addr', 'items']
     };
-    const baseModels = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-2.5-flash', 'gemini-flash-latest'];
+    const baseModels = ['gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.1-flash-lite'];
     const readSkip = () => {
       try {
         const raw = JSON.parse(localStorage.getItem('OCR_SKIP_MDL') || '{}') || {};
@@ -630,13 +636,11 @@ async function askGemini(b64){
         if (/gemini-2\.5/.test(mdl)) {
           genCfg.temperature = 0;
           genCfg.thinkingConfig = { thinkingBudget: 0 };
-        } else if (/gemini-3\.[15]-flash-lite/.test(mdl)) {
+        } else if (/lite/.test(mdl)) {
           genCfg.temperature = 0;
           genCfg.thinkingConfig = { thinkingLevel: 'MINIMAL' };
-        } else if (/gemini-3\./.test(mdl)) {
-          genCfg.temperature = 0;
-          genCfg.thinkingConfig = { thinkingLevel: 'LOW' };
         } else {
+          genCfg.temperature = 0;
           genCfg.thinkingConfig = { thinkingLevel: 'LOW' };
         }
       }
@@ -721,7 +725,7 @@ async function askGemini(b64){
           if (r.ok) finish(true, { mdl: m2, json: r.json });
           else onFail(r.err, false);
         });
-      }, 1700);
+      }, 2600);
     });
 
     const parseResp = data => {
@@ -765,14 +769,14 @@ async function askGemini(b64){
     if (!j) throw new Error(lastErr || 'Сервер распознавания не ответил');
     let out = { doc: '', addr: '', items: [] };
     try { out = parseResp(j); } catch (e) { out = { doc: '', addr: '', items: [] }; }
-    if (!out.items.length && winMdl && /lite/.test(winMdl)) {
-      const strongList = getOrderedModels().filter(m => !/lite/.test(m));
-      for (let si = 0; si < strongList.length; si++) {
-        const sr = await callModel(strongList[si], 7500, null);
+    if (!out.items.length) {
+      const altMdl = getOrderedModels().find(m => m !== winMdl);
+      if (altMdl) {
+        const sr = await callModel(altMdl, 4500, null);
         if (sr.ok) {
           try {
-            const strongOut = parseResp(sr.json);
-            if (strongOut.items.length) { out = strongOut; winMdl = strongList[si]; break; }
+            const altOut = parseResp(sr.json);
+            if (altOut.items.length) { out = altOut; winMdl = altMdl; }
           } catch (e) {}
         }
       }
@@ -1329,8 +1333,11 @@ async function askGemini(b64){
     const cv = document.createElement('canvas');
     cv.width = outW; cv.height = outH;
     const cx = cv.getContext('2d');
+    const hasFilter = typeof cx.filter === 'string';
+    if (hasFilter) cx.filter = 'grayscale(1) contrast(1.18)';
     cx.drawImage(src, sx, sy, sw, sh, 0, 0, outW, outH);
-    enhanceInvoiceCanvas(cv);
+    if (hasFilter) cx.filter = 'none';
+    else enhanceInvoiceCanvas(cv);
     let b64 = '';
     try { const wu = cv.toDataURL('image/webp', 0.76);
       if (wu && wu.indexOf('data:image/webp') === 0) b64 = wu.split(',').pop();
@@ -1602,11 +1609,14 @@ async function askGemini(b64){
             else { dw = Math.round(dw * 1180 / dh); dh = 1180; }
           }
           let bestCv = null, bestSharp = -1;
-          for (let f = 0; f < 3; f++) {
-            if (f > 0) await sleep(80);
+          for (let f = 0; f < 2; f++) {
+            if (f > 0) await sleep(50);
             const cv = document.createElement('canvas'); cv.width = dw; cv.height = dh;
             const ctx = cv.getContext('2d');
+            const hasFilter = typeof ctx.filter === 'string';
+            if (hasFilter) ctx.filter = 'grayscale(1) contrast(1.18)';
             ctx.drawImage(vid, sx, sy, sw, sh, 0, 0, dw, dh);
+            if (hasFilter) ctx.filter = 'none';
             const shScore = calcSharpness(cv, 0, 0, dw, dh);
             if (shScore > bestSharp) {
               if (bestCv) { bestCv.width = bestCv.height = 0; }
@@ -1616,11 +1626,12 @@ async function askGemini(b64){
             }
           }
           if (!bestCv) return { b64: '', blurred: false };
-          if (bestSharp < 18) {
+          if (bestSharp < 12) {
             bestCv.width = bestCv.height = 0;
             return { b64: '', blurred: true };
           }
-          enhanceInvoiceCanvas(bestCv);
+          const bCtx = bestCv.getContext('2d');
+          if (typeof bCtx.filter !== 'string') enhanceInvoiceCanvas(bestCv);
           let out = '';
           try {
             const wu = bestCv.toDataURL('image/webp', 0.76);
