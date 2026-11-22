@@ -697,20 +697,32 @@ function drawTotals(){
   const allMembers=groups.reduce((a,gr)=>a.concat(gr.members),[]);
   const mData=(ATT&&ATT.months&&ATT.months[ATT_YM])||{};
 
-  let totalAbs=0,todayAbs=0;
+  let totalAbs=0,totalWork=0,todayAbs=0;
   const dayTotals=new Array(daysInMonth+1).fill(0);
-  const mCounts={},gCounts={};
+  const mAbs={},mWork={},gAbs={},gWork={};
+  const fmtTot=(a,w)=>{
+   if(!a&&!w)return '<span style="color:#64748b">0</span>';
+   let s='';
+   if(a)s+='<span style="color:#fca5a5">'+a+'</span>';
+   if(w)s+=(a?' ':'')+'<span style="color:#6ee7b7">+'+w+'</span>';
+   return s;
+  };
   groups.forEach(gr=>{
-   let gc=0;
+   const offWd=(gr.code&&CREW_OFF[gr.code]!==undefined)?CREW_OFF[gr.code]:-1;
+   let ga=0,gw=0;
    gr.members.forEach(m=>{
     const wm=mData[m.pid]||{};
-    let c=0;
+    let a=0,w=0;
     for(let d=1;d<=daysInMonth;d++){
-     if(wm[d]){c++;gc++;dayTotals[d]++;totalAbs++;if(d===todayDay)todayAbs++;}
+     if(wm[d]){
+      const isOff=new Date(yr,mo,d).getDay()===offWd;
+      if(isOff){w++;gw++;totalWork++;}
+      else{a++;ga++;dayTotals[d]++;totalAbs++;if(d===todayDay)todayAbs++;}
+     }
     }
-    mCounts[m.pid]=c;
+    mAbs[m.pid]=a;mWork[m.pid]=w;
    });
-   gCounts[gr.code]=gc;
+   gAbs[gr.code]=ga;gWork[gr.code]=gw;
   });
 
   const structKey=ATT_YM+'|'+groups.map(gr=>gr.code+':'+gr.members.map(m=>m.pid+'='+m.name).join(',')).join(';');
@@ -727,19 +739,19 @@ function drawTotals(){
    exWrap.querySelectorAll('.att-chk').forEach(btn=>{
     const pid=btn.dataset.w,d=+btn.dataset.d,isOff=btn.dataset.off==='1';
     const on=!!(mData[pid]&&mData[pid][d]);
-    const wantCls='att-chk'+(on?' on':(isOff?' off':''));
-    const wantTxt=on?'✓':(isOff?'В':'');
+    const wantCls='att-chk'+(on?(isOff?' work':' on'):(isOff?' off':''));
+    const wantTxt=on?(isOff?'✓':'✕'):(isOff?'В':'');
     if(btn.className!==wantCls)btn.className=wantCls;
     if(btn.textContent!==wantTxt)btn.textContent=wantTxt;
    });
    exWrap.querySelectorAll('[data-att-m]').forEach(td=>{
-    const c=mCounts[td.dataset.attM]||0,txt=String(c),col=c?'#fca5a5':'#64748b';
-    if(td.textContent!==txt)td.textContent=txt;
-    if(td.style.color!==col)td.style.color=col;
+    const pid=td.dataset.attM,html=fmtTot(mAbs[pid]||0,mWork[pid]||0);
+    if(td.innerHTML!==html)td.innerHTML=html;
    });
    exWrap.querySelectorAll('[data-att-g]').forEach(td=>{
-    const gc=gCounts[td.dataset.attG]||0,txt=gc?String(gc):'';
-    if(td.textContent!==txt)td.textContent=txt;
+    const code=td.dataset.attG,ga=gAbs[code]||0,gw=gWork[code]||0;
+    const html=(ga||gw)?fmtTot(ga,gw):'';
+    if(td.innerHTML!==html)td.innerHTML=html;
    });
    exWrap.querySelectorAll('[data-att-d]').forEach(td=>{
     const v=dayTotals[+td.dataset.attD]||0,txt=v?String(v):'',cls=v?'has':'';
@@ -747,7 +759,10 @@ function drawTotals(){
     if(td.className!==cls)td.className=cls;
    });
    const totEl=g('attTotAll');
-   if(totEl&&totEl.textContent!==String(totalAbs))totEl.textContent=String(totalAbs);
+   if(totEl){
+    const html=fmtTot(totalAbs,totalWork);
+    if(totEl.innerHTML!==html)totEl.innerHTML=html;
+   }
    return;
   }
 
@@ -756,7 +771,7 @@ function drawTotals(){
    const isNone=!gr.code;
    const offWd=(!isNone && CREW_OFF[gr.code]!==undefined)?CREW_OFF[gr.code]:-1;
    const offLbl=(!isNone && CREW_OFF_LBL[gr.code])?CREW_OFF_LBL[gr.code]:'';
-   const grpTot=gCounts[gr.code]||0;
+   const ga=gAbs[gr.code]||0,gw=gWork[gr.code]||0;
    tbody+='<tr class="att-grp"><td class="att-nm-col"><div class="att-grp-hd">'
     +'<span class="att-grp-t'+(isNone?' none':'')+'">'+(isNone?'🚫 Без экипажа':'🚚 '+esc(gr.code)+(offLbl?' <span class="att-off-b" title="Выходной: '+offLbl+'">'+offLbl+'</span>':''))+'</span>'
     +'<button type="button" class="att-grp-add" data-act="att-add" data-car="'+esc(gr.code)+'" title="Добавить рабочего в '+(isNone?'Без экипажа':'экипаж '+esc(gr.code))+'">+</button>'
@@ -765,7 +780,7 @@ function drawTotals(){
     const wd=new Date(yr,mo,d).getDay();
     tbody+='<td class="'+(wd===offWd?'att-grp-off':'')+'"></td>';
    }
-   tbody+='<td class="att-tot-col" data-att-g="'+esc(gr.code)+'">'+(grpTot||'')+'</td></tr>';
+   tbody+='<td class="att-tot-col" data-att-g="'+esc(gr.code)+'">'+((ga||gw)?fmtTot(ga,gw):'')+'</td></tr>';
 
    gr.members.forEach(m=>{
     const wm=mData[m.pid]||{};
@@ -776,11 +791,11 @@ function drawTotals(){
     for(let d=1;d<=daysInMonth;d++){
      const wd=new Date(yr,mo,d).getDay(),isOff=wd===offWd,isTd=d===todayDay,on=!!wm[d];
      const tdCls=isTd?'att-td-td':(isOff?'att-td-off':'');
-     const btnCls='att-chk'+(on?' on':(isOff?' off':''));
-     const btnTxt=on?'✓':(isOff?'В':'');
+     const btnCls='att-chk'+(on?(isOff?' work':' on'):(isOff?' off':''));
+     const btnTxt=on?(isOff?'✓':'✕'):(isOff?'В':'');
      row+='<td class="'+tdCls+'"><button type="button" class="'+btnCls+'" data-act="att-tog" data-w="'+esc(m.pid)+'" data-d="'+d+'"'+(isOff?' data-off="1"':'')+' aria-label="'+esc(m.name)+' '+d+'">'+btnTxt+'</button></td>';
     }
-    row+='<td class="att-tot-col" data-att-m="'+esc(m.pid)+'" style="color:'+(mCounts[m.pid]?'#fca5a5':'#64748b')+'">'+mCounts[m.pid]+'</td></tr>';
+    row+='<td class="att-tot-col" data-att-m="'+esc(m.pid)+'">'+fmtTot(mAbs[m.pid]||0,mWork[m.pid]||0)+'</td></tr>';
     tbody+=row;
    });
   });
@@ -790,7 +805,7 @@ function drawTotals(){
    const v=dayTotals[d];
    tfoot+='<td data-att-d="'+d+'" class="'+(v?'has':'')+'">'+(v||'')+'</td>';
   }
-  tfoot+='<td id="attTotAll" class="att-tot-col">'+totalAbs+'</td></tr>';
+  tfoot+='<td id="attTotAll" class="att-tot-col">'+fmtTot(totalAbs,totalWork)+'</td></tr>';
 
   // Если изменился только состав рабочих в том же месяце — обновляем только tbody/tfoot без сброса скролла
   if(!ATT_ERR&&exWrap&&exWrap.dataset.ym===ATT_YM&&g('attBody')&&g('attFoot')){
@@ -836,7 +851,7 @@ function drawTotals(){
   thead+='<th class="att-tot-col">Проп.</th></tr>';
 
   h+='<div id="attWrap" class="att-wrap" data-ym="'+esc(ATT_YM)+'" data-sk="'+esc(structKey)+'"><table class="att-tbl"><thead>'+thead+'</thead><tbody id="attBody">'+tbody+'</tbody><tfoot id="attFoot">'+tfoot+'</tfoot></table></div>';
-  h+='<div class="mut hint">📱 — пользователь приложения · <b style="color:#fbbf24">В</b> — плановый выходной экипажа · <b style="color:#fca5a5">✓</b> — не вышел на работу. Нажмите «+» в строке экипажа, чтобы добавить рабочего без приложения.</div>';
+  h+='<div class="mut hint">📱 — приложение · <b style="color:#fbbf24">В</b> — выходной · <b style="color:#fca5a5">✕</b> — не вышел на смену · <b style="color:#6ee7b7">✓</b> — вышел в выходной.</div>';
   g('view').innerHTML=h;
 
   const wrap=g('attWrap');
@@ -947,30 +962,33 @@ function drawTotals(){
   const mData=(ATT&&ATT.months&&ATT.months[ATT_YM])||{};
   const header=['Экипаж','Сотрудник'];
   for(let d=1;d<=dim;d++)header.push(String(d));
-  header.push('Итого');
+  header.push('Пропусков','В вых.');
   const dayT=new Array(dim+1).fill(0);
-  let tot=0;
+  let totA=0,totW=0;
   const rows=[];
   groups.forEach(gr=>{
    const offWd=(gr.code&&CREW_OFF[gr.code]!==undefined)?CREW_OFF[gr.code]:-1;
    gr.members.forEach(m=>{
     const wm=mData[m.pid]||{},r=[gr.code?('Экипаж '+gr.code+(CREW_OFF_LBL[gr.code]?' ('+CREW_OFF_LBL[gr.code]+')':'')):'Без экипажа',m.name+(m.isApp?'':' (без прил.)')];
-    let c=0;
+    let ca=0,cw=0;
     for(let d=1;d<=dim;d++){
-     const wd=new Date(yr,mo,d).getDay();
-     if(wm[d]){r.push('✓');c++;dayT[d]++;tot++;}else r.push(wd===offWd?'В':'');
+     const isOff=new Date(yr,mo,d).getDay()===offWd;
+     if(wm[d]){
+      if(isOff){r.push('✓');cw++;totW++;}
+      else{r.push('✕');ca++;dayT[d]++;totA++;}
+     }else r.push(isOff?'В':'');
     }
-    r.push(c);
+    r.push(ca,cw);
     rows.push(r);
    });
   });
   const totalRow=['ИТОГО',''];
   for(let d=1;d<=dim;d++)totalRow.push(dayT[d]||'');
-  totalRow.push(tot);
+  totalRow.push(totA,totW);
   const title=monthName(ATT_YM);
   const fn='EuroBaza_Табель_'+title.replace(/[\s\/:*?"<>|]+/g,'_')+'.csv';
   if(window.TableViewer){
-   TableViewer.open({title:'Табель пропусков · '+title,filename:fn,headers:header,rows:rows,totalRow:totalRow});
+   TableViewer.open({title:'Табель · '+title,filename:fn,headers:header,rows:rows,totalRow:totalRow});
    return;
   }
   downloadCsv(fn,[header,...rows,totalRow]);
@@ -981,19 +999,26 @@ function drawTotals(){
   const p=ATT_YM.split('-'),yr=+p[0],mo=(+p[1]||1)-1;
   const dim=new Date(yr,mo+1,0).getDate();
   const mData=(ATT&&ATT.months&&ATT.months[ATT_YM])||{};
-  let tot=0;
-  const lines=['📅 Табель пропусков — '+monthName(ATT_YM)];
+  let totA=0,totW=0;
+  const lines=['📅 Табель — '+monthName(ATT_YM)];
   groups.forEach(gr=>{
    if(!gr.members.length)return;
+   const offWd=(gr.code&&CREW_OFF[gr.code]!==undefined)?CREW_OFF[gr.code]:-1;
    lines.push('',(gr.code?'🚚 Экипаж '+gr.code:'🚫 Без экипажа')+':');
    gr.members.forEach(m=>{
-    const wm=mData[m.pid]||{},days=[];
-    for(let d=1;d<=dim;d++)if(wm[d])days.push(d);
-    tot+=days.length;
-    lines.push('• '+m.name+(m.isApp?'':' (без прил.)')+': '+days.length+' дн.'+(days.length?' ('+days.join(', ')+')':''));
+    const wm=mData[m.pid]||{},absDays=[],workDays=[];
+    for(let d=1;d<=dim;d++){
+     if(!wm[d])continue;
+     if(new Date(yr,mo,d).getDay()===offWd)workDays.push(d);
+     else absDays.push(d);
+    }
+    totA+=absDays.length;totW+=workDays.length;
+    let line='• '+m.name+(m.isApp?'':' (без прил.)')+': ✕ '+absDays.length+(absDays.length?' ('+absDays.join(', ')+')':'');
+    if(workDays.length)line+=' · ✓ в вых. '+workDays.length+' ('+workDays.join(', ')+')';
+    lines.push(line);
    });
   });
-  lines.push('','Всего пропусков: '+tot);
+  lines.push('','Всего пропусков (✕): '+totA+(totW?' · Выходов в выходной (✓): '+totW:''));
   const txt=lines.join('\n');
   if(navigator.clipboard&&navigator.clipboard.writeText){
    navigator.clipboard.writeText(txt).then(()=>toast('Отчёт скопирован')).catch(()=>toast('Не удалось скопировать',true));
