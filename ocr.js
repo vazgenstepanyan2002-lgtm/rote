@@ -136,7 +136,7 @@
   }
 
   const RULES = [
-    { ignore: true, rx: /(?:տեղափոխու[թտ]յուն|հավաքում|доставк|перевозк|сборк)/i },
+    { ignore: true, rx: /(?:տեղափոխու[թտ]յուն|առաքում|հավաքում|բանվորական|վերելակ|բարձրացում|доставк|перевозк|сборк|подъем|этаж|грузчик)/i },
 
     // Спальни: 0,9*2 и явное кол-во дверей, затем модели по категориям
     { code: 'bedroom_g', rx: /(?:^|\s)(?:ննջասենյ?ակ\w*|ննջարան\w*|(?:^|\s)ննջ(?=\s|$)|սենյակ\w*|спальн\w*|[տթ][ոա]սկանա|тоскана).*0[.,\s]+9\s*[*xх×]\s*2/i },
@@ -215,7 +215,10 @@
     .replace(/(^|[\s/])([Կկ])ոմ[ոօ][քգթլ](?=$|[\s/])/g, '$1$2ոմոդ')
     .replace(/(^|[\s/])([Սս])երի[հղն]ա(?=$|[\s/])/g, '$1$2երիա')
     .replace(/(Ընդունարանի\s+կ)(?=\s)/g, '$1.')
-    .replace(/(^|\s)ալու(\s+լայթ)/gi, '$1Ալսու$2');
+    .replace(/(^|\s)ալու(\s+լայթ)/gi, '$1Ալսու$2')
+    .replace(/մահճակ[ւս][ւս]լ/gi, 'մահճակալ')
+    .replace(/ներքն[ւս]կ/gi, 'ներքնակ')
+    .replace(/պահար[ւս]ն/gi, 'պահարան');
 
   const FUZZY_TYPES = [
     ['bed', ['ննջասենյակ', 'ննջասենյակի', 'ննջարան', 'ննջարանի', 'спальня', 'спальный']],
@@ -384,7 +387,8 @@ async function compressImage(file){
     };
     if (window.createImageBitmap) {
       try {
-        const bmp0 = await createImageBitmap(file);
+        let bmp0;
+        try { bmp0 = await createImageBitmap(file, { imageOrientation: 'from-image' }); } catch (e) { bmp0 = await createImageBitmap(file); }
         const w0 = bmp0.width, h0 = bmp0.height;
         let w = w0, h = h0;
         if (w > maxSide || h > maxSide) {
@@ -392,7 +396,12 @@ async function compressImage(file){
           else { w = Math.round(w * maxSide / h); h = maxSide; }
         }
         bmp0.close();
-        const bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
+        let bmp;
+        try {
+          bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high', imageOrientation: 'from-image' });
+        } catch (e) {
+          bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
+        }
         const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
         const ctx = cv.getContext('2d');
         if (!isCrop) ctx.filter = 'contrast(1.08) brightness(1.02)';
@@ -437,7 +446,7 @@ async function askGemini(b64){
     const cleanB64 = String(b64 || '');
     const mime = cleanB64.indexOf('UklGR') === 0 ? 'image/webp' : (cleanB64.indexOf('iVBOR') === 0 ? 'image/png' : 'image/jpeg');
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
-    const prompt = 'Накладная EuroBaza (HY/RU/EN).\nВАЖНО: Если на фото НЕТ накладной, если снимок пустой, черный, темный, смазанный или это не накладная — верни items: [], doc: "", addr: "". Категорически запрещено выдумывать или генерировать несуществующие товары!\ndoc=номер СТРОГО только из строки «Վաճառքի փաստաթուղթ №» или «Վաճառքի փաստաթուղթ:» (цифры и дефис, обычно 0000-XXXXX, если строки нет — пустая строка). КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО брать номер из Բեռնափոխադրման թերթիկ.\naddr=ТОЛЬКО город или область (1-2 слова из Տեղափոխման հասցե, без улицы и телефонов, если нет — пустая строка).\nitems=[{name:ТОЛЬКО РЕАЛЬНЫЙ ТЕКСТ из таблицы Ապրանքի անվանումը, qty:целое число из Քանակ}] без доставки (Տեղափոխություն), сборки (Հավաքում) и фурнитуры. Если таблица с товарами не видна — items=[].';
+    const prompt = 'Накладная EuroBaza (HY/RU/EN).\nВАЖНО: Если на фото НЕТ накладной, если снимок пустой, черный, темный, смазанный или это не накладная — верни items: [], doc: "", addr: "". Категорически запрещено выдумывать или генерировать несуществующие товары!\ndoc=номер СТРОГО только из строки «Վաճառքի փաստաթուղթ №» или «Վաճառքի փաստաթուղթ:» (цифры и дефис, обычно 0000-XXXXX, если строки нет — пустая строка). КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО брать номер из Բեռնափոխադրման թերթիկ или Մեքենա.\naddr=ТОЛЬКО город или область (1-2 слова из Տեղափոխման հասցե, без улицы и телефонов, если нет — пустая строка).\nitems=[{name:ТОЛЬКО РЕАЛЬНЫЙ ТЕКСТ из таблицы Ապրանքի անվանումը, qty:целое число из столбца Քանակ (обычно 1-5)}]. Запрещено брать числа из столбца цены Ապրանքի արժեքը или номера строки հ/հ. Игнорировать любые услуги: доставка (Տեղափոխություն, Առաքում), сборка (Հավաքում), подъем/этаж (Բարձրացում, Վերելակ), грузчики (Բանվորական) и фурнитуру. Если таблица с товарами не видна — items=[].';
     const schema = {
       type: 'OBJECT',
       properties: {
@@ -626,7 +635,13 @@ async function askGemini(b64){
       const cls = classifyProduct(name);
       if (!cls.ignore) items.push({ name, qty, code: cls.code || '' });
     });
-    const doc = String((parsed && parsed.doc) || '').replace(/^[^0-9]+/, '').trim();
+    const cleanDocNum = raw => String(raw || '')
+      .replace(/^[^0-9oOоО]+/, '')
+      .replace(/^[oOоО]+/g, '0000')
+      .replace(/\s*[-—–]\s*/g, '-')
+      .replace(/\s+/g, '')
+      .trim();
+    const doc = cleanDocNum(parsed && parsed.doc);
     const addr = String((parsed && parsed.addr) || '').trim();
     if (!items.length && /lite/.test(winMdl)) {
       const seniorModels = ['gemini-2.5-flash', 'gemini-flash-latest'].filter(m => m !== winMdl);
@@ -646,7 +661,7 @@ async function askGemini(b64){
               if (!cls.ignore) sItems.push({ name, qty, code: cls.code || '' });
             });
             if (sItems.length) {
-              const sDoc = String((spJson && spJson.doc) || doc || '').replace(/^[^0-9]+/, '').trim();
+              const sDoc = cleanDocNum((spJson && spJson.doc) || doc);
               const sAddr = String((spJson && spJson.addr) || addr || '').trim();
               return { doc: sDoc, addr: sAddr, items: sItems };
             }
@@ -1509,7 +1524,8 @@ const _fastShot = () => {
             new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 3500))
           ]);
           if (photoBlob && photoBlob.size > 10000 && window.createImageBitmap) {
-            const bmp = await createImageBitmap(photoBlob);
+            let bmp;
+            try { bmp = await createImageBitmap(photoBlob, { imageOrientation: 'from-image' }); } catch (e) { bmp = await createImageBitmap(photoBlob); }
             const bmpPort = bmp.height > bmp.width;
             if (bmpPort === vidPort) {
               const cropped = await cropToFrame(bmp, bmp.width, bmp.height, vid, frameEl);
