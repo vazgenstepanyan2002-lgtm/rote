@@ -916,12 +916,79 @@ function drawTotals(){
    toast('Ошибка сохранения',true);
   }
  }
+ async function attMergeManualToApp(wid,uid){
+  if(!wid||!uid)return 0;
+  const snap=await db.ref('attendance/months').once('value');
+  const months=snap.val()||{};
+  const targetPid='u_'+uid;
+  const updates={};
+  let movedDays=0;
+  Object.keys(months).forEach(ym=>{
+   const m=months[ym];
+   if(!m||!m[wid])return;
+   const wDays=m[wid];
+   Object.keys(wDays).forEach(d=>{
+    if(wDays[d]){
+     updates['months/'+ym+'/'+targetPid+'/'+d]=true;
+     movedDays++;
+    }
+   });
+   updates['months/'+ym+'/'+wid]=null;
+  });
+  updates['workers/'+wid]=null;
+  await db.ref('attendance').update(updates);
+  return movedDays;
+ }
+ function openAttLinkModal(wid){
+  const w=(ATT&&ATT.workers&&ATT.workers[wid]);
+  if(!w)return;
+  const wCar=String(w.car||'').toUpperCase();
+  const appUsers=devs().filter(d=>{
+   const car=String(d.u.car||'').toUpperCase();
+   const acc=accByUid(d.id),blk=!!((acc&&acc.blocked)||d.u.blocked);
+   return !blk && car!=='ADMIN';
+  }).map(d=>({
+   uid:d.id,
+   name:LABELS[d.id]||profName(d)||devName(d.u.ua),
+   full:dispName(d),
+   car:String(d.u.car||'').toUpperCase()
+  })).sort((a,b)=>{
+   const as=wCar&&a.car===wCar?0:1,bs=wCar&&b.car===wCar?0:1;
+   return as-bs||a.name.localeCompare(b.name,'ru');
+  });
+  if(!appUsers.length){toast('Нет пользователей приложения',true);return}
+  const ov=document.createElement('div');ov.className='ov';
+  const items=appUsers.map(u=>{
+   const same=wCar&&u.car===wCar;
+   const sub=u.car?('Экипаж '+u.car+(same?' · этот же экипаж':'')):'Без экипажа';
+   return '<div class="sel-it'+(same?' on':'')+'" data-uid="'+esc(u.uid)+'"><div class="sel-it-l"><span class="sel-ic">📱</span><div><div class="sel-it-nm">'+esc(u.name)+'</div><div class="sel-it-sb">'+esc(sub)+'</div></div></div></div>';
+  }).join('');
+  ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>🔗 Привязать «'+esc(w.name)+'»</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'+items+'</div></div>';
+  document.body.appendChild(ov);
+  const close=()=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),180)};
+  ov.querySelector('.sel-x').onclick=close;
+  ov.onclick=async e=>{
+   if(e.target===ov){close();return}
+   const it=e.target.closest('.sel-it');if(!it)return;
+   const uid=it.dataset.uid;
+   const u=appUsers.find(x=>x.uid===uid);
+   close();
+   if(!u)return;
+   if(!(await ask('Перенести всю статистику табеля от «'+w.name+'» на аккаунт «'+u.name+'» (за все месяцы) и удалить ручной дубликат?',{title:'Привязка к аккаунту',okText:'Перенести'})))return;
+   try{
+    const cnt=await attMergeManualToApp(wid,uid);
+    toast('Привязано к «'+u.name+'»'+(cnt?' · перенесено отметок: '+cnt:''));
+   }catch(err){toast('Ошибка переноса: '+((err&&err.message)||err),true)}
+  };
+  requestAnimationFrame(()=>ov.classList.add('show'));
+ }
  function openAttWorkerModal(wid){
   const w=(ATT&&ATT.workers&&ATT.workers[wid]);
   if(!w)return;
   const curCar=String(w.car||'').toUpperCase();
   const ov=document.createElement('div');ov.className='ov';
   ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>👷 '+esc(w.name)+'</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'
+   +'<div class="sel-it" data-op="link" style="border-color:rgba(56,189,248,.35)"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.4);color:#7dd3fc">🔗</span><div><div class="sel-it-nm" style="color:#7dd3fc">Привязать к аккаунту</div><div class="sel-it-sb">Перенести статистику на пользователя приложения</div></div></div></div>'
    +'<div class="sel-it" data-op="ren"><div class="sel-it-l"><span class="sel-ic">✏️</span><div><div class="sel-it-nm">Переименовать</div><div class="sel-it-sb">Изменить имя сотрудника</div></div></div></div>'
    +'<div class="sel-it" data-op="car"><div class="sel-it-l"><span class="sel-ic">🚚</span><div><div class="sel-it-nm">Сменить экипаж</div><div class="sel-it-sb">Сейчас: '+(curCar?'Экипаж '+esc(curCar):'Без экипажа')+'</div></div></div></div>'
    +'<div class="sel-it" data-op="del" style="border-color:rgba(239,68,68,.3)"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.38);color:#f87171">🗑️</span><div><div class="sel-it-nm" style="color:#fca5a5">Удалить рабочего</div><div class="sel-it-sb">Убрать сотрудника из таблицы</div></div></div></div>'
@@ -933,7 +1000,9 @@ function drawTotals(){
    if(e.target===ov){close();return}
    const it=e.target.closest('.sel-it');if(!it)return;
    const op=it.dataset.op;close();
-   if(op==='ren'){
+   if(op==='link'){
+    openAttLinkModal(wid);
+   }else if(op==='ren'){
     const nv=await askInput('Переименовать рабочего','Введите новое имя сотрудника',w.name,'Имя...');
     if(nv===null)return;
     const clean=nv.trim().slice(0,32);
@@ -1283,14 +1352,25 @@ function openCarModal(uid){
    const nc=it.dataset.c;close();
    try{
     await db.ref('users/'+uid+'/car').set(nc||null);
-    let moved = false;
+    let moved = false, attMoved = false;
     if (nc && nc !== "ADMIN") {
      const hasOld = (+d.cur.sum > 0) || (d.hist && Object.keys(d.hist).length > 0);
      if (hasOld && await ask("У водителя есть личные бонусы (" + money(d.cur.sum) + "). Перенести их в общий котёл экипажа " + nc + "?", { title: "Перенос бонусов", okText: "Перенести" })) {
       moved = await migrateDevToCar(uid, nc);
      }
+     const wObj = (ATT && ATT.workers) || {};
+     const uNames = [LABELS[uid], profName(d)].filter(Boolean).map(s => String(s).trim().toLowerCase());
+     const matchWid = Object.keys(wObj).find(k => {
+      const w = wObj[k];
+      if (!w || !w.name) return false;
+      return String(w.car || '').toUpperCase() === nc && uNames.includes(String(w.name).trim().toLowerCase());
+     });
+     if (matchWid && await ask('В табеле экипажа ' + nc + ' уже есть добавленный вручную «' + wObj[matchWid].name + '». Перенести всю его статистику на этот аккаунт и убрать дубликат?', { title: 'Перенос табеля', okText: 'Перенести' })) {
+      await attMergeManualToApp(matchWid, uid);
+      attMoved = true;
+     }
     }
-    toast(nc === "ADMIN" ? "Включён режим Админ" : (nc ? ('Назначен экипаж ' + nc + (moved ? ' · бонусы перенесены' : '')) : 'Экипаж снята'));
+    toast(nc === "ADMIN" ? "Включён режим Админ" : (nc ? ('Назначен экипаж ' + nc + (moved ? ' · бонусы перенесены' : '') + (attMoved ? ' · табель перенесён' : '')) : 'Экипаж снята'));
    }catch(err){toast('Ошибка сохранения',true)}
   };
   requestAnimationFrame(()=>ov.classList.add('show'));
