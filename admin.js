@@ -671,7 +671,7 @@ function drawTotals(){
    pid:'u_'+d.id,
    uid:d.id,
    isApp:true,
-   name:dispName(d),
+   name:LABELS[d.id]||profName(d)||devName(d.u.ua),
    car:String(d.u.car||'').toUpperCase()
   })).sort((a,b)=>a.name.localeCompare(b.name,'ru'));
 
