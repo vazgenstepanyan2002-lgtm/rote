@@ -77,11 +77,17 @@
     wardrobe_d: 'պահարան 5 դուռ դռնանի шкаф двери',
     wardrobe_e: 'պահարան 6 դուռ դռնանի шкаф двери'
   };
-  const normText = s => String(s || '').toLowerCase().replace(/և/g, 'եվ').replace(/ё/g, 'е').replace(/[–—−]/g, '-').replace(/\s+/g, ' ').trim();
+  const normText = s => String(s || '').toLowerCase().replace(/և|եւ/g, 'եվ').replace(/ё/g, 'е').replace(/[–—−]/g, '-').replace(/\s+/g, ' ').trim();
   const normSearch = s => normText(s).replace(/[,]/g, '.').replace(/["'«»()_\/]+/g, ' ').replace(/(\d)\s*[×xх*]\s*(\d)/g, '$1*$2').replace(/\s+/g, ' ').trim();
   const normRules = s => normText(s).replace(/["'«»()]/g, ' ').replace(/\s+/g, ' ').trim();
-  const normModel = s => String(s || '').toLowerCase().replace(/[\"'«»().,]/g, ' ').replace(/\s+/g, ' ').trim();
+  const normModel = s => normText(s).replace(/[\"'«»().,]/g, ' ').replace(/\s+/g, ' ').trim();
   const fbKey = k => normModel(k).replace(/[.#$\[\]\/]+/g, '_').slice(0, 120);
+  const ocrFold = s => normModel(s)
+    .replace(/ռ/g, 'ր').replace(/թ/g, 'տ').replace(/փ/g, 'պ')
+    .replace(/ք/g, 'կ').replace(/օ/g, 'ո').replace(/է/g, 'ե')
+    .replace(/[ձծ]/g, 'ց').replace(/ղ/g, 'դ');
+  const COLOR_STOP_RX = /(?:^|[\s_\/-]+)(?:դուբ|կրաֆտ|սանոմա|սոնոմա|վենգե|սպիտակ|սեվ|գրաֆիտ|մոխրագույն|շագանակագույն|բեժ|կրեմ|շիմո|լայթ|դարկ|գոլդ|ոսկեգույն|անտրացիտ|կաշմիր|կապուչինո|բետոն|մարմար|փայլուն|մատ|գլյանց|սիլվեր|արծաթագույն|կաղնի|ընկույզ|բալ|дуб|крафт|сонома|венге|белый|бел|черный|графит|серый|беж|крем|шимо|лайт|дарк|голд|антрацит|кашмир|капучино|бетон|мрамор|глянец|мат|орех|ясень)(?=$|[\s_\/-]+)/gi;
+  const stripColors = s => normModel(s).replace(COLOR_STOP_RX, ' ').replace(/\s+/g, ' ').trim();
   const editDist = (a, b) => {
     const n = a.length, m = b.length;
     if (!n) return m; if (!m) return n;
@@ -100,12 +106,61 @@
 
   let CLOUD_MAP = (() => { try { return JSON.parse(localStorage.getItem('BON_OCR_MAP') || '{}') || {}; } catch (e) { return {}; } })();
   let LOCAL_MAP = (() => { try { return JSON.parse(localStorage.getItem('BON_OCR_LOCAL') || '{}') || {}; } catch (e) { return {}; } })();
+  let _mapIdxVer = -1, _mapIdx = null;
+  function getMapIndex(){
+    const ver = Object.keys(CLOUD_MAP).length * 10000 + Object.keys(LOCAL_MAP).length;
+    if (_mapIdx && _mapIdxVer === ver) return _mapIdx;
+    const exact = Object.create(null), noCol = Object.create(null), folded = Object.create(null), entries = [];
+    const addMap = m => {
+      for (const k in m) {
+        const cd = m[k];
+        if (!cd || !BON_BY_CODE[cd]) continue;
+        exact[k] = cd;
+        const nk = fbKey(k);
+        if (nk && !exact[nk]) exact[nk] = cd;
+        const sc = stripColors(k.replace(/_/g, ' '));
+        if (sc && sc.length >= 4 && !noCol[sc]) noCol[sc] = cd;
+        const fc = sc ? ocrFold(sc) : '';
+        if (fc && fc.length >= 4 && !folded[fc]) {
+          folded[fc] = cd;
+          entries.push([fc, cd]);
+        }
+      }
+    };
+    addMap(CLOUD_MAP);
+    addMap(LOCAL_MAP);
+    _mapIdxVer = ver;
+    _mapIdx = { exact, noCol, folded, entries };
+    return _mapIdx;
+  }
+  function lookupCustomMap(clean){
+    const fk = fbKey(clean);
+    if (!fk) return '';
+    const idx = getMapIndex();
+    if (idx.exact[fk]) return idx.exact[fk];
+    const sc = stripColors(clean);
+    if (sc && idx.noCol[sc]) return idx.noCol[sc];
+    const fc = sc ? ocrFold(sc) : '';
+    if (fc && idx.folded[fc]) return idx.folded[fc];
+    if (fc && fc.length >= 6 && idx.entries.length) {
+      let bestCd = '', bestD = 3;
+      for (let i = 0; i < idx.entries.length; i++) {
+        const [ek, cd] = idx.entries[i];
+        if (Math.abs(ek.length - fc.length) > 2) continue;
+        const d = ocrEditDist(fc, ek);
+        if (d < bestD) { bestD = d; bestCd = cd; if (d <= 1) break; }
+      }
+      if (bestCd) return bestCd;
+    }
+    return '';
+  }
   const _cmWait = setInterval(() => {
     if (!window.firebase || !firebase.apps || !firebase.apps.length) return;
     clearInterval(_cmWait);
     firebase.database().ref('config/ocrMap').on('value', s => {
       const val = (s.val() && typeof s.val() === 'object') ? s.val() : {};
       CLOUD_MAP = val;
+      _mapIdx = null;
       Object.keys(val).forEach(k => { if (LOCAL_MAP[k]) delete LOCAL_MAP[k]; });
       try {
         localStorage.setItem('BON_OCR_MAP', JSON.stringify(CLOUD_MAP));
@@ -117,6 +172,7 @@
   function saveCloudModel(rawName, code, isAdminRole, fromCode){
     const fk = fbKey(rawName);
     if (!fk || !code) return;
+    _mapIdx = null;
     if (isAdminRole) {
       CLOUD_MAP[fk] = code;
       try { localStorage.setItem('BON_OCR_MAP', JSON.stringify(CLOUD_MAP)); } catch (e) {}
@@ -299,18 +355,27 @@
   }
 
   function fuzzyClassify(norm){
+    const folded = ocrFold(norm);
     const words = norm.split(/[\s\-_/]+/).filter(w => w.length >= 2);
     if (!words.length) return '';
-    const pairs = [];
+    const fWords = folded.split(/[\s\-_/]+/).filter(w => w.length >= 2);
+    const pairs = [], fPairs = [];
     for (let i = 0; i < words.length - 1; i++) pairs.push(words[i] + ' ' + words[i + 1]);
+    for (let i = 0; i < fWords.length - 1; i++) fPairs.push(fWords[i] + ' ' + fWords[i + 1]);
     const tokens = words.concat(pairs);
+    const fTokens = fWords.concat(fPairs);
 
     let grp = '', bestT = 9;
     for (const [gName, kws] of FUZZY_TYPES) {
-      for (const w of words) {
-        if (w.length < 4) continue;
-        for (const kw of kws) {
-          const d = ocrEditDist(w, kw);
+      for (const kw of kws) {
+        const fkw = ocrFold(kw);
+        if (fkw.length >= 5 && folded.includes(fkw) && 0 < bestT) { bestT = 0; grp = gName; break; }
+        for (let wi = 0; wi < words.length; wi++) {
+          const w = words[wi];
+          if (w.length < 4) continue;
+          const d1 = ocrEditDist(w, kw);
+          const d2 = fWords[wi] ? ocrEditDist(fWords[wi], fkw) : 9;
+          const d = Math.min(d1, d2);
           if (d <= (kw.length <= 5 ? 1 : 2) && d < bestT) { bestT = d; grp = gName; }
         }
       }
@@ -318,8 +383,8 @@
     if (!grp) return '';
     if (grp.startsWith('other_')) return grp;
     if (grp === 'sof') {
-      if (tokens.some(t => ocrEditDist(t, 'բազկաթոռ') <= 2)) return 'sofas_a';
-      if (tokens.some(t => ocrEditDist(t, 'բազմոց') <= 2)) return 'sofas_b';
+      if (fTokens.some(t => ocrEditDist(t, ocrFold('բազկաթոռ')) <= 2) || folded.includes(ocrFold('բազկաթոռ'))) return 'sofas_a';
+      if (fTokens.some(t => ocrEditDist(t, ocrFold('բազմոց')) <= 2) || folded.includes(ocrFold('բազմոց'))) return 'sofas_b';
       return 'sofas_c';
     }
     if (grp === 'bed') {
@@ -337,10 +402,18 @@
     const models = FUZZY_MODELS[grp] || [];
     let bestCode = '', bestD = 9, bestLen = 0;
     for (const [mdl, cd] of models) {
+      const fmdl = ocrFold(mdl);
+      if (fmdl.length >= 4 && folded.includes(fmdl) && (0 < bestD || (bestD === 0 && mdl.length > bestLen))) {
+        bestD = 0; bestCode = cd; bestLen = mdl.length;
+        continue;
+      }
       const maxD = mdl.length <= 4 ? 1 : 2;
-      for (const t of tokens) {
+      for (let ti = 0; ti < tokens.length; ti++) {
+        const t = tokens[ti];
         if (t.length < 3) continue;
-        const d = ocrEditDist(t, mdl);
+        const d1 = ocrEditDist(t, mdl);
+        const d2 = fTokens[ti] ? ocrEditDist(fTokens[ti], fmdl) : 9;
+        const d = Math.min(d1, d2);
         if (d <= maxD && (d < bestD || (d === bestD && mdl.length > bestLen))) {
           bestD = d; bestCode = cd; bestLen = mdl.length;
         }
@@ -354,8 +427,7 @@
     if (!clean) return { ignore: true };
     const norm = normModel(clean);
     if (RULES[0].rx.test(norm)) return { ignore: true };
-    const fk = fbKey(clean);
-    const mapped = fk && (CLOUD_MAP[fk] || LOCAL_MAP[fk]);
+    const mapped = lookupCustomMap(clean);
     if (mapped && BON_BY_CODE[mapped]) return { ignore: false, code: mapped };
     for (let i = 1; i < RULES.length; i++) if (RULES[i].rx.test(norm)) return { ignore: false, code: RULES[i].code };
     const fz = fuzzyClassify(norm);
@@ -369,18 +441,85 @@
     if (isRegionAddress(low)) return false;
     return /(?:ереван|երեվան|yerevan|աջափնյակ|արաբկիր|ավան|դավթաշեն|էրեբունի|կենտրոն|մալաթիա|նոր նորք|նորք-մարաշ|նուբարաշեն|շենգավիթ|քանաքեռ-զեյթուն|քանաքեռ|ачапняк|арабкир|аван|давидашен|эребуни|кентрон|малатия|нор норк|норк-мараш|нубарашен|шенгавит|канакер)/i.test(low);
   };
+  const detectZone = s => {
+    const t = String(s || '').trim();
+    if (!t) return 'unknown';
+    if (isRegionAddress(t)) return 'reg';
+    if (isYerevanAddress(t)) return 'city';
+    return 'unknown';
+  };
+
+  function enhanceInvoiceCanvas(cv){
+    try {
+      const w = cv.width, h = cv.height;
+      if (!w || !h) return;
+      const ctx = cv.getContext('2d', { willReadFrequently: true });
+      const img = ctx.getImageData(0, 0, w, h);
+      const d = img.data, len = d.length;
+      const hist = new Uint32Array(256);
+      let total = 0;
+      for (let i = 0; i < len; i += 8) {
+        const y = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8;
+        hist[y]++; total++;
+      }
+      if (!total) return;
+      let lo = 0, hi = 255, acc = 0;
+      const loCut = total * 0.025, hiCut = total * 0.975;
+      for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= loCut) { lo = v; break; } }
+      acc = 0;
+      for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= hiCut) { hi = v; break; } }
+      const span = Math.max(48, hi - lo);
+      const lut = new Uint8Array(256);
+      for (let v = 0; v < 256; v++) {
+        let nv = ((v - lo) * 255) / span;
+        nv = (nv - 128) * 1.12 + 128;
+        lut[v] = nv < 0 ? 0 : (nv > 255 ? 255 : nv | 0);
+      }
+      for (let i = 0; i < len; i += 4) {
+        const gVal = lut[(d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8];
+        d[i] = d[i + 1] = d[i + 2] = gVal;
+      }
+      ctx.putImageData(img, 0, 0);
+    } catch (e) {}
+  }
+
+  function calcSharpness(src, sx, sy, sw, sh){
+    try {
+      const cw = 192, ch = 192;
+      const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+      const cx = cv.getContext('2d', { willReadFrequently: true });
+      cx.drawImage(src, sx, sy, sw, sh, 0, 0, cw, ch);
+      const d = cx.getImageData(0, 0, cw, ch).data;
+      const gray = new Uint8Array(cw * ch);
+      for (let i = 0, p = 0; i < gray.length; i++, p += 4) {
+        gray[i] = (d[p] * 77 + d[p + 1] * 150 + d[p + 2] * 29) >> 8;
+      }
+      let sum = 0, sumSq = 0, n = 0;
+      for (let y = 1; y < ch - 1; y++) {
+        const row = y * cw;
+        for (let x = 1; x < cw - 1; x++) {
+          const i = row + x;
+          const lap = (gray[i] << 2) - gray[i - 1] - gray[i + 1] - gray[i - cw] - gray[i + cw];
+          sum += lap; sumSq += lap * lap; n++;
+        }
+      }
+      cv.width = cv.height = 0;
+      if (!n) return 100;
+      const mean = sum / n;
+      return (sumSq / n) - mean * mean;
+    } catch (e) { return 100; }
+  }
 
 async function compressImage(file){
     if (file && file._preB64) return file._preB64;
     const isCrop = !!(file && file._isCropped);
-    const maxSide = isCrop ? 1280 : 1600;
-    const q = 0.85;
+    const maxSide = isCrop ? 1180 : 1280;
     const encodeCv = cv => {
       try {
-        const wUrl = cv.toDataURL('image/webp', q);
+        const wUrl = cv.toDataURL('image/webp', 0.76);
         if (wUrl && wUrl.indexOf('data:image/webp') === 0) return wUrl.split(',').pop();
       } catch (e) {}
-      return cv.toDataURL('image/jpeg', q).split(',').pop();
+      return cv.toDataURL('image/jpeg', 0.78).split(',').pop();
     };
     if (window.createImageBitmap) {
       try {
@@ -395,10 +534,9 @@ async function compressImage(file){
         const bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
         const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
         const ctx = cv.getContext('2d');
-        if (!isCrop) ctx.filter = 'grayscale(1) contrast(1.18)';
         ctx.drawImage(bmp, 0, 0);
-        if (!isCrop) ctx.filter = 'none';
         bmp.close();
+        if (!isCrop) enhanceInvoiceCanvas(cv);
         const out = encodeCv(cv);
         cv.width = cv.height = 0;
         return out;
@@ -413,9 +551,8 @@ async function compressImage(file){
         if (w > maxSide || h > maxSide) { if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; } else { w = Math.round(w * maxSide / h); h = maxSide; } }
         const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
         const ctx = cv.getContext('2d');
-        if (!isCrop) ctx.filter = 'grayscale(1) contrast(1.18)';
         ctx.drawImage(img, 0, 0, w, h);
-        if (!isCrop) ctx.filter = 'none';
+        if (!isCrop) enhanceInvoiceCanvas(cv);
         const out = encodeCv(cv);
         cv.width = cv.height = 0;
         res(out);
@@ -584,8 +721,24 @@ async function askGemini(b64){
           if (r.ok) finish(true, { mdl: m2, json: r.json });
           else onFail(r.err, false);
         });
-      }, 2600);
+      }, 1700);
     });
+
+    const parseResp = data => {
+      const cand = Array.isArray(data && data.candidates) ? data.candidates[0] : null;
+      const parts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : [];
+      const ans = parts.find(p => p && !p.thought && typeof p.text === 'string') || parts[parts.length - 1];
+      const parsed = JSON.parse(((ans && ans.text) || '{}').replace(/```json|```/gi, '').trim());
+      const items = [];
+      (Array.isArray(parsed.items) ? parsed.items : []).forEach(x => {
+        const name = fixOcrName(String((x && x.name) || '').trim()), qty = Math.max(1, Math.round(+x.qty || 1));
+        if (!name) return;
+        const cls = classifyProduct(name);
+        if (!cls.ignore) items.push({ name, qty, code: cls.code || '' });
+      });
+      const doc = String((parsed && parsed.doc) || '').replace(/^[^0-9]+/, '').trim();
+      return { doc, addr: String((parsed && parsed.addr) || '').trim(), items };
+    };
 
     const passTimeouts = [5200, 7500, 10500];
     const passWaits = [0, 300, 900];
@@ -610,24 +763,26 @@ async function askGemini(b64){
       if (j) break;
     }
     if (!j) throw new Error(lastErr || 'Сервер распознавания не ответил');
+    let out = { doc: '', addr: '', items: [] };
+    try { out = parseResp(j); } catch (e) { out = { doc: '', addr: '', items: [] }; }
+    if (!out.items.length && winMdl && /lite/.test(winMdl)) {
+      const strongList = getOrderedModels().filter(m => !/lite/.test(m));
+      for (let si = 0; si < strongList.length; si++) {
+        const sr = await callModel(strongList[si], 7500, null);
+        if (sr.ok) {
+          try {
+            const strongOut = parseResp(sr.json);
+            if (strongOut.items.length) { out = strongOut; winMdl = strongList[si]; break; }
+          } catch (e) {}
+        }
+      }
+    }
     if (winMdl && /lite/.test(winMdl)) {
       try { localStorage.setItem('OCR_FAST_MDL_V2', JSON.stringify({ m: winMdl, t: Date.now() })); } catch (e) {}
     } else {
       try { localStorage.removeItem('OCR_FAST_MDL_V2'); } catch (e) {}
     }
-    const cand = Array.isArray(j.candidates) ? j.candidates[0] : null;
-    const parts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : [];
-    const ans = parts.find(p => p && !p.thought && typeof p.text === 'string') || parts[parts.length - 1];
-    const parsed = JSON.parse(((ans && ans.text) || '{}').replace(/```json|```/gi, '').trim());
-    const items = [];
-    (Array.isArray(parsed.items) ? parsed.items : []).forEach(x => {
-      const name = fixOcrName(String((x && x.name) || '').trim()), qty = Math.max(1, Math.round(+x.qty || 1));
-      if (!name) return;
-      const cls = classifyProduct(name);
-      if (!cls.ignore) items.push({ name, qty, code: cls.code || '' });
-    });
-    const doc = String((parsed && parsed.doc) || '').replace(/^[^0-9]+/, '').trim();
-    return { doc, addr: String((parsed && parsed.addr) || '').trim(), items };
+    return out;
   }
   const saveOcrDraft = (rows, isCity, docNum) => {
     try {
@@ -641,7 +796,8 @@ async function askGemini(b64){
     const docKey = cleanDoc.replace(/[^0-9A-Za-z_-]+/g, '_').replace(/^_+|_+$/g, '');
     if (!Array.isArray(items) || !items.length) return;
     let m = g('ocrBonMdl'); if (m) m.remove();
-    let isCity = !!defaultIsCity;
+    const zoneUnknown = defaultIsCity === 'unknown';
+    let isCity = defaultIsCity === 'reg' ? false : (defaultIsCity === 'city' || zoneUnknown ? true : !!defaultIsCity);
     const rows = items.map(x => { const c = x.code || classifyProduct(x.name).code || ''; return { name: x.name, qty: x.qty, code: c, origCode: c }; });
     saveOcrDraft(rows, isCity, cleanDoc);
     const CAT_ICO = { 'Другое': '📦', 'Диваны': '🛋️', 'Ресепшен': '🗄️', 'Кухни': '🍳', 'Гостиная': '📺', 'Спальни': '🛏️', 'Шкафы': '🚪' };
@@ -678,7 +834,7 @@ async function askGemini(b64){
 
     m = document.createElement('div'); m.id = 'ocrBonMdl'; m.className = 'mdl open';
     m.innerHTML = '<div class="mdl-b pt-box ob-box"><div class="pt-hd"><div class="pt-hd-l"><div class="pt-hd-ic" style="background:rgba(250,204,21,.16);border-color:rgba(250,204,21,.42);color:#fde047">🧮</div><div><div class="pt-hd-t" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span>Бонусы по накладной</span>' + (batchOpts && batchOpts.total > 1 ? '<span class="ob-q-tag">' + batchOpts.idx + ' / ' + batchOpts.total + '</span>' : '') + '</div><div class="pt-hd-s" id="obSub"></div></div></div><button type="button" class="pt-x" id="obX">✕</button></div>'
-      + '<div class="ob-zone-w"><div class="ob-seg" id="obZoneSeg"><button type="button" data-z="city" class="' + (isCity ? 'on' : '') + '">🏙️ Город (Ереван)</button><button type="button" data-z="reg" class="' + (!isCity ? 'on' : '') + '">🛣️ Район (Области)</button></div></div>'
+      + '<div class="ob-zone-w">' + (zoneUnknown ? '<div id="obZoneWarn" style="margin:0 0 6px;padding:6px 10px;border-radius:9px;background:rgba(245,158,11,.15);border:1px solid rgba(251,191,36,.42);color:#fde68a;font-size:12px;font-weight:700;text-align:center">⚠️ Адрес не распознан — проверьте Город / Район</div>' : '') + '<div class="ob-seg" id="obZoneSeg"><button type="button" data-z="city" class="' + (isCity ? 'on' : '') + '">🏙️ Город (Ереван)</button><button type="button" data-z="reg" class="' + (!isCity ? 'on' : '') + '">🛣️ Район (Области)</button></div></div>'
       + '<div class="pt-list" id="obList"></div>'
       + '<div class="pt-ft"><div class="ob-tot"><span>Будет начислено:</span><b id="obTotSum">0 ' + CUR + '</b></div><button type="button" class="pt-add" id="obSaveBtn"><span>➕ Добавить в бонусы</span></button></div></div>';
     document.body.appendChild(m);
@@ -710,7 +866,7 @@ async function askGemini(b64){
       saveOcrDraft(rows, isCity, cleanDoc);
     };
 
-    g('obZoneSeg').onclick = e => { const b = e.target.closest('button[data-z]'); if (!b) return; isCity = b.dataset.z === 'city'; g('obZoneSeg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); renderRows(); };
+    g('obZoneSeg').onclick = e => { const b = e.target.closest('button[data-z]'); if (!b) return; isCity = b.dataset.z === 'city'; const w = g('obZoneWarn'); if (w) w.remove(); g('obZoneSeg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); renderRows(); };
     g('obList').onclick = e => {
       const pk = e.target.closest('[data-pick]'); if (pk) { openCatPicker(+pk.dataset.pick); return; }
       const del = e.target.closest('.ob-del'); if (del) { rows.splice(+del.dataset.i, 1); renderRows(); return; }
@@ -810,14 +966,26 @@ async function askGemini(b64){
       waits[i] = null; f(); } };
     const getSlot = i => slots[i] ? Promise.resolve(slots[i])
       : new Promise(r => { waits[i] = () => r(slots[i]); });
-    (async () => { for (let i = 0; i < total; i++) {
-      if (tok !== _batchTok) return; let b64 = "";
-      try { b64 = await compressImage(list[i]);
-        if (tok !== _batchTok) return;
-        slots[i] = { ok: true, res: await askGemini(b64) };
-      } catch (e) { slots[i] = { ok: false,
-        err: (e && e.message) || String(e || ""), b64 }; }
-      wake(i); } })();
+    {
+      let nextJob = 0;
+      const runWorker = async () => {
+        while (tok === _batchTok) {
+          const i = nextJob++;
+          if (i >= total) return;
+          let b64 = "";
+          try {
+            b64 = await compressImage(list[i]);
+            if (tok !== _batchTok) return;
+            slots[i] = { ok: true, res: await askGemini(b64) };
+          } catch (e) {
+            slots[i] = { ok: false, err: (e && e.message) || String(e || ""), b64 };
+          }
+          wake(i);
+        }
+      };
+      const conc = Math.min(2, total);
+      for (let w = 0; w < conc; w++) runWorker();
+    }
     let saved = 0;
     const next = async (idx, lastReason) => {
       if (tok !== _batchTok) return;
@@ -853,7 +1021,7 @@ async function askGemini(b64){
       const { doc, addr, items } = sl.res;
       if (!items.length) { window.toast && toast("Товары в накладной не найдены (" + (idx + 1) + "/" + total + ")", "err");
         next(idx + 1, "empty"); return; }
-      openBonusInvoiceModal(items, isYerevanAddress(addr), doc, {
+      openBonusInvoiceModal(items, detectZone(addr), doc, {
         idx: idx + 1, total, onDone: async rsn => {
           if (tok !== _batchTok) return;
           if (rsn === "saved") { saved++; next(idx + 1, "saved"); return; }
@@ -909,7 +1077,7 @@ async function askGemini(b64){
             return;
           }
           window.toast && toast("Готово за " + ((Date.now() - _t0) / 1000).toFixed(1) + " сек");
-          openBonusInvoiceModal(items, isYerevanAddress(addr), doc);
+          openBonusInvoiceModal(items, detectZone(addr), doc);
           return;
         } catch (e) {
           const msg = (e && e.message) || String(e || "");
@@ -1152,7 +1320,7 @@ async function askGemini(b64){
     const sw = Math.max(20, Math.min(srcW - sx, Math.round((nx2 - nx1) * visW)));
     const sh = Math.max(20, Math.min(srcH - sy, Math.round((ny2 - ny1) * visH)));
 
-    const maxOut = 1440;
+    const maxOut = 1180;
     let outW = sw, outH = sh;
     if (outW > maxOut || outH > maxOut) {
       if (outW > outH) { outH = Math.round(outH * maxOut / outW); outW = maxOut; }
@@ -1161,14 +1329,13 @@ async function askGemini(b64){
     const cv = document.createElement('canvas');
     cv.width = outW; cv.height = outH;
     const cx = cv.getContext('2d');
-    cx.filter = 'grayscale(1) contrast(1.18)';
     cx.drawImage(src, sx, sy, sw, sh, 0, 0, outW, outH);
-    cx.filter = 'none';
+    enhanceInvoiceCanvas(cv);
     let b64 = '';
-    try { const wu = cv.toDataURL('image/webp', 0.85);
+    try { const wu = cv.toDataURL('image/webp', 0.76);
       if (wu && wu.indexOf('data:image/webp') === 0) b64 = wu.split(',').pop();
     } catch (e) {}
-    if (!b64) b64 = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
+    if (!b64) b64 = cv.toDataURL('image/jpeg', 0.78).split(',').pop();
     cv.width = cv.height = 0;
     return b64 ? { size: b64.length, _preB64: b64, _isCropped: true } : null;
   }
@@ -1412,8 +1579,8 @@ async function askGemini(b64){
     g("olcSys").onclick = () => { stopCam(); if (fallbackInput) fallbackInput.click(); };
     g("olcShot").onclick = async () => {
       const _sb0 = g('olcShot'); if (_sb0) _sb0.disabled = true;
-const _fastShot = () => {
-        if (torchOn || !vid || (vid.videoWidth || 0) < 1280 || !vid.videoHeight) return '';
+      const _fastBurst = async () => {
+        if (!vid || (vid.videoWidth || 0) < 1280 || !vid.videoHeight) return { b64: '', blurred: false };
         try {
           const vw = vid.videoWidth, vh = vid.videoHeight;
           const vr = vid.getBoundingClientRect();
@@ -1430,36 +1597,56 @@ const _fastShot = () => {
           }
           if (sw < 100 || sh < 100) { sx = 0; sy = 0; sw = vw; sh = vh; }
           let dw = Math.round(sw), dh = Math.round(sh);
-          if (dw > 1280 || dh > 1280) {
-            if (dw > dh) { dh = Math.round(dh * 1280 / dw); dw = 1280; }
-            else { dw = Math.round(dw * 1280 / dh); dh = 1280; }
+          if (dw > 1180 || dh > 1180) {
+            if (dw > dh) { dh = Math.round(dh * 1180 / dw); dw = 1180; }
+            else { dw = Math.round(dw * 1180 / dh); dh = 1180; }
           }
-          const cv = document.createElement('canvas'); cv.width = dw; cv.height = dh;
-          const ctx = cv.getContext('2d');
-          ctx.filter = 'grayscale(1) contrast(1.18)';
-          ctx.drawImage(vid, sx, sy, sw, sh, 0, 0, dw, dh);
-          ctx.filter = 'none';
+          let bestCv = null, bestSharp = -1;
+          for (let f = 0; f < 3; f++) {
+            if (f > 0) await sleep(80);
+            const cv = document.createElement('canvas'); cv.width = dw; cv.height = dh;
+            const ctx = cv.getContext('2d');
+            ctx.drawImage(vid, sx, sy, sw, sh, 0, 0, dw, dh);
+            const shScore = calcSharpness(cv, 0, 0, dw, dh);
+            if (shScore > bestSharp) {
+              if (bestCv) { bestCv.width = bestCv.height = 0; }
+              bestCv = cv; bestSharp = shScore;
+            } else {
+              cv.width = cv.height = 0;
+            }
+          }
+          if (!bestCv) return { b64: '', blurred: false };
+          if (bestSharp < 18) {
+            bestCv.width = bestCv.height = 0;
+            return { b64: '', blurred: true };
+          }
+          enhanceInvoiceCanvas(bestCv);
           let out = '';
           try {
-            const wu = cv.toDataURL('image/webp', 0.85);
+            const wu = bestCv.toDataURL('image/webp', 0.76);
             if (wu && wu.indexOf('data:image/webp') === 0) out = wu.split(',').pop();
           } catch (e) {}
-          if (!out) out = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
-          cv.width = cv.height = 0;
-          return out;
-        } catch (e) { return ''; }
+          if (!out) out = bestCv.toDataURL('image/jpeg', 0.78).split(',').pop();
+          bestCv.width = bestCv.height = 0;
+          return { b64: out, blurred: false };
+        } catch (e) { return { b64: '', blurred: false }; }
       };
-      const _fastB64 = _fastShot();
-      if (_fastB64) {
+      const _fastRes = await _fastBurst();
+      if (_fastRes.blurred) {
+        if (_sb0) _sb0.disabled = false;
+        window.toast && toast("Фото смазано — держите камеру ровнее", "err");
+        return;
+      }
+      if (_fastRes.b64) {
         stopCam();
-        scanBonusFile({ size: _fastB64.length, _preB64: _fastB64, _isCropped: true });
+        scanBonusFile({ size: _fastRes.b64.length, _preB64: _fastRes.b64, _isCropped: true });
         return;
       }
       const shotBtn = g("olcShot");
       if (shotBtn) shotBtn.disabled = true;
       const vw = vid.videoWidth || 1920, vh = vid.videoHeight || 1080;
       const vidPort = vh > vw;
-      if (window.ImageCapture && track && (torchOn || !vid || (vid.videoWidth || 0) < 1280)) {
+      if (window.ImageCapture && track && (!vid || (vid.videoWidth || 0) < 1280)) {
         try {
           const ic = new ImageCapture(track);
           let photoOpts = torchOn ? { fillLightMode: "torch" } : {};
