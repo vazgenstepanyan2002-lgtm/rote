@@ -1494,84 +1494,16 @@ const _fastShot = () => {
     };
   }
 
-  function showOcrInstructionModal(onDone){
-    let hm = g('ocrHelpMdl'); if (hm) hm.remove();
-    hm = document.createElement('div'); hm.id = 'ocrHelpMdl'; hm.className = 'cm open';
-    hm.innerHTML = '<div class="cm-b ocr-help-box" style="max-height:92dvh;overflow-y:auto;padding:16px 14px!important">'
-      + '<div class="ocr-help-hd" style="margin-bottom:10px"><b>📄 Как фотографировать</b><button type="button" class="pm-x" id="ocrHelpX">✕</button></div>'
-      + '<div style="width:100%;margin-bottom:12px;display:flex;justify-content:center">'
-      + '  <div style="width:100%;max-width:340px;background:#ffffff;border-radius:10px;padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,.6);color:#0f172a;text-align:left;font-family:system-ui,-apple-system,sans-serif;box-sizing:border-box">'
-      + '    <div style="display:flex;justify-content:space-between;align-items:flex-start;font-size:10px;color:#334155;border-bottom:1px solid #cbd5e1;padding-bottom:5px;margin-bottom:6px">'
-      + '      <div><b>Բեռնափոխադրման թերթիկ № 00-9843</b><div style="font-size:9px;color:#64748b">առ 22 Նոյեմբեր 2026 թ.</div></div>'
-      + '      <div style="text-align:right;font-size:9.5px;color:#475569"><b>Մեքենա:</b> 553 BB 53</div>'
-      + '    </div>'
-      + '    <div style="position:relative;border:2px solid #10b981;background:rgba(16,185,129,.09);border-radius:8px;padding:6px 8px;margin-bottom:6px">'
-      + '      <span style="position:absolute;top:-8px;right:8px;background:#10b981;color:#ffffff;font-size:8.5px;font-weight:800;padding:1px 6px;border-radius:4px;letter-spacing:.4px">🟢 НОМЕР НАКЛАДНОЙ</span>'
-      + '      <div style="font-size:11.5px;color:#0f172a;line-height:1.25"><b>Վաճառքի փաստաթուղթ №:</b> <span style="color:#047857;font-weight:900;background:rgba(16,185,129,.24);padding:1px 5px;border-radius:4px">№ 0000-13013</span></div>'
-      + '    </div>'
-      + '    <div style="position:relative;border:2px solid #10b981;background:rgba(16,185,129,.09);border-radius:8px;padding:6px 8px;margin-bottom:6px">'
-      + '      <span style="position:absolute;top:-8px;right:8px;background:#10b981;color:#ffffff;font-size:8.5px;font-weight:800;padding:1px 6px;border-radius:4px;letter-spacing:.4px">🟢 АДРЕС И ТОВАРЫ</span>'
-      + '      <div style="font-size:10px;color:#334155;margin-bottom:5px"><b>Տեղափոխման հասցե:</b> <span style="font-weight:700;color:#047857">Արարատի մ, Նոր Խարբերդ</span></div>'
-      + '      <table style="width:100%;border-collapse:collapse;font-size:10px">'
-      + '        <thead>'
-      + '          <tr style="border-bottom:1px solid #94a3b8;color:#475569">'
-      + '            <th style="padding:2px 0;text-align:left;font-weight:800">Ապրանքի անվանումը</th>'
-      + '            <th style="padding:2px 0;text-align:right;font-weight:800">Քանակ</th>'
-      + '          </tr>'
-      + '        </thead>'
-      + '        <tbody>'
-      + '          <tr style="border-bottom:1px solid #f1f5f9;color:#0f172a"><td style="padding:3px 0">Մահճակալ Վարշավա 1.4</td><td style="padding:3px 0;text-align:right"><b style="background:#047857;color:#fff;padding:1px 5px;border-radius:4px">1</b></td></tr>'
-      + '          <tr style="border-bottom:1px solid #f1f5f9;color:#0f172a"><td style="padding:3px 0">Ներքնակ Classic Start 140*200</td><td style="padding:3px 0;text-align:right"><b style="background:#047857;color:#fff;padding:1px 5px;border-radius:4px">1</b></td></tr>'
-      + '          <tr style="color:#64748b"><td style="padding:2px 0;font-size:9.5px">Տեղափոխություն / Հավաքում</td><td style="padding:2px 0;text-align:right;font-size:9px;color:#94a3b8">авто</td></tr>'
-      + '        </tbody>'
-      + '      </table>'
-      + '    </div>'
-      + '    <div style="opacity:.4;border-top:1px dashed #cbd5e1;padding-top:4px;margin-top:2px">'
-      + '      <div style="font-size:9px;color:#94a3b8;text-align:center">Ստացա (ստորագրություն) · Պահեստապետ</div>'
-      + '    </div>'
-      + '  </div>'
-      + '</div>'
-      + '<div class="ocr-help-rules" style="margin-bottom:12px">'
-      + '  <div class="ocr-help-r"><span>1️⃣</span><div><b>Снимайте ровно сверху</b><br>Держите телефон параллельно накладной.</div></div>'
-      + '  <div class="ocr-help-r"><span>2️⃣</span><div><b>Не закрывайте пальцами</b><br>Номер «Վաճառքի փաստաթուղթ» и товары должны быть видны.</div></div>'
-      + '  <div class="ocr-help-r"><span>3️⃣</span><div><b>Включите свет, если темно</b><br>В камере есть кнопка «🔦 Свет» (вспышка).</div></div>'
-      + '</div>'
-      + '<button type="button" class="ocr-help-btn" id="ocrHelpOk">Понятно, открыть камеру</button>'
-      + '</div>';
-    document.body.appendChild(hm);
-
-    const closeH = () => {
-      try { localStorage.setItem('OCR_INSTRUCT_SEEN', '1'); } catch (e) {}
-      hm.remove();
-      if (typeof onDone === 'function') onDone();
-    };
-    g('ocrHelpX').onclick = closeH;
-    g('ocrHelpOk').onclick = closeH;
-    hm.onclick = e => { if (e.target === hm) closeH(); };
-  }
-
   window.openBonusScanner = () => {
     warmGeminiHost();
     const { cam, gal } = ensureOcrInputs();
-
-    const openSourcePicker = () => {
-      let m = g('ocrSrcMdl'); if (m) m.remove();
-      m = document.createElement('div'); m.id = 'ocrSrcMdl'; m.className = 'cm open';
-      m.innerHTML = '<div class="cm-b ocr-src-box"><button type="button" class="pm-x" id="ocrPickX">✕</button><div class="ocr-src-top"><div class="ocr-src-ring"><div class="ocr-src-in">📷</div></div><div class="ocr-src-pill"><i></i>Smart OCR</div><div class="ocr-src-t">Сканировать накладную</div><div class="ocr-src-s">Автоподсчёт бонусов по фото документа</div></div><button type="button" id="ocrHelpLink" style="background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.35);color:#7dd3fc;padding:7px 12px;border-radius:12px;font-size:12px;font-weight:700;margin-bottom:14px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">💡 Инструкция: как фотографировать</button><div class="pm-acts"><button type="button" class="pm-btn pm-chat" id="ocrPickCam"><span class="pm-btn-l"><span class="pm-ic">📸</span><span class="pm-tx"><b>Открыть камеру</b><small>Сфотографировать накладную</small></span></span><span class="pm-arr">›</span></button><button type="button" class="pm-btn pm-dm" id="ocrPickGal"><span class="pm-btn-l"><span class="pm-ic">🖼️</span><span class="pm-tx"><b>Выбрать из галереи</b><small>Один или несколько снимков</small></span></span><span class="pm-arr">›</span></button></div><button type="button" class="pm-cls" id="ocrPickNo">Отмена</button></div>';
-      document.body.appendChild(m);
-      const close = () => m.remove();
-      g('ocrPickNo').onclick = close; g('ocrPickX').onclick = close; m.onclick = e => { if (e.target === m) close(); };
-      g('ocrHelpLink').onclick = () => { showOcrInstructionModal(); };
-      g('ocrPickCam').onclick = () => { close(); openLiveCamera(cam); }; g('ocrPickGal').onclick = () => { close(); gal.click(); };
-    };
-
-    let seen = false;
-    try { seen = !!localStorage.getItem('OCR_INSTRUCT_SEEN'); } catch (e) {}
-    if (!seen) {
-      showOcrInstructionModal(() => openSourcePicker());
-    } else {
-      openSourcePicker();
-    }
+    let m = g('ocrSrcMdl'); if (m) m.remove();
+    m = document.createElement('div'); m.id = 'ocrSrcMdl'; m.className = 'cm open';
+    m.innerHTML = '<div class="cm-b ocr-src-box"><button type="button" class="pm-x" id="ocrPickX">✕</button><div class="ocr-src-top"><div class="ocr-src-ring"><div class="ocr-src-in">📷</div></div><div class="ocr-src-pill"><i></i>Smart OCR</div><div class="ocr-src-t">Сканировать накладную</div><div class="ocr-src-s">Автоподсчёт бонусов по фото документа</div></div><div class="pm-acts"><button type="button" class="pm-btn pm-chat" id="ocrPickCam"><span class="pm-btn-l"><span class="pm-ic">📸</span><span class="pm-tx"><b>Открыть камеру</b><small>Сфотографировать накладную</small></span></span><span class="pm-arr">›</span></button><button type="button" class="pm-btn pm-dm" id="ocrPickGal"><span class="pm-btn-l"><span class="pm-ic">🖼️</span><span class="pm-tx"><b>Выбрать из галереи</b><small>Один или несколько снимков</small></span></span><span class="pm-arr">›</span></button></div><button type="button" class="pm-cls" id="ocrPickNo">Отмена</button></div>';
+    document.body.appendChild(m);
+    const close = () => m.remove();
+    g('ocrPickNo').onclick = close; g('ocrPickX').onclick = close; m.onclick = e => { if (e.target === m) close(); };
+    g('ocrPickCam').onclick = () => { close(); openLiveCamera(cam); }; g('ocrPickGal').onclick = () => { close(); gal.click(); };
   };
   window.EUROBAZA_OCR_KEY = GKEY;
   const _ebWarmHook = () => { try { if (typeof warmGeminiHost === 'function') warmGeminiHost(); } catch (e) {} };

@@ -1115,32 +1115,6 @@ body:has(.cm.open)>*:not(.cm):not(#toast):not(#busy){pointer-events:none!importa
 .olc-btn.on{border-color:#fde047!important;color:#fde047!important;background:rgba(250,204,21,.22)!important}
 .olc-btn:disabled{opacity:.5}
 .olc-frame{position:relative;z-index:2;margin:auto 22px;height:54vh;border:2px dashed rgba(52,211,153,.82);border-radius:20px;box-shadow:0 0 0 9999px rgba(0,0,0,.34);pointer-events:none}
-.ocr-help-box{max-width:390px!important;padding:20px 18px!important;border-radius:26px!important;background:#0d1522!important;border:1px solid rgba(56,189,248,.3)!important;box-shadow:0 24px 60px rgba(0,0,0,.9)!important}
-.ocr-help-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.ocr-help-hd b{font-size:16px;color:#f8fafc;display:flex;align-items:center;gap:8px}
-.ocr-doc-mockup{width:100%;padding:10px 0 14px;display:flex;justify-content:center;perspective:800px}
-.ocr-mock-sheet{width:100%;max-width:334px;background:#ffffff;border-radius:12px;padding:12px 14px;box-shadow:0 12px 30px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.2);color:#0f172a;text-align:left;font-family:system-ui,-apple-system,sans-serif;box-sizing:border-box}
-.ocr-mock-title{font-size:11px;font-weight:900;letter-spacing:1px;color:#475569;text-align:center;margin-bottom:8px;border-bottom:1px solid #e2e8f0;padding-bottom:5px}
-.ocr-mock-num-target{position:relative;border:2px solid #10b981;background:rgba(16,185,129,.07);border-radius:9px;padding:7px 9px;margin-bottom:8px}
-.ocr-mock-tag{position:absolute;top:-8px;right:10px;background:#10b981;color:#fff;font-size:9px;font-weight:800;padding:1px 6px;border-radius:4px;letter-spacing:.5px}
-.ocr-mock-row-strong{font-size:12px;color:#0f172a;line-height:1.3}
-.ocr-mock-row-strong b{font-weight:800}
-.ocr-mock-row-strong span{color:#047857;font-weight:900;background:rgba(16,185,129,.18);padding:0 4px;border-radius:4px}
-.ocr-mock-row-sub{font-size:10.5px;color:#64748b;margin-top:2px}
-.ocr-mock-row-sub span{font-weight:700;color:#334155}
-.ocr-mock-table-target{position:relative;border:2px solid #10b981;background:rgba(16,185,129,.07);border-radius:9px;padding:7px 9px;margin-bottom:6px}
-.ocr-mock-tag-mid{position:absolute;top:-8px;right:10px;background:#10b981;color:#fff;font-size:9px;font-weight:800;padding:1px 6px;border-radius:4px;letter-spacing:.5px}
-.ocr-mock-th{display:flex;justify-content:space-between;font-size:10px;font-weight:800;color:#475569;border-bottom:1px solid rgba(16,185,129,.35);padding-bottom:3px;margin-bottom:4px}
-.ocr-mock-tr{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#1e293b;padding:2px 0}
-.ocr-mock-tr b{background:#047857;color:#fff;font-size:10px;font-weight:800;padding:1px 6px;border-radius:4px}
-.ocr-mock-bot-fade{opacity:.4;border-top:1px dashed #cbd5e1;padding-top:4px;margin-top:2px}
-.ocr-mock-sign{font-size:9.5px;color:#94a3b8;text-align:center;font-style:italic}
-.ocr-help-rules{display:flex;flex-direction:column;gap:8px;text-align:left;margin-bottom:16px}
-.ocr-help-r{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)}
-.ocr-help-r span{font-size:18px;line-height:1.1;flex-shrink:0}
-.ocr-help-r div{font-size:12px;color:#cbd5e1;line-height:1.35}
-.ocr-help-r b{color:#f8fafc}
-.ocr-help-btn{width:100%;height:44px;border-radius:14px;background:#10b981;border:none;color:#fff;font-size:14px;font-weight:800;cursor:pointer}
 .olc-bot{position:relative;z-index:2;min-height:112px;display:flex;align-items:center;justify-content:space-between;padding:16px 18px calc(22px + env(safe-area-inset-bottom,0px));background:linear-gradient(0deg,rgba(0,0,0,.86),transparent)}
 .olc-shot{position:absolute!important;left:50%!important;transform:translateX(-50%)!important;width:72px!important;height:72px!important;margin:0!important;padding:0!important;border-radius:50%!important;background:#fff!important;border:5px solid rgba(52,211,153,.85)!important;box-shadow:0 0 24px rgba(16,185,129,.5)!important;transition:.12s}
 .olc-shot:active{transform:translateX(-50%) scale(.92)!important}
