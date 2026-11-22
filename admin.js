@@ -690,7 +690,6 @@ function drawTotals(){
   return groups;
  }
  function drawAtt(){
-  const prevWrap=g('attWrap'),prevScroll=prevWrap?prevWrap.scrollLeft:null;
   const now=new Date(),curYm=attCurYm(),isCurMonth=ATT_YM===curYm,todayDay=isCurMonth?now.getDate():-1;
   const parts=ATT_YM.split('-'),yr=+parts[0]||now.getFullYear(),mo=(+parts[1]||1)-1;
   const daysInMonth=new Date(yr,mo+1,0).getDate();
@@ -714,10 +713,101 @@ function drawTotals(){
    gCounts[gr.code]=gc;
   });
 
+  const structKey=ATT_YM+'|'+groups.map(gr=>gr.code+':'+gr.members.map(m=>m.pid+'='+m.name).join(',')).join(';');
+  const exWrap=g('attWrap');
+
+  // Точечное обновление без пересоздания DOM (ноль дёрганий и сбросов скролла)
+  if(!ATT_ERR&&exWrap&&exWrap.dataset.sk===structKey){
+   const s1=g('attStatCnt'),s2=g('attStatTot'),s3=g('attStatTd');
+   if(s1&&s1.textContent!==String(allMembers.length))s1.textContent=String(allMembers.length);
+   if(s2&&s2.textContent!==String(totalAbs))s2.textContent=String(totalAbs);
+   const tdTxt=isCurMonth?String(todayAbs):'—';
+   if(s3&&s3.textContent!==tdTxt)s3.textContent=tdTxt;
+
+   exWrap.querySelectorAll('.att-chk').forEach(btn=>{
+    const pid=btn.dataset.w,d=+btn.dataset.d,isOff=btn.dataset.off==='1';
+    const on=!!(mData[pid]&&mData[pid][d]);
+    const wantCls='att-chk'+(on?' on':(isOff?' off':''));
+    const wantTxt=on?'✓':(isOff?'В':'');
+    if(btn.className!==wantCls)btn.className=wantCls;
+    if(btn.textContent!==wantTxt)btn.textContent=wantTxt;
+   });
+   exWrap.querySelectorAll('[data-att-m]').forEach(td=>{
+    const c=mCounts[td.dataset.attM]||0,txt=String(c),col=c?'#fca5a5':'#64748b';
+    if(td.textContent!==txt)td.textContent=txt;
+    if(td.style.color!==col)td.style.color=col;
+   });
+   exWrap.querySelectorAll('[data-att-g]').forEach(td=>{
+    const gc=gCounts[td.dataset.attG]||0,txt=gc?String(gc):'';
+    if(td.textContent!==txt)td.textContent=txt;
+   });
+   exWrap.querySelectorAll('[data-att-d]').forEach(td=>{
+    const v=dayTotals[+td.dataset.attD]||0,txt=v?String(v):'',cls=v?'has':'';
+    if(td.textContent!==txt)td.textContent=txt;
+    if(td.className!==cls)td.className=cls;
+   });
+   const totEl=g('attTotAll');
+   if(totEl&&totEl.textContent!==String(totalAbs))totEl.textContent=String(totalAbs);
+   return;
+  }
+
+  let tbody='';
+  groups.forEach(gr=>{
+   const isNone=!gr.code;
+   const offWd=(!isNone && CREW_OFF[gr.code]!==undefined)?CREW_OFF[gr.code]:-1;
+   const offLbl=(!isNone && CREW_OFF_LBL[gr.code])?CREW_OFF_LBL[gr.code]:'';
+   const grpTot=gCounts[gr.code]||0;
+   tbody+='<tr class="att-grp"><td class="att-nm-col"><div class="att-grp-hd">'
+    +'<span class="att-grp-t'+(isNone?' none':'')+'">'+(isNone?'🚫 Без экипажа':'🚚 '+esc(gr.code)+(offLbl?' <span class="att-off-b" title="Выходной: '+offLbl+'">'+offLbl+'</span>':''))+'</span>'
+    +'<button type="button" class="att-grp-add" data-act="att-add" data-car="'+esc(gr.code)+'" title="Добавить рабочего в '+(isNone?'Без экипажа':'экипаж '+esc(gr.code))+'">+</button>'
+    +'</div></td>';
+   for(let d=1;d<=daysInMonth;d++){
+    const wd=new Date(yr,mo,d).getDay();
+    tbody+='<td class="'+(wd===offWd?'att-grp-off':'')+'"></td>';
+   }
+   tbody+='<td class="att-tot-col" data-att-g="'+esc(gr.code)+'">'+(grpTot||'')+'</td></tr>';
+
+   gr.members.forEach(m=>{
+    const wm=mData[m.pid]||{};
+    const nmCell=m.isApp
+     ?'<div class="att-nm-app"><i>📱</i><span>'+esc(m.name)+'</span></div>'
+     :'<button type="button" class="att-nm-btn" data-act="att-worker" data-w="'+esc(m.wid)+'"><span>'+esc(m.name)+'</span><i>✎</i></button>';
+    let row='<tr><td class="att-nm-col">'+nmCell+'</td>';
+    for(let d=1;d<=daysInMonth;d++){
+     const wd=new Date(yr,mo,d).getDay(),isOff=wd===offWd,isTd=d===todayDay,on=!!wm[d];
+     const tdCls=isTd?'att-td-td':(isOff?'att-td-off':'');
+     const btnCls='att-chk'+(on?' on':(isOff?' off':''));
+     const btnTxt=on?'✓':(isOff?'В':'');
+     row+='<td class="'+tdCls+'"><button type="button" class="'+btnCls+'" data-act="att-tog" data-w="'+esc(m.pid)+'" data-d="'+d+'"'+(isOff?' data-off="1"':'')+' aria-label="'+esc(m.name)+' '+d+'">'+btnTxt+'</button></td>';
+    }
+    row+='<td class="att-tot-col" data-att-m="'+esc(m.pid)+'" style="color:'+(mCounts[m.pid]?'#fca5a5':'#64748b')+'">'+mCounts[m.pid]+'</td></tr>';
+    tbody+=row;
+   });
+  });
+
+  let tfoot='<tr class="att-foot"><td class="att-nm-col">Итого</td>';
+  for(let d=1;d<=daysInMonth;d++){
+   const v=dayTotals[d];
+   tfoot+='<td data-att-d="'+d+'" class="'+(v?'has':'')+'">'+(v||'')+'</td>';
+  }
+  tfoot+='<td id="attTotAll" class="att-tot-col">'+totalAbs+'</td></tr>';
+
+  // Если изменился только состав рабочих в том же месяце — обновляем только tbody/tfoot без сброса скролла
+  if(!ATT_ERR&&exWrap&&exWrap.dataset.ym===ATT_YM&&g('attBody')&&g('attFoot')){
+   const s1=g('attStatCnt'),s2=g('attStatTot'),s3=g('attStatTd');
+   if(s1)s1.textContent=String(allMembers.length);
+   if(s2)s2.textContent=String(totalAbs);
+   if(s3)s3.textContent=isCurMonth?String(todayAbs):'—';
+   g('attBody').innerHTML=tbody;
+   g('attFoot').innerHTML=tfoot;
+   exWrap.dataset.sk=structKey;
+   return;
+  }
+
   let h='<div class="tiles">'
-   +'<div class="tile"><b>'+allMembers.length+'</b><span>сотрудников</span></div>'
-   +'<div class="tile"><b style="color:#f87171">'+totalAbs+'</b><span>пропусков</span></div>'
-   +'<div class="tile"><b>'+(isCurMonth?todayAbs:'—')+'</b><span>'+(isCurMonth?'не вышли сегодня':'не тек. месяц')+'</span></div>'
+   +'<div class="tile"><b id="attStatCnt">'+allMembers.length+'</b><span>сотрудников</span></div>'
+   +'<div class="tile"><b id="attStatTot" style="color:#f87171">'+totalAbs+'</b><span>пропусков</span></div>'
+   +'<div class="tile"><b id="attStatTd">'+(isCurMonth?todayAbs:'—')+'</b><span>'+(isCurMonth?'не вышли сегодня':'не тек. месяц')+'</span></div>'
    +'</div>';
 
   h+='<div class="att-bar">'
@@ -745,62 +835,16 @@ function drawTotals(){
   }
   thead+='<th class="att-tot-col">Проп.</th></tr>';
 
-  let tbody='';
-  groups.forEach(gr=>{
-   const isNone=!gr.code;
-   const offWd=(!isNone && CREW_OFF[gr.code]!==undefined)?CREW_OFF[gr.code]:-1;
-   const offLbl=(!isNone && CREW_OFF_LBL[gr.code])?CREW_OFF_LBL[gr.code]:'';
-   const grpTot=gCounts[gr.code]||0;
-   tbody+='<tr class="att-grp"><td class="att-nm-col"><div class="att-grp-hd">'
-    +'<span class="att-grp-t'+(isNone?' none':'')+'">'+(isNone?'🚫 Без экипажа':'🚚 '+esc(gr.code)+(offLbl?' <span class="att-off-b" title="Выходной: '+offLbl+'">'+offLbl+'</span>':''))+'</span>'
-    +'<button type="button" class="att-grp-add" data-act="att-add" data-car="'+esc(gr.code)+'" title="Добавить рабочего в '+(isNone?'Без экипажа':'экипаж '+esc(gr.code))+'">+</button>'
-    +'</div></td>';
-   for(let d=1;d<=daysInMonth;d++){
-    const wd=new Date(yr,mo,d).getDay();
-    tbody+='<td class="'+(wd===offWd?'att-grp-off':'')+'"></td>';
-   }
-   tbody+='<td class="att-tot-col">'+(grpTot||'')+'</td></tr>';
-
-   gr.members.forEach(m=>{
-    const wm=mData[m.pid]||{};
-    const nmCell=m.isApp
-     ?'<div class="att-nm-app"><i>📱</i><span>'+esc(m.name)+'</span></div>'
-     :'<button type="button" class="att-nm-btn" data-act="att-worker" data-w="'+esc(m.wid)+'"><span>'+esc(m.name)+'</span><i>✎</i></button>';
-    let row='<tr><td class="att-nm-col">'+nmCell+'</td>';
-    for(let d=1;d<=daysInMonth;d++){
-     const wd=new Date(yr,mo,d).getDay(),isOff=wd===offWd,isTd=d===todayDay,on=!!wm[d];
-     const tdCls=isTd?'att-td-td':(isOff?'att-td-off':'');
-     const btnCls='att-chk'+(on?' on':(isOff?' off':''));
-     const btnTxt=on?'✓':(isOff?'В':'');
-     row+='<td class="'+tdCls+'"><button type="button" class="'+btnCls+'" data-act="att-tog" data-w="'+esc(m.pid)+'" data-d="'+d+'" aria-label="'+esc(m.name)+' '+d+'">'+btnTxt+'</button></td>';
-    }
-    row+='<td class="att-tot-col" style="'+(mCounts[m.pid]?'color:#fca5a5':'color:#64748b')+'">'+mCounts[m.pid]+'</td></tr>';
-    tbody+=row;
-   });
-  });
-
-  let tfoot='<tr class="att-foot"><td class="att-nm-col">Итого</td>';
-  for(let d=1;d<=daysInMonth;d++){
-   const v=dayTotals[d];
-   tfoot+='<td class="'+(v?'has':'')+'">'+(v||'')+'</td>';
-  }
-  tfoot+='<td class="att-tot-col">'+totalAbs+'</td></tr>';
-
-  h+='<div id="attWrap" class="att-wrap"><table class="att-tbl"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody><tfoot>'+tfoot+'</tfoot></table></div>';
+  h+='<div id="attWrap" class="att-wrap" data-ym="'+esc(ATT_YM)+'" data-sk="'+esc(structKey)+'"><table class="att-tbl"><thead>'+thead+'</thead><tbody id="attBody">'+tbody+'</tbody><tfoot id="attFoot">'+tfoot+'</tfoot></table></div>';
   h+='<div class="mut hint">📱 — пользователь приложения · <b style="color:#fbbf24">В</b> — плановый выходной экипажа · <b style="color:#fca5a5">✓</b> — не вышел на работу. Нажмите «+» в строке экипажа, чтобы добавить рабочего без приложения.</div>';
   g('view').innerHTML=h;
 
   const wrap=g('attWrap');
-  if(wrap){
-   if(prevScroll!==null&&ATT_SCROLLED_YM===ATT_YM){
-    wrap.scrollLeft=prevScroll;
-   }else{
-    ATT_SCROLLED_YM=ATT_YM;
-    const tdEl=g('attTdCol');
-    if(tdEl){
-     const target=Math.max(0,tdEl.offsetLeft-160);
-     wrap.scrollLeft=target;
-    }
+  if(wrap&&ATT_SCROLLED_YM!==ATT_YM){
+   ATT_SCROLLED_YM=ATT_YM;
+   const tdEl=g('attTdCol');
+   if(tdEl){
+    wrap.scrollLeft=Math.max(0,tdEl.offsetLeft-160);
    }
   }
  }
@@ -838,12 +882,24 @@ function drawTotals(){
  }
  async function attToggle(pid,day){
   if(!pid||!day)return;
-  const isSet=!!(ATT&&ATT.months&&ATT.months[ATT_YM]&&ATT.months[ATT_YM][pid]&&ATT.months[ATT_YM][pid][day]);
+  if(!ATT.months)ATT.months={};
+  if(!ATT.months[ATT_YM])ATT.months[ATT_YM]={};
+  if(!ATT.months[ATT_YM][pid])ATT.months[ATT_YM][pid]={};
+  const isSet=!!ATT.months[ATT_YM][pid][day];
+  // Оптимистическое точечное обновление без задержки и без дёрганий
+  if(isSet)delete ATT.months[ATT_YM][pid][day];
+  else ATT.months[ATT_YM][pid][day]=true;
+  drawAtt();
   try{
    const ref=db.ref('attendance/months/'+ATT_YM+'/'+pid+'/'+day);
    if(isSet)await ref.remove();
    else await ref.set(true);
-  }catch(e){toast('Ошибка сохранения',true)}
+  }catch(e){
+   if(isSet)ATT.months[ATT_YM][pid][day]=true;
+   else delete ATT.months[ATT_YM][pid][day];
+   drawAtt();
+   toast('Ошибка сохранения',true);
+  }
  }
  function openAttWorkerModal(wid){
   const w=(ATT&&ATT.workers&&ATT.workers[wid]);
@@ -961,6 +1017,7 @@ function drawTotals(){
   if(sub&&SEL==='ADMIN')SEL='all';
   document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===TAB));
   const st=window.scrollY;
+  const keepAttScroll=TAB==='att'&&!!g('attWrap');
   if(TAB!=='map'&&_map)destroyMap();
   if(TAB==='online')drawOnline();
   else if(TAB==='map')drawMap();
@@ -968,7 +1025,7 @@ function drawTotals(){
   else if(TAB==='totals')drawTotals();
   else if(TAB==='ocr')drawOcr();
   else drawVer();
-  window.scrollTo(0,st);
+  if(!keepAttScroll)window.scrollTo(0,st);
  }
 
  
