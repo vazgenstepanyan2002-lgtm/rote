@@ -1195,8 +1195,12 @@ async function askGemini(b64){
     ov = document.createElement("div"); ov.id = "ocrLiveCam";
     ov.innerHTML = '<video id="ocrLiveVid" autoplay playsinline muted></video>'
       + '<div id="olcFocusRing" style="position:fixed;width:64px;height:64px;border:2px solid #fde047;border-radius:50%;pointer-events:none;opacity:0;transform:translate(-50%,-50%) scale(1.2);transition:opacity .2s,transform .2s;z-index:3"></div>'
-      + '<div class="olc-top"><button type="button" class="olc-btn" id="olcSys">📷 Системная</button><span>Коснитесь текста для фокуса</span><button type="button" class="olc-btn" id="olcClose" aria-label="Закрыть">✕</button></div>'
-      + '<div class="olc-frame" id="olcFrame"></div>'
+      + '<div class="olc-top"><button type="button" class="olc-btn" id="olcSys">📷 Системная</button><button type="button" class="olc-btn" id="olcHelp" style="border-color:#38bdf8!important;color:#7dd3fc!important">💡 Пример</button><button type="button" class="olc-btn" id="olcClose" aria-label="Закрыть">✕</button></div>'
+      + '<div class="olc-frame" id="olcFrame">'
+      + '  <div class="olc-guide-top"><span>▲ ВЕРХ</span><span>№ «Վաճառքի փաստաթուղթ»</span></div>'
+      + '  <div class="olc-guide-mid">📦 Таблица товаров и количество</div>'
+      + '  <div class="olc-guide-bot">▼ Поместите весь лист накладной в рамку</div>'
+      + '</div>'
       + '<div class="olc-bot"><button type="button" class="olc-btn" id="olcTorch">🔦 Свет</button><button type="button" class="olc-shot" id="olcShot" aria-label="Снять"></button><button type="button" class="olc-btn" id="olcLens"></button></div>';
     document.body.appendChild(ov);
     const vid = g("ocrLiveVid");
@@ -1409,6 +1413,7 @@ async function askGemini(b64){
     };
 
     g("olcClose").onclick = stopCam;
+    g("olcHelp").onclick = () => showOcrInstructionModal();
     g("olcSys").onclick = () => { stopCam(); if (fallbackInput) fallbackInput.click(); };
     g("olcShot").onclick = async () => {
       const _sb0 = g('olcShot'); if (_sb0) _sb0.disabled = true;
@@ -1494,16 +1499,53 @@ const _fastShot = () => {
     };
   }
 
+  function showOcrInstructionModal(onDone){
+    let hm = g('ocrHelpMdl'); if (hm) hm.remove();
+    hm = document.createElement('div'); hm.id = 'ocrHelpMdl'; hm.className = 'cm open';
+    hm.innerHTML = '<div class="cm-b ocr-help-box">'
+      + '<div class="ocr-help-hd"><b>📄 Как фотографировать</b><button type="button" class="pm-x" id="ocrHelpX">✕</button></div>'
+      + '<img class="ocr-help-img" src="sample-doc.jpg" alt="Образец накладной">'
+      + '<div class="ocr-help-rules">'
+      + '  <div class="ocr-help-r"><span>1️⃣</span><div><b>Держите телефон ровно сверху</b><br>Накладная должна полностью помещаться в кадр без сильного наклона.</div></div>'
+      + '  <div class="ocr-help-r"><span>2️⃣</span><div><b>Номер «Վաճառքի փաստաթուղթ»</b><br>Убедитесь, что строка с номером накладной видна чётко и не обрезана.</div></div>'
+      + '  <div class="ocr-help-r"><span>3️⃣</span><div><b>Таблица товаров и количество</b><br>Не закрывайте пальцами колонки «Ապրանքի անվանումը» и «Քանակ».</div></div>'
+      + '  <div class="ocr-help-r"><span>4️⃣</span><div><b>Хороший свет / Вспышка</b><br>Если в кузове или подъезде темно, включите фонарик кнопкой «🔦 Свет».</div></div>'
+      + '</div>'
+      + '<button type="button" class="ocr-help-btn" id="ocrHelpOk">Понятно, сканировать</button>'
+      + '</div>';
+    document.body.appendChild(hm);
+    const closeH = () => {
+      try { localStorage.setItem('OCR_INSTRUCT_SEEN', '1'); } catch (e) {}
+      hm.remove();
+      if (typeof onDone === 'function') onDone();
+    };
+    g('ocrHelpX').onclick = closeH;
+    g('ocrHelpOk').onclick = closeH;
+    hm.onclick = e => { if (e.target === hm) closeH(); };
+  }
+
   window.openBonusScanner = () => {
     warmGeminiHost();
     const { cam, gal } = ensureOcrInputs();
-    let m = g('ocrSrcMdl'); if (m) m.remove();
-    m = document.createElement('div'); m.id = 'ocrSrcMdl'; m.className = 'cm open';
-    m.innerHTML = '<div class="cm-b ocr-src-box"><button type="button" class="pm-x" id="ocrPickX">✕</button><div class="ocr-src-top"><div class="ocr-src-ring"><div class="ocr-src-in">📷</div></div><div class="ocr-src-pill"><i></i>Smart OCR</div><div class="ocr-src-t">Сканировать накладную</div><div class="ocr-src-s">Автоподсчёт бонусов по фото документа</div></div><div class="pm-acts"><button type="button" class="pm-btn pm-chat" id="ocrPickCam"><span class="pm-btn-l"><span class="pm-ic">📸</span><span class="pm-tx"><b>Открыть камеру</b><small>Сфотографировать накладную</small></span></span><span class="pm-arr">›</span></button><button type="button" class="pm-btn pm-dm" id="ocrPickGal"><span class="pm-btn-l"><span class="pm-ic">🖼️</span><span class="pm-tx"><b>Выбрать из галереи</b><small>Один или несколько снимков</small></span></span><span class="pm-arr">›</span></button></div><button type="button" class="pm-cls" id="ocrPickNo">Отмена</button></div>';
-    document.body.appendChild(m);
-    const close = () => m.remove();
-    g('ocrPickNo').onclick = close; g('ocrPickX').onclick = close; m.onclick = e => { if (e.target === m) close(); };
-    g('ocrPickCam').onclick = () => { close(); openLiveCamera(cam); }; g('ocrPickGal').onclick = () => { close(); gal.click(); };
+
+    const openSourcePicker = () => {
+      let m = g('ocrSrcMdl'); if (m) m.remove();
+      m = document.createElement('div'); m.id = 'ocrSrcMdl'; m.className = 'cm open';
+      m.innerHTML = '<div class="cm-b ocr-src-box"><button type="button" class="pm-x" id="ocrPickX">✕</button><div class="ocr-src-top"><div class="ocr-src-ring"><div class="ocr-src-in">📷</div></div><div class="ocr-src-pill"><i></i>Smart OCR</div><div class="ocr-src-t">Сканировать накладную</div><div class="ocr-src-s">Автоподсчёт бонусов по фото документа</div></div><button type="button" id="ocrHelpLink" style="background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.35);color:#7dd3fc;padding:7px 12px;border-radius:12px;font-size:12px;font-weight:700;margin-bottom:14px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">💡 Инструкция: как фотографировать</button><div class="pm-acts"><button type="button" class="pm-btn pm-chat" id="ocrPickCam"><span class="pm-btn-l"><span class="pm-ic">📸</span><span class="pm-tx"><b>Открыть камеру</b><small>Сфотографировать накладную</small></span></span><span class="pm-arr">›</span></button><button type="button" class="pm-btn pm-dm" id="ocrPickGal"><span class="pm-btn-l"><span class="pm-ic">🖼️</span><span class="pm-tx"><b>Выбрать из галереи</b><small>Один или несколько снимков</small></span></span><span class="pm-arr">›</span></button></div><button type="button" class="pm-cls" id="ocrPickNo">Отмена</button></div>';
+      document.body.appendChild(m);
+      const close = () => m.remove();
+      g('ocrPickNo').onclick = close; g('ocrPickX').onclick = close; m.onclick = e => { if (e.target === m) close(); };
+      g('ocrHelpLink').onclick = () => { showOcrInstructionModal(); };
+      g('ocrPickCam').onclick = () => { close(); openLiveCamera(cam); }; g('ocrPickGal').onclick = () => { close(); gal.click(); };
+    };
+
+    let seen = false;
+    try { seen = !!localStorage.getItem('OCR_INSTRUCT_SEEN'); } catch (e) {}
+    if (!seen) {
+      showOcrInstructionModal(() => openSourcePicker());
+    } else {
+      openSourcePicker();
+    }
   };
   window.EUROBAZA_OCR_KEY = GKEY;
   const _ebWarmHook = () => { try { if (typeof warmGeminiHost === 'function') warmGeminiHost(); } catch (e) {} };
