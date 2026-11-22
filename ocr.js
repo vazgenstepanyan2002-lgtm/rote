@@ -441,13 +441,7 @@
     if (isRegionAddress(low)) return false;
     return /(?:ереван|երեվան|երվան|yerevan|erevan|աջափնյակ|արաբկիր|ավան|դավթաշեն|էրեբունի|կենտրոն|մալաթիա|սեբաստիա|նոր նորք|նորք|նուբարաշեն|շենգավիթ|քանաքեռ|զեյթուն|չարբախ|նորագավիթ|մասիվ|բանգլադեշ|հաղթանակ|սարի թաղ|կոնդ|սիլիկյան|վարդաշեն|նոր արեշ|կարմիր բլուր|ачапняк|арабкир|аван|давидашен|эребуни|кентрон|малатия|себастия|нор норк|норк|нубарашен|шенгавит|канакер|зейтун|чарбах|норагавит|массив|бангладеш|ахтанак|сари таг|конд|ajapnyak|arabkir|avan|davtashen|erebuni|kentron|malatia|sebastia|nor nork|nork|nubarashen|shengavit|kanaker|zeytun|charbakh|noragavit)/i.test(low);
   };
-  const detectZone = s => {
-    const t = String(s || '').trim();
-    if (!t || /^(?:none|null|n\/a|-|—|не указан|нет)$/i.test(t)) return 'unknown';
-    if (isRegionAddress(t)) return 'reg';
-    if (isYerevanAddress(t)) return 'city';
-    return 'unknown';
-  };
+  const detectZone = s => isYerevanAddress(s) ? 'city' : 'reg';
 
   function enhanceInvoiceCanvas(cv){
     try {
