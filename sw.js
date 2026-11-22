@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eurobaza-v20261123003607';
+const CACHE_NAME = 'eurobaza-v20261123004939';
 const ASSETS = [
   './',
   'index.html',

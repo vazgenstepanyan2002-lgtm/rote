@@ -642,7 +642,7 @@ function drawTotals(){
   const inp=g('ocrSrchInp');
   if(inp)inp.oninput=e=>{OCR_Q=e.target.value;renderList()};
  }
- // ===== Табель пропусков (учёт отсутствий по месяцам) =====
+ // ===== Табель пропусков (по экипажам + ручные сотрудники без приложения) =====
  const ATT_WD=['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
  function attCurYm(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
  function attShiftYm(ym,delta){
@@ -650,32 +650,70 @@ function drawTotals(){
   const d=new Date((+p[0]||new Date().getFullYear()),(+p[1]||1)-1+delta,1);
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
  }
- function attWorkersList(){
-  const w=(ATT&&ATT.workers)||{};
-  return Object.keys(w).map(k=>({id:k,name:String((w[k]&&w[k].name)||'').trim(),createdAt:+(w[k]&&w[k].createdAt)||0})).filter(x=>x.name).sort((a,b)=>(a.createdAt-b.createdAt)||a.name.localeCompare(b.name,'ru'));
+ function attBuildGroups(){
+  const manualObj=(ATT&&ATT.workers)||{};
+  const manualList=Object.keys(manualObj).map(k=>({
+   pid:k,
+   wid:k,
+   isApp:false,
+   name:String((manualObj[k]&&manualObj[k].name)||'').trim(),
+   car:String((manualObj[k]&&manualObj[k].car)||'').toUpperCase(),
+   createdAt:+(manualObj[k]&&manualObj[k].createdAt)||0
+  })).filter(x=>x.name).sort((a,b)=>(a.createdAt-b.createdAt)||a.name.localeCompare(b.name,'ru'));
+
+  const appList=devs().filter(d=>{
+   const car=String(d.u.car||'').toUpperCase();
+   const acc=accByUid(d.id),blk=!!((acc&&acc.blocked)||d.u.blocked);
+   return !blk && car!=='ADMIN';
+  }).map(d=>({
+   pid:'u_'+d.id,
+   uid:d.id,
+   isApp:true,
+   name:dispName(d),
+   car:String(d.u.car||'').toUpperCase()
+  })).sort((a,b)=>a.name.localeCompare(b.name,'ru'));
+
+  const groups=CARS_LIST.map(code=>{
+   const appM=appList.filter(x=>x.car===code);
+   const manM=manualList.filter(x=>x.car===code);
+   return {code:code,title:'Экипаж '+code,members:[...appM,...manM]};
+  });
+
+  const known=new Set(CARS_LIST);
+  const noCarApp=appList.filter(x=>!x.car||!known.has(x.car));
+  const noCarMan=manualList.filter(x=>!x.car||!known.has(x.car));
+  if(noCarApp.length||noCarMan.length){
+   groups.push({code:'',title:'Без экипажа',members:[...noCarApp,...noCarMan]});
+  }
+  return groups;
  }
  function drawAtt(){
   const prevWrap=g('attWrap'),prevScroll=prevWrap?prevWrap.scrollLeft:null;
   const now=new Date(),curYm=attCurYm(),isCurMonth=ATT_YM===curYm,todayDay=isCurMonth?now.getDate():-1;
   const parts=ATT_YM.split('-'),yr=+parts[0]||now.getFullYear(),mo=(+parts[1]||1)-1;
   const daysInMonth=new Date(yr,mo+1,0).getDate();
-  const workers=attWorkersList();
+  const groups=attBuildGroups();
+  const allMembers=groups.reduce((a,gr)=>a.concat(gr.members),[]);
   const mData=(ATT&&ATT.months&&ATT.months[ATT_YM])||{};
 
   let totalAbs=0,todayAbs=0;
   const dayTotals=new Array(daysInMonth+1).fill(0);
-  const wCounts={};
-  workers.forEach(w=>{
-   const wm=mData[w.id]||{};
-   let c=0;
-   for(let d=1;d<=daysInMonth;d++){
-    if(wm[d]){c++;dayTotals[d]++;totalAbs++;if(d===todayDay)todayAbs++;}
-   }
-   wCounts[w.id]=c;
+  const mCounts={},gCounts={};
+  groups.forEach(gr=>{
+   let gc=0;
+   gr.members.forEach(m=>{
+    const wm=mData[m.pid]||{};
+    let c=0;
+    for(let d=1;d<=daysInMonth;d++){
+     if(wm[d]){c++;gc++;dayTotals[d]++;totalAbs++;if(d===todayDay)todayAbs++;}
+    }
+    mCounts[m.pid]=c;
+   });
+   gCounts[gr.code]=gc;
   });
 
   let h='<div class="tiles">'
-   +'<div class="tile"><b>'+workers.length+'</b><span>рабочих</span></div>'
+   +'<div class="tile"><b>'+allMembers.length+'</b><span>сотрудников</span></div>'
    +'<div class="tile"><b style="color:#f87171">'+totalAbs+'</b><span>пропусков</span></div>'
    +'<div class="tile"><b>'+(isCurMonth?todayAbs:'—')+'</b><span>'+(isCurMonth?'не вышли сегодня':'не тек. месяц')+'</span></div>'
    +'</div>';
@@ -698,29 +736,40 @@ function drawTotals(){
    return;
   }
 
-  if(!workers.length){
-   h+='<div class="box" style="text-align:center;padding:24px 16px"><div style="font-size:28px;margin-bottom:8px">📋</div><div style="font-weight:700;color:#f8fafc;margin-bottom:4px">Список рабочих пуст</div><div class="mut">Нажмите «➕ Рабочий», чтобы добавить сотрудников и отмечать пропуски в таблице месяца.</div></div>';
-   g('view').innerHTML=h;
-   return;
-  }
-
-  let thead='<tr><th class="att-nm-col">Сотрудник</th>';
+  let thead='<tr><th class="att-nm-col">Экипаж / Сотрудник</th>';
   for(let d=1;d<=daysInMonth;d++){
    const wd=new Date(yr,mo,d).getDay(),isWk=wd===0||wd===6,isTd=d===todayDay;
    thead+='<th class="att-dth'+(isTd?' td':(isWk?' wk':''))+'"'+(isTd?' id="attTdCol"':'')+'>'+d+'<small>'+ATT_WD[wd]+'</small></th>';
   }
   thead+='<th class="att-tot-col">Проп.</th></tr>';
 
-  const tbody=workers.map(w=>{
-   const wm=mData[w.id]||{};
-   let row='<tr><td class="att-nm-col"><button type="button" class="att-nm-btn" data-act="att-worker" data-w="'+esc(w.id)+'"><span>'+esc(w.name)+'</span><i>✎</i></button></td>';
+  let tbody='';
+  groups.forEach(gr=>{
+   const isNone=!gr.code;
+   const grpTot=gCounts[gr.code]||0;
+   tbody+='<tr class="att-grp"><td class="att-nm-col"><div class="att-grp-hd">'
+    +'<span class="att-grp-t'+(isNone?' none':'')+'">'+(isNone?'🚫 Без экипажа':'🚚 '+esc(gr.code))+'</span>'
+    +'<button type="button" class="att-grp-add" data-act="att-add" data-car="'+esc(gr.code)+'" title="Добавить рабочего в '+(isNone?'Без экипажа':'экипаж '+esc(gr.code))+'">+</button>'
+    +'</div></td>';
    for(let d=1;d<=daysInMonth;d++){
-    const wd=new Date(yr,mo,d).getDay(),isWk=wd===0||wd===6,isTd=d===todayDay,on=!!wm[d];
-    row+='<td class="'+(isTd?'att-td-td':(isWk?'att-td-wk':''))+'"><button type="button" class="att-chk'+(on?' on':'')+'" data-act="att-tog" data-w="'+esc(w.id)+'" data-d="'+d+'" aria-label="'+esc(w.name)+' '+d+'">'+(on?'✓':'')+'</button></td>';
+    tbody+='<td></td>';
    }
-   row+='<td class="att-tot-col" style="'+(wCounts[w.id]?'color:#fca5a5':'color:#64748b')+'">'+wCounts[w.id]+'</td></tr>';
-   return row;
-  }).join('');
+   tbody+='<td class="att-tot-col">'+(grpTot||'')+'</td></tr>';
+
+   gr.members.forEach(m=>{
+    const wm=mData[m.pid]||{};
+    const nmCell=m.isApp
+     ?'<div class="att-nm-app"><i>📱</i><span>'+esc(m.name)+'</span></div>'
+     :'<button type="button" class="att-nm-btn" data-act="att-worker" data-w="'+esc(m.wid)+'"><span>'+esc(m.name)+'</span><i>✎</i></button>';
+    let row='<tr><td class="att-nm-col">'+nmCell+'</td>';
+    for(let d=1;d<=daysInMonth;d++){
+     const wd=new Date(yr,mo,d).getDay(),isWk=wd===0||wd===6,isTd=d===todayDay,on=!!wm[d];
+     row+='<td class="'+(isTd?'att-td-td':(isWk?'att-td-wk':''))+'"><button type="button" class="att-chk'+(on?' on':'')+'" data-act="att-tog" data-w="'+esc(m.pid)+'" data-d="'+d+'" aria-label="'+esc(m.name)+' '+d+'">'+(on?'✓':'')+'</button></td>';
+    }
+    row+='<td class="att-tot-col" style="'+(mCounts[m.pid]?'color:#fca5a5':'color:#64748b')+'">'+mCounts[m.pid]+'</td></tr>';
+    tbody+=row;
+   });
+  });
 
   let tfoot='<tr class="att-foot"><td class="att-nm-col">Итого</td>';
   for(let d=1;d<=daysInMonth;d++){
@@ -730,7 +779,7 @@ function drawTotals(){
   tfoot+='<td class="att-tot-col">'+totalAbs+'</td></tr>';
 
   h+='<div id="attWrap" class="att-wrap"><table class="att-tbl"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody><tfoot>'+tfoot+'</tfoot></table></div>';
-  h+='<div class="mut hint">Нажмите на клетку дня, чтобы поставить ✓ (не вышел на работу). Нажмите на имя сотрудника для редактирования или удаления.</div>';
+  h+='<div class="mut hint">📱 — пользователь приложения. Нажмите «+» в строке экипажа, чтобы добавить рабочего без приложения. Нажмите на клетку дня, чтобы поставить ✓ (не вышел на работу).</div>';
   g('view').innerHTML=h;
 
   const wrap=g('attWrap');
@@ -747,21 +796,43 @@ function drawTotals(){
    }
   }
  }
- async function attAddWorker(){
-  const v=await askInput('Новый рабочий','Введите имя сотрудника для табеля','','Например: Армен');
+ function openAttPickCarModal(title,curCar,onPick){
+  const ov=document.createElement('div');ov.className='ov';
+  let items=CARS_LIST.map(c=>'<div class="sel-it'+(curCar===c?' on':'')+'" data-c="'+c+'"><div class="sel-it-l"><span class="sel-ic">🚚</span><div><div class="sel-it-nm">Экипаж '+c+'</div></div></div><div class="sel-it-r"><span class="sel-chk">✓</span></div></div>').join('');
+  items+='<div class="sel-it'+(curCar===''?' on':'')+'" data-c=""><div class="sel-it-l"><span class="sel-ic" style="background:rgba(245,158,11,.14);border-color:rgba(245,158,11,.35);color:#fbbf24">🚫</span><div><div class="sel-it-nm">Без экипажа</div></div></div><div class="sel-it-r"><span class="sel-chk">✓</span></div></div>';
+  ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>'+esc(title)+'</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'+items+'</div></div>';
+  document.body.appendChild(ov);
+  const close=()=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),180)};
+  ov.querySelector('.sel-x').onclick=close;
+  ov.onclick=e=>{
+   if(e.target===ov){close();return}
+   const it=e.target.closest('.sel-it');if(!it)return;
+   const c=it.dataset.c||'';close();
+   onPick(c);
+  };
+  requestAnimationFrame(()=>ov.classList.add('show'));
+ }
+ async function attAddWorker(car){
+  if(car===undefined){
+   openAttPickCarModal('В какой экипаж добавить?',null,c=>attAddWorker(c));
+   return;
+  }
+  const carCode=String(car||'').toUpperCase();
+  const title=carCode?('Новый рабочий · Экипаж '+carCode):'Новый рабочий (без экипажа)';
+  const v=await askInput(title,'Введите имя сотрудника (без приложения)','','Например: Армен');
   if(v===null)return;
   const clean=v.trim().slice(0,32);
   if(!clean){toast('Введите имя рабочего',true);return}
   try{
-   await db.ref('attendance/workers').push({name:clean,createdAt:Date.now()});
-   toast('Добавлен: '+clean);
+   await db.ref('attendance/workers').push({name:clean,car:carCode,createdAt:Date.now()});
+   toast('Добавлен: '+clean+(carCode?' (Экипаж '+carCode+')':''));
   }catch(e){toast('Ошибка сохранения: '+((e&&e.message)||e),true)}
  }
- async function attToggle(wid,day){
-  if(!wid||!day)return;
-  const isSet=!!(ATT&&ATT.months&&ATT.months[ATT_YM]&&ATT.months[ATT_YM][wid]&&ATT.months[ATT_YM][wid][day]);
+ async function attToggle(pid,day){
+  if(!pid||!day)return;
+  const isSet=!!(ATT&&ATT.months&&ATT.months[ATT_YM]&&ATT.months[ATT_YM][pid]&&ATT.months[ATT_YM][pid][day]);
   try{
-   const ref=db.ref('attendance/months/'+ATT_YM+'/'+wid+'/'+day);
+   const ref=db.ref('attendance/months/'+ATT_YM+'/'+pid+'/'+day);
    if(isSet)await ref.remove();
    else await ref.set(true);
   }catch(e){toast('Ошибка сохранения',true)}
@@ -769,9 +840,11 @@ function drawTotals(){
  function openAttWorkerModal(wid){
   const w=(ATT&&ATT.workers&&ATT.workers[wid]);
   if(!w)return;
+  const curCar=String(w.car||'').toUpperCase();
   const ov=document.createElement('div');ov.className='ov';
   ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>👷 '+esc(w.name)+'</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'
    +'<div class="sel-it" data-op="ren"><div class="sel-it-l"><span class="sel-ic">✏️</span><div><div class="sel-it-nm">Переименовать</div><div class="sel-it-sb">Изменить имя сотрудника</div></div></div></div>'
+   +'<div class="sel-it" data-op="car"><div class="sel-it-l"><span class="sel-ic">🚚</span><div><div class="sel-it-nm">Сменить экипаж</div><div class="sel-it-sb">Сейчас: '+(curCar?'Экипаж '+esc(curCar):'Без экипажа')+'</div></div></div></div>'
    +'<div class="sel-it" data-op="del" style="border-color:rgba(239,68,68,.3)"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.38);color:#f87171">🗑️</span><div><div class="sel-it-nm" style="color:#fca5a5">Удалить рабочего</div><div class="sel-it-sb">Убрать сотрудника из таблицы</div></div></div></div>'
    +'</div></div>';
   document.body.appendChild(ov);
@@ -788,6 +861,11 @@ function drawTotals(){
     if(!clean){toast('Имя не может быть пустым',true);return}
     try{await db.ref('attendance/workers/'+wid+'/name').set(clean);toast('Имя обновлено')}
     catch(err){toast('Ошибка сохранения',true)}
+   }else if(op==='car'){
+    openAttPickCarModal('Экипаж для '+w.name,curCar,async nc=>{
+     try{await db.ref('attendance/workers/'+wid+'/car').set(nc||'');toast(nc?'Перенесён в экипаж '+nc:'Перенесён в «Без экипажа»')}
+     catch(err){toast('Ошибка сохранения',true)}
+    });
    }else if(op==='del'){
     if(!(await ask('Удалить «'+w.name+'» из списка рабочих?',{title:'Удаление рабочего',okText:'Удалить',danger:true})))return;
     try{await db.ref('attendance/workers/'+wid).remove();toast('Сотрудник удалён')}
@@ -797,26 +875,30 @@ function drawTotals(){
   requestAnimationFrame(()=>ov.classList.add('show'));
  }
  function attExportCsv(){
-  const workers=attWorkersList();
-  if(!workers.length){toast('Список рабочих пуст',true);return}
+  const groups=attBuildGroups();
+  const hasAny=groups.some(gr=>gr.members.length);
+  if(!hasAny){toast('Нет сотрудников в табеле',true);return}
   const p=ATT_YM.split('-'),yr=+p[0],mo=(+p[1]||1)-1;
   const dim=new Date(yr,mo+1,0).getDate();
   const mData=(ATT&&ATT.months&&ATT.months[ATT_YM])||{};
-  const header=['Сотрудник'];
+  const header=['Экипаж','Сотрудник'];
   for(let d=1;d<=dim;d++)header.push(String(d));
   header.push('Итого');
   const dayT=new Array(dim+1).fill(0);
   let tot=0;
-  const rows=workers.map(w=>{
-   const wm=mData[w.id]||{},r=[w.name];
-   let c=0;
-   for(let d=1;d<=dim;d++){
-    if(wm[d]){r.push('✓');c++;dayT[d]++;tot++;}else r.push('');
-   }
-   r.push(c);
-   return r;
+  const rows=[];
+  groups.forEach(gr=>{
+   gr.members.forEach(m=>{
+    const wm=mData[m.pid]||{},r=[gr.code?('Экипаж '+gr.code):'Без экипажа',m.name+(m.isApp?'':' (без прил.)')];
+    let c=0;
+    for(let d=1;d<=dim;d++){
+     if(wm[d]){r.push('✓');c++;dayT[d]++;tot++;}else r.push('');
+    }
+    r.push(c);
+    rows.push(r);
+   });
   });
-  const totalRow=['ИТОГО'];
+  const totalRow=['ИТОГО',''];
   for(let d=1;d<=dim;d++)totalRow.push(dayT[d]||'');
   totalRow.push(tot);
   const title=monthName(ATT_YM);
@@ -828,18 +910,22 @@ function drawTotals(){
   downloadCsv(fn,[header,...rows,totalRow]);
  }
  function attCopyReport(){
-  const workers=attWorkersList();
-  if(!workers.length){toast('Список рабочих пуст',true);return}
+  const groups=attBuildGroups();
+  if(!groups.some(gr=>gr.members.length)){toast('Нет сотрудников в табеле',true);return}
   const p=ATT_YM.split('-'),yr=+p[0],mo=(+p[1]||1)-1;
   const dim=new Date(yr,mo+1,0).getDate();
   const mData=(ATT&&ATT.months&&ATT.months[ATT_YM])||{};
   let tot=0;
-  const lines=['📅 Табель пропусков — '+monthName(ATT_YM),''];
-  workers.forEach(w=>{
-   const wm=mData[w.id]||{},days=[];
-   for(let d=1;d<=dim;d++)if(wm[d])days.push(d);
-   tot+=days.length;
-   lines.push('• '+w.name+': '+days.length+' дн.'+(days.length?' ('+days.join(', ')+')':''));
+  const lines=['📅 Табель пропусков — '+monthName(ATT_YM)];
+  groups.forEach(gr=>{
+   if(!gr.members.length)return;
+   lines.push('',(gr.code?'🚚 Экипаж '+gr.code:'🚫 Без экипажа')+':');
+   gr.members.forEach(m=>{
+    const wm=mData[m.pid]||{},days=[];
+    for(let d=1;d<=dim;d++)if(wm[d])days.push(d);
+    tot+=days.length;
+    lines.push('• '+m.name+(m.isApp?'':' (без прил.)')+': '+days.length+' дн.'+(days.length?' ('+days.join(', ')+')':''));
+   });
   });
   lines.push('','Всего пропусков: '+tot);
   const txt=lines.join('\n');
@@ -1231,7 +1317,7 @@ function openSelectModal(){
   else if(a==='att-prev'){ATT_YM=attShiftYm(ATT_YM,-1);ATT_SCROLLED_YM='';drawAtt()}
   else if(a==='att-next'){ATT_YM=attShiftYm(ATT_YM,1);ATT_SCROLLED_YM='';drawAtt()}
   else if(a==='att-today'){ATT_YM=attCurYm();ATT_SCROLLED_YM='';drawAtt()}
-  else if(a==='att-add'){attAddWorker()}
+  else if(a==='att-add'){attAddWorker(b.dataset.car)}
   else if(a==='att-tog'){attToggle(b.dataset.w,+b.dataset.d)}
   else if(a==='att-worker'){openAttWorkerModal(b.dataset.w)}
   else if(a==='att-csv'){attExportCsv()}
