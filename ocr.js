@@ -1353,11 +1353,50 @@ async function askGemini(b64){
     ov.innerHTML = '<video id="ocrLiveVid" autoplay playsinline muted></video>'
       + '<div id="olcFocusRing" style="position:fixed;width:64px;height:64px;border:2px solid #fde047;border-radius:50%;pointer-events:none;opacity:0;transform:translate(-50%,-50%) scale(1.2);transition:opacity .2s,transform .2s;z-index:3"></div>'
       + '<div class="olc-top"><button type="button" class="olc-btn" id="olcSys">📷 Системная</button><span>Коснитесь текста для фокуса</span><button type="button" class="olc-btn" id="olcClose" aria-label="Закрыть">✕</button></div>'
-      + '<div class="olc-frame" id="olcFrame"></div>'
+      + '<div class="olc-frame" id="olcFrame"><div class="olc-hdl" id="olcHdl" aria-label="Размер рамки"><i></i></div></div>'
       + '<div class="olc-bot"><button type="button" class="olc-btn" id="olcTorch">🔦 Свет</button><button type="button" class="olc-shot" id="olcShot" aria-label="Снять"></button><button type="button" class="olc-btn" id="olcLens"></button></div>';
     document.body.appendChild(ov);
     const vid = g("ocrLiveVid");
     const frameEl = g("olcFrame");
+    const hdlEl = g("olcHdl");
+    const FRAME_H_KEY = "OCR_FRAME_H_VH";
+    const clampVh = v => Math.max(20, Math.min(66, Math.round(v * 10) / 10));
+    let curVh = 36;
+    try {
+      const sv = parseFloat(localStorage.getItem(FRAME_H_KEY) || "");
+      if (Number.isFinite(sv) && sv >= 20 && sv <= 66) curVh = sv;
+    } catch (e) {}
+    if (frameEl) frameEl.style.height = curVh + "vh";
+    if (hdlEl && frameEl) {
+      let dragY = 0, dragStartH = 0, dragging = false;
+      const stopEv = ev => { ev.stopPropagation(); };
+      hdlEl.addEventListener("click", stopEv);
+      hdlEl.addEventListener("pointerdown", ev => {
+        ev.preventDefault(); ev.stopPropagation();
+        dragging = true;
+        dragY = ev.clientY;
+        dragStartH = frameEl.getBoundingClientRect().height;
+        try { hdlEl.setPointerCapture(ev.pointerId); } catch (e) {}
+      });
+      hdlEl.addEventListener("pointermove", ev => {
+        if (!dragging) return;
+        ev.preventDefault(); ev.stopPropagation();
+        const winH = window.innerHeight || 800;
+        const dy = ev.clientY - dragY;
+        // Рамка центрирована (margin: auto), поэтому сдвиг нижней границы на dy требует изменения высоты на 2*dy
+        const nextPx = dragStartH + dy * 2;
+        curVh = clampVh((nextPx / winH) * 100);
+        frameEl.style.height = curVh + "vh";
+      });
+      const endDrag = ev => {
+        if (!dragging) return;
+        dragging = false;
+        ev.stopPropagation();
+        try { localStorage.setItem(FRAME_H_KEY, String(curVh)); } catch (e) {}
+      };
+      hdlEl.addEventListener("pointerup", endDrag);
+      hdlEl.addEventListener("pointercancel", endDrag);
+    }
     const torchBtn = g("olcTorch");
     const lensBtn = g("olcLens");
     vid.srcObject = stream;
