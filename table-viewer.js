@@ -52,13 +52,23 @@
     // Открыть модальное окно с таблицей
     open({ title, filename, headers = [], rows = [], totalRow = null }) {
       const old = document.getElementById('tvMdl');
-      if (old) old.remove();
+      if (old) {
+        if (typeof old._tvClose === 'function') old._tvClose();
+        else old.remove();
+      }
 
       const blob = createCsvBlob([headers, ...rows, ...(totalRow ? [totalRow] : [])]);
 
+      const prevHtmlOv = document.documentElement.style.overflow;
+      const prevBodyOv = document.body.style.overflow;
+      const prevBodyObs = document.body.style.overscrollBehavior;
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+      document.body.style.overscrollBehavior = 'none';
+
       const m = document.createElement('div');
       m.id = 'tvMdl';
-      m.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;padding:12px;touch-action:auto;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)';
+      m.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;padding:12px;touch-action:none;overscroll-behavior:contain;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)';
 
       m.innerHTML = `
         <div class="tv-box" style="max-width:540px;width:100%;height:min(86dvh,640px);display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:18px;background:#0d131f;border:1px solid rgba(255,255,255,.16);box-shadow:0 18px 45px rgba(0,0,0,.75);animation:cmIn .16s ease-out">
@@ -80,7 +90,7 @@
             </button>
           </div>
 
-          <div class="tv-scroll" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:0;max-width:100%;min-width:0;touch-action:pan-x pan-y">
+          <div class="tv-scroll" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0;max-width:100%;min-width:0;touch-action:pan-x pan-y">
             <table id="tvTable" style="width:max-content;min-width:100%;border-collapse:collapse;font-size:12px;line-height:1.35;text-align:left">
               <thead>
                 <tr style="background:#131c2e;position:sticky;top:0;z-index:2;box-shadow:0 1px 0 rgba(255,255,255,.1)">
@@ -103,7 +113,19 @@
 
       document.body.appendChild(m);
 
-      const close = () => m.remove();
+      const onKey = e => { if (e.key === 'Escape') close(); };
+      const close = () => {
+        document.documentElement.style.overflow = prevHtmlOv;
+        document.body.style.overflow = prevBodyOv;
+        document.body.style.overscrollBehavior = prevBodyObs;
+        document.removeEventListener('keydown', onKey);
+        m.remove();
+      };
+      m._tvClose = close;
+      m.addEventListener('touchmove', e => {
+        if (!e.target.closest('.tv-scroll')) e.preventDefault();
+      }, { passive: false });
+      document.addEventListener('keydown', onKey);
       document.getElementById('tvClose').onclick = close;
       m.onclick = e => { if (e.target === m) close(); };
 
