@@ -446,7 +446,7 @@ async function askGemini(b64){
     const cleanB64 = String(b64 || '');
     const mime = cleanB64.indexOf('UklGR') === 0 ? 'image/webp' : (cleanB64.indexOf('iVBOR') === 0 ? 'image/png' : 'image/jpeg');
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
-    const prompt = 'Накладная EuroBaza (HY/RU/EN).\nВАЖНО: Если на фото НЕТ накладной, если снимок пустой, черный, темный, смазанный или это не накладная — верни items: [], doc: "", addr: "". Категорически запрещено выдумывать или генерировать несуществующие товары!\ndoc=номер СТРОГО только из строки «Վաճառքի փաստաթուղթ №» или «Վաճառքի փաստաթուղթ:» (цифры и дефис, обычно 0000-XXXXX, если строки нет — пустая строка). КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО брать номер из Բեռնափոխադրման թերթիկ или Մեքենա.\naddr=ТОЛЬКО город или область (1-2 слова из Տեղափոխման հասցե, без улицы и телефонов, если нет — пустая строка).\nitems=[{name:ТОЛЬКО РЕАЛЬНЫЙ ТЕКСТ из таблицы Ապրանքի անվանումը, qty:целое число из столбца Քանակ (обычно 1-5)}]. Запрещено брать числа из столбца цены Ապրանքի արժեքը или номера строки հ/հ. Игнорировать любые услуги: доставка (Տեղափոխություն, Առաքում), сборка (Հավաքում), подъем/этаж (Բարձրացում, Վերելակ), грузчики (Բանվորական) и фурнитуру. Если таблица с товарами не видна — items=[].';
+    const prompt = 'Накладная EuroBaza (HY/RU/EN).\nВАЖНО: Если на фото НЕТ накладной, если снимок пустой, черный, темный, смазанный или это не накладная — верни items: [], doc: "", addr: "". Категорически запрещено выдумывать или генерировать несуществующие товары!\nОРИЕНТАЦИЯ: Документ может быть расположен горизонтально (альбомный лист) или повернут боком (под углом 90°/180°/270°). Сначала определи ориентацию таблицы (найди строки «Բեռնափոխադրման թերթիկ», «Վաճառքի փաստաթուղթ:») и читай текст строго вдоль граф и строк таблицы слева направо.\ndoc=номер СТРОГО только из строки «Վաճառքի փաստաթուղթ №» или «Վաճառքի փաստաթուղթ:» (цифры и дефис, обычно 0000-XXXXX, если строки нет — пустая строка). КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО брать номер из Բեռնափոխադրման թերթիկ или Մեքենա.\naddr=ТОЛЬКО город или область (1-2 слова из Տեղափոխման հասցե, без улицы и телефонов, если нет — пустая строка).\nitems=[{name:ТОЛЬКО РЕАЛЬНЫЙ ТЕКСТ из таблицы Ապրանքի անվանումը, qty:целое число из столбца Քանակ (обычно 1-5)}]. Запрещено брать числа из столбца цены Ապրանքի արժեքը или номера строки հ/հ. Игнорировать любые услуги: доставка (Տեղափոխություն, Առաքում), сборка (Հավաքում), подъем/этаж (Բարձրացում, Վերելակ), грузчики (Բանվորական) и фурнитуру. Если таблица с товарами не видна — items=[].';
     const schema = {
       type: 'OBJECT',
       properties: {
@@ -466,7 +466,7 @@ async function askGemini(b64){
       },
       required: ['doc', 'addr', 'items']
     };
-    const baseModels = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-2.5-flash', 'gemini-flash-latest'];
+    const baseModels = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.8-flash', 'gemini-flash-latest'];
     const readSkip = () => {
       try {
         const raw = JSON.parse(localStorage.getItem('OCR_SKIP_MDL') || '{}') || {};
@@ -644,7 +644,7 @@ async function askGemini(b64){
     const doc = cleanDocNum(parsed && parsed.doc);
     const addr = String((parsed && parsed.addr) || '').trim();
     if (!items.length && /lite/.test(winMdl)) {
-      const seniorModels = ['gemini-2.5-flash', 'gemini-flash-latest'].filter(m => m !== winMdl);
+      const seniorModels = ['gemini-3.8-flash', 'gemini-flash-latest'].filter(m => m !== winMdl);
       for (const sm of seniorModels) {
         try {
           const sr = await callModel(sm, 6500, null);
@@ -1196,10 +1196,15 @@ async function askGemini(b64){
     const vScale = Math.min(srcW / vw, srcH / vh);
     const visW = vw * vScale, visH = vh * vScale;
     const visOffX = (srcW - visW) / 2, visOffY = (srcH - visH) / 2;
-    const sx = Math.max(0, Math.round(visOffX + nx1 * visW));
-    const sy = Math.max(0, Math.round(visOffY + ny1 * visH));
-    const sw = Math.max(20, Math.min(srcW - sx, Math.round((nx2 - nx1) * visW)));
-    const sh = Math.max(20, Math.min(srcH - sy, Math.round((ny2 - ny1) * visH)));
+    let sx = Math.max(0, Math.round(visOffX + nx1 * visW));
+    let sy = Math.max(0, Math.round(visOffY + ny1 * visH));
+    let sw = Math.max(20, Math.min(srcW - sx, Math.round((nx2 - nx1) * visW)));
+    let sh = Math.max(20, Math.min(srcH - sy, Math.round((ny2 - ny1) * visH)));
+    const padX = Math.round(sw * 0.12), padY = Math.round(sh * 0.12);
+    sx = Math.max(0, sx - padX);
+    sy = Math.max(0, sy - padY);
+    sw = Math.min(srcW - sx, sw + padX * 2);
+    sh = Math.min(srcH - sy, sh + padY * 2);
 
     const maxOut = 1440;
     let outW = sw, outH = sh;
@@ -1476,6 +1481,11 @@ const _fastShot = () => {
             sy = Math.max(0, ((fr.top - vr.top) + oy) / sc);
             sw = Math.min(vw - sx, fr.width / sc);
             sh = Math.min(vh - sy, fr.height / sc);
+            const px = Math.round(sw * 0.12), py = Math.round(sh * 0.12);
+            sx = Math.max(0, Math.round(sx - px));
+            sy = Math.max(0, Math.round(sy - py));
+            sw = Math.min(vw - sx, Math.round(sw + px * 2));
+            sh = Math.min(vh - sy, Math.round(sh + py * 2));
           }
           if (sw < 100 || sh < 100) { sx = 0; sy = 0; sw = vw; sh = vh; }
           let dw = Math.round(sw), dh = Math.round(sh);
