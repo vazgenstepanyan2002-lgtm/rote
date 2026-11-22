@@ -38,14 +38,16 @@
           title: title || 'EuroBaza',
           text: title || 'Отчёт по накладным EuroBaza'
         });
-        return true;
+        return 'shared';
       }
+      return 'unsupported';
     } catch (e) {
-      if (e.name !== 'AbortError') {
-        console.warn('Share error:', e);
+      if (e && e.name === 'AbortError') {
+        return 'aborted';
       }
+      console.warn('Share error:', e);
+      return 'error';
     }
-    return false;
   }
 
   const TableViewer = {
@@ -131,9 +133,8 @@
 
       // Поделиться
       document.getElementById('tvShare').onclick = async () => {
-        const shared = await shareFile(blob, filename, title);
-        if (!shared) {
-          // Если Share API не поддержан или отменён, предлагаем скачать
+        const res = await shareFile(blob, filename, title);
+        if (res === 'unsupported' || res === 'error') {
           downloadBlob(blob, filename);
           if (window.toast) window.toast('Файл скачан');
         }
