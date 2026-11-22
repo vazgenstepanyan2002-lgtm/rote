@@ -136,7 +136,7 @@
   }
 
   const RULES = [
-    { ignore: true, rx: /(?:տեղափոխու[թտ]յուն|առաքում|հավաքում|բանվորական|վերելակ|բարձրացում|доставк|перевозк|сборк|подъем|этаж|грузчик)/i },
+    { ignore: true, rx: /(?:տեղափոխու[թտ]յուն|հավաքում|доставк|перевозк|сборк)/i },
 
     // Спальни: 0,9*2 и явное кол-во дверей, затем модели по категориям
     { code: 'bedroom_g', rx: /(?:^|\s)(?:ննջասենյ?ակ\w*|ննջարան\w*|(?:^|\s)ննջ(?=\s|$)|սենյակ\w*|спальн\w*|[տթ][ոա]սկանա|тоскана).*0[.,\s]+9\s*[*xх×]\s*2/i },
@@ -198,7 +198,7 @@
     { code: 'other_g', rx: /(?:ներքնա[կք]|матрас)/i },
     { code: 'other_h', rx: /(?:պահոց|короб|ящик для белья)/i },
     { code: 'other_d', rx: /(?:կ[ոօ]մ[ոօ][դտքգթ]|комод)/i },
-    { code: 'other_e', rx: /(?:մահճա[կք]ալ|кроват|վարշավա.*(?:1[.,\s]*[468]|մահճ)|մատրասային\s*վարշ)/i },
+    { code: 'other_e', rx: /(?:մահճա[կք]ալ|кроват)/i },
     { code: 'other_k', rx: /(?:տումբա|տակդիր|тумб|подставк)/i },
     { code: 'other_j', rx: /(?:պուֆ|пуф)/i },
     { code: 'other_f', rx: /(?:մոդուլ|модул)/i },
@@ -215,18 +215,7 @@
     .replace(/(^|[\s/])([Կկ])ոմ[ոօ][քգթլ](?=$|[\s/])/g, '$1$2ոմոդ')
     .replace(/(^|[\s/])([Սս])երի[հղն]ա(?=$|[\s/])/g, '$1$2երիա')
     .replace(/(Ընդունարանի\s+կ)(?=\s)/g, '$1.')
-    .replace(/(^|\s)ալու(\s+լայթ)/gi, '$1Ալսու$2')
-    .replace(/մատրասային\s*վարշ/gi, 'Մահճակալ Վարշ')
-    .replace(/^մատրասային(?=\s+[12])/gi, 'Մահճակալ')
-    .replace(/վար[շչ][աո]կ[աո]/gi, 'Վարշավա')
-    .replace(/վար[շչ]ակա/gi, 'Վարշավա')
-    .replace(/շ[իխ][սմ]\s*բաց/gi, 'շխմ բաց')
-    .replace(/շիմո\s*տուգ/gi, 'շխմ մուգ')
-    .replace(/տուգ(?=$|[\s/])/gi, 'մուգ')
-    .replace(/ներնակ/gi, 'ներքնակ')
-    .replace(/մահճակ[ւս][ւս]լ/gi, 'մահճակալ')
-    .replace(/ներքն[ւս]կ/gi, 'ներքնակ')
-    .replace(/պահար[ւս]ն/gi, 'պահարան');
+    .replace(/(^|\s)ալու(\s+լայթ)/gi, '$1Ալսու$2');
 
   const FUZZY_TYPES = [
     ['bed', ['ննջասենյակ', 'ննջասենյակի', 'ննջարան', 'ննջարանի', 'спальня', 'спальный']],
@@ -384,8 +373,8 @@
 async function compressImage(file){
     if (file && file._preB64) return file._preB64;
     const isCrop = !!(file && file._isCropped);
-    const maxSide = isCrop ? 1440 : 1600;
-    const q = 0.90;
+    const maxSide = isCrop ? 1280 : 1600;
+    const q = 0.85;
     const encodeCv = cv => {
       try {
         const wUrl = cv.toDataURL('image/webp', q);
@@ -395,8 +384,7 @@ async function compressImage(file){
     };
     if (window.createImageBitmap) {
       try {
-        let bmp0;
-        try { bmp0 = await createImageBitmap(file, { imageOrientation: 'from-image' }); } catch (e) { bmp0 = await createImageBitmap(file); }
+        const bmp0 = await createImageBitmap(file);
         const w0 = bmp0.width, h0 = bmp0.height;
         let w = w0, h = h0;
         if (w > maxSide || h > maxSide) {
@@ -404,15 +392,10 @@ async function compressImage(file){
           else { w = Math.round(w * maxSide / h); h = maxSide; }
         }
         bmp0.close();
-        let bmp;
-        try {
-          bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high', imageOrientation: 'from-image' });
-        } catch (e) {
-          bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
-        }
+        const bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
         const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
         const ctx = cv.getContext('2d');
-        if (!isCrop) ctx.filter = 'contrast(1.08) brightness(1.02)';
+        if (!isCrop) ctx.filter = 'grayscale(1) contrast(1.18)';
         ctx.drawImage(bmp, 0, 0);
         if (!isCrop) ctx.filter = 'none';
         bmp.close();
@@ -430,7 +413,7 @@ async function compressImage(file){
         if (w > maxSide || h > maxSide) { if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; } else { w = Math.round(w * maxSide / h); h = maxSide; } }
         const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
         const ctx = cv.getContext('2d');
-        if (!isCrop) ctx.filter = 'contrast(1.08) brightness(1.02)';
+        if (!isCrop) ctx.filter = 'grayscale(1) contrast(1.18)';
         ctx.drawImage(img, 0, 0, w, h);
         if (!isCrop) ctx.filter = 'none';
         const out = encodeCv(cv);
@@ -454,7 +437,7 @@ async function askGemini(b64){
     const cleanB64 = String(b64 || '');
     const mime = cleanB64.indexOf('UklGR') === 0 ? 'image/webp' : (cleanB64.indexOf('iVBOR') === 0 ? 'image/png' : 'image/jpeg');
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
-    const prompt = 'Накладная EuroBaza (HY/RU/EN).\nВАЖНО: Если на фото НЕТ накладной, если снимок пустой, черный, темный, смазанный или это не накладная — верни items: [], doc: "", addr: "". Категорически запрещено выдумывать товары!\nОРИЕНТАЦИЯ: Документ сфотографирован горизонтально (альбомный лист) или повернут боком (90°/180°/270°). Сначала определи ориентацию таблицы (найди строки «Բեռնափոխադրման թերթիկ», «Վաճառքի փաստաթուղթ:») и читай текст строго вдоль граф и строк таблицы слева направо.\n\nПРЕДМЕТНЫЙ СЛОВАРЬ КАТАЛОГА EUROBAZA:\nТовары в графе «Ապրանքի անվանումը» ОБЯЗАТЕЛЬНО начинаются с типа мебели:\n- Մահճակալ (Кровать) — модели: Վարշավա (Варшава 1,4 / 1,6 / 1,8), Կատանա, Ռաֆայել. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО читать Մահճակալ как «մատրասային» или «վարշակա»!\n- Ներքնակ (Матрас) — модели: Classic Start, Classic, Lux. Буква ք обязательна: Ներքնակ, а не «Ներնակ»!\n- Պահարան (Шкаф), Կոմոդ (Комод), Ննջասենյակ (Спальня), Բազմոց (Диван), Սեղան (Стол), Աթոռ (Стул).\n- Цвета: շխմ (шимо), բաց (светлый), մուգ (темный). Не путать с «տուգ» или «շիս»!\n\ndoc=номер СТРОГО только из строки «Վաճառքի փաստաթուղթ №» или «Վաճառքի փաստաթուղթ:» (цифры и дефис, обычно 0000-XXXXX). КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО брать номер из Բեռնափոխադրման թերթիկ или Մեքենա.\naddr=ТОЛЬКО город или область (1-2 слова из Տեղափոխման հասցե, без улицы и телефонов, если нет — пустая строка).\nitems=[{name:ТОЛЬКО РЕАЛЬНЫЙ ТЕКСТ из таблицы Ապրանքի անվանումը, qty:целое число из столбца Քանակ (обычно 1-5)}]. Запрещено брать числа из столбца цены Ապրանքի արժեքը или номера строки հ/հ. Игнорировать любые услуги: доставка (Տեղափոխություն, Առաքում), сборка (Հավաքում), подъем/этаж (Բարձրացում, Վերելակ), грузчики (Բանվորական) и фурнитуру. Если таблица с товарами не видна — items=[].';
+    const prompt = 'Накладная EuroBaza (HY/RU/EN).\nВАЖНО: Если на фото НЕТ накладной, если снимок пустой, черный, темный, смазанный или это не накладная — верни items: [], doc: "", addr: "". Категорически запрещено выдумывать или генерировать несуществующие товары!\ndoc=номер СТРОГО только из строки «Վաճառքի փաստաթուղթ №» или «Վաճառքի փաստաթուղթ:» (цифры и дефис, обычно 0000-XXXXX, если строки нет — пустая строка). КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО брать номер из Բեռնափոխադրման թերթիկ.\naddr=ТОЛЬКО город или область (1-2 слова из Տեղափոխման հասցե, без улицы и телефонов, если нет — пустая строка).\nitems=[{name:ТОЛЬКО РЕАЛЬНЫЙ ТЕКСТ из таблицы Ապրանքի անվանումը, qty:целое число из Քանակ}] без доставки (Տեղափոխություն), сборки (Հավաքում) и фурнитуры. Если таблица с товарами не видна — items=[].';
     const schema = {
       type: 'OBJECT',
       properties: {
@@ -474,7 +457,7 @@ async function askGemini(b64){
       },
       required: ['doc', 'addr', 'items']
     };
-    const baseModels = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.8-flash', 'gemini-flash-latest'];
+    const baseModels = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-2.5-flash', 'gemini-flash-latest'];
     const readSkip = () => {
       try {
         const raw = JSON.parse(localStorage.getItem('OCR_SKIP_MDL') || '{}') || {};
@@ -643,41 +626,8 @@ async function askGemini(b64){
       const cls = classifyProduct(name);
       if (!cls.ignore) items.push({ name, qty, code: cls.code || '' });
     });
-    const cleanDocNum = raw => String(raw || '')
-      .replace(/^[^0-9oOоО]+/, '')
-      .replace(/^[oOоО]+/g, '0000')
-      .replace(/\s*[-—–]\s*/g, '-')
-      .replace(/\s+/g, '')
-      .trim();
-    const doc = cleanDocNum(parsed && parsed.doc);
-    const addr = String((parsed && parsed.addr) || '').trim();
-    if (!items.length && /lite/.test(winMdl)) {
-      const seniorModels = ['gemini-3.8-flash', 'gemini-flash-latest'].filter(m => m !== winMdl);
-      for (const sm of seniorModels) {
-        try {
-          const sr = await callModel(sm, 6500, null);
-          if (sr.ok && sr.json) {
-            const sc = Array.isArray(sr.json.candidates) ? sr.json.candidates[0] : null;
-            const sp = (sc && sc.content && Array.isArray(sc.content.parts)) ? sc.content.parts : [];
-            const sa = sp.find(p => p && !p.thought && typeof p.text === 'string') || sp[sp.length - 1];
-            const spJson = JSON.parse(((sa && sa.text) || '{}').replace(/```json|```/gi, '').trim());
-            const sItems = [];
-            (Array.isArray(spJson.items) ? spJson.items : []).forEach(x => {
-              const name = fixOcrName(String((x && x.name) || '').trim()), qty = Math.max(1, Math.round(+x.qty || 1));
-              if (!name) return;
-              const cls = classifyProduct(name);
-              if (!cls.ignore) sItems.push({ name, qty, code: cls.code || '' });
-            });
-            if (sItems.length) {
-              const sDoc = cleanDocNum((spJson && spJson.doc) || doc);
-              const sAddr = String((spJson && spJson.addr) || addr || '').trim();
-              return { doc: sDoc, addr: sAddr, items: sItems };
-            }
-          }
-        } catch (e) {}
-      }
-    }
-    return { doc, addr, items };
+    const doc = String((parsed && parsed.doc) || '').replace(/^[^0-9]+/, '').trim();
+    return { doc, addr: String((parsed && parsed.addr) || '').trim(), items };
   }
   const saveOcrDraft = (rows, isCity, docNum) => {
     try {
@@ -901,12 +851,8 @@ async function askGemini(b64){
             (idx + 1) + "/" + total + "): " + msg, "err");
         next(idx + 1, "skip"); return; }
       const { doc, addr, items } = sl.res;
-      if (!items.length) {
-        try { if (navigator.vibrate) navigator.vibrate([150]); } catch (e) {}
-        window.toast && toast("Товары в накладной не найдены (" + (idx + 1) + "/" + total + ")", "err");
-        next(idx + 1, "empty"); return;
-      }
-      try { if (navigator.vibrate) navigator.vibrate([40, 60, 40]); } catch (e) {}
+      if (!items.length) { window.toast && toast("Товары в накладной не найдены (" + (idx + 1) + "/" + total + ")", "err");
+        next(idx + 1, "empty"); return; }
       openBonusInvoiceModal(items, isYerevanAddress(addr), doc, {
         idx: idx + 1, total, onDone: async rsn => {
           if (tok !== _batchTok) return;
@@ -959,16 +905,13 @@ async function askGemini(b64){
           _ebLastOcrB64 = "";
           setScanBusy(false);
           if (!items.length) {
-            try { if (navigator.vibrate) navigator.vibrate([150]); } catch (e) {}
             window.toast && toast("Товары в накладной не найдены", "err");
             return;
           }
-          try { if (navigator.vibrate) navigator.vibrate([40, 60, 40]); } catch (e) {}
           window.toast && toast("Готово за " + ((Date.now() - _t0) / 1000).toFixed(1) + " сек");
           openBonusInvoiceModal(items, isYerevanAddress(addr), doc);
           return;
         } catch (e) {
-          try { if (navigator.vibrate) navigator.vibrate([150]); } catch (ve) {}
           const msg = (e && e.message) || String(e || "");
           const isQuota = /дневной лимит|quota|free.?tier/i.test(msg);
           setScanBusy(false);
@@ -1204,15 +1147,10 @@ async function askGemini(b64){
     const vScale = Math.min(srcW / vw, srcH / vh);
     const visW = vw * vScale, visH = vh * vScale;
     const visOffX = (srcW - visW) / 2, visOffY = (srcH - visH) / 2;
-    let sx = Math.max(0, Math.round(visOffX + nx1 * visW));
-    let sy = Math.max(0, Math.round(visOffY + ny1 * visH));
-    let sw = Math.max(20, Math.min(srcW - sx, Math.round((nx2 - nx1) * visW)));
-    let sh = Math.max(20, Math.min(srcH - sy, Math.round((ny2 - ny1) * visH)));
-    const padX = Math.round(sw * 0.12), padY = Math.round(sh * 0.12);
-    sx = Math.max(0, sx - padX);
-    sy = Math.max(0, sy - padY);
-    sw = Math.min(srcW - sx, sw + padX * 2);
-    sh = Math.min(srcH - sy, sh + padY * 2);
+    const sx = Math.max(0, Math.round(visOffX + nx1 * visW));
+    const sy = Math.max(0, Math.round(visOffY + ny1 * visH));
+    const sw = Math.max(20, Math.min(srcW - sx, Math.round((nx2 - nx1) * visW)));
+    const sh = Math.max(20, Math.min(srcH - sy, Math.round((ny2 - ny1) * visH)));
 
     const maxOut = 1440;
     let outW = sw, outH = sh;
@@ -1223,14 +1161,14 @@ async function askGemini(b64){
     const cv = document.createElement('canvas');
     cv.width = outW; cv.height = outH;
     const cx = cv.getContext('2d');
-    cx.filter = 'contrast(1.08) brightness(1.02)';
+    cx.filter = 'grayscale(1) contrast(1.18)';
     cx.drawImage(src, sx, sy, sw, sh, 0, 0, outW, outH);
     cx.filter = 'none';
     let b64 = '';
-    try { const wu = cv.toDataURL('image/webp', 0.90);
+    try { const wu = cv.toDataURL('image/webp', 0.85);
       if (wu && wu.indexOf('data:image/webp') === 0) b64 = wu.split(',').pop();
     } catch (e) {}
-    if (!b64) b64 = cv.toDataURL('image/jpeg', 0.90).split(',').pop();
+    if (!b64) b64 = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
     cv.width = cv.height = 0;
     return b64 ? { size: b64.length, _preB64: b64, _isCropped: true } : null;
   }
@@ -1489,11 +1427,6 @@ const _fastShot = () => {
             sy = Math.max(0, ((fr.top - vr.top) + oy) / sc);
             sw = Math.min(vw - sx, fr.width / sc);
             sh = Math.min(vh - sy, fr.height / sc);
-            const px = Math.round(sw * 0.12), py = Math.round(sh * 0.12);
-            sx = Math.max(0, Math.round(sx - px));
-            sy = Math.max(0, Math.round(sy - py));
-            sw = Math.min(vw - sx, Math.round(sw + px * 2));
-            sh = Math.min(vh - sy, Math.round(sh + py * 2));
           }
           if (sw < 100 || sh < 100) { sx = 0; sy = 0; sw = vw; sh = vh; }
           let dw = Math.round(sw), dh = Math.round(sh);
@@ -1503,15 +1436,15 @@ const _fastShot = () => {
           }
           const cv = document.createElement('canvas'); cv.width = dw; cv.height = dh;
           const ctx = cv.getContext('2d');
-          ctx.filter = 'contrast(1.08) brightness(1.02)';
+          ctx.filter = 'grayscale(1) contrast(1.18)';
           ctx.drawImage(vid, sx, sy, sw, sh, 0, 0, dw, dh);
           ctx.filter = 'none';
           let out = '';
           try {
-            const wu = cv.toDataURL('image/webp', 0.90);
+            const wu = cv.toDataURL('image/webp', 0.85);
             if (wu && wu.indexOf('data:image/webp') === 0) out = wu.split(',').pop();
           } catch (e) {}
-          if (!out) out = cv.toDataURL('image/jpeg', 0.90).split(',').pop();
+          if (!out) out = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
           cv.width = cv.height = 0;
           return out;
         } catch (e) { return ''; }
@@ -1542,8 +1475,7 @@ const _fastShot = () => {
             new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 3500))
           ]);
           if (photoBlob && photoBlob.size > 10000 && window.createImageBitmap) {
-            let bmp;
-            try { bmp = await createImageBitmap(photoBlob, { imageOrientation: 'from-image' }); } catch (e) { bmp = await createImageBitmap(photoBlob); }
+            const bmp = await createImageBitmap(photoBlob);
             const bmpPort = bmp.height > bmp.width;
             if (bmpPort === vidPort) {
               const cropped = await cropToFrame(bmp, bmp.width, bmp.height, vid, frameEl);
