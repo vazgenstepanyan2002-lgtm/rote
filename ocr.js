@@ -1499,70 +1499,36 @@ const _fastShot = () => {
     hm = document.createElement('div'); hm.id = 'ocrHelpMdl'; hm.className = 'cm open';
     hm.innerHTML = '<div class="cm-b ocr-help-box">'
       + '<div class="ocr-help-hd"><b>📄 Как фотографировать</b><button type="button" class="pm-x" id="ocrHelpX">✕</button></div>'
-      + '<div class="ocr-sample-wrap">'
-      + '  <canvas id="ocrSampleCv" width="1080" height="970" class="ocr-sample-cv"></canvas>'
+      + '<div class="ocr-doc-mockup">'
+      + '  <div class="ocr-mock-sheet">'
+      + '    <div class="ocr-mock-header">'
+      + '      <div class="ocr-mock-title">ԲԵՌՆԱՓՈԽԱԴՐՄԱՆ ԹԵՐԹԻԿ</div>'
+      + '      <div class="ocr-mock-num-target">'
+      + '        <span class="ocr-mock-tag">🟢 ОБЯЗАТЕЛЬНО В КАДРЕ</span>'
+      + '        <div class="ocr-mock-row-strong"><b>Վաճառքի փաստաթուղթ:</b> <span>№ 0000-12603</span></div>'
+      + '        <div class="ocr-mock-row-sub">Տեղափոխման հասցե: <span>ք. Երևան / Մարզ</span></div>'
+      + '      </div>'
+      + '    </div>'
+      + '    <div class="ocr-mock-table-target">'
+      + '      <span class="ocr-mock-tag-mid">🟢 ТАБЛИЦА С ТОВАРАМИ</span>'
+      + '      <div class="ocr-mock-th"><span>Ապրանքի անվանումը (Товар)</span><span style="text-align:right">Քանակ (Шт)</span></div>'
+      + '      <div class="ocr-mock-tr"><span>Պահարան Ստանդարտ 160 սմ</span><b>1</b></div>'
+      + '      <div class="ocr-mock-tr"><span>Ննջասենյակի կահույք Սիվիլիա</span><b>1</b></div>'
+      + '      <div class="ocr-mock-tr"><span>Մահճակալ 1.6*2.0 մ</span><b>2</b></div>'
+      + '    </div>'
+      + '    <div class="ocr-mock-bot-fade">'
+      + '      <div class="ocr-mock-sign">Подписи и реквизиты (для бонусов не нужны)</div>'
+      + '    </div>'
+      + '  </div>'
       + '</div>'
       + '<div class="ocr-help-rules">'
-      + '  <div class="ocr-help-r"><span>🟢</span><div><b>Зелёная рамка — главная зона</b><br>Номер «Վաճառքի փաստաթուղթ», адрес, таблица товаров и количество.</div></div>'
-      + '  <div class="ocr-help-r"><span>1️⃣</span><div><b>Держите телефон ровно сверху</b><br>Накладная должна полностью помещаться в кадр без сильного наклона.</div></div>'
-      + '  <div class="ocr-help-r"><span>2️⃣</span><div><b>Чёткий свет без теней</b><br>Если в кузове или подъезде темно, включите фонарик кнопкой «🔦 Свет».</div></div>'
+      + '  <div class="ocr-help-r"><span>1️⃣</span><div><b>Снимайте ровно сверху</b><br>Держите телефон параллельно листу без наклона.</div></div>'
+      + '  <div class="ocr-help-r"><span>2️⃣</span><div><b>Не закрывайте пальцами</b><br>Номер накладной и таблица должны быть полностью видны.</div></div>'
+      + '  <div class="ocr-help-r"><span>3️⃣</span><div><b>Включите свет, если темно</b><br>В камере есть кнопка «🔦 Свет» (вспышка).</div></div>'
       + '</div>'
-      + '<button type="button" class="ocr-help-btn" id="ocrHelpOk">Понятно, сканировать</button>'
+      + '<button type="button" class="ocr-help-btn" id="ocrHelpOk">Понятно, открыть камеру</button>'
       + '</div>';
     document.body.appendChild(hm);
-
-    // Рисуем накладную целиком и выделяем нужную зону
-    const cv = g('ocrSampleCv');
-    if (cv) {
-      const img = new Image();
-      img.src = 'sample-doc.jpg';
-      img.onload = () => {
-        const ctx = cv.getContext('2d');
-        const nw = img.naturalWidth || 1080, nh = img.naturalHeight || 2340;
-        // Координаты всего белого листа накладной
-        const sy = Math.round(nh * 0.301);
-        const sh = Math.round(nh * (0.715 - 0.301));
-        ctx.drawImage(img, 0, sy, nw, sh, 0, 0, cv.width, cv.height);
-
-        // Координаты важной зоны (номер + адрес + таблица)
-        const zY = Math.round(cv.height * ((0.330 - 0.301) / (0.715 - 0.301)));
-        const zH = Math.round(cv.height * ((0.442 - 0.330) / (0.715 - 0.301)));
-        const zX = 14, zW = cv.width - 28;
-
-        // Затемняем остальную часть накладной для акцента
-        ctx.fillStyle = 'rgba(0,0,0,0.38)';
-        ctx.fillRect(0, 0, cv.width, zY);
-        ctx.fillRect(0, zY + zH, cv.width, cv.height - (zY + zH));
-
-        // Рисуем яркую зелёную рамку вокруг нужной зоны
-        ctx.lineWidth = 10;
-        ctx.strokeStyle = '#10b981';
-        if (ctx.roundRect) {
-          ctx.beginPath();
-          ctx.roundRect(zX, zY, zW, zH, 20);
-          ctx.stroke();
-        } else {
-          ctx.strokeRect(zX, zY, zW, zH);
-        }
-
-        // Бейдж подсказки на рамке
-        ctx.fillStyle = '#052e16';
-        const bW = 540, bH = 68, bX = (cv.width - bW) / 2, bY = zY - 34;
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(bX, bY, bW, bH, 34);
-        else ctx.rect(bX, bY, bW, bH);
-        ctx.fill();
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#34d399';
-        ctx.stroke();
-
-        ctx.fillStyle = '#6ee7b7';
-        ctx.font = 'bold 30px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('✓ Главное: номер, товары и кол-во', cv.width / 2, bY + bH / 2);
-      };
-    }
 
     const closeH = () => {
       try { localStorage.setItem('OCR_INSTRUCT_SEEN', '1'); } catch (e) {}
