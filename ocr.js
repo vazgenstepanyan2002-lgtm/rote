@@ -79,7 +79,6 @@
   };
   const normText = s => String(s || '').toLowerCase().replace(/և|եւ/g, 'եվ').replace(/ё/g, 'е').replace(/[–—−]/g, '-').replace(/\s+/g, ' ').trim();
   const normSearch = s => normText(s).replace(/[,]/g, '.').replace(/["'«»()_\/]+/g, ' ').replace(/(\d)\s*[×xх*]\s*(\d)/g, '$1*$2').replace(/\s+/g, ' ').trim();
-  const normRules = s => normText(s).replace(/["'«»()]/g, ' ').replace(/\s+/g, ' ').trim();
   const normModel = s => normText(s).replace(/[\"'«»().,]/g, ' ').replace(/\s+/g, ' ').trim();
   const fbKey = k => normModel(k).replace(/[.#$\[\]\/]+/g, '_').slice(0, 120);
   const ocrFold = s => normModel(s)
@@ -88,21 +87,6 @@
     .replace(/[ձծ]/g, 'ց').replace(/ղ/g, 'դ');
   const COLOR_STOP_RX = /(?:^|[\s_\/-]+)(?:դուբ|կրաֆտ|սանոմա|սոնոմա|վենգե|սպիտակ|սեվ|գրաֆիտ|մոխրագույն|շագանակագույն|բեժ|կրեմ|շիմո|լայթ|դարկ|գոլդ|ոսկեգույն|անտրացիտ|կաշմիր|կապուչինո|բետոն|մարմար|փայլուն|մատ|գլյանց|սիլվեր|արծաթագույն|կաղնի|ընկույզ|բալ|дуб|крафт|сонома|венге|белый|бел|черный|графит|серый|беж|крем|шимо|лайт|дарк|голд|антрацит|кашмир|капучино|бетон|мрамор|глянец|мат|орех|ясень)(?=$|[\s_\/-]+)/gi;
   const stripColors = s => normModel(s).replace(COLOR_STOP_RX, ' ').replace(/\s+/g, ' ').trim();
-  const editDist = (a, b) => {
-    const n = a.length, m = b.length;
-    if (!n) return m; if (!m) return n;
-    if (Math.abs(n - m) > 4) return 99;
-    let prev = Array.from({ length: m + 1 }, (_, j) => j), cur = new Array(m + 1);
-    for (let i = 1; i <= n; i++) {
-      cur[0] = i;
-      for (let j = 1; j <= m; j++) {
-        const c = a[i - 1] === b[j - 1] ? 0 : 1;
-        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + c);
-      }
-      const t = prev; prev = cur; cur = t;
-    }
-    return prev[m];
-  };
 
   let CLOUD_MAP = (() => { try { return JSON.parse(localStorage.getItem('BON_OCR_MAP') || '{}') || {}; } catch (e) { return {}; } })();
   let LOCAL_MAP = (() => { try { return JSON.parse(localStorage.getItem('BON_OCR_LOCAL') || '{}') || {}; } catch (e) { return {}; } })();
@@ -792,14 +776,12 @@ async function askGemini(b64){
     } catch (e) {}
   };
 
-  function openBonusInvoiceModal(items, defaultIsCity, docNum, batchOpts, rawAddr){
+  function openBonusInvoiceModal(items, defaultIsCity, docNum, batchOpts){
     const cleanDoc = String(docNum || '').trim();
     const docKey = cleanDoc.replace(/[^0-9A-Za-z_-]+/g, '_').replace(/^_+|_+$/g, '');
     if (!Array.isArray(items) || !items.length) return;
     let m = g('ocrBonMdl'); if (m) m.remove();
-    const zoneUnknown = defaultIsCity === 'unknown';
-    let isCity = defaultIsCity === 'reg' ? false : (defaultIsCity === 'city' || zoneUnknown ? true : !!defaultIsCity);
-    const cleanAddr = String(rawAddr || '').replace(/^(?:none|null|n\/a|-|—)$/i, '').trim();
+    let isCity = defaultIsCity === 'reg' ? false : (defaultIsCity === 'city' ? true : !!defaultIsCity);
     const rows = items.map(x => { const c = x.code || classifyProduct(x.name).code || ''; return { name: x.name, qty: x.qty, code: c, origCode: c }; });
     saveOcrDraft(rows, isCity, cleanDoc);
     const CAT_ICO = { 'Другое': '📦', 'Диваны': '🛋️', 'Ресепшен': '🗄️', 'Кухни': '🍳', 'Гостиная': '📺', 'Спальни': '🛏️', 'Шкафы': '🚪' };
@@ -836,7 +818,7 @@ async function askGemini(b64){
 
     m = document.createElement('div'); m.id = 'ocrBonMdl'; m.className = 'mdl open';
     m.innerHTML = '<div class="mdl-b pt-box ob-box"><div class="pt-hd"><div class="pt-hd-l"><div class="pt-hd-ic" style="background:rgba(250,204,21,.16);border-color:rgba(250,204,21,.42);color:#fde047">🧮</div><div><div class="pt-hd-t" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span>Бонусы по накладной</span>' + (batchOpts && batchOpts.total > 1 ? '<span class="ob-q-tag">' + batchOpts.idx + ' / ' + batchOpts.total + '</span>' : '') + '</div><div class="pt-hd-s" id="obSub"></div></div></div><button type="button" class="pt-x" id="obX">✕</button></div>'
-      + '<div class="ob-zone-w">' + (zoneUnknown ? '<div id="obZoneWarn" style="margin:0 0 6px;padding:6px 10px;border-radius:9px;background:rgba(245,158,11,.15);border:1px solid rgba(251,191,36,.42);color:#fde68a;font-size:12px;font-weight:700;text-align:center">⚠️ Адрес не распознан' + (cleanAddr ? ' («' + esc(cleanAddr.slice(0, 36)) + '»)' : '') + ' — проверьте Город / Район</div>' : '') + '<div class="ob-seg" id="obZoneSeg"><button type="button" data-z="city" class="' + (isCity ? 'on' : '') + '">🏙️ Город (Ереван)</button><button type="button" data-z="reg" class="' + (!isCity ? 'on' : '') + '">🛣️ Район (Области)</button></div></div>'
+      + '<div class="ob-zone-w"><div class="ob-seg" id="obZoneSeg"><button type="button" data-z="city" class="' + (isCity ? 'on' : '') + '">🏙️ Город (Ереван)</button><button type="button" data-z="reg" class="' + (!isCity ? 'on' : '') + '">🛣️ Район (Области)</button></div></div>'
       + '<div class="pt-list" id="obList"></div>'
       + '<div class="pt-ft"><div class="ob-tot"><span>Будет начислено:</span><b id="obTotSum">0 ' + CUR + '</b></div><button type="button" class="pt-add" id="obSaveBtn"><span>➕ Добавить в бонусы</span></button></div></div>';
     document.body.appendChild(m);
@@ -846,7 +828,10 @@ async function askGemini(b64){
 
     const carCode = (() => { try { return (localStorage.getItem('USER_CAR') || '').trim().toUpperCase(); } catch (e) { return ''; } })();
     const docTag = cleanDoc ? ' · № ' + esc(cleanDoc) : '';
-    if (g('obSub')) g('obSub').innerHTML = carCode && carCode !== 'ADMIN' ? 'Экипаж <b style="color:#6ee7b7">' + esc(carCode) + '</b> · ' + (isCity ? 'Ереван → Город' : 'Область → Район') + docTag : (carCode === 'ADMIN' ? 'Режим Админ' + docTag : '<span style="color:#fbbf24">⚠️ Экипаж не назначен</span>');
+    const syncSub = () => {
+      if (g('obSub')) g('obSub').innerHTML = carCode && carCode !== 'ADMIN' ? 'Экипаж <b style="color:#6ee7b7">' + esc(carCode) + '</b> · ' + (isCity ? 'Ереван → Город' : 'Область → Район') + docTag : (carCode === 'ADMIN' ? 'Режим Админ' + docTag : '<span style="color:#fbbf24">⚠️ Экипаж не назначен</span>');
+    };
+    syncSub();
 
     const renderRows = () => {
       const box = g('obList');
@@ -868,7 +853,7 @@ async function askGemini(b64){
       saveOcrDraft(rows, isCity, cleanDoc);
     };
 
-    g('obZoneSeg').onclick = e => { const b = e.target.closest('button[data-z]'); if (!b) return; isCity = b.dataset.z === 'city'; const w = g('obZoneWarn'); if (w) w.remove(); g('obZoneSeg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); renderRows(); };
+    g('obZoneSeg').onclick = e => { const b = e.target.closest('button[data-z]'); if (!b) return; isCity = b.dataset.z === 'city'; g('obZoneSeg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); syncSub(); renderRows(); };
     g('obList').onclick = e => {
       const pk = e.target.closest('[data-pick]'); if (pk) { openCatPicker(+pk.dataset.pick); return; }
       const del = e.target.closest('.ob-del'); if (del) { rows.splice(+del.dataset.i, 1); renderRows(); return; }
@@ -1585,7 +1570,7 @@ async function askGemini(b64){
     g("olcShot").onclick = async () => {
       const _sb0 = g('olcShot'); if (_sb0) _sb0.disabled = true;
       const _fastBurst = async () => {
-        if (!vid || (vid.videoWidth || 0) < 1280 || !vid.videoHeight) return { b64: '', blurred: false };
+        if (!vid || Math.max(vid.videoWidth || 0, vid.videoHeight || 0) < 1280 || !vid.videoHeight) return { b64: '', blurred: false };
         try {
           const vw = vid.videoWidth, vh = vid.videoHeight;
           const vr = vid.getBoundingClientRect();
@@ -1655,7 +1640,7 @@ async function askGemini(b64){
       if (shotBtn) shotBtn.disabled = true;
       const vw = vid.videoWidth || 1920, vh = vid.videoHeight || 1080;
       const vidPort = vh > vw;
-      if (window.ImageCapture && track && (!vid || (vid.videoWidth || 0) < 1280)) {
+      if (window.ImageCapture && track && (!vid || Math.max(vid.videoWidth || 0, vid.videoHeight || 0) < 1280)) {
         try {
           const ic = new ImageCapture(track);
           let photoOpts = torchOn ? { fillLightMode: "torch" } : {};
