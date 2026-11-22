@@ -373,8 +373,8 @@
 async function compressImage(file){
     if (file && file._preB64) return file._preB64;
     const isCrop = !!(file && file._isCropped);
-    const maxSide = isCrop ? 1280 : 1600;
-    const q = 0.85;
+    const maxSide = isCrop ? 1440 : 1600;
+    const q = 0.90;
     const encodeCv = cv => {
       try {
         const wUrl = cv.toDataURL('image/webp', q);
@@ -395,7 +395,7 @@ async function compressImage(file){
         const bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
         const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
         const ctx = cv.getContext('2d');
-        if (!isCrop) ctx.filter = 'grayscale(1) contrast(1.18)';
+        if (!isCrop) ctx.filter = 'contrast(1.08) brightness(1.02)';
         ctx.drawImage(bmp, 0, 0);
         if (!isCrop) ctx.filter = 'none';
         bmp.close();
@@ -413,7 +413,7 @@ async function compressImage(file){
         if (w > maxSide || h > maxSide) { if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; } else { w = Math.round(w * maxSide / h); h = maxSide; } }
         const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
         const ctx = cv.getContext('2d');
-        if (!isCrop) ctx.filter = 'grayscale(1) contrast(1.18)';
+        if (!isCrop) ctx.filter = 'contrast(1.08) brightness(1.02)';
         ctx.drawImage(img, 0, 0, w, h);
         if (!isCrop) ctx.filter = 'none';
         const out = encodeCv(cv);
@@ -627,7 +627,34 @@ async function askGemini(b64){
       if (!cls.ignore) items.push({ name, qty, code: cls.code || '' });
     });
     const doc = String((parsed && parsed.doc) || '').replace(/^[^0-9]+/, '').trim();
-    return { doc, addr: String((parsed && parsed.addr) || '').trim(), items };
+    const addr = String((parsed && parsed.addr) || '').trim();
+    if (!items.length && /lite/.test(winMdl)) {
+      const seniorModels = ['gemini-2.5-flash', 'gemini-flash-latest'].filter(m => m !== winMdl);
+      for (const sm of seniorModels) {
+        try {
+          const sr = await callModel(sm, 6500, null);
+          if (sr.ok && sr.json) {
+            const sc = Array.isArray(sr.json.candidates) ? sr.json.candidates[0] : null;
+            const sp = (sc && sc.content && Array.isArray(sc.content.parts)) ? sc.content.parts : [];
+            const sa = sp.find(p => p && !p.thought && typeof p.text === 'string') || sp[sp.length - 1];
+            const spJson = JSON.parse(((sa && sa.text) || '{}').replace(/```json|```/gi, '').trim());
+            const sItems = [];
+            (Array.isArray(spJson.items) ? spJson.items : []).forEach(x => {
+              const name = fixOcrName(String((x && x.name) || '').trim()), qty = Math.max(1, Math.round(+x.qty || 1));
+              if (!name) return;
+              const cls = classifyProduct(name);
+              if (!cls.ignore) sItems.push({ name, qty, code: cls.code || '' });
+            });
+            if (sItems.length) {
+              const sDoc = String((spJson && spJson.doc) || doc || '').replace(/^[^0-9]+/, '').trim();
+              const sAddr = String((spJson && spJson.addr) || addr || '').trim();
+              return { doc: sDoc, addr: sAddr, items: sItems };
+            }
+          }
+        } catch (e) {}
+      }
+    }
+    return { doc, addr, items };
   }
   const saveOcrDraft = (rows, isCity, docNum) => {
     try {
@@ -851,8 +878,12 @@ async function askGemini(b64){
             (idx + 1) + "/" + total + "): " + msg, "err");
         next(idx + 1, "skip"); return; }
       const { doc, addr, items } = sl.res;
-      if (!items.length) { window.toast && toast("Товары в накладной не найдены (" + (idx + 1) + "/" + total + ")", "err");
-        next(idx + 1, "empty"); return; }
+      if (!items.length) {
+        try { if (navigator.vibrate) navigator.vibrate([150]); } catch (e) {}
+        window.toast && toast("Товары в накладной не найдены (" + (idx + 1) + "/" + total + ")", "err");
+        next(idx + 1, "empty"); return;
+      }
+      try { if (navigator.vibrate) navigator.vibrate([40, 60, 40]); } catch (e) {}
       openBonusInvoiceModal(items, isYerevanAddress(addr), doc, {
         idx: idx + 1, total, onDone: async rsn => {
           if (tok !== _batchTok) return;
@@ -905,13 +936,16 @@ async function askGemini(b64){
           _ebLastOcrB64 = "";
           setScanBusy(false);
           if (!items.length) {
+            try { if (navigator.vibrate) navigator.vibrate([150]); } catch (e) {}
             window.toast && toast("Товары в накладной не найдены", "err");
             return;
           }
+          try { if (navigator.vibrate) navigator.vibrate([40, 60, 40]); } catch (e) {}
           window.toast && toast("Готово за " + ((Date.now() - _t0) / 1000).toFixed(1) + " сек");
           openBonusInvoiceModal(items, isYerevanAddress(addr), doc);
           return;
         } catch (e) {
+          try { if (navigator.vibrate) navigator.vibrate([150]); } catch (ve) {}
           const msg = (e && e.message) || String(e || "");
           const isQuota = /дневной лимит|quota|free.?tier/i.test(msg);
           setScanBusy(false);
@@ -1161,14 +1195,14 @@ async function askGemini(b64){
     const cv = document.createElement('canvas');
     cv.width = outW; cv.height = outH;
     const cx = cv.getContext('2d');
-    cx.filter = 'grayscale(1) contrast(1.18)';
+    cx.filter = 'contrast(1.08) brightness(1.02)';
     cx.drawImage(src, sx, sy, sw, sh, 0, 0, outW, outH);
     cx.filter = 'none';
     let b64 = '';
-    try { const wu = cv.toDataURL('image/webp', 0.85);
+    try { const wu = cv.toDataURL('image/webp', 0.90);
       if (wu && wu.indexOf('data:image/webp') === 0) b64 = wu.split(',').pop();
     } catch (e) {}
-    if (!b64) b64 = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
+    if (!b64) b64 = cv.toDataURL('image/jpeg', 0.90).split(',').pop();
     cv.width = cv.height = 0;
     return b64 ? { size: b64.length, _preB64: b64, _isCropped: true } : null;
   }
@@ -1436,15 +1470,15 @@ const _fastShot = () => {
           }
           const cv = document.createElement('canvas'); cv.width = dw; cv.height = dh;
           const ctx = cv.getContext('2d');
-          ctx.filter = 'grayscale(1) contrast(1.18)';
+          ctx.filter = 'contrast(1.08) brightness(1.02)';
           ctx.drawImage(vid, sx, sy, sw, sh, 0, 0, dw, dh);
           ctx.filter = 'none';
           let out = '';
           try {
-            const wu = cv.toDataURL('image/webp', 0.85);
+            const wu = cv.toDataURL('image/webp', 0.90);
             if (wu && wu.indexOf('data:image/webp') === 0) out = wu.split(',').pop();
           } catch (e) {}
-          if (!out) out = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
+          if (!out) out = cv.toDataURL('image/jpeg', 0.90).split(',').pop();
           cv.width = cv.height = 0;
           return out;
         } catch (e) { return ''; }
