@@ -1195,12 +1195,8 @@ async function askGemini(b64){
     ov = document.createElement("div"); ov.id = "ocrLiveCam";
     ov.innerHTML = '<video id="ocrLiveVid" autoplay playsinline muted></video>'
       + '<div id="olcFocusRing" style="position:fixed;width:64px;height:64px;border:2px solid #fde047;border-radius:50%;pointer-events:none;opacity:0;transform:translate(-50%,-50%) scale(1.2);transition:opacity .2s,transform .2s;z-index:3"></div>'
-      + '<div class="olc-top"><button type="button" class="olc-btn" id="olcSys">📷 Системная</button><button type="button" class="olc-btn" id="olcHelp" style="border-color:#38bdf8!important;color:#7dd3fc!important">💡 Пример</button><button type="button" class="olc-btn" id="olcClose" aria-label="Закрыть">✕</button></div>'
-      + '<div class="olc-frame" id="olcFrame">'
-      + '  <div class="olc-guide-top"><span>▲ ВЕРХ</span><span>№ «Վաճառքի փաստաթուղթ»</span></div>'
-      + '  <div class="olc-guide-mid">📦 Таблица товаров и количество</div>'
-      + '  <div class="olc-guide-bot">▼ Поместите весь лист накладной в рамку</div>'
-      + '</div>'
+      + '<div class="olc-top"><button type="button" class="olc-btn" id="olcSys">📷 Системная</button><span>Коснитесь текста для фокуса</span><button type="button" class="olc-btn" id="olcClose" aria-label="Закрыть">✕</button></div>'
+      + '<div class="olc-frame" id="olcFrame"></div>'
       + '<div class="olc-bot"><button type="button" class="olc-btn" id="olcTorch">🔦 Свет</button><button type="button" class="olc-shot" id="olcShot" aria-label="Снять"></button><button type="button" class="olc-btn" id="olcLens"></button></div>';
     document.body.appendChild(ov);
     const vid = g("ocrLiveVid");
@@ -1413,7 +1409,6 @@ async function askGemini(b64){
     };
 
     g("olcClose").onclick = stopCam;
-    g("olcHelp").onclick = () => showOcrInstructionModal();
     g("olcSys").onclick = () => { stopCam(); if (fallbackInput) fallbackInput.click(); };
     g("olcShot").onclick = async () => {
       const _sb0 = g('olcShot'); if (_sb0) _sb0.disabled = true;
@@ -1504,12 +1499,18 @@ const _fastShot = () => {
     hm = document.createElement('div'); hm.id = 'ocrHelpMdl'; hm.className = 'cm open';
     hm.innerHTML = '<div class="cm-b ocr-help-box">'
       + '<div class="ocr-help-hd"><b>📄 Как фотографировать</b><button type="button" class="pm-x" id="ocrHelpX">✕</button></div>'
-      + '<img class="ocr-help-img" src="sample-doc.jpg" alt="Образец накладной">'
+      + '<div class="ocr-sample-wrap">'
+      + '  <div class="ocr-sample-cropper">'
+      + '    <img class="ocr-sample-img" src="sample-doc.jpg" alt="Образец накладной">'
+      + '    <div class="ocr-sample-rect"></div>'
+      + '    <div class="ocr-sample-badge">🟢 Фотографируйте весь лист ровно сверху</div>'
+      + '  </div>'
+      + '</div>'
       + '<div class="ocr-help-rules">'
-      + '  <div class="ocr-help-r"><span>1️⃣</span><div><b>Держите телефон ровно сверху</b><br>Накладная должна полностью помещаться в кадр без сильного наклона.</div></div>'
-      + '  <div class="ocr-help-r"><span>2️⃣</span><div><b>Номер «Վաճառքի փաստաթուղթ»</b><br>Убедитесь, что строка с номером накладной видна чётко и не обрезана.</div></div>'
-      + '  <div class="ocr-help-r"><span>3️⃣</span><div><b>Таблица товаров и количество</b><br>Не закрывайте пальцами колонки «Ապրանքի անվանումը» и «Քանակ».</div></div>'
-      + '  <div class="ocr-help-r"><span>4️⃣</span><div><b>Хороший свет / Вспышка</b><br>Если в кузове или подъезде темно, включите фонарик кнопкой «🔦 Свет».</div></div>'
+      + '  <div class="ocr-help-r"><span>1️⃣</span><div><b>Держите телефон ровно сверху</b><br>Лист накладной должен полностью помещаться в кадр.</div></div>'
+      + '  <div class="ocr-help-r"><span>2️⃣</span><div><b>Номер «Վաճառքի փաստաթուղթ»</b><br>Убедитесь, что строка номера накладной видна и не обрезана.</div></div>'
+      + '  <div class="ocr-help-r"><span>3️⃣</span><div><b>Таблица товаров и количество</b><br>Не закрывайте пальцами колонки товаров и штук.</div></div>'
+      + '  <div class="ocr-help-r"><span>4️⃣</span><div><b>Хороший свет / Вспышка</b><br>Если темно, обязательно включите фонарик кнопкой «🔦 Свет».</div></div>'
       + '</div>'
       + '<button type="button" class="ocr-help-btn" id="ocrHelpOk">Понятно, сканировать</button>'
       + '</div>';
