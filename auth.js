@@ -244,6 +244,27 @@
     for(let i=0;i<String(s).length;i++)h=(h*31+String(s).charCodeAt(i))|0;
     return c[Math.abs(h)%c.length];
   }
+  const _crewCache = {}, _crewLoading = {};
+  function crewBadgeHtml(car){
+    const c = String(car || "").trim().toUpperCase();
+    if (!c) return "";
+    if (c === "ADMIN") return '<span class="ch-crew adm-c">🛡️ Админ</span>';
+    return '<span class="ch-crew">🚚 ' + esc(c) + '</span>';
+  }
+  function getMsgCar(m){
+    const my = ls("ADM_UID") || "";
+    if (m.uid && m.uid === my) return (ls("USER_CAR") || m.car || "").toUpperCase();
+    if (m.uid && _crewCache[m.uid] !== undefined) return _crewCache[m.uid];
+    if (m.uid && !_crewLoading[m.uid] && window.firebase && firebase.apps && firebase.apps.length){
+      _crewLoading[m.uid] = true;
+      firebase.database().ref("users/" + m.uid + "/car").once("value").then(s => {
+        const c = String(s.val() || "").trim().toUpperCase();
+        _crewCache[m.uid] = c;
+        if (_chatOpen) renderChatRows();
+      }).catch(() => { _crewLoading[m.uid] = false; });
+    }
+    return String(m.car || "").trim().toUpperCase();
+  }
   function renderChatRows(){
     const box=g("chatMsgs");if(!box)return;const my=ls("ADM_UID")||"";
     if(!_chatList.length){box.innerHTML='<div class="ch-empty">Сообщений пока нет</div>';return}
@@ -252,8 +273,9 @@
       const dl=dayLabel(m.t);if(dl&&dl!==ld){ld=dl;h+='<div class="ch-day">'+esc(dl)+'</div>'}
       const mine=m.uid&&m.uid===my,adm=!!m.adm,dlv=adm&&(m.role==="delivery"||m.name==="Доставка");
       const rn=adm?(dlv?"Доставка":"Админ"):(m.name||"Водитель");
+      const cb=!adm?crewBadgeHtml(getMsgCar(m)):"";
       const av=!mine?'<div class="ch-av" style="background:'+(adm?(dlv?"#0284c7":"#ca8a04"):avColor(rn))+'">'+esc(rn.trim().slice(0,2).toUpperCase())+'</div>':'';
-      const au=adm?('<div class="ch-au">'+(dlv?'Доставка':'Администратор')+'</div>'):(!mine?'<div class="ch-au">'+esc(rn)+'</div>':'');
+      const au=adm?('<div class="ch-au">'+(dlv?'👩‍💼 Доставка':'👑 Администратор')+'</div>'):(!mine?('<div class="ch-au">'+cb+'<span>'+esc(rn)+'</span></div>'):(cb?'<div class="ch-au">'+cb+'<span>'+esc(ls("USER_NAME")||rn)+'</span></div>':''));
       h+='<div class="ch-row'+(mine?" mine":"")+'">'+av+'<div class="ch-msg'+(mine?" mine":"")+(adm?(dlv?" dlv":" adm"):"")+'">'+au+'<div class="ch-body"><span class="ch-txt">'+esc(m.txt||"")+'</span><span class="ch-tm">'+fmtTime(m.t)+'</span></div></div></div>';
     });
     box.innerHTML=h;box.scrollTop=box.scrollHeight;
@@ -279,7 +301,7 @@
         try { sessionStorage.removeItem("DRAFT_CHAT"); } catch(e){}
         try {
           const ref = firebase.database().ref("chat");
-          await ref.push({ uid: ls("ADM_UID") || "", name: ls("USER_NAME") || "Водитель", txt: txt, t: firebase.database.ServerValue.TIMESTAMP });
+          await ref.push({ uid: ls("ADM_UID") || "", name: ls("USER_NAME") || "Водитель", car: (ls("USER_CAR") || "").toUpperCase(), txt: txt, t: firebase.database.ServerValue.TIMESTAMP });
         } catch(e){ inp.value = txt; window.toast && toast("Не удалось отправить сообщение", "err"); }
         snd.disabled = false; inp.blur();
       };
@@ -335,7 +357,8 @@
       const dl=dayLabel(m.t);if(dl&&dl!==ld){ld=dl;h+='<div class="ch-day">'+esc(dl)+'</div>'}
       const adm=!!m.adm;
       const isDeliv=adm&&(m.role==="delivery"||m.name==="Доставка"||_dmActiveCh==="dlv");
-      const au=adm?(isDeliv?'<div class="ch-au" style="color:#7dd3fc">👩‍💼 Доставка</div>':'<div class="ch-au" style="color:#fde047">👑 Администратор</div>'):'';
+      const myCb=!adm?crewBadgeHtml(ls("USER_CAR")||m.car||""):"";
+      const au=adm?(isDeliv?'<div class="ch-au" style="color:#7dd3fc">👩‍💼 Доставка</div>':'<div class="ch-au" style="color:#fde047">👑 Администратор</div>'):(myCb?'<div class="ch-au">'+myCb+'<span>'+esc(ls("USER_NAME")||m.name||"Водитель")+'</span></div>':'');
       h+='<div class="ch-row'+(!adm?" mine":"")+'"><div class="ch-msg'+(!adm?" mine":(isDeliv?" dlv":" adm"))+'">'+au+'<div class="ch-body"><span class="ch-txt">'+esc(m.txt||"")+'</span><span class="ch-tm">'+fmtTime(m.t)+'</span></div></div></div>';
     });
     box.innerHTML=h;box.scrollTop=box.scrollHeight;
@@ -418,7 +441,7 @@
       try {
         const path = "dm/" + myUid + (_dmActiveCh === "dlv" ? "/dlv" : "/adm");
         const ref = firebase.database().ref(path);
-        await ref.push({ uid: myUid, name: ls("USER_NAME") || "Водитель", adm: false, txt: txt, t: firebase.database.ServerValue.TIMESTAMP });
+        await ref.push({ uid: myUid, name: ls("USER_NAME") || "Водитель", car: (ls("USER_CAR") || "").toUpperCase(), adm: false, txt: txt, t: firebase.database.ServerValue.TIMESTAMP });
       } catch(e){ inp.value = txt; window.toast && toast("Не удалось отправить сообщение", "err"); }
       snd.disabled = false; inp.blur();
     };

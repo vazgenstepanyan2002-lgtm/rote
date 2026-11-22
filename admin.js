@@ -1170,13 +1170,21 @@ function openSelectModal(){
   if(mx>0)localStorage.setItem('ADM_CHAT_SEEN',String(mx));
   updAdmChatBdg();
  }
+ function crewBadgeHtml(car){
+  const c=String(car||'').trim().toUpperCase();
+  if(!c)return '';
+  if(c==='ADMIN')return '<span class="ch-crew adm-c">🛡️ Админ</span>';
+  return '<span class="ch-crew">🚚 '+esc(c)+'</span>';
+ }
  function renderAdmChat(){
   const box=g('achList');if(!box)return;
   if(!CHAT.length){box.innerHTML='<div class="mut" style="text-align:center;padding:24px">Сообщений пока нет</div>';return}
   box.innerHTML=CHAT.map(m=>{
    const d=m.t?new Date(m.t):null,tm=d?String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'';
    const isDeliv=m.adm&&(m.role==='delivery'||m.name==='Доставка');
-   const who=m.adm?(isDeliv?'👩‍💼 Доставка':'👑 Админ'):esc(m.name||'Водитель');
+   const car=!m.adm?String((m.uid&&USERS[m.uid]&&USERS[m.uid].car)||m.car||'').toUpperCase():'';
+   const drvName=(m.uid&&USERS[m.uid])?dispName(parseDev(m.uid,USERS[m.uid])):(m.name||'Водитель');
+   const who=m.adm?(isDeliv?'👩‍💼 Доставка':'👑 Админ'):(crewBadgeHtml(car)+'<span>'+esc(drvName)+'</span>');
    return '<div class="ach-m'+(m.adm?(isDeliv?' dlv':' adm'):'')+'"><div class="ach-mt"><span>'+who+'</span>'+(isSubAdm()?'':'<button type="button" class="ach-del" data-ck="'+esc(m.k)+'" aria-label="Удалить">✕</button>')+'</div><div class="ach-bd"><span class="ach-tx">'+esc(m.txt||'')+'</span><span class="ach-tm">'+tm+'</span></div></div>';
   }).join('');
   box.scrollTop=box.scrollHeight;
@@ -1222,7 +1230,9 @@ function openSelectModal(){
   box.innerHTML=list.map(m=>{
    const d=m.t?new Date(m.t):null,tm=d?String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'';
    const isDeliv=m.adm&&(m.role==='delivery'||m.name==='Доставка');
-   const who=m.adm?(isDeliv?'👩‍💼 Доставка':'👑 Админ'):esc(m.name||'Водитель');
+   const car=!m.adm?String((USERS[DM_UID]&&USERS[DM_UID].car)||m.car||'').toUpperCase():'';
+   const drvName=USERS[DM_UID]?dispName(parseDev(DM_UID,USERS[DM_UID])):(m.name||'Водитель');
+   const who=m.adm?(isDeliv?'👩‍💼 Доставка':'👑 Админ'):(crewBadgeHtml(car)+'<span>'+esc(drvName)+'</span>');
    const dBtn=!isSubAdm()?'<button type="button" class="ach-del" data-dk="'+esc(m.k)+'" aria-label="Удалить">✕</button>':'';
    return '<div class="ach-m'+(m.adm?(isDeliv?' dlv':' adm'):'')+'"><div class="ach-mt"><span>'+who+'</span>'+dBtn+'</div><div class="ach-bd"><span class="ach-tx">'+esc(m.txt||'')+'</span><span class="ach-tm">'+tm+'</span></div></div>';
   }).join('');
@@ -1243,6 +1253,7 @@ function openSelectModal(){
   }
   markAdmDmSeen(uid, DM_TAB);if(TAB==='online')drawOnline();
   const who=USERS[uid]?dispName(parseDev(uid,USERS[uid])):'Водитель';
+  const hdCar=USERS[uid]?String(USERS[uid].car||'').toUpperCase():'';
   const ov=document.createElement('div');ov.id='admDmOv';ov.className='ov';
   
   const tabsHtml=!isSubAdm()
@@ -1252,7 +1263,7 @@ function openSelectModal(){
      + '</div>'
    : '';
 
-  ov.innerHTML='<div class="dlg ach-box"><div class="ach-hd"><div class="ach-hd-l"><div class="ach-hd-ic">✉️</div><div><b>'+esc(who)+'</b><small>'+(isSubAdm()?'Личный чат с Отделом доставки':'Личные чаты (Админ / Доставка)')+'</small></div></div><div class="ach-acts">'+(isSubAdm()?'':'<button type="button" id="admDmClr" class="ach-clr">Очистить</button>')+'<button type="button" id="admDmX" class="ach-x">✕</button></div></div>'+tabsHtml+'<div id="admDmList" class="ach-list"></div><div class="ach-bar"><input id="admDmInp" maxlength="300" placeholder="'+(isSubAdm()?'Сообщение водителю от отдела доставки...':'Личное сообщение водителю...')+'"><button type="button" id="admDmSnd" aria-label="Отправить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></div>';
+  ov.innerHTML='<div class="dlg ach-box"><div class="ach-hd"><div class="ach-hd-l"><div class="ach-hd-ic">✉️</div><div><b style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">'+crewBadgeHtml(hdCar)+'<span>'+esc(who)+'</span></b><small>'+(isSubAdm()?'Личный чат с Отделом доставки':'Личные чаты (Админ / Доставка)')+'</small></div></div><div class="ach-acts">'+(isSubAdm()?'':'<button type="button" id="admDmClr" class="ach-clr">Очистить</button>')+'<button type="button" id="admDmX" class="ach-x">✕</button></div></div>'+tabsHtml+'<div id="admDmList" class="ach-list"></div><div class="ach-bar"><input id="admDmInp" maxlength="300" placeholder="'+(isSubAdm()?'Сообщение водителю от отдела доставки...':'Личное сообщение водителю...')+'"><button type="button" id="admDmSnd" aria-label="Отправить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></div>';
   document.body.appendChild(ov);
   updAdmDmTabBadges();
   const close=()=>{DM_UID=null;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
