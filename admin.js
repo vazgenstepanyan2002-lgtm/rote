@@ -491,12 +491,24 @@ function aggCarMonths(list){
  return Object.keys(map).map(k=>{const x=map[k];x.cars=Object.keys(x.byCar).map(id=>x.byCar[id]).sort((a,b)=>b.sum-a.sum);return x}).sort((a,b)=>a.m<b.m?1:a.m>b.m?-1:0);
 }
 
+function admDocKeyInfo(k){
+ const is2=String(k||'').endsWith('_2'),base=is2?String(k).slice(0,-2):String(k||'');
+ const idx=base.indexOf('_');if(idx<0)return{label:k,price:0};
+ const pk=base.slice(0,idx),sk=base.slice(idx+1);
+ const c=CAR_CATALOG.find(x=>x.pk===pk),s=c&&c.subs.find(x=>x.sk===sk);
+ if(!c||!s)return{label:k,price:0};
+ const zn=s.one?'':(is2?' (Район)':' (Город)');
+ return{label:nm(c.name)+' · '+nm(s.name)+zn,price:is2?(+s.p2||0):(+s.p1||0)};
+}
 async function cancelAdmDoc(code,dk,btn){
+ if(isSubAdm()){toast('Удаление доступно только главному админу',true);return}
  const x=CARS[code]&&CARS[code].docs&&CARS[code].docs[dk];
- if(!x){toast('Накладная уже удалена',true);return}
+ if(!x){toast('Запись уже удалена',true);return}
+ const isMan=x.type==='manual';
  const hp=x.p&&typeof x.p==='object'&&Object.keys(x.p).length>0;
- const m=hp?('Отменить накладную № '+(x.doc||'\u2014')+' ('+fm(+x.qty||0)+' шт · '+fm(+x.sum||0)+' '+CUR+')?\n\nПозиции будут вычтены из итогов экипажа '+code+'.'):('Удалить запись № '+(x.doc||'\u2014')+' из журнала?\n\nДля старой записи состав не сохранён — удалится только запись.');
- if(!(await ask(m,{title:'Отмена накладной',okText:'Отменить накладную',danger:true})))return;
+ const lbl=isMan?('ручное изменение от «'+(x.by||'Водитель')+'»'):('накладную № '+(x.doc||'\u2014'));
+ const m=hp?('Отменить '+lbl+' ('+fm(+x.qty||0)+' шт · '+fm(+x.sum||0)+' '+CUR+')?\n\nПозиции будут откачены в итогах экипажа '+code+'.'):('Удалить запись ('+lbl+') из истории?\n\nДля старой записи состав не сохранён — удалится только запись.');
+ if(!(await ask(m,{title:isMan?'Отмена изменения':'Отмена накладной',okText:'Отменить',danger:true})))return;
  if(btn)btn.disabled=true;
  try{
   if(hp){const qr=db.ref('cars/'+code+'/qty'),cur=(await qr.once('value')).val()||{},pt={};
@@ -505,7 +517,7 @@ async function cancelAdmDoc(code,dk,btn){
   await db.ref('cars/'+code+'/docs/'+dk).remove();
   if(CARS[code]&&CARS[code].docs)delete CARS[code].docs[dk];
   await db.ref('cars/'+code+'/t').set(Date.now());
-  const ov=g('admSumOv');if(ov&&ov._refresh)ov._refresh();else openAdmSumModal(code,'cur',true);toast('Накладная отменена');
+  const ov=g('admSumOv');if(ov&&ov._refresh)ov._refresh();else openAdmSumModal(code,'cur',true);toast(isMan?'Изменение отменено':'Накладная отменена');
  }catch(e){if(btn)btn.disabled=false;toast('Ошибка отмены',true)}
 }
 function openAdmSumModal(code,subKey,openDocs){
@@ -517,7 +529,23 @@ function openAdmSumModal(code,subKey,openDocs){
    const rows=isCur?c.rows:(rec.rows||[]),totS=isCur?c.sum:(+rec.sum||0),totQ=isCur?c.qty:(+rec.qty||0);
  const dObj=(CARS[code]&&CARS[code].docs)||{},dList=isCur?Object.keys(dObj).map(k=>dObj[k]?Object.assign({_k:k},dObj[k]):null).filter(Boolean).sort((a,b)=>(+b.t||0)-(+a.t||0)):[];
  const dTotS=dList.reduce((a,x)=>a+(+x.sum||0),0),dTotQ=dList.reduce((a,x)=>a+(+x.qty||0),0);
- const docsHtml=(isCur&&dList.length)?'<div class="sum-cat'+(op?' open':'')+'"><div class="sum-cat-h" data-atog="1"><div class="sum-cat-l"><span class="sum-chv">'+(op?'▾':'\u25b8')+'</span><div><div class="sum-cat-n">🧾 Накладные за смену</div><div class="sum-cat-s">Отсканировано: '+dList.length+(dTotQ?' · '+fm(dTotQ)+' шт':'')+'</div></div></div><div class="sum-cat-r">'+(dTotS?fm(dTotS)+' '+CUR:dList.length+' шт')+'</div></div><div class="sum-cat-b">'+dList.map(x=>{const dd=x.t?new Date(x.t):null,tm=dd?(dd.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' '+String(dd.getHours()).padStart(2,'0')+':'+String(dd.getMinutes()).padStart(2,'0')):'';const zn=x.z===1?'Город':(x.z===2?'Район':'');const rp=x.rep>1?' <span class="sum-doc-rep">\u{1f501} Повтор'+(x.rep>2?' \u00d7'+x.rep:'')+'</span>':'';const rSum=(x.sum||x.qty)?'<span class="sum-v">'+fm(+x.sum||0)+' '+CUR+'</span>':'';return '<div class="sum-it"><div class="sum-doc-hd"><div class="sum-it-t" style="margin:0">🧾 № '+esc(x.doc||'\u2014')+(zn?' <span class="sum-doc-z">'+zn+'</span>':'')+rp+'</div>'+rSum+'</div><div class="sum-doc-ft"><span class="sum-f">'+esc(x.by||'Водитель')+(tm?' · '+tm:'')+(x.qty?' · '+fm(+x.qty)+' шт':'')+'</span><button type="button" class="sum-doc-del" data-doc-del="'+esc(x._k)+'" title="Отменить накладную"><span style="font-size:12px">🗑️</span> Отменить</button></div></div>'}).join('')+'</div></div>':'';
+ const canDel=!isSubAdm();
+ const docsHtml=(isCur&&dList.length)?'<div class="sum-cat'+(op?' open':'')+'"><div class="sum-cat-h" data-atog="1"><div class="sum-cat-l"><span class="sum-chv">'+(op?'▾':'\u25b8')+'</span><div><div class="sum-cat-n">📜 История изменений</div><div class="sum-cat-s">Записей: '+dList.length+(dTotQ?' · '+fm(dTotQ)+' шт':'')+'</div></div></div><div class="sum-cat-r">'+(dTotS?fm(dTotS)+' '+CUR:dList.length+' шт')+'</div></div><div class="sum-cat-b">'+dList.map(x=>{
+  const isMan=x.type==='manual';
+  const dd=x.t?new Date(x.t):null,tm=dd?(dd.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' '+String(dd.getHours()).padStart(2,'0')+':'+String(dd.getMinutes()).padStart(2,'0')):'';
+  const zn=!isMan?(x.z===1?'Город':(x.z===2?'Район':'')):'';
+  const rp=(!isMan&&x.rep>1)?' <span class="sum-doc-rep">\u{1f501} Повтор'+(x.rep>2?' \u00d7'+x.rep:'')+'</span>':'';
+  const qv=+x.qty||0,sv=+x.sum||0;
+  const rSum=(sv||qv)?'<span class="sum-v" style="'+(sv<0?'color:#fca5a5':'')+'">'+(isMan&&sv>0?'+':'')+fm(sv)+' '+CUR+'</span>':'';
+  const hdTitle=isMan?'✏️ Вручную':('🧾 № '+esc(x.doc||'\u2014'));
+  const itsHtml=(x.p&&typeof x.p==='object'&&Object.keys(x.p).length)?'<div class="sum-doc-its">'+Object.keys(x.p).map(k=>{
+   const dn=+x.p[k]||0,inf=admDocKeyInfo(k),dv=dn*inf.price;
+   const col=dn<0?'#fca5a5':'#6ee7b7';
+   return '<div class="sum-doc-it"><span>'+esc(inf.label)+'</span><b style="color:'+col+'">'+(dn>0?'+':'')+fm(dn)+' шт'+(dv?' ('+fm(dv)+' '+CUR+')':'')+'</b></div>';
+  }).join('')+'</div>':'';
+  const delBtnHtml=canDel?'<button type="button" class="sum-doc-del" data-doc-del="'+esc(x._k)+'" title="Отменить запись"><span style="font-size:12px">🗑️</span> Отменить</button>':'';
+  return '<div class="sum-it"><div class="sum-doc-hd"><div class="sum-it-t" style="margin:0">'+hdTitle+(zn?' <span class="sum-doc-z">'+zn+'</span>':'')+rp+'</div>'+rSum+'</div>'+itsHtml+'<div class="sum-doc-ft"><span class="sum-f">'+esc(x.by||'Водитель')+(tm?' · '+tm:'')+(qv?' · '+(isMan&&qv>0?'+':'')+fm(qv)+' шт':'')+'</span>'+delBtnHtml+'</div></div>';
+ }).join('')+'</div></div>':'';
  const head="<div class=\"sum-dash\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">"+esc(title)+" · "+esc(sub)+"</div><div class=\"sum-val\" id=\"admTotVal\">"+fm(totS)+" <span>"+CUR+"</span></div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b id=\"admTotQty\">"+fm(totQ)+"</b><span>штук</span></div><div class=\"sum-kpi\"><b id=\"admTotCat\">"+rows.length+"</b><span>катег.</span></div></div></div></div>";
   return head+docsHtml+detail(rows);
  };
@@ -587,14 +615,14 @@ function drawTotals(){
   const curList=CL.filter(c=>c.qty>0||c.sum>0||c.crew.length>0).sort((a,b)=>b.sum-a.sum);
   const sum=curList.reduce((a,x)=>a+x.sum,0),qty=curList.reduce((a,x)=>a+x.qty,0);
   h+="<div class=\"sum-dash\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">Текущий месяц · по экипажам</div><div class=\"sum-val\">"+fm(sum)+" <span>"+CUR+"</span></div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b>"+fm(qty)+"</b><span>штук</span></div><div class=\"sum-kpi\"><b>"+curList.length+"</b><span>экипажей</span></div></div></div>"+(curList.length?"<button type=\"button\" class=\"cp-btn\" style=\"margin-top:12px;background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.4);color:#7dd3fc\" data-act=\"csvcur\">📥 Скачать Excel по экипажам</button>":"")+"</div>";
-  if(curList.length){h+="<div class=\"sec\">Экипажи в текущем месяце ("+curList.length+")</div>"+curList.map(x=>{const dc=Object.keys((CARS[x.code]&&CARS[x.code].docs)||{}).length;return"<div class=\"st-row\" data-act=\"open-car-sum\" data-id=\""+esc(x.code)+"\" data-sub=\"cur\"><div style=\"display:flex;align-items:center;gap:10px;min-width:0\">"+badge(x.code)+"<div style=\"min-width:0\"><div class=\"st-nm\">Экипаж "+esc(x.code)+"</div><div class=\"st-qt\">"+fm(x.qty)+" шт"+(dc?" · 🧾 "+dc:"")+(x.crew.length?" · "+esc(x.crew.join(", ")):"")+"</div></div></div><div class=\"rv\" style=\"font-size:13.5px\">"+money(x.sum)+" ›</div></div>"}).join("")}
+  if(curList.length){h+="<div class=\"sec\">Экипажи в текущем месяце ("+curList.length+")</div>"+curList.map(x=>{const dc=Object.keys((CARS[x.code]&&CARS[x.code].docs)||{}).length;return"<div class=\"st-row\" data-act=\"open-car-sum\" data-id=\""+esc(x.code)+"\" data-sub=\"cur\"><div style=\"display:flex;align-items:center;gap:10px;min-width:0\">"+badge(x.code)+"<div style=\"min-width:0\"><div class=\"st-nm\">Экипаж "+esc(x.code)+"</div><div class=\"st-qt\">"+fm(x.qty)+" шт"+(dc?" · 📜 "+dc:"")+(x.crew.length?" · "+esc(x.crew.join(", ")):"")+"</div></div></div><div class=\"rv\" style=\"font-size:13.5px\">"+money(x.sum)+" ›</div></div>"}).join("")}
   const ms=aggCarMonths(CL);h+="<div class=\"sec\">Архив сохранённых месяцев ("+ms.length+")</div>";
   if(!ms.length)h+="<div class=\"mut box\">Сохранённых итогов по экипажам пока нет.</div>";
   h+=ms.map(x=>{const key="all|"+x.m,op=!!OPEN[key];return"<div class=\"mr col\" data-act=\"month\" data-key=\""+esc(key)+"\"><div class=\"mrt\"><div class=\"rm\"><div class=\"rt\">📅 "+esc(monthName(x.m))+"</div><div class=\"rs\">"+fm(x.qty)+" шт · машин: "+x.cars.length+"</div></div><div class=\"rv\">"+money(x.sum)+"</div><span class=\"ar\">"+(op?"▾":"▸")+"</span></div>"+(op?"<div class=\"dt\" onclick=\"event.stopPropagation()\">"+x.cars.map(cv=>"<div class=\"st-row\" data-act=\"open-car-month\" data-id=\""+esc(cv.code)+"\" data-m=\""+esc(x.m)+"\"><div style=\"display:flex;align-items:center;gap:10px;min-width:0\">"+badge(cv.code)+"<div style=\"min-width:0\"><div class=\"st-nm\">Экипаж "+esc(cv.code)+"</div><div class=\"st-qt\">"+fm(cv.qty)+" шт"+(cv.crew&&cv.crew.length?" · "+esc(cv.crew.join(", ")):"")+"</div></div></div><div class=\"rv\" style=\"font-size:13.5px\">"+money(cv.sum)+" ›</div></div>").join("")+"<button type=\"button\" class=\"cp-btn\" style=\"background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.4);color:#7dd3fc\" data-act=\"csvmonth\" data-m=\""+esc(x.m)+"\">📥 Скачать Excel за "+esc(monthName(x.m))+"</button></div>":"")+"</div>"}).join("");
  }else{
   const c=parseCar(SEL);
   const curDocsCount=Object.keys((CARS[SEL]&&CARS[SEL].docs)||{}).length;
-  h+="<div class=\"sum-dash sum-dash-btn\" data-act=\"subopen\" data-sub=\"cur\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">Текущий месяц · открыть ›</div><div class=\"sum-val\">"+fm(c.sum)+" <span>"+CUR+"</span></div><div style=\"font-size:12px;color:#8b9bb4;margin-top:4px\">"+(c.crew.length?"Экипаж: "+esc(c.crew.join(", ")):"Экипаж не назначен")+"</div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b>"+fm(c.qty)+"</b><span>штук</span></div>"+(curDocsCount?"<div class=\"sum-kpi\"><b style=\"color:#fde047\">"+curDocsCount+"</b><span>накладных</span></div>":"")+"</div></div>"+(c.qty>0||c.sum>0||curDocsCount>0?"<button type=\"button\" class=\"cp-btn\" style=\"margin-top:12px;background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.4);color:#7dd3fc\" data-act=\"csv-single-cur\" data-car=\""+esc(SEL)+"\">📊 Открыть таблицу / Excel</button>":"")+"</div><div class=\"sec\">Сохранённые итоги</div>";
+  h+="<div class=\"sum-dash sum-dash-btn\" data-act=\"subopen\" data-sub=\"cur\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">Текущий месяц · открыть ›</div><div class=\"sum-val\">"+fm(c.sum)+" <span>"+CUR+"</span></div><div style=\"font-size:12px;color:#8b9bb4;margin-top:4px\">"+(c.crew.length?"Экипаж: "+esc(c.crew.join(", ")):"Экипаж не назначен")+"</div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b>"+fm(c.qty)+"</b><span>штук</span></div>"+(curDocsCount?"<div class=\"sum-kpi\"><b style=\"color:#fde047\">"+curDocsCount+"</b><span>записей</span></div>":"")+"</div></div>"+(c.qty>0||c.sum>0||curDocsCount>0?"<button type=\"button\" class=\"cp-btn\" style=\"margin-top:12px;background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.4);color:#7dd3fc\" data-act=\"csv-single-cur\" data-car=\""+esc(SEL)+"\">📊 Открыть таблицу / Excel</button>":"")+"</div><div class=\"sec\">Сохранённые итоги</div>";
   const ks=Object.keys(c.hist).filter(k=>c.hist[k]).sort((a,b)=>{const x=c.hist[a],y=c.hist[b];return(y.m||"")<(x.m||"")?-1:(y.m||"")>(x.m||"")?1:(y.t||0)-(x.t||0)});
   if(!ks.length)h+="<div class=\"mut box\">У экипажа "+esc(SEL)+" нет сохранённых итогов.</div>";
   h+=ks.map(k=>{const x=c.hist[k];const dBtn=!isSubAdm()?"<button type=\"button\" class=\"xb\" data-act=\"del-car-hist\" data-car=\""+esc(SEL)+"\" data-hk=\""+esc(k)+"\" aria-label=\"Удалить\">✕</button>":"";return"<div class=\"mr\" style=\"cursor:pointer\" data-act=\"subopen\" data-sub=\""+esc(k)+"\"><div class=\"rm\"><div class=\"rt\">"+esc(monthName(x.m))+"</div><div class=\"rs\">"+fm(x.qty)+" шт · сохранено "+esc(ago(x.t))+"</div></div><div class=\"rv\">"+money(x.sum)+"</div>"+dBtn+"<span class=\"ar\">›</span></div>"}).join("");

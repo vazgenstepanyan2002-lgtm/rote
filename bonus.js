@@ -272,12 +272,39 @@
   };
  }
 
+ let _manBuf={},_manTimer=null;
+ function queueManualLog(pk,sk,k,delta,price){
+  if(!delta||!CAR_CODE||!window.firebase||!firebase.apps||!firebase.apps.length)return;
+  const key=pk+'_'+sk+(k==='2'?'_2':'');
+  if(!_manBuf[key])_manBuf[key]={d:0,p:num(price)};
+  _manBuf[key].d=r3(_manBuf[key].d+delta);
+  if(!_manBuf[key].d)delete _manBuf[key];
+  clearTimeout(_manTimer);
+  _manTimer=setTimeout(flushManualLog,1800);
+ }
+ function flushManualLog(){
+  clearTimeout(_manTimer);_manTimer=null;
+  const keys=Object.keys(_manBuf).filter(k=>_manBuf[k]&&_manBuf[k].d!==0);
+  if(!keys.length||!CAR_CODE||!window.firebase||!firebase.apps||!firebase.apps.length){_manBuf={};return}
+  const p={};let totQ=0,totS=0;
+  keys.forEach(k=>{const d=_manBuf[k].d;p[k]=d;totQ=r3(totQ+d);totS+=d*_manBuf[k].p});
+  _manBuf={};
+  let by='Водитель',uid='';
+  try{by=localStorage.getItem('USER_NAME')||'Водитель';uid=localStorage.getItem('ADM_UID')||''}catch(e){}
+  const rec={type:'manual',doc:'Вручную',t:Date.now(),by:by,uid:uid,qty:totQ,sum:Math.round(totS),p:p};
+  firebase.database().ref('cars/'+CAR_CODE+'/docs').push(rec).catch(()=>{});
+ }
+ window.addEventListener('pagehide',flushManualLog);
+
  function onInput(e){
   const t=e.target,c=B[+t.dataset.c],s=c&&c.subs[+t.dataset.s];
   if(!c||!s||!t.classList.contains('bn-q'))return;
   if(!CAR_CODE){t.value=0;showNoCrewAlert();return}
-  const kk='qty'+(t.dataset.k||'');s[kk]=num(t.value);
-  save(c.pk,s.sk,t.dataset.k||'',s[kk]);upd();
+  const k=t.dataset.k||'',kk='qty'+k,oldV=num(s[kk]),newV=num(t.value);
+  s[kk]=newV;
+  save(c.pk,s.sk,k,newV);
+  queueManualLog(c.pk,s.sk,k,r3(newV-oldV),s['price'+k]);
+  upd();
  }
 
  async function onClick(e){
@@ -287,10 +314,13 @@
   if(a==='inc'||a==='dec'){
    if(!s)return;
    if(!CAR_CODE){showNoCrewAlert();return}
-   const kk='qty'+(b.dataset.k||'');
-   s[kk]=Math.max(0,r3(num(s[kk])+(a==='inc'?1:-1)));
-   const q=b.parentNode.querySelector('.bn-q');if(q)q.value=s[kk];
-   save(c.pk,s.sk,b.dataset.k||'',s[kk]);upd();
+   const k=b.dataset.k||'',kk='qty'+k,oldV=num(s[kk]);
+   const newV=Math.max(0,r3(oldV+(a==='inc'?1:-1)));
+   s[kk]=newV;
+   const q=b.parentNode.querySelector('.bn-q');if(q)q.value=newV;
+   save(c.pk,s.sk,k,newV);
+   queueManualLog(c.pk,s.sk,k,r3(newV-oldV),s['price'+k]);
+   upd();
   }else if(a==='col'){
    c.col=!c.col;saveColMap();render();
   }
@@ -569,25 +599,53 @@
   try{navigator.clipboard.writeText(window.i18nCopy?i18nCopy(s):s).then(()=>tst('Скопировано')).catch(()=>tst('Не удалось скопировать','err'))}catch(e){tst('Не удалось скопировать','err')}
  }
 
+ function bonKeyLabel(k){
+  const is2=String(k||'').endsWith('_2'),base=is2?String(k).slice(0,-2):String(k||'');
+  const idx=base.indexOf('_');if(idx<0)return k;
+  const pk=base.slice(0,idx),sk=base.slice(idx+1);
+  const c=PRE.find(x=>x.pk===pk),s=c&&c.subs.find(x=>x.sk===sk);
+  if(!c||!s)return k;
+  const zn=s.one?'':(is2?' (Район)':' (Город)');
+  return furnitureName(c.name)+' · '+furnitureName(s.name)+zn;
+ }
+ function bonKeyPrice(k){
+  const is2=String(k||'').endsWith('_2'),base=is2?String(k).slice(0,-2):String(k||'');
+  const idx=base.indexOf('_');if(idx<0)return 0;
+  const pk=base.slice(0,idx),sk=base.slice(idx+1);
+  const c=PRE.find(x=>x.pk===pk),s=c&&c.subs.find(x=>x.sk===sk);
+  return s?(is2?num(s.price2):num(s.price)):0;
+ }
  async function openDocsLog(){
   if(!CAR_CODE){showNoCrewAlert();return}
+  flushManualLog();
   let m=g('bnDocsMdl');if(m)m.remove();m=document.createElement('div');m.id='bnDocsMdl';m.className='cm open';
-  m.innerHTML='<div class="cm-b ob-pk-box" style="max-width:420px;height:min(82dvh,580px);display:flex;flex-direction:column;padding:0;overflow:hidden"><div class="ob-pk-hd" style="padding:14px 16px;flex-shrink:0"><div><b>🧾 Журнал накладных</b><small>Экипаж '+esc(CAR_CODE)+'</small></div><button type="button" class="pt-x" id="bdX">✕</button></div><div style="padding:8px 12px;background:rgba(0,0,0,.18);border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0"><input id="bdSearch" type="search" placeholder="🔍 Поиск по номеру накладной или позиции..." style="width:100%;height:36px;padding:0 12px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#f8fafc;font-size:12.5px;outline:none;box-sizing:border-box"></div><div class="ob-pk-list" id="bdList" style="flex:1;overflow:auto;padding:12px"><div class="pt-empty">Загрузка...</div></div></div>';
+  m.innerHTML='<div class="cm-b ob-pk-box" style="max-width:420px;height:min(82dvh,580px);display:flex;flex-direction:column;padding:0;overflow:hidden"><div class="ob-pk-hd" style="padding:14px 16px;flex-shrink:0"><div><b>📜 История изменений</b><small>Экипаж '+esc(CAR_CODE)+'</small></div><button type="button" class="pt-x" id="bdX">✕</button></div><div style="padding:8px 12px;background:rgba(0,0,0,.18);border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0"><input id="bdSearch" type="search" placeholder="🔍 Поиск по имени, накладной или товару..." style="width:100%;height:36px;padding:0 12px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#f8fafc;font-size:12.5px;outline:none;box-sizing:border-box"></div><div class="ob-pk-list" id="bdList" style="flex:1;overflow:auto;padding:12px"><div class="pt-empty">Загрузка...</div></div></div>';
   document.body.appendChild(m);const cl=()=>m.remove();g('bdX').onclick=cl;m.onclick=ev=>{if(ev.target===m)cl()};
   try{
    const val=(await firebase.database().ref('cars/'+CAR_CODE+'/docs').once('value')).val()||{};
    const allList=Object.keys(val).map(k=>val[k]).filter(Boolean).sort((a,b)=>(+b.t||0)-(+a.t||0)),box=g('bdList');if(!box)return;
-   if(!allList.length){box.innerHTML='<div class="pt-empty">Отсканированных накладных пока нет.</div>';return}
+   if(!allList.length){box.innerHTML='<div class="pt-empty">Изменений пока нет.</div>';return}
 
    const renderDocs=list=>{
     if(!list.length){box.innerHTML='<div class="pt-empty">Ничего не найдено</div>';return}
     let totS=0,totQ=0;list.forEach(x=>{totS+=(+x.sum||0);totQ+=(+x.qty||0)});
-    const headHtml='<div class="bd-sum"><span>Накладных: <b>'+list.length+'</b></span>'+((totQ||totS)?'<span><b>'+fm(totQ)+' шт</b> · <b style="color:#fde047">'+fm(totS)+' '+CUR+'</b></span>':'')+'</div>';
+    const headHtml='<div class="bd-sum"><span>Записей: <b>'+list.length+'</b></span>'+((totQ||totS)?'<span><b>'+fm(totQ)+' шт</b> · <b style="color:#fde047">'+fm(totS)+' '+CUR+'</b></span>':'')+'</div>';
     box.innerHTML=headHtml+list.map(x=>{
+     const isMan=x.type==='manual';
      const d=x.t?new Date(x.t):null,tm=d?d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'';
-     const zn=x.z===1?'Город':(x.z===2?'Район':'');const rp=x.rep>1?'<span class="bd-rep">\u{1f501} <span>Повтор</span>'+(x.rep>2?' \u00d7'+x.rep:'')+'</span>':'';
-     const right=(x.qty||x.sum)?'<div class="bd-r"><b>'+fm(+x.sum||0)+' '+CUR+'</b><small>'+fm(+x.qty||0)+' шт</small></div>':'';
-     return '<div class="bd-card"><div class="bd-top"><div class="bd-l"><span class="bd-ic">🧾</span><div><div class="bd-num"><span>№ '+esc(x.doc||'—')+'</span>'+(zn?'<span class="bd-z">'+zn+'</span>':'')+rp+'</div><div class="bd-meta">'+esc(x.by||'Водитель')+(tm?' · '+tm:'')+'</div></div></div>'+right+'</div></div>';
+     const zn=!isMan?(x.z===1?'Город':(x.z===2?'Район':'')):'';
+     const rp=(!isMan&&x.rep>1)?'<span class="bd-rep">\u{1f501} <span>Повтор</span>'+(x.rep>2?' \u00d7'+x.rep:'')+'</span>':'';
+     const qv=+x.qty||0,sv=+x.sum||0;
+     const signS=sv>0?'+':'',signQ=qv>0?'+':'';
+     const sumCol=sv<0?'#fca5a5':'#fde047';
+     const right=(qv||sv)?'<div class="bd-r"><b style="color:'+sumCol+'">'+(isMan?signS:'')+fm(sv)+' '+CUR+'</b><small>'+(isMan?signQ:'')+fm(qv)+' шт</small></div>':'';
+     const titleHtml=isMan?'<span>Вручную</span>':'<span>№ '+esc(x.doc||'—')+'</span>';
+     const itemsHtml=(x.p&&typeof x.p==='object'&&Object.keys(x.p).length)?'<div style="margin-top:7px;padding-top:6px;border-top:1px dashed rgba(255,255,255,.08);display:flex;flex-direction:column;gap:3px">'+Object.keys(x.p).map(k=>{
+      const dn=+x.p[k]||0,pr=bonKeyPrice(k),dv=dn*pr;
+      const col=dn<0?'#fca5a5':'#6ee7b7';
+      return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:#cbd5e1"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(bonKeyLabel(k))+'</span><b style="white-space:nowrap;color:'+col+'">'+(dn>0?'+':'')+fm(dn)+' шт'+(dv?' · '+fm(dv)+' '+CUR:'')+'</b></div>';
+     }).join('')+'</div>':'';
+     return '<div class="bd-card"><div class="bd-top"><div class="bd-l"><span class="bd-ic">'+(isMan?'✏️':'🧾')+'</span><div><div class="bd-num">'+titleHtml+(zn?'<span class="bd-z">'+zn+'</span>':'')+rp+'</div><div class="bd-meta">'+esc(x.by||'Водитель')+(tm?' · '+tm:'')+'</div></div></div>'+right+'</div>'+itemsHtml+'</div>';
     }).join('');
    };
    renderDocs(allList);
@@ -600,17 +658,17 @@
      renderDocs(allList.filter(x=>{
       const docNum=String(x.doc||'').toLowerCase();
       const who=String(x.by||'').toLowerCase();
-      const pKeys=x.p&&typeof x.p==='object'?Object.keys(x.p).join(' ').toLowerCase():'';
-      return docNum.includes(q)||who.includes(q)||pKeys.includes(q);
+      const pText=x.p&&typeof x.p==='object'?Object.keys(x.p).map(k=>k+' '+bonKeyLabel(k)).join(' ').toLowerCase():'';
+      return docNum.includes(q)||who.includes(q)||pText.includes(q);
      }));
     };
    }
-  }catch(e){const box=g('bdList');if(box)box.innerHTML='<div class="pt-empty">Ошибка загрузки журнала</div>'}
+  }catch(e){const box=g('bdList');if(box)box.innerHTML='<div class="pt-empty">Ошибка загрузки истории</div>'}
  }
  function ensure(){
   let m=g('bnMdl');if(m)return m;
   m=document.createElement('div');m.id='bnMdl';m.className='mdl';
-  m.innerHTML='<div class="mdl-b bn-b"><div class="bn-hd"><div class="bn-hd-l"><div class="bn-hd-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"/></svg></div><div><div class="bn-hd-t">Бонусы</div><div class="bn-hd-s">Расчёт по категориям мебели</div></div></div><div style="display:flex;align-items:center;gap:7px;flex-shrink:0"><button type="button" class="bn-cam-btn" id="bnDocsBtn" title="Журнал накладных" style="background:rgba(250,204,21,.15)!important;border-color:rgba(250,204,21,.4)!important;color:#fde047!important">🧾</button><button type="button" class="bn-cam-btn" id="bnCamBtn" title="Сканировать накладную" aria-label="Сканировать накладную"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></button><button type="button" class="bn-x-btn" id="bnX" aria-label="Закрыть">✕</button></div></div>'
+  m.innerHTML='<div class="mdl-b bn-b"><div class="bn-hd"><div class="bn-hd-l"><div class="bn-hd-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"/></svg></div><div><div class="bn-hd-t">Бонусы</div><div class="bn-hd-s">Расчёт по категориям мебели</div></div></div><div style="display:flex;align-items:center;gap:7px;flex-shrink:0"><button type="button" class="bn-cam-btn" id="bnDocsBtn" title="История изменений" style="background:rgba(250,204,21,.15)!important;border-color:rgba(250,204,21,.4)!important;color:#fde047!important">📜</button><button type="button" class="bn-cam-btn" id="bnCamBtn" title="Сканировать накладную" aria-label="Сканировать накладную"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></button><button type="button" class="bn-x-btn" id="bnX" aria-label="Закрыть">✕</button></div></div>'
    +'<div id="bnList"></div>'
    +'<div class="bn-ft"><div class="bn-tr"><span>Общая сумма</span><b id="bnTot">0</b></div>'
    +'<div class="bn-tr bn-sm"><span>Всего штук: <b id="bnQty">0</b></span></div>'
@@ -641,6 +699,7 @@
   if(!noPush){try{history.pushState({bn:1},'')}catch(e){}}
  }
  function closeBon(src){
+  flushManualLog();
   const m=g('bnMdl');if(!m||!m.classList.contains('open'))return;
   const ov=g('bnSm');if(ov)ov.classList.remove('open');m.classList.remove('open');lock(false);
   try{sessionStorage.removeItem('BON_WAS_OPEN')}catch(e){}
