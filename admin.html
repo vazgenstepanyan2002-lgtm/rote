@@ -503,13 +503,17 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
 .subm-clr{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:28px;height:28px;padding:0;border-radius:8px;border:none;background:rgba(255,255,255,.08);color:#94a3b8;font-size:13px;display:inline-flex;align-items:center;justify-content:center}
 .subm-go{height:44px;padding:0 15px;border-radius:13px;font-size:13.5px;font-weight:700;border:1px solid rgba(52,211,153,.45);background:linear-gradient(135deg,rgba(16,185,129,.26),rgba(5,150,105,.18));color:#6ee7b7;white-space:nowrap;flex-shrink:0}
 .subm-go:active{transform:scale(.96)}
-.subm-sug{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
+.subm-sug{display:flex;flex-direction:column;gap:6px;margin:0 0 10px;padding:10px;border-radius:14px;background:rgba(15,23,34,.78);border:1.5px solid #10b981;box-shadow:0 8px 24px rgba(0,0,0,.35)}
 .subm-sug:empty{display:none}
-.subm-sug-it{width:100%;text-align:left;padding:10px 12px;border-radius:11px;font-size:13.5px;font-weight:600;background:#facc15;color:#111827;border:none;line-height:1.3}
-.subm-sug-it:active{transform:scale(.99);opacity:.9}
-.subm-res{border-radius:15px;padding:12px 13px;margin-bottom:10px;border:1px solid rgba(255,255,255,.12);background:rgba(15,23,36,.86)}
+.subm-sug-it{width:100%;display:flex;align-items:center;gap:10px;text-align:left;padding:10px 12px;border-radius:10px;font-size:13.5px;font-weight:500;background:rgba(255,255,255,.06);color:#f8fafc;border:1px solid rgba(255,255,255,.14);line-height:1.3;cursor:pointer}
+.subm-sug-it::before{content:"+";background:#10b981;color:#fff;font-weight:700;font-size:15px;min-width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.subm-sug-it:active{background:rgba(16,185,129,.18);border-color:rgba(52,211,153,.45)}
+.subm-res{position:relative;border-radius:15px;padding:12px 13px;margin-bottom:10px;border:1px solid rgba(255,255,255,.12);background:rgba(15,23,36,.86)}
 .subm-res.day{background:linear-gradient(135deg,rgba(16,185,129,.18),rgba(5,150,105,.09));border-color:rgba(52,211,153,.45)}
 .subm-res.eve{background:linear-gradient(135deg,rgba(239,68,68,.22),rgba(185,28,28,.1));border-color:rgba(248,113,113,.5)}
+.subm-res-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.subm-del{width:28px;height:28px;padding:0;border-radius:9px;border:1px solid rgba(239,68,68,.38);background:rgba(239,68,68,.16);color:#fca5a5;font-size:13px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
+.subm-del:active{transform:scale(.92)}
 .subm-verdict{font-size:15.5px;font-weight:800;display:flex;align-items:center;gap:7px;line-height:1.25}
 .subm-res.day .subm-verdict{color:#6ee7b7}
 .subm-res.eve .subm-verdict{color:#fca5a5}
@@ -520,11 +524,14 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
 .subm-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:9px;background:rgba(15,23,36,.72);border:1px solid rgba(255,255,255,.13);font-size:12px;font-weight:700;color:#e2e8f0}
 .subm-pill.tm b{color:#34d399}
 .subm-pill.km b{color:#38bdf8}
+.subm-ctrl-bar{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.subm-ctrl-btn{height:34px;padding:0 12px;border-radius:11px;font-size:12.5px;font-weight:700;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#e2e8f0;display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+.subm-ctrl-btn:active{transform:scale(.96);border-color:#38bdf8}
 .subm-mk{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;border:2.5px solid #0f172a;box-shadow:0 4px 12px rgba(0,0,0,.65),0 0 0 2px rgba(255,255,255,.4);cursor:pointer}
 .subm-mk.day{background:linear-gradient(135deg,#10b981,#0284c7)}
 .subm-mk.eve{background:linear-gradient(135deg,#ef4444,#b91c1c)}
 .subm-mk.bad{background:linear-gradient(135deg,#facc15,#eab308);color:#0f172a}
-.subm-hist-it{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);margin-bottom:6px;cursor:pointer}
+.subm-hist-it{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);margin-bottom:6px;cursor:pointer}
 .subm-hist-it:active{background:rgba(255,255,255,.08)}
 .subm-bdg{padding:3px 8px;border-radius:8px;font-size:11px;font-weight:800;white-space:nowrap;flex-shrink:0}
 .subm-bdg.day{background:rgba(16,185,129,.18);border:1px solid rgba(52,211,153,.4);color:#6ee7b7}
@@ -533,7 +540,7 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
 /* DESKTOP-ADAPTIVE */
 @media (min-width: 768px){
   body:has(#panel:not([hidden])){max-width:980px;padding:20px 28px 44px}
-  #admMap{height:60vh;min-height:440px}
+  #admMap{height:clamp(420px,62vh,680px)!important;min-height:420px!important}
   .ach-box{max-width:560px}
   .att-dth{min-width:30px;padding:6px 1px!important;font-size:11.5px}
   .att-chk{width:26px;height:26px;font-size:14px}
@@ -595,14 +602,14 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
   </div>
  </div>
 </div>
-<script src="storage.js?v=20261123202618"></script>
-<script src="geo.js?v=20261123202618"></script>
-<script src="zones.js?v=20261123202618"></script>
-<script src="bonus-engine.js?v=20261123202618"></script>
-<script src="table-viewer.js?v=20261123202618"></script>
-<script src="yandex.js?v=20261123202618"></script>
-<script src="i18n.js?v=20261123202618"></script>
-<script src="admin.js?v=20261123202618"></script>
+<script src="storage.js?v=20261123204005"></script>
+<script src="geo.js?v=20261123204005"></script>
+<script src="zones.js?v=20261123204005"></script>
+<script src="bonus-engine.js?v=20261123204005"></script>
+<script src="table-viewer.js?v=20261123204005"></script>
+<script src="yandex.js?v=20261123204005"></script>
+<script src="i18n.js?v=20261123204005"></script>
+<script src="admin.js?v=20261123204005"></script>
 <script>
 ['lgEm','lgPw'].forEach(id=>{
  const el=document.getElementById(id);

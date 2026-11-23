@@ -296,7 +296,7 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
  const ADM_CDNS=[{css:"https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css",js:"https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"},{css:"https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css",js:"https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"}];
  const ADM_SAT_URL="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
  let _lfProm=null,_map=null,_markers={},_baseMk=null,_didFit=false,MAP_ONLY_ONLINE=true,_applyAdmSat=null;
- let _subMk=null,_subFit=null,_subRouteTok=0,_subCurPt=null,_subHist=[];
+ let _subMk=null,_subFit=null,_subRouteTok=0,_subCurPt=null,_subHist=[],_mapRO=null;
  let ADM_SAT=(()=>{try{return localStorage.getItem("ADM_MAP_SAT")!=="0"}catch(e){return true}})();
  function ensureLeaflet(){
   if(window.maplibregl&&maplibregl.Map)return Promise.resolve();
@@ -304,7 +304,7 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
   _lfProm=new Promise((res,rej)=>{let idx=0;const go=()=>{const s0=ADM_CDNS[idx],c=document.createElement("link");c.rel="stylesheet";c.href=s0.css;document.head.appendChild(c);const s=document.createElement("script");s.src=s0.js;s.onload=()=>{if(window.maplibregl&&maplibregl.Map)res();else fail()};const fail=()=>{s.remove();c.remove();idx++;if(idx<ADM_CDNS.length)go();else{_lfProm=null;rej(new Error("Ошибка загрузки MapLibre"))}};s.onerror=fail;document.head.appendChild(s)};go()});
   return _lfProm;
  }
- function destroyMap(){if(_map){try{_map.remove()}catch(e){}_map=null}_markers={};_baseMk=null;_subMk=null;_subFit=null;_subRouteTok++;_didFit=false;_applyAdmSat=null}
+ function destroyMap(){if(_mapRO){try{_mapRO.disconnect()}catch(e){}_mapRO=null}if(_map){try{_map.remove()}catch(e){}_map=null}_markers={};_baseMk=null;_subMk=null;_subFit=null;_subRouteTok++;_didFit=false;_applyAdmSat=null}
  function fitAllDrivers(){
   if(!_map||!window.maplibregl)return;
   const now=Date.now(),baseLL=[BASE_PT.lon,BASE_PT.lat],pts=[baseLL];
@@ -346,9 +346,10 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
    const el=g('subMapHist');if(!el)return;
    if(!_subHist.length){el.innerHTML='';return}
    el.innerHTML='<div class="sec">Недавние проверки</div>'+_subHist.map((it,idx)=>
-    '<div class="subm-hist-it" data-act="submap-hist" data-idx="'+idx+'"><div style="min-width:0;flex:1"><div style="font-size:13px;font-weight:700;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(it.name)+'</div>'
+    '<div class="subm-hist-it" data-act="submap-hist" data-idx="'+idx+'"><div style="min-width:0;flex:1"><div style="font-size:13px;font-weight:700;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" data-no-i18n="1">'+esc(it.name)+'</div>'
     +(it.km?'<div style="font-size:11.5px;color:#94a3b8;margin-top:2px">'+esc(it.km)+' · '+esc(it.tm)+'</div>':'')
-    +'</div><span class="subm-bdg '+(it.inK?'eve':'day')+'">'+(it.inK?'🌙 Вечер':'☀️ День')+'</span></div>'
+    +'</div><span class="subm-bdg '+(it.inK?'eve':'day')+'">'+(it.inK?'🌙 Вечер':'☀️ День')+'</span>'
+    +'<button type="button" class="subm-del" data-act="submap-hdel" data-idx="'+idx+'" aria-label="Удалить">✕</button></div>'
    ).join('');
   };
   const renderSubRes=(pt,routeInfo)=>{
@@ -359,7 +360,8 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
     return;
    }
    el.className='subm-res '+(pt.inK?'eve':'day');
-   let h='<div class="subm-verdict">'+(pt.inK?'🌙 Только вечером (после 21:00)':'☀️ Можно ставить днём')+'</div>'
+   let h='<div class="subm-res-top"><div class="subm-verdict">'+(pt.inK?'🌙 Только вечером (после 21:00)':'☀️ Можно ставить днём')+'</div>'
+    +'<button type="button" class="subm-del" data-act="submap-clear" aria-label="Удалить">✕</button></div>'
     +'<div class="subm-sub">'+(pt.inK?'Адрес в зоне Кентрон — въезд грузовым до 21:00 запрещён':'Адрес вне зоны Кентрон — ограничений нет')+'</div>'
     +'<div class="subm-adr" data-no-i18n="1">📍 '+esc(pt.name)+'</div>';
    if(pt.exact===false){
@@ -373,6 +375,24 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
    }
    el.innerHTML=h;
   };
+  const clearSubPoint=()=>{
+   _subCurPt=null;
+   _subFit=null;
+   _subRouteTok++;
+   if(_subMk){try{_subMk.remove()}catch(e){}_subMk=null}
+   if(_map&&_map.getSource('sub-route-src')){
+    _map.getSource('sub-route-src').setData({type:'Feature',geometry:{type:'LineString',coordinates:[]}});
+    if(_map.getLayer('sub-route-dash'))_map.setLayoutProperty('sub-route-dash','visibility','none');
+    if(_map.getLayer('sub-route-solid'))_map.setLayoutProperty('sub-route-solid','visibility','none');
+   }
+   if(_map)_map.easeTo({center:[44.515,40.181],zoom:12.2,duration:300});
+   const inp=g('subMapInp'),clr=g('subMapClr');
+   if(inp)inp.value='';
+   if(clr)clr.hidden=true;
+   renderSubRes(null,null);
+  };
+  window._subClearPt=clearSubPoint;
+  window._subRenderHist=renderSubHist;
   const showSubPoint=(pt,saveHist)=>{
    if(!_map||!window.maplibregl)return;
    const inK=typeof inKentron==='function'?inKentron(pt.lat,pt.lon):false;
@@ -443,10 +463,12 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
     +'</div>'
     +'<div id="subMapSug" class="subm-sug"></div>'
     +'<div id="subMapRes" class="subm-res"></div>'
+    +'<div class="subm-ctrl-bar">'
+    +'<button type="button" class="subm-ctrl-btn" data-act="submap-north">🧭 Север</button>'
+    +'<button type="button" class="subm-ctrl-btn" data-act="submap-fit">⤢ Весь маршрут</button>'
+    +'</div>'
     +'<div class="map-wrap"><div id="admMap"></div><div class="map-bar">'
     +'<button type="button" id="admSatBtn" class="map-btn" data-act="mapsat"></button>'
-    +'<button type="button" class="map-btn" data-act="submap-north">🧭 Север</button>'
-    +'<button type="button" class="map-btn" data-act="submap-fit">⤢ Весь маршрут</button>'
     +'</div></div>'
     +'<div id="subMapHist"></div>';
 
@@ -464,12 +486,11 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
      b.className='subm-sug-it';
      b.setAttribute('data-no-i18n','1');
      b.textContent=it.name;
-     b.onclick=async()=>{
+     b.onclick=()=>{
       _picked=it;
-      if(inp)inp.value=cleanLbl(it.name);
+      if(inp){inp.value=cleanLbl(it.name);inp.focus()}
       if(clr)clr.hidden=false;
       showSugs([]);
-      await resolveAndShow(it);
      };
      sugBox.appendChild(b);
     });
@@ -585,6 +606,7 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
      showSubPoint({name:lat.toFixed(5)+', '+lon.toFixed(5),lat:lat,lon:lon,exact:true},true);
     });
     _map.on('error',ev=>{if(ev&&ev.sourceId==='adm-sat-src')return;if(!sr&&_map){fc++;try{if(fc===1)_map.setStyle('https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json');else if(fc===2)_map.setStyle({version:8,sources:{'adm-sat-src':{type:'raster',tiles:[ADM_SAT_URL],tileSize:256,maxzoom:18}},layers:[{id:'adm-sat-layer',type:'raster',source:'adm-sat-src'}]})}catch(e){}}});
+    if(typeof ResizeObserver!=='undefined'&&g('admMap')){_mapRO=new ResizeObserver(()=>{if(_map)_map.resize()});_mapRO.observe(g('admMap'))}
     setTimeout(()=>{if(_map)_map.resize()},80);setTimeout(()=>{if(_map)_map.resize()},350);
    }catch(e){if(g('subMapRes'))g('subMapRes').innerHTML='<div class="box mut">Ошибка карты: '+esc((e&&e.message)||e)+'</div>';return}
   }
@@ -1812,6 +1834,8 @@ function openSelectModal(){
   else if(a==='mapsat'){ADM_SAT=!ADM_SAT;try{localStorage.setItem('ADM_MAP_SAT',ADM_SAT?'1':'0')}catch(e){}if(_applyAdmSat)_applyAdmSat(ADM_SAT);const sb=g('admSatBtn');if(sb){sb.classList.toggle('on',ADM_SAT);sb.textContent=ADM_SAT?'🛰️ Спутник':'🗺️ Схема'}}
   else if(a==='submap-north'){if(_map)_map.easeTo({bearing:0,pitch:0,duration:300})}
   else if(a==='submap-fit'){if(_subFit)_subFit();else if(_map)_map.easeTo({center:[44.515,40.181],zoom:12.2,duration:350})}
+  else if(a==='submap-clear'){e.stopPropagation();if(typeof window._subClearPt==='function')window._subClearPt()}
+  else if(a==='submap-hdel'){e.stopPropagation();const idx=+b.dataset.idx;if(idx>=0&&idx<_subHist.length){const rem=_subHist.splice(idx,1)[0];if(_subCurPt&&rem&&_subCurPt.name===rem.name&&typeof window._subClearPt==='function')window._subClearPt();if(typeof window._subRenderHist==='function')window._subRenderHist()}}
   else if(a==='submap-hist'){const it=_subHist[+b.dataset.idx];if(it&&typeof window._subShowPt==='function')window._subShowPt(it,false)}
   else if(a==='focus'){const mk=_markers[b.dataset.id];if(mk&&_map){_map.easeTo({center:mk.getLngLat(),zoom:16,duration:400});const p=mk.getPopup();if(p&&!p.isOpen())mk.togglePopup()}}
   else if(a==='att-prev'){ATT_YM=attShiftYm(ATT_YM,-1);ATT_SCROLLED_YM='';drawAtt()}
