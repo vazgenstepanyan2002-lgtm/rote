@@ -1065,11 +1065,12 @@ function drawTotals(){
    car:String(d.u.car||'').toUpperCase()
   })).sort((a,b)=>a.name.localeCompare(b.name,'ru'));
 
-  const groups=CARS_LIST.map(code=>{
+  const offRank=wd=>(wd>=1&&wd<=6)?wd:(wd===0?7:8);
+  const groups=CARS_LIST.map((code,idx)=>{
    const appM=appList.filter(x=>x.car===code);
    const manM=manualList.filter(x=>x.car===code);
-   return {code:code,title:'Экипаж '+code,members:[...appM,...manM]};
-  });
+   return {code:code,title:'Экипаж '+code,members:[...appM,...manM],_ord:idx};
+  }).sort((a,b)=>(offRank(getCrewOff(a.code))-offRank(getCrewOff(b.code)))||(a._ord-b._ord));
 
   const known=new Set(CARS_LIST);
   const noCarApp=appList.filter(x=>!x.car||!known.has(x.car));
