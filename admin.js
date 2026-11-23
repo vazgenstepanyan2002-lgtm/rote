@@ -588,7 +588,7 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
       _map.addLayer({id:'kentron-fill',type:'fill',source:'kentron-src',paint:{'fill-color':'#ef4444','fill-opacity':0.2}},fid);
       _map.addLayer({id:'kentron-line',type:'line',source:'kentron-src',paint:{'line-color':'#ef4444','line-width':2.4,'line-dasharray':[3,3]}},fid);
      }
-     if(typeof SARALANJ_LINE!=='undefined'&&!_map.getSource('saralanj-src')){
+     if(typeof SARALANJ_LINE!=='undefined'&&SARALANJ_LINE.length>1&&!_map.getSource('saralanj-src')){
       const sLine=SARALANJ_LINE.map(p=>[p[1],p[0]]);
       _map.addSource('saralanj-src',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:sLine}}});
       _map.addLayer({id:'saralanj-glow',type:'line',source:'saralanj-src',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ef4444','line-width':14,'line-opacity':0.28}},fid);

@@ -241,7 +241,7 @@
      new maplibregl.Popup().setLngLat(e.lngLat).setHTML('<b>⛔ Зона Кентрон</b><br>Въезд грузовым машинам до 21:00 запрещён').addTo(map);
     });
    }
-   if(typeof SARALANJ_LINE!=='undefined'&&typeof getShift==='function'&&getShift()==='day'&&!map.getSource('saralanj-src')){
+   if(typeof SARALANJ_LINE!=='undefined'&&SARALANJ_LINE.length>1&&typeof getShift==='function'&&getShift()==='day'&&!map.getSource('saralanj-src')){
     const sLine=SARALANJ_LINE.map(p=>[p[1],p[0]]);
     map.addSource('saralanj-src',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:sLine}}});
     map.addLayer({id:'saralanj-glow',type:'line',source:'saralanj-src',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ef4444','line-width':14,'line-opacity':0.28}},firstSymId);
