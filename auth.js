@@ -279,7 +279,7 @@
       const isAdmWord=/^(admin|админ|администратор)$/i.test(dispRn.trim());
       const admCrewLabel=isAdmWord?"👑 Администратор":("👑 Админ · "+esc(dispRn));
       const cb=(!adm&&!isAdmCrew)?crewBadgeHtml(msgCar):"";
-      const av=!mine?'<div class="ch-av" style="background:'+(adm?(dlv?"#0284c7":"#ca8a04"):(isAdmCrew?"#ca8a04":avColor(rn)))+'">'+(isAdmCrew?"👑":esc(rn.trim().slice(0,2).toUpperCase()))+'</div>':'';
+      const av=!mine?'<div class="ch-av" style="background:'+(adm?(dlv?"#0284c7":"#ca8a04"):(isAdmCrew?"#ca8a04":avColor(rn)))+'">'+(((adm&&!dlv)||isAdmCrew)?"👑":esc(rn.trim().slice(0,2).toUpperCase()))+'</div>':'';
       const au=adm?('<div class="ch-au">'+(dlv?'👩‍💼 Доставка':'👑 Администратор')+'</div>')
         :(isAdmCrew?('<div class="ch-au">'+admCrewLabel+'</div>')
         :(!mine?('<div class="ch-au">'+cb+'<span>'+esc(rn)+'</span></div>'):(cb?'<div class="ch-au">'+cb+'<span>'+esc(dispRn)+'</span></div>':'')));

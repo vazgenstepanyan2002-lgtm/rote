@@ -1014,10 +1014,10 @@ body:has(.cm.open)>*:not(.cm):not(#toast):not(#busy){pointer-events:none!importa
 .ch-av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;margin-bottom:2px}
 #chatMdl .ch-msg,#dmMdl .ch-msg{max-width:80%!important;background:#182234!important;border:1px solid rgba(255,255,255,.06)!important;border-radius:16px 16px 16px 4px!important;padding:8px 11px 7px!important;box-shadow:0 2px 6px rgba(0,0,0,.2)!important}
 #chatMdl .ch-msg.mine,#dmMdl .ch-msg.mine{background:#14473a!important;border-color:rgba(52,211,153,.2)!important;border-radius:16px 16px 4px 16px!important}
-#chatMdl .ch-msg.adm,#dmMdl .ch-msg.adm{background:#1c2436!important;border-color:rgba(250,204,21,.28)!important;border-left:3px solid #eab308!important}
+#chatMdl .ch-msg.adm,#dmMdl .ch-msg.adm{background:linear-gradient(135deg,#2a2313 0%,#1b1a16 100%)!important;border-color:rgba(250,204,21,.36)!important;border-left:3px solid #eab308!important}
+#chatMdl .ch-msg.adm .ch-au,#dmMdl .ch-msg.adm .ch-au,#chatMdl .ch-msg.adm-crew .ch-au{color:#fde047!important}
+#chatMdl .ch-msg.adm .ch-tm,#dmMdl .ch-msg.adm .ch-tm,#chatMdl .ch-msg.adm-crew .ch-tm{color:rgba(253,224,71,.72)!important}
 #chatMdl .ch-msg.mine.adm-crew{background:linear-gradient(135deg,#2a2313 0%,#1b1a16 100%)!important;border-color:rgba(250,204,21,.36)!important;border-right:3px solid #eab308!important;border-left:1px solid rgba(250,204,21,.36)!important}
-#chatMdl .ch-msg.adm-crew .ch-au{color:#fde047!important}
-#chatMdl .ch-msg.adm-crew .ch-tm{color:rgba(253,224,71,.72)!important}
 #chatMdl .ch-msg.dlv,#dmMdl .ch-msg.dlv{background:#1c2436!important;border-color:rgba(56,189,248,.28)!important;border-left:3px solid #38bdf8!important}
 #chatMdl .ch-empty,#dmMdl .ch-empty{background:transparent!important;border:none!important;color:#64748b!important}
 #chatMdl .ch-bar,#dmMdl .ch-bar{padding:8px 10px calc(10px + env(safe-area-inset-bottom,0px))!important;background:#131c2c!important;border-top:1px solid rgba(255,255,255,.08)!important}
