@@ -112,27 +112,113 @@
     return s;
   }
 
+  // Точный расчёт ширины текста в единицах Excel (ширина цифры '0' Calibri 11pt)
+  let _mCtx = null, _mZeroW = 0;
+  function getMeasureCtx() {
+    if (_mCtx !== null) return _mCtx;
+    try {
+      if (typeof document !== 'undefined') {
+        const cv = document.createElement('canvas');
+        const ctx = cv.getContext('2d');
+        if (ctx) {
+          ctx.font = '11pt Calibri, "Segoe UI", Roboto, Arial, sans-serif';
+          _mZeroW = ctx.measureText('0000000000').width / 10 || 7.5;
+          _mCtx = ctx;
+          return _mCtx;
+        }
+      }
+    } catch (e) {}
+    _mCtx = false;
+    return false;
+  }
+
+  function measureExcelLine(line, isBold) {
+    if (!line) return 0;
+    let heur = 0;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line.charCodeAt(i);
+      // Суррогатные пары (эмодзи и т.п.)
+      if (ch >= 0xD800 && ch <= 0xDBFF && i + 1 < line.length) {
+        heur += 2.1;
+        i++;
+        continue;
+      }
+      if (ch >= 0x0531 && ch <= 0x0556) {
+        // Армянские заглавные
+        heur += 1.48;
+      } else if (ch >= 0x0561 && ch <= 0x058F) {
+        // Армянские строчные (широкие буквы вроде մ, շ, պ, խ, փ, թ, ծ, ձ, ճ, ջ, ա, դ, ղ, և)
+        const c = line[i];
+        heur += 'մշպխփթծձճջադղև'.includes(c) ? 1.42 : 1.28;
+      } else if ((ch >= 0x0410 && ch <= 0x042F) || ch === 0x0401) {
+        // Кириллица заглавная
+        const c = line[i];
+        heur += 'ЖШЩЮФМЫД'.includes(c) ? 1.48 : 1.32;
+      } else if ((ch >= 0x0430 && ch <= 0x044F) || ch === 0x0451) {
+        // Кириллица строчная
+        const c = line[i];
+        heur += 'жшщюфмы'.includes(c) ? 1.36 : 1.12;
+      } else if (ch >= 65 && ch <= 90) {
+        // Латиница заглавная
+        const c = line[i];
+        heur += (c === 'W' || c === 'M') ? 1.48 : (c === 'I' ? 0.65 : 1.22);
+      } else if (ch >= 48 && ch <= 57) {
+        heur += 1.04;
+      } else if (ch < 128) {
+        const c = line[i];
+        heur += 'iljtf.,:;!| '.includes(c) ? 0.62 : ((c === 'w' || c === 'm') ? 1.35 : 1.0);
+      } else {
+        heur += 1.45;
+      }
+    }
+    if (isBold) heur *= 1.10;
+
+    let canvasW = 0;
+    const ctx = getMeasureCtx();
+    if (ctx && _mZeroW > 0) {
+      ctx.font = (isBold ? 'bold ' : '') + '11pt Calibri, "Segoe UI", Roboto, Arial, sans-serif';
+      canvasW = (ctx.measureText(line).width / _mZeroW) * 1.10;
+    }
+    return Math.max(heur, canvasW);
+  }
+
+  function measureExcelText(str, isBold) {
+    const s = String(str == null ? '' : str);
+    if (!s) return 0;
+    if (!s.includes('\n')) return measureExcelLine(s, isBold);
+    let best = 0;
+    for (const part of s.split('\n')) {
+      const w = measureExcelLine(part, isBold);
+      if (w > best) best = w;
+    }
+    return best;
+  }
+
   function createXlsxBlob(allRows, hasTotal, mergeFirstCol, rowTypes = []) {
     const colCount = allRows.reduce((m, r) => Math.max(m, (r && r.length) || 0), 0);
     const widths = new Array(colCount).fill(0);
 
     for (let r = 0; r < allRows.length; r++) {
       const row = allRows[r] || [];
+      const isHead = r === 0;
+      const isTot = hasTotal && r === allRows.length - 1;
+      const rType = (!isHead && !isTot) ? (rowTypes[r - 1] || '') : '';
       for (let c = 0; c < colCount; c++) {
         const raw = row[c];
-        const s = typeof raw === 'number' && isFinite(raw) ? fm(raw) : String(raw == null ? '' : raw);
-        let w = 0;
-        for (let i = 0; i < s.length; i++) {
-          const ch = s.charCodeAt(i);
-          w += ch > 127 ? 1.15 : 1.0;
-        }
+        const isNum = typeof raw === 'number' && isFinite(raw);
+        const s = isNum ? fm(raw) : String(raw == null ? '' : raw);
+        const isBold = isHead || isTot || rType === 'cat' || (mergeFirstCol && c === 0);
+        let w = measureExcelText(s, isBold);
+        if (isNum) w += 0.8; // небольшой запас для форматирования #,##0, чтобы не было ###
         if (w > widths[c]) widths[c] = w;
       }
     }
 
     const colsXml = '<cols>' + widths.map((w, i) => {
-      const cw = Math.max(4.2, Math.min(60, +(w + 2.6).toFixed(1)));
-      return `<col min="${i + 1}" max="${i + 1}" width="${cw}" customWidth="1"/>`;
+      const cw = w <= 3.6
+        ? Math.max(4.4, +(w + 2.2).toFixed(1))
+        : Math.max(6.0, Math.min(120, +(w + 3.2).toFixed(1)));
+      return `<col min="${i + 1}" max="${i + 1}" width="${cw}" bestFit="1" customWidth="1"/>`;
     }).join('') + '</cols>';
 
     // Объединение одинаковых подряд идущих ячеек в первом столбце (например, экипажи)
