@@ -821,7 +821,7 @@ function drawTotals(){
    gr.members.forEach(m=>{
     const wm=mData[m.pid]||{};
     const nmCell=m.isApp
-     ?'<div class="att-nm-app"><i>📱</i><span>'+esc(m.name)+'</span></div>'
+     ?'<div class="att-nm-app"><span>'+esc(m.name)+'</span><i>📱</i></div>'
      :'<button type="button" class="att-nm-btn" data-act="att-worker" data-w="'+esc(m.wid)+'"><span>'+esc(m.name)+'</span><i>✎</i></button>';
     let row='<tr><td class="att-nm-col">'+nmCell+'</td>';
     for(let d=1;d<=daysInMonth;d++){
