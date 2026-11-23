@@ -43,15 +43,75 @@
  firebase.initializeApp(CFG);
  const auth=firebase.auth(),db=firebase.database();
 
- const CARS_LIST=['BB','CC','VV','RR','EE','GG','XX','ZZ'];
+ const DEFAULT_CREWS=[
+  {code:'BB',off:1,note:''},{code:'CC',off:2,note:''},{code:'VV',off:3,note:''},{code:'RR',off:4,note:''},
+  {code:'EE',off:5,note:''},{code:'GG',off:6,note:''},{code:'XX',off:0,note:''},{code:'ZZ',off:0,note:''}
+ ];
+ let CARS_LIST=DEFAULT_CREWS.map(x=>x.code);
  const CREW_OFF={BB:1,CC:2,VV:3,RR:4,EE:5,GG:6,XX:0,ZZ:0};
+ let CREWS_META=DEFAULT_CREWS.reduce((m,x)=>{m[x.code]={off:x.off,note:x.note};return m},{});
  const CREW_OFF_LBL={BB:'Пн',CC:'Вт',VV:'Ср',RR:'Чт',EE:'Пт',GG:'Сб',XX:'Вс',ZZ:'Вс'};
  const WD_SHORT=['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+ window._crewsSet=new Set([...CARS_LIST,'ADMIN']);
+ function isValidCrewCode(code){
+  return /^(?=.*[A-Z])[A-Z0-9]{2,6}$/.test(code)&&code!=='ADMIN'&&code!=='ALL'&&code!=='__CREWS';
+ }
+ function syncCrewsFromLabels(){
+  const cfg=LABELS&&LABELS.__crews;
+  let items=null;
+  if(cfg&&typeof cfg==='object'&&(Array.isArray(cfg.list)||cfg.empty)){
+   items=[];
+   const seen=new Set();
+   (Array.isArray(cfg.list)?cfg.list:[]).forEach(x=>{
+    const cd=String((x&&x.code)||'').trim().toUpperCase();
+    if(!isValidCrewCode(cd)||seen.has(cd))return;
+    seen.add(cd);
+    const off=(typeof x.off==='number'&&x.off>=-1&&x.off<=6)?x.off:-1;
+    const note=String((x&&x.note)||'').trim().slice(0,40);
+    items.push({code:cd,off:off,note:note});
+   });
+  }else{
+   items=DEFAULT_CREWS.map(x=>({code:x.code,off:x.off,note:x.note}));
+  }
+  CARS_LIST=items.map(x=>x.code);
+  const meta={};
+  items.forEach(x=>{meta[x.code]={off:x.off,note:x.note}});
+  CREWS_META=meta;
+  window._crewsSet=new Set([...CARS_LIST,'ADMIN']);
+  if(SEL!=='all'&&!getCarsList().includes(SEL))SEL='all';
+  if(ONL_CAR!=='all'&&ONL_CAR!=='none'&&ONL_CAR!=='ADMIN'&&!CARS_LIST.includes(ONL_CAR))ONL_CAR='all';
+ }
+ function getCrewsConfigList(){
+  return CARS_LIST.map(cd=>({
+   code:cd,
+   off:getCrewDefOff(cd),
+   note:(CREWS_META[cd]&&CREWS_META[cd].note)||''
+  }));
+ }
+ async function saveCrewsConfig(list){
+  const clean=[];
+  const seen=new Set();
+  (list||[]).forEach(x=>{
+   const cd=String((x&&x.code)||'').trim().toUpperCase();
+   if(!isValidCrewCode(cd)||seen.has(cd))return;
+   seen.add(cd);
+   const off=(typeof x.off==='number'&&x.off>=-1&&x.off<=6)?x.off:-1;
+   const note=String((x&&x.note)||'').trim().slice(0,40);
+   clean.push({code:cd,off:off,note:note});
+  });
+  const payload=clean.length?{v:1,list:clean,updatedAt:Date.now()}:{v:1,empty:true,updatedAt:Date.now()};
+  await db.ref('labels/__crews').set(payload);
+ }
+ function getCrewDefOff(code){
+  if(!code)return -1;
+  if(CREWS_META[code]&&typeof CREWS_META[code].off==='number')return CREWS_META[code].off;
+  return CREW_OFF[code]!==undefined?CREW_OFF[code]:-1;
+ }
  function getCrewOff(code){
   if(!code)return -1;
   const custom=ATT&&ATT.crewOff&&ATT.crewOff[code];
   if(typeof custom==='number'&&custom>=-1&&custom<=6)return custom;
-  return CREW_OFF[code]!==undefined?CREW_OFF[code]:-1;
+  return getCrewDefOff(code);
  }
  function getCrewOffLbl(code){
   const wd=getCrewOff(code);
@@ -110,16 +170,16 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
  function stop(){offs.forEach(f=>{try{f()}catch(e){}});offs=[];clearInterval(tick);tick=null}
  function start(){
   stop();
-  listen('users',v=>{USERS=v||{};showErr('');draw()});
-  listen('cars',v=>{CARS=v||{};draw()});
-  listen('labels',v=>{LABELS=v||{};draw()});
+  listen('users',v=>{USERS=v||{};showErr('');draw();refreshCrewsMgr()});
+  listen('cars',v=>{CARS=v||{};draw();refreshCrewsMgr()});
+  listen('labels',v=>{LABELS=v||{};syncCrewsFromLabels();draw();refreshCrewsMgr()});
   listen('accounts',v=>{ACCOUNTS=v||{};draw()});
   listen('dm',onDmSnap);
   listen('config/forceUpdate',v=>{FU=+v||0;draw()});
   listen('config/ocrMap',v=>{OCR_MAP=v||{};if(TAB==='ocr')drawOcr()});
   {
    const attRef=db.ref('attendance');
-   const attFn=attRef.on('value',s=>{ATT=s.val()||{};ATT_ERR=false;if(TAB==='att')drawAtt()},()=>{ATT_ERR=true;if(TAB==='att')drawAtt()});
+   const attFn=attRef.on('value',s=>{ATT=s.val()||{};ATT_ERR=false;if(TAB==='att')drawAtt();refreshCrewsMgr()},()=>{ATT_ERR=true;if(TAB==='att')drawAtt()});
    offs.push(()=>attRef.off('value',attFn));
   }
   listen('chat',v=>{const obj=v||{};const all=Object.keys(obj).map(k=>Object.assign({k:k},obj[k])).sort((a,b)=>(+a.t||0)-(+b.t||0));const list=all.length>50?(all.slice(0,all.length-50).forEach(x=>db.ref('chat/'+x.k).remove().catch(()=>{})),all.slice(-50)):all;if(_admChatInit){const fresh=list.filter(m=>(+m.t||0)>_admLastNotifT&&!m.adm);if(fresh.length){const lm=fresh[fresh.length-1];_admLastNotifT=+lm.t||Date.now();localStorage.setItem('ADM_CHAT_NOTIF_T',String(_admLastNotifT));if(!CHAT_OPEN||document.hidden)admNotify((lm.name||'Водитель'),String(lm.txt||'').slice(0,140))}}else if(list.length){const mx=Math.max.apply(null,list.map(m=>+m.t||0));if(mx>_admLastNotifT){_admLastNotifT=mx;localStorage.setItem('ADM_CHAT_NOTIF_T',String(_admLastNotifT))}}_admChatInit=true;CHAT=list;if(CHAT_OPEN&&!document.hidden){markAdmChatSeen();renderAdmChat()}else updAdmChatBdg()});
@@ -1417,7 +1477,7 @@ function drawTotals(){
   const code=String(carCode||'').trim().toUpperCase();
   if(!code||!CARS_LIST.includes(code))return;
   const old=g('attOffOv');if(old){if(typeof old._close==='function')old._close();else old.remove()}
-  const curWd=getCrewOff(code),defWd=CREW_OFF[code]!==undefined?CREW_OFF[code]:-1;
+  const curWd=getCrewOff(code),defWd=getCrewDefOff(code);
   const days=[
    [1,'Понедельник','Пн'],
    [2,'Вторник','Вт'],
@@ -1774,8 +1834,9 @@ function openCarModal(uid){
   const crewOf=c=>devs().filter(x=>String(x.u.car||'').toUpperCase()===c).map(x=>dispName(x)).join(', ');
   let items='<div class="sel-it'+(!curCar?' on':'')+'" data-c=""><div class="sel-it-l"><span class="sel-ic" style="background:rgba(245,158,11,.14);border-color:rgba(245,158,11,.35);color:#fbbf24">🚫</span><div><div class="sel-it-nm">Без экипажа</div><div class="sel-it-sb">Начисление бонусов заблокировано</div></div></div><div class="sel-it-r"><span class="sel-chk">✓</span></div></div>';
   items+=CARS_LIST.map(c=>{
-   const on=curCar===c,crew=crewOf(c);
-   return '<div class="sel-it'+(on?' on':'')+'" data-c="'+c+'"><div class="sel-it-l"><span class="sel-ic">🚚</span><div><div class="sel-it-nm">Экипаж '+c+'</div><div class="sel-it-sb">'+(crew?esc(crew):'Экипаж свободен')+'</div></div></div><div class="sel-it-r"><span class="sel-chk">✓</span></div></div>';
+   const on=curCar===c,crew=crewOf(c),nt=(CREWS_META[c]&&CREWS_META[c].note)||'';
+   const sb=nt&&crew?('<span data-no-i18n="1">'+esc(nt)+'</span> · <span data-no-i18n="1">'+esc(crew)+'</span>'):(crew?'<span data-no-i18n="1">'+esc(crew)+'</span>':(nt?'<span data-no-i18n="1">'+esc(nt)+'</span>':'Экипаж свободен'));
+   return '<div class="sel-it'+(on?' on':'')+'" data-c="'+c+'"><div class="sel-it-l"><span class="sel-ic">🚚</span><div><div class="sel-it-nm"><span>Экипаж</span> <span data-no-i18n="1">'+c+'</span></div><div class="sel-it-sb">'+sb+'</div></div></div><div class="sel-it-r"><span class="sel-chk">✓</span></div></div>';
   }).join('');
   if(!isSubAdm()){
    items+='<div class="sel-it'+(curCar==="ADMIN"?' on':'')+'" data-c="ADMIN"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(167,139,250,.15);border-color:rgba(167,139,250,.4);color:#c4b5fd">🛡️</span><div><div class="sel-it-nm" data-no-i18n="1">Admin</div><div class="sel-it-sb">Открыть бонусы (скрыто из списков)</div></div></div><div class="sel-it-r"><span class="sel-chk">✓</span></div></div>';
@@ -1815,21 +1876,271 @@ function openCarModal(uid){
  }
 
 function openSelectModal(){
-  const CL=allCars(),carList=getCarsList(),ov=document.createElement('div');ov.className='ov';
+  const CL=allCars(),ov=document.createElement('div');ov.className='ov';
   const totSum=CL.reduce((a,c)=>a+c.sum,0);
-  let items='<div class="sel-it'+(SEL==='all'?' on':'')+'" data-val="all"><div class="sel-it-l"><span class="sel-ic">🚚</span><div><div class="sel-it-nm">Все экипажи</div><div class="sel-it-sb">Экипажей: '+carList.length+'</div></div></div><div class="sel-it-r"><span class="sel-it-sm">'+money(totSum)+'</span><span class="sel-chk">✓</span></div></div>';
+  let items='<div class="sel-it'+(SEL==='all'?' on':'')+'" data-val="all"><div class="sel-it-l"><span class="sel-ic">🚚</span><div><div class="sel-it-nm">Все экипажи</div><div class="sel-it-sb">Экипажей: '+CARS_LIST.length+'</div></div></div><div class="sel-it-r"><span class="sel-it-sm">'+money(totSum)+'</span><span class="sel-chk">✓</span></div></div>';
   items+=CL.map(c=>{
    const on=SEL===c.code,isAdm=c.code==='ADMIN';
-   const ic=isAdm?'<span class="sel-ic" style="background:rgba(167,139,250,.15);border-color:rgba(167,139,250,.4);color:#c4b5fd">🛡️</span>':'<span class="sel-ic" style="font-weight:800;font-size:13px">'+c.code+'</span>';
-   const nm=isAdm?'<span data-no-i18n="1">Admin</span>':('Экипаж '+c.code);
-   return '<div class="sel-it'+(on?' on':'')+'" data-val="'+c.code+'"><div class="sel-it-l">'+ic+'<div><div class="sel-it-nm">'+nm+'</div><div class="sel-it-sb">'+(c.crew.length?esc(c.crew.join(', ')):(isAdm?'Администратор':'Экипаж не назначен'))+'</div></div></div><div class="sel-it-r"><span class="sel-it-sm">'+money(c.sum)+'</span><span class="sel-chk">✓</span></div></div>';
+   const ic=isAdm?'<span class="sel-ic" style="background:rgba(167,139,250,.15);border-color:rgba(167,139,250,.4);color:#c4b5fd">🛡️</span>':'<span class="sel-ic" data-no-i18n="1" style="font-weight:800;font-size:13px">'+c.code+'</span>';
+   const nm=isAdm?'<span data-no-i18n="1">Admin</span>':('<span>Экипаж</span> <span data-no-i18n="1">'+c.code+'</span>');
+   const nt=!isAdm&&CREWS_META[c.code]&&CREWS_META[c.code].note||'';
+   const subTxt=c.crew.length?((nt?'<span data-no-i18n="1">'+esc(nt)+'</span> · ':'')+'<span data-no-i18n="1">'+esc(c.crew.join(', '))+'</span>'):(isAdm?'Администратор':(nt?'<span data-no-i18n="1">'+esc(nt)+'</span>':'Экипаж не назначен'));
+   return '<div class="sel-it'+(on?' on':'')+'" data-val="'+c.code+'"><div class="sel-it-l">'+ic+'<div><div class="sel-it-nm">'+nm+'</div><div class="sel-it-sb">'+subTxt+'</div></div></div><div class="sel-it-r"><span class="sel-it-sm">'+money(c.sum)+'</span><span class="sel-chk">✓</span></div></div>';
   }).join('');
-  ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>Выберите экипаж</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'+items+'</div></div>';
+  const mgrBtn=!isSubAdm()?'<button type="button" class="cmg-sel-mgr" id="selCrewsMgr">⚙️ Управление экипажами</button>':'';
+  ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>Выберите экипаж</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'+items+'</div>'+mgrBtn+'</div>';
   document.body.appendChild(ov);
   const close=()=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),180)};
   ov.querySelector('.sel-x').onclick=close;
+  const mb=ov.querySelector('#selCrewsMgr');
+  if(mb)mb.onclick=()=>{close();setTimeout(()=>openCrewsManagerModal(),190)};
   ov.onclick=e=>{if(e.target===ov){close();return}const it=e.target.closest('.sel-it');if(it){SEL=it.dataset.val;close();draw()}};
   requestAnimationFrame(()=>ov.classList.add('show'));
+ }
+ function refreshCrewsMgr(){
+  const ov=g('crewsMgrOv');
+  if(ov&&typeof ov._render==='function')ov._render();
+ }
+ function openCrewsManagerModal(){
+  if(isSubAdm())return;
+  const old=g('crewsMgrOv');if(old){if(typeof old._close==='function')old._close();else old.remove()}
+  const ov=document.createElement('div');ov.id='crewsMgrOv';ov.className='ov';
+  ov.innerHTML='<div class="dlg cmg-dlg"><div class="sel-hd"><b id="cmgTitle">🚚 Управление экипажами</b><button type="button" class="sel-x">✕</button></div><button type="button" class="cmg-add-btn" id="cmgAddBtn">➕ Добавить новый экипаж</button><div class="cmg-list" id="cmgList"></div></div>';
+  document.body.appendChild(ov);
+  let closed=false;
+  const close=()=>{if(closed)return;closed=true;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
+  ov._close=close;
+  const onK=e=>{if(e.key==='Escape'&&!g('crewEditOv')&&(!g('cOv')||g('cOv').hidden)){e.preventDefault();e.stopImmediatePropagation();close()}};
+  document.addEventListener('keydown',onK);
+  const offRank=wd=>(wd>=1&&wd<=6)?wd:(wd===0?7:8);
+  const render=()=>{
+   const listEl=ov.querySelector('#cmgList'),tEl=ov.querySelector('#cmgTitle');
+   if(!listEl)return;
+   if(tEl)tEl.innerHTML='<span>🚚 Управление экипажами</span> <span style="font-size:12.5px;color:#94a3b8;font-weight:700">('+CARS_LIST.length+')</span>';
+   if(!CARS_LIST.length){
+    listEl.innerHTML='<div class="mut box" style="text-align:center;margin:8px 0">Экипажей пока нет. Нажмите «Добавить новый экипаж».</div>';
+    return;
+   }
+   const ordered=CARS_LIST.map((cd,idx)=>({cd,idx})).sort((a,b)=>(offRank(getCrewOff(a.cd))-offRank(getCrewOff(b.cd)))||(a.idx-b.idx));
+   const wObj=(ATT&&ATT.workers)||{};
+   listEl.innerHTML=ordered.map(({cd})=>{
+    const offLbl=getCrewOffLbl(cd);
+    const note=(CREWS_META[cd]&&CREWS_META[cd].note)||'';
+    const appDrvs=devs().filter(d=>{
+     if(String(d.u.car||'').toUpperCase()!==cd)return false;
+     const acc=accByUid(d.id);
+     return !((acc&&acc.blocked)||d.u.blocked);
+    }).map(d=>LABELS[d.id]||profName(d)||devName(d.u.ua));
+    const manDrvs=Object.keys(wObj).map(k=>wObj[k]).filter(w=>w&&w.name&&String(w.car||'').toUpperCase()===cd).map(w=>String(w.name).trim());
+    const allMems=[...appDrvs,...manDrvs];
+    const carInfo=parseCar(cd);
+    const histCnt=Object.keys(carInfo.hist||{}).filter(k=>carInfo.hist[k]).length;
+    const metaParts=[];
+    if(carInfo.sum>0||carInfo.qty>0)metaParts.push('<span>💰 '+money(carInfo.sum)+'</span> · <span>'+fm(carInfo.qty)+' шт</span>');
+    if(histCnt>0)metaParts.push('<span>📦 Архив: '+histCnt+'</span>');
+    return '<div class="cmg-card">'
+     +'<div class="cmg-card-l"><span class="cmg-code" data-no-i18n="1">'+esc(cd)+'</span>'
+     +'<div class="cmg-info"><div class="cmg-top"><span class="cmg-nm"><span>Экипаж</span> <span data-no-i18n="1">'+esc(cd)+'</span></span><span class="cmg-off">'+(offLbl?offLbl:'Без вых.')+'</span></div>'
+     +(note?'<div class="cmg-note" data-no-i18n="1">🚐 '+esc(note)+'</div>':'')
+     +'<div class="cmg-sub">'+(allMems.length?'<span data-no-i18n="1">'+esc(allMems.join(', '))+'</span>':'Свободен')+'</div>'
+     +(metaParts.length?'<div class="cmg-meta">'+metaParts.join(' · ')+'</div>':'')
+     +'</div></div>'
+     +'<div class="cmg-acts">'
+     +'<button type="button" class="cmg-act ed" data-cmg="edit" data-code="'+esc(cd)+'" aria-label="Настроить">✏️</button>'
+     +'<button type="button" class="cmg-act dl" data-cmg="del" data-code="'+esc(cd)+'" aria-label="Удалить">🗑️</button>'
+     +'</div></div>';
+   }).join('');
+  };
+  ov._render=render;
+  render();
+  ov.querySelector('.sel-x').onclick=close;
+  ov.querySelector('#cmgAddBtn').onclick=()=>openCrewEditModal(null);
+  ov.onclick=e=>{
+   if(e.target===ov){close();return}
+   const btn=e.target.closest('[data-cmg]');if(!btn)return;
+   const act=btn.dataset.cmg,code=btn.dataset.code;
+   if(act==='edit')openCrewEditModal(code);
+   else if(act==='del')deleteCrew(code);
+  };
+  requestAnimationFrame(()=>ov.classList.add('show'));
+ }
+ function openCrewEditModal(editCode){
+  if(isSubAdm())return;
+  const isEdit=!!editCode;
+  const oldCode=isEdit?String(editCode).trim().toUpperCase():'';
+  const old=g('crewEditOv');if(old){if(typeof old._close==='function')old._close();else old.remove()}
+  let selOff=isEdit?getCrewOff(oldCode):0;
+  const curNote=isEdit&&CREWS_META[oldCode]?CREWS_META[oldCode].note||'':'';
+  const allDrvs=devs().filter(d=>{
+   const acc=accByUid(d.id),blk=!!((acc&&acc.blocked)||d.u.blocked);
+   const c=String(d.u.car||'').toUpperCase();
+   return !blk&&c!=='ADMIN';
+  }).sort((a,b)=>(LABELS[a.id]||profName(a)||'').localeCompare(LABELS[b.id]||profName(b)||'','ru'));
+  const selectedUids=new Set(isEdit?allDrvs.filter(d=>String(d.u.car||'').toUpperCase()===oldCode).map(d=>d.id):[]);
+  const dayOpts=[[1,'Пн'],[2,'Вт'],[3,'Ср'],[4,'Чт'],[5,'Пт'],[6,'Сб'],[0,'Вс'],[-1,'Нет']];
+  const ov=document.createElement('div');ov.id='crewEditOv';ov.className='ov';
+  ov.innerHTML='<div class="dlg cmg-dlg">'
+   +'<div class="sel-hd"><b>'+(isEdit?'<span>✏️ Настройка экипажа</span> <span data-no-i18n="1">'+esc(oldCode)+'</span>':'➕ Новый экипаж')+'</b><button type="button" class="sel-x">✕</button></div>'
+   +'<div class="cmg-form">'
+   +'<div class="cmg-lbl">Код экипажа (2–6 лат. букв/цифр)</div>'
+   +'<input id="ceCode" class="dlg-inp cmg-code-inp" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="KK" value="'+esc(oldCode)+'">'
+   +'<div class="cmg-lbl">Выходной день</div>'
+   +'<div class="cmg-days" id="ceDays">'+dayOpts.map(([wd,lb])=>'<button type="button" class="cmg-day'+(wd===selOff?' on':'')+'" data-wd="'+wd+'">'+lb+'</button>').join('')+'</div>'
+   +'<div class="cmg-lbl">Описание / авто (необязательно)</div>'
+   +'<input id="ceNote" class="dlg-inp" maxlength="40" placeholder="Например: Газель, госномер..." value="'+esc(curNote)+'" style="margin-bottom:4px">'
+   +'<div class="cmg-lbl">Водители в экипаже ('+allDrvs.length+')</div>'
+   +'<div class="cmg-drv-box" id="ceDrvs">'+(allDrvs.length?allDrvs.map(d=>{
+    const nm=LABELS[d.id]||profName(d)||devName(d.u.ua);
+    const dCar=String(d.u.car||'').toUpperCase();
+    const isOn=selectedUids.has(d.id);
+    const carTag=dCar&&dCar!==oldCode?('<span class="cmg-drv-car"><span>сейчас:</span> <b data-no-i18n="1">'+esc(dCar)+'</b></span>'):(!dCar?'<span class="cmg-drv-car">Свободен</span>':'');
+    return '<div class="cmg-drv'+(isOn?' on':'')+'" data-uid="'+esc(d.id)+'"><div style="min-width:0;flex:1"><div class="cmg-drv-nm" data-no-i18n="1">'+esc(nm)+'</div>'+carTag+'</div><span class="cmg-drv-chk">✓</span></div>';
+   }).join(''):'<div class="mut" style="text-align:center;padding:10px;font-size:12px">Нет активных водителей</div>')+'</div>'
+   +'<div id="ceErr" class="cmg-err"></div>'
+   +'</div>'
+   +'<div class="cmg-ft"><button type="button" class="dlg-no" id="ceNo">Отмена</button><button type="button" class="dlg-ok" id="ceSave">💾 Сохранить</button></div>'
+   +'</div>';
+  document.body.appendChild(ov);
+  let closed=false,saving=false;
+  const close=()=>{if(closed)return;closed=true;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
+  ov._close=close;
+  const onK=e=>{if(e.key==='Escape'&&(!g('cOv')||g('cOv').hidden)){e.preventDefault();e.stopImmediatePropagation();close()}};
+  document.addEventListener('keydown',onK);
+  const codeInp=ov.querySelector('#ceCode'),noteInp=ov.querySelector('#ceNote'),errEl=ov.querySelector('#ceErr'),saveBtn=ov.querySelector('#ceSave');
+  codeInp.oninput=()=>{
+   const clean=codeInp.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
+   if(codeInp.value!==clean)codeInp.value=clean;
+   errEl.textContent='';
+  };
+  ov.querySelector('#ceDays').onclick=e=>{
+   const b=e.target.closest('.cmg-day');if(!b)return;
+   selOff=+b.dataset.wd;
+   ov.querySelectorAll('#ceDays .cmg-day').forEach(x=>x.classList.toggle('on',x===b));
+  };
+  ov.querySelector('#ceDrvs').onclick=e=>{
+   const row=e.target.closest('.cmg-drv');if(!row)return;
+   const uid=row.dataset.uid;
+   if(selectedUids.has(uid)){selectedUids.delete(uid);row.classList.remove('on')}
+   else{selectedUids.add(uid);row.classList.add('on')}
+  };
+  ov.querySelector('.sel-x').onclick=close;
+  ov.querySelector('#ceNo').onclick=close;
+  ov.onclick=e=>{if(e.target===ov)close()};
+  saveBtn.onclick=async()=>{
+   if(saving)return;
+   const newCode=codeInp.value.trim().toUpperCase();
+   const newNote=noteInp.value.trim().slice(0,40);
+   if(!isValidCrewCode(newCode)){
+    errEl.textContent='Код: 2–6 латинских букв/цифр (минимум 1 буква, кроме ADMIN)';
+    codeInp.focus();return;
+   }
+   const isRename=isEdit&&newCode!==oldCode;
+   if((!isEdit||isRename)&&CARS_LIST.includes(newCode)){
+    errEl.textContent='Экипаж «'+newCode+'» уже существует';
+    codeInp.focus();return;
+   }
+   if(isRename){
+    const okRen=await ask('Переименовать экипаж «'+oldCode+'» → «'+newCode+'»?\n\nВсе водители, бонусы, архив и сотрудники табеля будут перенесены на новый код.',{title:'Переименование экипажа',okText:'Переименовать'});
+    if(!okRen)return;
+   }
+   saving=true;saveBtn.disabled=true;
+   const wasSel=isRename&&SEL===oldCode,wasOnl=isRename&&ONL_CAR===oldCode;
+   try{
+    const list=getCrewsConfigList();
+    if(isEdit){
+     const idx=list.findIndex(x=>x.code===oldCode);
+     if(idx>=0)list[idx]={code:newCode,off:selOff,note:newNote};
+     else list.push({code:newCode,off:selOff,note:newNote});
+    }else{
+     list.push({code:newCode,off:selOff,note:newNote});
+    }
+    if(isRename){
+     const oldSnap=(await db.ref('cars/'+oldCode).once('value')).val();
+     if(oldSnap){
+      await db.ref('cars/'+newCode).set(oldSnap);
+      await db.ref('cars/'+oldCode).remove();
+     }
+     const wObj=(ATT&&ATT.workers)||{};
+     const wOps=[];
+     Object.keys(wObj).forEach(wid=>{
+      if(wObj[wid]&&String(wObj[wid].car||'').toUpperCase()===oldCode){
+       wOps.push(db.ref('attendance/workers/'+wid+'/car').set(newCode));
+      }
+     });
+     if(wOps.length)await Promise.all(wOps);
+     await db.ref('attendance/crewOff/'+oldCode).remove().catch(()=>{});
+    }
+    await db.ref('attendance/crewOff/'+newCode).remove().catch(()=>{});
+    await saveCrewsConfig(list);
+    // Применяем изменения состава водителей (включая перенос заблокированных при переименовании)
+    const drvOps=[],handledUids=new Set();
+    allDrvs.forEach(d=>{
+     handledUids.add(d.id);
+     const curC=String(d.u.car||'').toUpperCase();
+     const wantIn=selectedUids.has(d.id);
+     if(wantIn&&curC!==newCode){
+      drvOps.push(db.ref('users/'+d.id+'/car').set(newCode));
+     }else if(!wantIn&&isEdit&&curC===oldCode){
+      drvOps.push(db.ref('users/'+d.id+'/car').set(null));
+     }
+    });
+    if(isRename){
+     devs().forEach(d=>{
+      if(!handledUids.has(d.id)&&String(d.u.car||'').toUpperCase()===oldCode){
+       drvOps.push(db.ref('users/'+d.id+'/car').set(newCode));
+      }
+     });
+    }
+    if(drvOps.length)await Promise.all(drvOps);
+    if(wasSel)SEL=newCode;
+    if(wasOnl)ONL_CAR=newCode;
+    close();
+    draw();
+    toast(isEdit?('Экипаж '+newCode+' обновлён'):('Экипаж '+newCode+' добавлен'));
+   }catch(err){
+    errEl.textContent='Ошибка сохранения: '+((err&&err.message)||err);
+    saving=false;saveBtn.disabled=false;
+   }
+  };
+  requestAnimationFrame(()=>{ov.classList.add('show');if(!isEdit)codeInp.focus()});
+ }
+ async function deleteCrew(carCode){
+  if(isSubAdm())return;
+  const code=String(carCode||'').trim().toUpperCase();
+  if(!code||!CARS_LIST.includes(code))return;
+  const drvIds=devs().filter(d=>String(d.u.car||'').toUpperCase()===code).map(d=>d.id);
+  const wObj=(ATT&&ATT.workers)||{};
+  const manIds=Object.keys(wObj).filter(wid=>wObj[wid]&&String(wObj[wid].car||'').toUpperCase()===code);
+  const carInfo=parseCar(code);
+  const histCnt=Object.keys(carInfo.hist||{}).filter(k=>carInfo.hist[k]).length;
+  const lines=['Удалить экипаж «'+code+'»?'];
+  if(drvIds.length||manIds.length){
+   const p=[];
+   if(drvIds.length)p.push('водителей: '+drvIds.length);
+   if(manIds.length)p.push('рабочих в табеле: '+manIds.length);
+   lines.push('• Будут переведены в «Без экипажа» ('+p.join(', ')+').');
+  }
+  if(carInfo.sum>0||carInfo.qty>0||histCnt>0){
+   const p=[];
+   if(carInfo.sum>0||carInfo.qty>0)p.push('текущие бонусы '+money(carInfo.sum));
+   if(histCnt>0)p.push('архив ('+histCnt+' мес.)');
+   lines.push('• Также будут удалены: '+p.join(' и ')+'.');
+  }
+  const ok=await ask(lines.join('\n\n'),{title:'Удаление экипажа',okText:'Удалить',danger:true});
+  if(!ok)return;
+  try{
+   const nextList=getCrewsConfigList().filter(x=>x.code!==code);
+   await saveCrewsConfig(nextList);
+   const ops=[];
+   drvIds.forEach(uid=>ops.push(db.ref('users/'+uid+'/car').set(null)));
+   manIds.forEach(wid=>ops.push(db.ref('attendance/workers/'+wid+'/car').set('')));
+   ops.push(db.ref('attendance/crewOff/'+code).remove().catch(()=>{}));
+   ops.push(db.ref('cars/'+code).remove().catch(()=>{}));
+   await Promise.all(ops);
+   if(SEL===code)SEL='all';
+   if(ONL_CAR===code)ONL_CAR='all';
+   toast('Экипаж '+code+' удалён');
+  }catch(err){toast('Ошибка удаления',true)}
  }
  // ===== Действия =====
  async function force(){
@@ -2349,6 +2660,7 @@ function openSelectModal(){
   let items='';
   if(!sub){
    items+='<div class="sel-it'+(TAB==='att'?' on':'')+'" data-op="att"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(168,85,247,.16);border-color:rgba(192,132,252,.4);color:#d8b4fe">📅</span><div><div class="sel-it-nm">Табель пропусков</div><div class="sel-it-sb">Учёт выходов и отсутствий по экипажам</div></div></div>'+(TAB==='att'?'<div class="sel-it-r"><span class="sel-chk">✓</span></div>':'')+'</div>';
+   items+='<div class="sel-it" data-op="crews"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(16,185,129,.18);border-color:rgba(52,211,153,.45);color:#6ee7b7">🚚</span><div><div class="sel-it-nm">Управление экипажами</div><div class="sel-it-sb">Экипажей: '+CARS_LIST.length+' · добавить, настроить, удалить</div></div></div></div>';
   }else{
    items+='<div class="sel-it'+(TAB==='ver'?' on':'')+'" data-op="ver"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(168,85,247,.16);border-color:rgba(192,132,252,.4);color:#d8b4fe">🔄</span><div><div class="sel-it-nm">Версия приложения</div><div class="sel-it-sb">Обновление и версии на устройствах</div></div></div>'+(TAB==='ver'?'<div class="sel-it-r"><span class="sel-chk">✓</span></div>':'')+'</div>';
   }
@@ -2365,6 +2677,7 @@ function openSelectModal(){
    const it=e.target.closest('.sel-it');if(!it)return;
    const op=it.dataset.op;close();
    if(op==='att'){TAB='att';draw()}
+   else if(op==='crews'){openCrewsManagerModal()}
    else if(op==='ver'){TAB='ver';draw()}
    else if(op==='lang'){openAdmLangModal()}
    else if(op==='diag'){if(typeof window._openAdmDiag==='function')window._openAdmDiag()}
@@ -2386,7 +2699,7 @@ function openSelectModal(){
   }else{
    stop();
    if(_map)destroyMap();
-   USERS={};LABELS={};ACCOUNTS={};ATT={};ATT_ERR=false;CARS={};OCR_MAP={};CHAT=[];DMS={};DM_UID=null;CHAT_OPEN=false;_admChatInit=false;_admDmInit=false;SEL='all';
+   USERS={};LABELS={};syncCrewsFromLabels();ACCOUNTS={};ATT={};ATT_ERR=false;CARS={};OCR_MAP={};CHAT=[];DMS={};DM_UID=null;CHAT_OPEN=false;_admChatInit=false;_admDmInit=false;SEL='all';
    document.querySelectorAll('.ov').forEach(o=>{if(typeof o._close==='function')o._close();else if(o.id!=='dlgOv')o.remove()});
    g('panel').hidden=true;g('login').hidden=false;
   }
@@ -2576,7 +2889,8 @@ function openSelectModal(){
     if (!list.length) return;
     window._admSkipBack = true;
     fromPop = true;
-    const top = list[list.length - 1];
+    const cOvEl = document.getElementById("cOv");
+    const top = (cOvEl && !cOvEl.hidden && cOvEl.classList.contains("show")) ? cOvEl : list[list.length - 1];
     const btn = top.querySelector("#cNo, #admSumX, #achX, #admDmX, #dgClose, #pwNo, .sel-x, .ach-x");
     if (btn) btn.click();
     else top.click();

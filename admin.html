@@ -3,7 +3,7 @@
 <meta name="robots" content="noindex,nofollow">
 <script>(function(){function c(){try{if(!localStorage.getItem('USER_NAME')){location.replace('./');}}catch(e){}}c();window.addEventListener('pageshow',c);})();</script>
 <title>EuroBaza · Админ</title>
-<link rel="stylesheet" href="leaflet.min.css?v=20261124000212">
+<link rel="stylesheet" href="leaflet.min.css?v=20261124001403">
 <style>
 *{-webkit-tap-highlight-color:transparent;box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
 [hidden]{display:none!important}
@@ -496,6 +496,46 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
 .adm-hd-bdg{position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:1px 5px;border-radius:99px;line-height:1.2;box-shadow:0 2px 6px rgba(0,0,0,.5)}
 .adm-hd-bdg[hidden]{display:none!important}
 
+/* Управление экипажами (главный админ) */
+.cmg-dlg{max-width:430px;padding:18px 16px 16px;text-align:left;max-height:90dvh;display:flex;flex-direction:column}
+.cmg-add-btn{width:100%;height:44px;margin-bottom:12px;border-radius:14px;border:none;background:linear-gradient(135deg,#34d399 0%,#10b981 55%,#059669 100%);color:#042414;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;box-shadow:0 8px 20px rgba(16,185,129,.25);flex-shrink:0;transition:transform .12s}
+.cmg-add-btn:active{transform:scale(.98)}
+.cmg-list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:2px}
+.cmg-card{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;border-radius:15px;background:rgba(7,11,18,.68);border:1px solid rgba(255,255,255,.1)}
+.cmg-card-l{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.cmg-code{min-width:42px;height:40px;padding:0 6px;border-radius:12px;background:rgba(16,185,129,.16);border:1px solid rgba(52,211,153,.4);color:#6ee7b7;font-size:13.5px;font-weight:800;letter-spacing:.4px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.cmg-info{min-width:0;flex:1}
+.cmg-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cmg-nm{font-size:14px;font-weight:800;color:#f8fafc}
+.cmg-off{padding:1px 6px;border-radius:6px;font-size:10px;font-weight:800;background:rgba(245,158,11,.16);border:1px solid rgba(251,191,36,.38);color:#fcd34d}
+.cmg-note{font-size:11.5px;color:#7dd3fc;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmg-sub{font-size:11.5px;color:#94a3b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmg-meta{font-size:11px;color:#fde047;font-weight:700;margin-top:2px}
+.cmg-acts{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.cmg-act{width:34px;height:34px;padding:0;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#e2e8f0;transition:transform .12s}
+.cmg-act:active{transform:scale(.92)}
+.cmg-act.ed{background:rgba(56,189,248,.15);border-color:rgba(56,189,248,.38);color:#7dd3fc}
+.cmg-act.dl{background:rgba(239,68,68,.14);border-color:rgba(248,113,113,.38);color:#fca5a5}
+.cmg-form{overflow-y:auto;flex:1;min-height:0;padding-right:2px}
+.cmg-lbl{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px}
+.cmg-lbl:first-child{margin-top:0}
+.cmg-code-inp{height:48px!important;font-size:20px!important;font-weight:800!important;letter-spacing:3px;text-align:center;text-transform:uppercase;margin-bottom:4px!important}
+.cmg-days{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:4px}
+.cmg-day{height:36px;padding:0 4px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(7,11,18,.7);color:#94a3b8;font-size:12.5px;font-weight:700;cursor:pointer;transition:.12s}
+.cmg-day.on{background:rgba(245,158,11,.22);border-color:rgba(251,191,36,.55);color:#fde047;box-shadow:0 4px 12px rgba(245,158,11,.15)}
+.cmg-day:active{transform:scale(.95)}
+.cmg-drv-box{max-height:175px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:6px;border-radius:12px;background:rgba(7,11,18,.55);border:1px solid rgba(255,255,255,.08)}
+.cmg-drv{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);cursor:pointer;transition:.12s}
+.cmg-drv.on{background:rgba(16,185,129,.16);border-color:rgba(52,211,153,.48)}
+.cmg-drv-nm{font-size:13px;font-weight:700;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmg-drv-car{font-size:10.5px;color:#94a3b8;flex-shrink:0}
+.cmg-drv-chk{width:20px;height:20px;border-radius:6px;border:1.5px solid rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:transparent;flex-shrink:0}
+.cmg-drv.on .cmg-drv-chk{background:#10b981;border-color:#10b981;color:#042414}
+.cmg-err{color:#f87171;font-size:12px;min-height:16px;margin:6px 0 4px;text-align:center}
+.cmg-ft{display:grid;grid-template-columns:1fr 1.3fr;gap:8px;margin-top:10px;flex-shrink:0}
+.cmg-sel-mgr{width:100%;height:40px;margin-top:10px;border-radius:12px;border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.12);color:#7dd3fc;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
+.cmg-sel-mgr:active{transform:scale(.98)}
+
 /* Карта проверки адресов для субадмина */
 .subm-srch{display:flex;gap:7px;align-items:center;margin-bottom:8px}
 .subm-inpw{position:relative;flex:1;min-width:0}
@@ -600,14 +640,14 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
   </div>
  </div>
 </div>
-<script src="storage.js?v=20261124000212"></script>
-<script src="geo.js?v=20261124000212"></script>
-<script src="zones.js?v=20261124000212"></script>
-<script src="bonus-engine.js?v=20261124000212"></script>
-<script src="table-viewer.js?v=20261124000212"></script>
-<script src="yandex.js?v=20261124000212"></script>
-<script src="i18n.js?v=20261124000212"></script>
-<script src="admin.js?v=20261124000212"></script>
+<script src="storage.js?v=20261124001403"></script>
+<script src="geo.js?v=20261124001403"></script>
+<script src="zones.js?v=20261124001403"></script>
+<script src="bonus-engine.js?v=20261124001403"></script>
+<script src="table-viewer.js?v=20261124001403"></script>
+<script src="yandex.js?v=20261124001403"></script>
+<script src="i18n.js?v=20261124001403"></script>
+<script src="admin.js?v=20261124001403"></script>
 <script>
 ['lgEm','lgPw'].forEach(id=>{
  const el=document.getElementById(id);

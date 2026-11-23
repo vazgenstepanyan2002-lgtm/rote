@@ -572,8 +572,15 @@
     return s.toLowerCase().replace(/ու/g, 'u').split('').map(ch => cyr[ch] !== undefined ? cyr[ch] : (arm[ch] !== undefined ? arm[ch] : ch)).join('');
   }
 
+  function isCrewCodeToken(s) {
+    const t = String(s || '').trim();
+    if (!t) return false;
+    if (window._crewsSet && window._crewsSet.has(t)) return true;
+    return /^(BB|CC|VV|RR|EE|GG|XX|ZZ|ADMIN)$/.test(t) || /^(?=.*[A-Z])[A-Z0-9]{2,6}$/.test(t);
+  }
+
   function translitWord(word, lang) {
-    if (!word || /^(BB|CC|VV|RR|EE|GG|XX|ZZ|ADMIN)$/.test(word) || /^\d+$/.test(word)) return word;
+    if (!word || isCrewCodeToken(word) || /^\d+$/.test(word)) return word;
     const base = toLatinBase(word);
     if (KNOWN_NAMES[base] && KNOWN_NAMES[base][lang]) return KNOWN_NAMES[base][lang];
     const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
@@ -614,8 +621,8 @@
   function trExcelVal(val, lang, keepCrewCode, isPersonName) {
     if (typeof val === 'number' || val == null || val === '') return val;
     const s = String(val);
-    // Коды экипажей (BB, CC, VV, RR, EE, GG, XX, ZZ, ADMIN) всегда на латинском
-    if (keepCrewCode || /^(BB|CC|VV|RR|EE|GG|XX|ZZ|ADMIN)$/.test(s.trim())) return s;
+    // Коды экипажей (BB, CC, ... и любые созданные админом) всегда на латинском
+    if (keepCrewCode || isCrewCodeToken(s)) return s;
     if (isPersonName) return translitPersonName(s, lang);
     if (lang === 'ru') return s;
     // «Экипаж BB (имена)» — переводим слово «Экипаж» и имена в скобках, код BB сохраняем
