@@ -681,7 +681,7 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
   const noCrewOnCount = L.filter(d => !String(d.u.car||'').trim() && now - (d.u.t||0) < TTL).length;
 
   let btnLabel = '🚚 Все экипажи';
-  let btnBadge = '<span class="onl-badge">' + L.length + '</span>';
+  let btnBadge = '<span class="onl-badge">' + CARS_LIST.length + '</span>';
   if(ONL_CAR === 'none'){
     btnLabel = '🚫 Без экипажа';
     btnBadge = '<span class="onl-badge' + (noCrewOnCount ? ' on' : '') + '">' + (noCrewOnCount ? '🟢 ' : '') + noCrewCount + '</span>';
@@ -1642,7 +1642,7 @@ function openOnlCrewModal(){
   const ov=document.createElement('div');ov.className='ov';
   let items = '<div class="sel-it' + (ONL_CAR === 'all' ? ' on' : '') + '" data-c="all">'
             + '<div class="sel-it-l"><span class="sel-ic">🌐</span><div><div class="sel-it-nm">Все экипажи</div><div class="sel-it-sb">Все водители и устройства</div></div></div>'
-            + '<div class="sel-it-r"><span class="onl-badge' + (onTotal ? ' on' : '') + '">' + (onTotal ? '🟢 ' + onTotal + ' / ' : '') + L.length + '</span></div></div>';
+            + '<div class="sel-it-r"><span class="onl-badge' + (onTotal ? ' on' : '') + '">' + CARS_LIST.length + '</span></div></div>';
 
   CARS_LIST.forEach(c => {
     const total = crewCount(c), on = crewOnCount(c);
