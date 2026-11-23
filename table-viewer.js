@@ -181,7 +181,10 @@
           cells.push(`<c r="${ref}" s="${styleId}"><v>${val}</v></c>`);
         } else {
           const str = String(val);
-          if (str === '' && !isHead && !isTot && rType !== 'cat' && rType !== 'hi') continue;
+          if (str === '' && !isHead && !isTot && rType !== 'cat' && rType !== 'hi') {
+            cells.push(`<c r="${ref}" s="${styleId}"/>`);
+            continue;
+          }
           if (!isHead && !isTot && rType === '') {
             if (str === '✕') styleId = 7;
             else if (str === '✓') styleId = 8;
@@ -221,14 +224,14 @@
     const styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
       + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
       + '<fonts count="6">'
-      + '<font><sz val="11"/><name val="Calibri"/></font>'
-      + '<font><b/><sz val="11"/><name val="Calibri"/></font>'
+      + '<font><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/></font>'
+      + '<font><b/><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/></font>'
       + '<font><b/><sz val="11"/><color rgb="FFB91C1C"/><name val="Calibri"/></font>'
       + '<font><b/><sz val="11"/><color rgb="FF047857"/><name val="Calibri"/></font>'
       + '<font><b/><sz val="11"/><color rgb="FFB45309"/><name val="Calibri"/></font>'
       + '<font><b/><sz val="11"/><color rgb="FF1E3A8A"/><name val="Calibri"/></font>'
       + '</fonts>'
-      + '<fills count="8">'
+      + '<fills count="9">'
       + '<fill><patternFill patternType="none"/></fill>'
       + '<fill><patternFill patternType="gray125"/></fill>'
       + '<fill><patternFill patternType="solid"><fgColor rgb="FFBFDBFE"/></patternFill></fill>'
@@ -237,6 +240,7 @@
       + '<fill><patternFill patternType="solid"><fgColor rgb="FFFEF3C7"/></patternFill></fill>'
       + '<fill><patternFill patternType="solid"><fgColor rgb="FFD9EAD3"/></patternFill></fill>'
       + '<fill><patternFill patternType="solid"><fgColor rgb="FFECFDF5"/></patternFill></fill>'
+      + '<fill><patternFill patternType="solid"><fgColor rgb="FFFFFFFF"/></patternFill></fill>'
       + '</fills>'
       + '<borders count="2">'
       + '<border><left/><right/><top/><bottom/><diagonal/></border>'
@@ -244,21 +248,21 @@
       + '</borders>'
       + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
       + '<cellXfs count="16">'
-      + '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>'
+      + '<xf numFmtId="0" fontId="0" fillId="8" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>'
       + '<xf numFmtId="0" fontId="5" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>'
       + '<xf numFmtId="0" fontId="5" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
       + '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>'
       + '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
-      + '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
-      + '<xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+      + '<xf numFmtId="0" fontId="0" fillId="8" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+      + '<xf numFmtId="0" fontId="1" fillId="8" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
       + '<xf numFmtId="0" fontId="2" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
       + '<xf numFmtId="0" fontId="3" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
       + '<xf numFmtId="0" fontId="4" fillId="5" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
       + '<xf numFmtId="0" fontId="1" fillId="6" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>'
       + '<xf numFmtId="3" fontId="1" fillId="6" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>'
-      + '<xf numFmtId="0" fontId="0" fillId="7" borderId="1" xfId="0" applyFill="1" applyBorder="1"/>'
+      + '<xf numFmtId="0" fontId="0" fillId="7" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>'
       + '<xf numFmtId="3" fontId="3" fillId="7" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>'
-      + '<xf numFmtId="3" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>'
+      + '<xf numFmtId="3" fontId="0" fillId="8" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>'
       + '<xf numFmtId="3" fontId="1" fillId="2" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>'
       + '</cellXfs>'
       + '</styleSheet>';
@@ -535,7 +539,14 @@
       const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
       const isCatalog = rowTypes && rowTypes.length > 0;
       const baseXlsxName = String(filename || 'EuroBaza.xlsx').replace(/\.csv$/i, '.xlsx');
-      let excelLang = (window.getLang && window.getLang()) || 'ru';
+      let excelLang = 'ru';
+      try {
+        const savedL = localStorage.getItem('EXCEL_LANG');
+        if (savedL === 'ru' || savedL === 'hy' || savedL === 'en') excelLang = savedL;
+        else if (window.getLang) excelLang = window.getLang();
+      } catch (e) {
+        if (window.getLang) excelLang = window.getLang();
+      }
 
       const buildLocalized = (lang) => {
         const lTitle = trExcelVal(title || 'Ведомость', lang, false, false);
@@ -650,6 +661,7 @@
           const nl = b.dataset.tvl;
           if (!nl || nl === excelLang) return;
           excelLang = nl;
+          try { localStorage.setItem('EXCEL_LANG', excelLang); } catch (e) {}
           loc = buildLocalized(excelLang);
           langBar.querySelectorAll('button[data-tvl]').forEach(x => {
             const on = x.dataset.tvl === excelLang;

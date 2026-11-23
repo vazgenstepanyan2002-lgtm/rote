@@ -131,7 +131,7 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
  const accByUid=uid=>Object.keys(ACCOUNTS).map(k=>Object.assign({key:k},ACCOUNTS[k])).find(a=>a&&a.uid===uid)||null;
  const profName=d=>d.u.uname||(accByUid(d.id)&&accByUid(d.id).name)||"";
  const dispName=d=>{const lb=LABELS[d.id],pr=profName(d);return lb&&pr&&lb!==pr?lb+" ("+pr+")":(lb||pr||devName(d.u.ua))};
- const dispHtml=d=>{const lb=LABELS[d.id],pr=profName(d);return lb&&pr&&lb!==pr?esc(lb)+' <span style="font-size:12px;font-weight:500;color:#94a3b8">(в профиле: '+esc(pr)+')</span>':esc(lb||pr||devName(d.u.ua))};
+ const dispHtml=d=>{const lb=LABELS[d.id],pr=profName(d);return lb&&pr&&lb!==pr?'<span data-no-i18n="1">'+esc(lb)+'</span> <span style="font-size:12px;font-weight:500;color:#94a3b8">(в профиле: <span data-no-i18n="1">'+esc(pr)+'</span>)</span>':'<span data-no-i18n="1">'+esc(lb||pr||devName(d.u.ua))+'</span>'};
  const devs=()=>{const now=Date.now();return Object.keys(USERS).map(k=>parseDev(k,USERS[k])).sort((a,b)=>{const al=now-(a.u.t||0)<TTL?1:0,bl=now-(b.u.t||0)<TTL?1:0;return bl-al||(b.u.t||0)-(a.u.t||0)})};
  function aggMonths(list){
   const map={};
