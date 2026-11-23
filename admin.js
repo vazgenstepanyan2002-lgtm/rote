@@ -187,25 +187,61 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
   downloadCsv(fn,[header,...data,totalRow]);
  }
  function exportCarDetailCsv(code,title,rows,totQty,totSum){
-  if(!rows||!rows.length){toast('Нет данных для выгрузки',true);return}
-  const header=['Категория','Позиция мебели','Зона','Кол-во (шт)','Тариф (֏)','Сумма (֏)'];
-  const data=[];
-  rows.forEach(c=>{
+  const qMap={};
+  (rows||[]).forEach(c=>{
    (c.items||[]).forEach(it=>{
     (it.parts||[]).forEach(z=>{
-     data.push([c.name,it.name,z.l||'Шт',+z.n||0,+z.p||0,+z.v||0]);
+     const zn=z.l==='Район'?'2':'1';
+     const k=c.name+'|'+it.name+'|'+zn;
+     if(!qMap[k])qMap[k]={n:0,v:0};
+     qMap[k].n+=(+z.n||0);
+     qMap[k].v+=(+z.v||0);
     });
    });
   });
-  const totalRow=['ИТОГО','','',totQty,'',totSum];
-  const fn=('EuroBaza_Экипаж_'+code+'_'+title.replace(/[\s\/:*?"<>|]+/g,'_')+'.csv');
+
+  const cleanTitle=String(title||'').replace(/_/g,' ').trim();
+  const header=['Тариф (֏)','Товар / Категория','Кол-во','Сумма (֏)'];
+  const data=[],rowTypes=[];
+  let calcQty=0,calcSum=0;
+
+  CAR_CATALOG.forEach(c=>{
+   let catQ=0,catS=0;
+   const subRows=[],subTypes=[];
+   c.subs.forEach(x=>{
+    const r1=qMap[c.name+'|'+x.name+'|1'];
+    const n1=r1?r1.n:0,v1=r1?r1.v:0;
+    catQ+=n1;catS+=v1;
+    subRows.push([x.p1,nm(x.name),n1>0?n1:'',v1>0?v1:'—']);
+    subTypes.push(n1>0?'hi':'');
+    if(!x.one){
+     const r2=qMap[c.name+'|'+x.name+'|2'];
+     const n2=r2?r2.n:0,v2=r2?r2.v:0;
+     catQ+=n2;catS+=v2;
+     subRows.push([x.p2,nm(x.name)+' (Район)',n2>0?n2:'',v2>0?v2:'—']);
+     subTypes.push(n2>0?'hi':'');
+    }
+   });
+   calcQty+=catQ;calcSum+=catS;
+   data.push(['',nm(c.name),catQ>0?catQ:'',catS>0?catS:'—']);
+   rowTypes.push('cat');
+   for(let i=0;i<subRows.length;i++){
+    data.push(subRows[i]);
+    rowTypes.push(subTypes[i]);
+   }
+  });
+
+  const finalQty=totQty||calcQty,finalSum=totSum||calcSum;
+  const totalRow=['','ИТОГО · Экипаж '+code,finalQty,finalSum];
+  const fn=('EuroBaza_Экипаж_'+code+'_'+cleanTitle.replace(/[\s\/:*?"<>|]+/g,'_')+'.csv');
   if(window.TableViewer){
    TableViewer.open({
-    title:'Итоги: Экипаж '+code+' · '+title.replace(/_/g,' '),
+    title:'Экипаж '+code+' · '+cleanTitle,
     filename:fn,
     headers:header,
     rows:data,
-    totalRow:totalRow
+    totalRow:totalRow,
+    rowTypes:rowTypes
    });
    return;
   }

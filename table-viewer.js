@@ -112,14 +112,15 @@
     return s;
   }
 
-  function createXlsxBlob(allRows, hasTotal, mergeFirstCol) {
+  function createXlsxBlob(allRows, hasTotal, mergeFirstCol, rowTypes = []) {
     const colCount = allRows.reduce((m, r) => Math.max(m, (r && r.length) || 0), 0);
     const widths = new Array(colCount).fill(0);
 
     for (let r = 0; r < allRows.length; r++) {
       const row = allRows[r] || [];
       for (let c = 0; c < colCount; c++) {
-        const s = String(row[c] == null ? '' : row[c]);
+        const raw = row[c];
+        const s = typeof raw === 'number' && isFinite(raw) ? fm(raw) : String(raw == null ? '' : raw);
         let w = 0;
         for (let i = 0; i < s.length; i++) {
           const ch = s.charCodeAt(i);
@@ -130,7 +131,7 @@
     }
 
     const colsXml = '<cols>' + widths.map((w, i) => {
-      const cw = Math.max(4.2, Math.min(60, +(w + 2.4).toFixed(1)));
+      const cw = Math.max(4.2, Math.min(60, +(w + 2.6).toFixed(1)));
       return `<col min="${i + 1}" max="${i + 1}" width="${cw}" customWidth="1"/>`;
     }).join('') + '</cols>';
 
@@ -158,6 +159,7 @@
       const rNum = rIdx + 1;
       const isHead = rIdx === 0;
       const isTot = hasTotal && rIdx === allRows.length - 1;
+      const rType = (!isHead && !isTot) ? (rowTypes[rIdx - 1] || '') : '';
       const cells = [];
       for (let c = 0; c < colCount; c++) {
         const ref = colLetter(c) + rNum;
@@ -170,12 +172,17 @@
         let styleId = isHead ? (isShort ? 2 : 1) : (isTot ? (isShort ? 4 : 3) : (isShort ? 5 : 0));
         if (mergeFirstCol && c === 0 && !isHead && !isTot) styleId = 6;
         if (mergeFirstCol && c === 0 && isHead) styleId = 2;
+        if (rType === 'cat') styleId = (typeof val === 'number' && isFinite(val)) ? 11 : 10;
+        else if (rType === 'hi') styleId = (typeof val === 'number' && isFinite(val)) ? 13 : 12;
+
         if (typeof val === 'number' && isFinite(val)) {
+          if (rType === '' && !isHead && !isTot && !isShort) styleId = 14;
+          if (isTot && !isShort) styleId = 15;
           cells.push(`<c r="${ref}" s="${styleId}"><v>${val}</v></c>`);
         } else {
           const str = String(val);
-          if (str === '' && !isHead && !isTot) continue;
-          if (!isHead && !isTot) {
+          if (str === '' && !isHead && !isTot && rType !== 'cat' && rType !== 'hi') continue;
+          if (!isHead && !isTot && rType === '') {
             if (str === '✕') styleId = 7;
             else if (str === '✓') styleId = 8;
             else if (str === 'В') styleId = 9;
@@ -213,34 +220,46 @@
 
     const styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
       + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-      + '<fonts count="5">'
+      + '<fonts count="6">'
       + '<font><sz val="11"/><name val="Calibri"/></font>'
       + '<font><b/><sz val="11"/><name val="Calibri"/></font>'
       + '<font><b/><sz val="11"/><color rgb="FFB91C1C"/><name val="Calibri"/></font>'
       + '<font><b/><sz val="11"/><color rgb="FF047857"/><name val="Calibri"/></font>'
       + '<font><b/><sz val="11"/><color rgb="FFB45309"/><name val="Calibri"/></font>'
+      + '<font><b/><sz val="11"/><color rgb="FF1E3A8A"/><name val="Calibri"/></font>'
       + '</fonts>'
-      + '<fills count="6">'
+      + '<fills count="8">'
       + '<fill><patternFill patternType="none"/></fill>'
       + '<fill><patternFill patternType="gray125"/></fill>'
-      + '<fill><patternFill patternType="solid"><fgColor rgb="FFE2E8F0"/></patternFill></fill>'
+      + '<fill><patternFill patternType="solid"><fgColor rgb="FFBFDBFE"/></patternFill></fill>'
       + '<fill><patternFill patternType="solid"><fgColor rgb="FFFECACA"/></patternFill></fill>'
       + '<fill><patternFill patternType="solid"><fgColor rgb="FFA7F3D0"/></patternFill></fill>'
       + '<fill><patternFill patternType="solid"><fgColor rgb="FFFEF3C7"/></patternFill></fill>'
+      + '<fill><patternFill patternType="solid"><fgColor rgb="FFD9EAD3"/></patternFill></fill>'
+      + '<fill><patternFill patternType="solid"><fgColor rgb="FFECFDF5"/></patternFill></fill>'
       + '</fills>'
-      + '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+      + '<borders count="2">'
+      + '<border><left/><right/><top/><bottom/><diagonal/></border>'
+      + '<border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border>'
+      + '</borders>'
       + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
-      + '<cellXfs count="10">'
-      + '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
-      + '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>'
-      + '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
-      + '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
-      + '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
-      + '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
-      + '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
-      + '<xf numFmtId="0" fontId="2" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
-      + '<xf numFmtId="0" fontId="3" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
-      + '<xf numFmtId="0" fontId="4" fillId="5" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+      + '<cellXfs count="16">'
+      + '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>'
+      + '<xf numFmtId="0" fontId="5" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>'
+      + '<xf numFmtId="0" fontId="5" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+      + '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>'
+      + '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+      + '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+      + '<xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+      + '<xf numFmtId="0" fontId="2" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+      + '<xf numFmtId="0" fontId="3" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+      + '<xf numFmtId="0" fontId="4" fillId="5" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+      + '<xf numFmtId="0" fontId="1" fillId="6" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>'
+      + '<xf numFmtId="3" fontId="1" fillId="6" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>'
+      + '<xf numFmtId="0" fontId="0" fillId="7" borderId="1" xfId="0" applyFill="1" applyBorder="1"/>'
+      + '<xf numFmtId="3" fontId="3" fillId="7" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>'
+      + '<xf numFmtId="3" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>'
+      + '<xf numFmtId="3" fontId="1" fillId="2" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>'
       + '</cellXfs>'
       + '</styleSheet>';
 
@@ -302,8 +321,9 @@
   }
 
   // Печать таблицы на принтер (чистый белый лист А4, альбомная для широких таблиц)
-  function printTable({ title, headers = [], rows = [], totalRow = null, mergeFirstCol = false }) {
+  function printTable({ title, headers = [], rows = [], totalRow = null, mergeFirstCol = false, rowTypes = [] }) {
     const isWide = headers.length > 7;
+    const isCatalog = rowTypes && rowTypes.length > 0;
     const spans = new Array(rows.length).fill(1);
     if (mergeFirstCol) {
       let i = 0;
@@ -319,8 +339,10 @@
       }
     }
 
-    const thHtml = headers.map((h, idx) => `<th class="${idx > 1 ? 'c' : (mergeFirstCol && idx === 0 ? 'c' : '')}">${esc(h)}</th>`).join('');
+    const thHtml = headers.map((h, idx) => `<th class="${isCatalog ? (idx === 1 ? '' : 'r') : (idx > 1 ? 'c' : (mergeFirstCol && idx === 0 ? 'c' : ''))}">${esc(h)}</th>`).join('');
     const tbHtml = rows.map((r, rIdx) => {
+      const rt = rowTypes[rIdx] || '';
+      const trCls = rt === 'cat' ? ' class="cat-r"' : (rt === 'hi' ? ' class="hi-r"' : '');
       const tds = r.map((c, idx) => {
         if (mergeFirstCol && idx === 0) {
           if (spans[rIdx] === 0) return '';
@@ -331,27 +353,39 @@
         if (s === '✓') return `<td class="c wrk">✓</td>`;
         if (s === 'В') return `<td class="c off">В</td>`;
         const val = typeof c === 'number' ? fm(c) : s;
+        if (isCatalog) {
+          const al = idx === 1 ? '' : (idx === 2 ? 'c' : 'r');
+          const bld = (rt === 'cat' || (rt === 'hi' && idx >= 2)) ? ' b' : '';
+          return `<td class="${al}${bld}">${esc(val)}</td>`;
+        }
         return `<td class="${idx > 1 ? 'c' : ''}${idx === r.length - 1 ? ' b' : ''}">${esc(val)}</td>`;
       }).join('');
-      return `<tr>${tds}</tr>`;
+      return `<tr${trCls}>${tds}</tr>`;
     }).join('');
-    const tfHtml = totalRow ? `<tfoot><tr>${totalRow.map((c, idx) => `<td class="${idx > 1 ? 'c' : ''}">${esc(c)}</td>`).join('')}</tr></tfoot>` : '';
+    const tfHtml = totalRow ? `<tfoot><tr>${totalRow.map((c, idx) => {
+      const val = typeof c === 'number' ? fm(c) : String(c == null ? '' : c);
+      const cls = isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'c' : 'r')) : (idx > 1 ? 'c' : '');
+      return `<td class="${cls}">${esc(val)}</td>`;
+    }).join('')}</tr></tfoot>` : '';
     const dt = new Date().toLocaleDateString('ru-RU');
 
     const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>${esc(title || 'EuroBaza')}</title><style>
-      @page { size: A4 ${isWide ? 'landscape' : 'portrait'}; margin: 9mm; }
+      @page { size: A4 ${isWide ? 'landscape' : 'portrait'}; margin: 8mm; }
       * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #0f172a; background: #fff; }
-      .hd { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 5px; }
-      .hd h1 { margin: 0; font-size: ${isWide ? '14px' : '16px'}; font-weight: 800; }
-      .hd span { font-size: 11px; color: #475569; }
-      table { width: 100%; border-collapse: collapse; font-size: ${isWide ? '9px' : '11.5px'}; table-layout: auto; }
-      th, td { border: 1px solid #cbd5e1; padding: ${isWide ? '3px 2px' : '6px 8px'}; text-align: left; white-space: nowrap; }
-      thead th { background: #e2e8f0; font-weight: 800; color: #0f172a; }
-      tfoot td { background: #f1f5f9; font-weight: 800; border-top: 2px solid #64748b; }
+      .hd { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; border-bottom: 2px solid #3b82f6; padding-bottom: 4px; }
+      .hd h1 { margin: 0; font-size: ${isWide ? '14px' : '15px'}; font-weight: 800; color: #1e3a8a; }
+      .hd span { font-size: 10.5px; color: #475569; }
+      table { width: 100%; border-collapse: collapse; font-size: ${isWide ? '9px' : (isCatalog ? '9.5px' : '11.5px')}; table-layout: auto; }
+      th, td { border: 1px solid #cbd5e1; padding: ${isWide ? '3px 2px' : (isCatalog ? '2.5px 6px' : '6px 8px')}; text-align: left; white-space: nowrap; }
+      thead th { background: #bfdbfe; font-weight: 800; color: #1e3a8a; }
+      tfoot td { background: #bfdbfe; font-weight: 800; color: #1e3a8a; border-top: 2px solid #2563eb; }
       .c { text-align: center; }
+      .r { text-align: right; font-variant-numeric: tabular-nums; }
       .b { font-weight: 700; }
       .crew { text-align: center; vertical-align: middle; font-weight: 800; background: #f8fafc; }
+      .cat-r td { background: #d9ead3; font-weight: 800; color: #14532d; }
+      .hi-r td { background: #ecfdf5; }
       .abs { background: #fecaca; color: #b91c1c; font-weight: 800; }
       .wrk { background: #a7f3d0; color: #047857; font-weight: 800; }
       .off { background: #fef3c7; color: #b45309; font-weight: 700; }
@@ -383,7 +417,7 @@
 
   const TableViewer = {
     // Открыть модальное окно с таблицей
-    open({ title, filename, headers = [], rows = [], totalRow = null, mergeFirstCol = false }) {
+    open({ title, filename, headers = [], rows = [], totalRow = null, mergeFirstCol = false, rowTypes = [] }) {
       const old = document.getElementById('tvMdl');
       if (old) {
         if (typeof old._tvClose === 'function') old._tvClose();
@@ -391,9 +425,10 @@
       }
 
       const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      const isCatalog = rowTypes && rowTypes.length > 0;
       const xlsxName = String(filename || 'EuroBaza.xlsx').replace(/\.csv$/i, '.xlsx');
       const allRows = [headers, ...rows, ...(totalRow ? [totalRow] : [])];
-      const blob = createXlsxBlob(allRows, !!totalRow, !!mergeFirstCol);
+      const blob = createXlsxBlob(allRows, !!totalRow, !!mergeFirstCol, rowTypes);
 
       const prevHtmlOv = document.documentElement.style.overflow;
       const prevBodyOv = document.body.style.overflow;
@@ -432,16 +467,16 @@
             <table id="tvTable" style="width:max-content;min-width:100%;border-collapse:collapse;font-size:12px;line-height:1.35;text-align:left">
               <thead>
                 <tr style="background:#131c2e;position:sticky;top:0;z-index:2;box-shadow:0 1px 0 rgba(255,255,255,.1)">
-                  ${headers.map((h, idx) => `<th style="padding:10px 14px;font-weight:700;color:#94a3b8;border-bottom:1px solid rgba(255,255,255,.1);white-space:nowrap;${idx > 1 ? 'text-align:right;' : ''}">${esc(h)}</th>`).join('')}
+                  ${headers.map((h, idx) => `<th style="padding:10px 14px;font-weight:700;color:#94a3b8;border-bottom:1px solid rgba(255,255,255,.1);white-space:nowrap;${isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'text-align:center;' : 'text-align:right;')) : (idx > 1 ? 'text-align:right;' : '')}">${esc(h)}</th>`).join('')}
                 </tr>
               </thead>
               <tbody id="tvTbody">
-                ${this.renderRowsHtml(rows, mergeFirstCol)}
+                ${this.renderRowsHtml(rows, mergeFirstCol, rowTypes)}
               </tbody>
               ${totalRow ? `
               <tfoot>
                 <tr style="background:#131c2e;position:sticky;bottom:0;z-index:2;border-top:2px solid rgba(250,204,21,.35);font-weight:800;color:#fde047">
-                  ${totalRow.map((c, idx) => `<td style="padding:10px 14px;white-space:nowrap;${idx > 1 ? 'text-align:right;' : ''}">${esc(c)}</td>`).join('')}
+                  ${totalRow.map((c, idx) => `<td style="padding:10px 14px;white-space:nowrap;${isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'text-align:center;' : 'text-align:right;')) : (idx > 1 ? 'text-align:right;' : '')}">${esc(typeof c === 'number' ? fm(c) : c)}</td>`).join('')}
                 </tr>
               </tfoot>` : ''}
             </table>
@@ -470,7 +505,7 @@
       // Печать (на ПК)
       const printBtn = document.getElementById('tvPrint');
       if (printBtn) {
-        printBtn.onclick = () => printTable({ title, headers, rows, totalRow, mergeFirstCol });
+        printBtn.onclick = () => printTable({ title, headers, rows, totalRow, mergeFirstCol, rowTypes });
       }
 
       // Поделиться (на мобильном)
@@ -499,21 +534,28 @@
       searchInp.oninput = () => {
         const q = searchInp.value.trim().toLowerCase();
         if (!q) {
-          tbody.innerHTML = this.renderRowsHtml(rows, mergeFirstCol);
+          tbody.innerHTML = this.renderRowsHtml(rows, mergeFirstCol, rowTypes);
           countEl.textContent = rows.length;
           return;
         }
-        const filtered = rows.filter(r => r.some(cell => String(cell || '').toLowerCase().includes(q)));
-        tbody.innerHTML = this.renderRowsHtml(filtered, mergeFirstCol);
+        const filtered = [], fTypes = [];
+        rows.forEach((r, idx) => {
+          if (r.some(cell => String(cell || '').toLowerCase().includes(q))) {
+            filtered.push(r);
+            fTypes.push(rowTypes[idx] || '');
+          }
+        });
+        tbody.innerHTML = this.renderRowsHtml(filtered, mergeFirstCol, fTypes);
         countEl.textContent = filtered.length;
       };
     },
 
     // Отрисовка строк таблицы
-    renderRowsHtml(rows, mergeFirstCol = false) {
+    renderRowsHtml(rows, mergeFirstCol = false, rowTypes = []) {
       if (!rows.length) {
         return `<tr><td colspan="10" style="padding:28px 12px;text-align:center;color:#64748b">Ничего не найдено</td></tr>`;
       }
+      const isCatalog = rowTypes && rowTypes.some(Boolean);
       const spans = new Array(rows.length).fill(1);
       if (mergeFirstCol) {
         let i = 0;
@@ -529,9 +571,14 @@
         }
       }
       return rows.map((r, rIdx) => {
-        const bg = rIdx % 2 === 1 ? 'background:rgba(255,255,255,.02);' : '';
+        const rt = rowTypes[rIdx] || '';
+        const bg = rt === 'cat'
+          ? 'background:rgba(16,185,129,.16);border-top:1px solid rgba(52,211,153,.32);border-bottom:1px solid rgba(52,211,153,.22);'
+          : (rt === 'hi'
+            ? 'background:rgba(56,189,248,.07);border-bottom:1px solid rgba(255,255,255,.06);'
+            : (rIdx % 2 === 1 ? 'background:rgba(255,255,255,.02);border-bottom:1px solid rgba(255,255,255,.04);' : 'border-bottom:1px solid rgba(255,255,255,.04);'));
         return `
-          <tr style="${bg}border-bottom:1px solid rgba(255,255,255,.04)">
+          <tr style="${bg}">
             ${r.map((c, idx) => {
               if (mergeFirstCol && idx === 0) {
                 if (spans[rIdx] === 0) return '';
@@ -546,6 +593,16 @@
               }
               if (s === 'В') {
                 return `<td style="padding:9px 14px;white-space:nowrap;text-align:center;font-weight:700;color:#fbbf24;background:rgba(245,158,11,.12)">В</td>`;
+              }
+              const txt = typeof c === 'number' ? fm(c) : s;
+              if (isCatalog) {
+                const al = idx === 1 ? '' : (idx === 2 ? 'text-align:center;' : 'text-align:right;');
+                const col = rt === 'cat'
+                  ? (idx === 3 && typeof c === 'number' ? 'color:#fde047;font-weight:800;' : 'color:#6ee7b7;font-weight:800;')
+                  : (rt === 'hi'
+                    ? (idx === 3 ? 'color:#fde047;font-weight:800;' : (idx === 2 ? 'color:#7dd3fc;font-weight:800;' : 'color:#f8fafc;font-weight:600;'))
+                    : (idx === 0 ? 'color:#64748b;' : 'color:#94a3b8;'));
+                return `<td style="padding:7px 12px;white-space:nowrap;${al}${col}">${esc(txt)}</td>`;
               }
               const isNum = typeof c === 'number' || (!isNaN(+c) && idx > 1);
               return `<td style="padding:9px 14px;white-space:nowrap;color:#cbd5e1;${idx > 1 ? 'text-align:right;' : ''}${idx === r.length - 1 ? 'font-weight:700;color:#f8fafc;' : ''}">${esc(isNum && typeof c === 'number' ? fm(c) : c)}</td>`;
