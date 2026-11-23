@@ -221,7 +221,7 @@
    styleReady=true;
    const stObj=map.getStyle();
    const layers=(stObj&&stObj.layers)?stObj.layers.slice():[];
-   const own=new Set(['sat-layer','kentron-fill','kentron-line','route-glow','route-dash','route-solid']);
+   const own=new Set(['sat-layer','kentron-fill','kentron-line','saralanj-glow','saralanj-line','route-glow','route-dash','route-solid']);
    origMeta=layers.filter(l=>!own.has(l.id)).map(l=>({id:l.id,type:l.type,vis:(l.layout&&l.layout.visibility)||'visible'}));
    const sym=layers.find(l=>l.type==='symbol');
    const firstSymId=sym?sym.id:undefined;
@@ -239,6 +239,15 @@
     map.addLayer({id:'kentron-line',type:'line',source:'kentron-src',paint:{'line-color':'#ef4444','line-width':2.2,'line-dasharray':[3,3]}},firstSymId);
     map.on('click','kentron-fill',e=>{
      new maplibregl.Popup().setLngLat(e.lngLat).setHTML('<b>⛔ Зона Кентрон</b><br>Въезд грузовым машинам до 21:00 запрещён').addTo(map);
+    });
+   }
+   if(typeof SARALANJ_LINE!=='undefined'&&typeof getShift==='function'&&getShift()==='day'&&!map.getSource('saralanj-src')){
+    const sLine=SARALANJ_LINE.map(p=>[p[1],p[0]]);
+    map.addSource('saralanj-src',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:sLine}}});
+    map.addLayer({id:'saralanj-glow',type:'line',source:'saralanj-src',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ef4444','line-width':14,'line-opacity':0.28}},firstSymId);
+    map.addLayer({id:'saralanj-line',type:'line',source:'saralanj-src',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ef4444','line-width':3.2,'line-dasharray':[3,2]}},firstSymId);
+    map.on('click','saralanj-glow',e=>{
+     new maplibregl.Popup().setLngLat(e.lngLat).setHTML('<b>⛔ Дорога Сараландж</b><br>Камеры штрафа для грузовых днём (до 21:00)').addTo(map);
     });
    }
    if(!map.getSource('route-src')){

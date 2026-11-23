@@ -360,9 +360,10 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
     return;
    }
    el.className='subm-res '+(pt.inK?'eve':'day');
+   const zoneSub=pt.zone==='saralanj'?'Дорога Сараландж — камеры штрафа для грузовых днём (до 21:00)':(pt.inK?'Адрес в зоне Кентрон — въезд грузовым до 21:00 запрещён':'Адрес вне запретных зон — ограничений нет');
    let h='<div class="subm-res-top"><div class="subm-verdict">'+(pt.inK?'🌙 Только вечером (после 21:00)':'☀️ Можно ставить днём')+'</div>'
     +'<button type="button" class="subm-del" data-act="submap-clear" aria-label="Удалить">✕</button></div>'
-    +'<div class="subm-sub">'+(pt.inK?'Адрес в зоне Кентрон — въезд грузовым до 21:00 запрещён':'Адрес вне зоны Кентрон — ограничений нет')+'</div>'
+    +'<div class="subm-sub">'+zoneSub+'</div>'
     +'<div class="subm-adr" data-no-i18n="1">📍 '+esc(pt.name)+'</div>';
    if(pt.exact===false){
     h+='<div class="subm-warn">⚠️ Неточный адрес: найден только район или город</div>';
@@ -395,8 +396,9 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
   window._subRenderHist=renderSubHist;
   const showSubPoint=(pt,saveHist)=>{
    if(!_map||!window.maplibregl)return;
-   const inK=typeof inKentron==='function'?inKentron(pt.lat,pt.lon):false;
-   const item={name:cleanLbl(pt.name)||(pt.lat.toFixed(5)+', '+pt.lon.toFixed(5)),lat:pt.lat,lon:pt.lon,exact:pt.exact!==false,inK:inK,km:'',tm:''};
+   const zone=window.ZoneService&&ZoneService.getZone?ZoneService.getZone(pt.lat,pt.lon):(typeof inKentron==='function'&&inKentron(pt.lat,pt.lon)?'kentron':null);
+   const inK=!!zone;
+   const item={name:cleanLbl(pt.name)||(pt.lat.toFixed(5)+', '+pt.lon.toFixed(5)),lat:pt.lat,lon:pt.lon,exact:pt.exact!==false,inK:inK,zone:zone,km:'',tm:''};
    _subCurPt=item;
    if(_subMk){try{_subMk.remove()}catch(e){}_subMk=null}
    const mel=document.createElement('div');
@@ -551,7 +553,7 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
     _baseMk=new maplibregl.Marker({element:bel,anchor:'center'}).setLngLat(baseLL).setPopup(new maplibregl.Popup({offset:18}).setHTML('<div class="pop-t">🏁 '+esc(BASE_PT.name)+'</div>')).addTo(_map);
 
     let sr=false,fc=0,om=[],hs=false;
-    const own=new Set(['adm-sat-layer','kentron-fill','kentron-line','sub-route-glow','sub-route-dash','sub-route-solid']);
+    const own=new Set(['adm-sat-layer','kentron-fill','kentron-line','saralanj-glow','saralanj-line','sub-route-glow','sub-route-dash','sub-route-solid']);
     const boostAdmLabels=sat=>{
      if(!_map)return;
      const tc=sat?'#ffffff':'#f1f5f9',hc=sat?'#000000':'#0f172a',hw=sat?2:1.2;
@@ -585,6 +587,12 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
       _map.addSource('kentron-src',{type:'geojson',data:{type:'Feature',geometry:{type:'Polygon',coordinates:[ring]}}});
       _map.addLayer({id:'kentron-fill',type:'fill',source:'kentron-src',paint:{'fill-color':'#ef4444','fill-opacity':0.2}},fid);
       _map.addLayer({id:'kentron-line',type:'line',source:'kentron-src',paint:{'line-color':'#ef4444','line-width':2.4,'line-dasharray':[3,3]}},fid);
+     }
+     if(typeof SARALANJ_LINE!=='undefined'&&!_map.getSource('saralanj-src')){
+      const sLine=SARALANJ_LINE.map(p=>[p[1],p[0]]);
+      _map.addSource('saralanj-src',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:sLine}}});
+      _map.addLayer({id:'saralanj-glow',type:'line',source:'saralanj-src',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ef4444','line-width':14,'line-opacity':0.28}},fid);
+      _map.addLayer({id:'saralanj-line',type:'line',source:'saralanj-src',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ef4444','line-width':3.2,'line-dasharray':[3,2]}},fid);
      }
      if(!_map.getSource('sub-route-src')){
       _map.addSource('sub-route-src',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:[]}}});
