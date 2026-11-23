@@ -630,14 +630,29 @@
     return s;
   }
 
+  window.addEventListener('popstate', e => {
+    if (Date.now() < (window._tvSkipPopUntil || 0)) {
+      e.stopImmediatePropagation();
+      return;
+    }
+    const tv = document.getElementById('tvMdl');
+    if (tv) {
+      window._tvSkipPopUntil = Date.now() + 150;
+      e.stopImmediatePropagation();
+      if (typeof tv._tvClose === 'function') tv._tvClose('pop');
+      else tv.remove();
+    }
+  }, true);
+
   const TableViewer = {
     // Открыть модальное окно с таблицей
     open({ title, filename, headers = [], rows = [], totalRow = null, mergeFirstCol = false, rowTypes = [], nameCol = -1, mergeCols = null }) {
       const old = document.getElementById('tvMdl');
       if (old) {
-        if (typeof old._tvClose === 'function') old._tvClose();
+        if (typeof old._tvClose === 'function') old._tvClose('replace');
         else old.remove();
       }
+      window._tvSkipPopUntil = 0;
 
       const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) && !(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
       const isCatalog = rowTypes && rowTypes.length > 0;
@@ -720,7 +735,6 @@
 
       let closed = false;
       const onKey = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); close(); } };
-      const onPop = () => { if (!closed) close('pop'); };
       const close = (src) => {
         if (closed) return;
         closed = true;
@@ -728,15 +742,20 @@
         document.body.style.overflow = prevBodyOv;
         document.body.style.overscrollBehavior = prevBodyObs;
         document.removeEventListener('keydown', onKey);
-        window.removeEventListener('popstate', onPop);
         m.remove();
-        if (src !== 'pop') {
-          try { if (history.state && history.state.tv) history.back(); } catch (e) {}
+        if (src !== 'pop' && src !== 'replace') {
+          try {
+            if (history.state && history.state.tv) {
+              window._tvSkipPopUntil = Date.now() + 350;
+              history.back();
+            }
+          } catch (e) {}
         }
       };
       m._tvClose = close;
-      try { history.pushState({ tv: 1 }, ''); } catch (e) {}
-      window.addEventListener('popstate', onPop);
+      if (!old) {
+        try { history.pushState({ tv: 1 }, ''); } catch (e) {}
+      }
       m.addEventListener('touchmove', e => {
         if (!e.target.closest('.tv-scroll')) e.preventDefault();
       }, { passive: false });

@@ -2561,10 +2561,12 @@ function openSelectModal(){
     depth = cur;
   };
   window.addEventListener("popstate", () => {
+    if (Date.now() < (window._tvSkipPopUntil || 0)) return;
     if (skipPop > 0) { skipPop--; return; }
     const tv = document.getElementById("tvMdl");
     if (tv) {
       window._admSkipBack = true;
+      window._tvSkipPopUntil = Date.now() + 150;
       if (typeof tv._tvClose === "function") tv._tvClose("pop");
       else tv.remove();
       return;
