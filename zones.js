@@ -126,6 +126,63 @@
         if (this.inKentron(curLat, curLon)) return true;
       }
       return false;
+    },
+
+    // Подсчёт попаданий линии маршрута [lon, lat] в дневные запретные зоны (Кентрон + Нор хчуги)
+    countRouteHits(coords) {
+      if (!coords || coords.length < 3) return 0;
+      let hits = 0;
+      const step = coords.length > 250 ? 2 : 1;
+      for (let i = 1; i < coords.length - 1; i += step) {
+        const p = coords[i];
+        if (this.inKentron(p[1], p[0])) hits++;
+      }
+      return hits;
+    },
+
+    // Построение автомобильного маршрута с объездом дневных запретных зон (Кентрон + Нор хчуги)
+    async fetchSafeRoute(fromPt, toPt, avoidZone = true) {
+      const fetchOsrm = pts => {
+        const c = pts.map(p => p.lon + ',' + p.lat).join(';');
+        const q = '?overview=full&geometries=geojson&alternatives=true';
+        const one = u => fetch(u + c + q).then(r => r.json()).then(j => {
+          if (!j || !j.routes || !j.routes.length) throw 0;
+          return j.routes;
+        });
+        return one('https://router.project-osrm.org/route/v1/driving/')
+          .catch(() => one('https://routing.openstreetmap.de/routed-car/route/v1/driving/'));
+      };
+
+      const directRoutes = await fetchOsrm([fromPt, toPt]);
+      const scored = directRoutes.map(r => ({
+        route: r,
+        hits: this.countRouteHits(r.geometry && r.geometry.coordinates)
+      }));
+      scored.sort((a, b) => a.hits - b.hits || (a.route.distance || 0) - (b.route.distance || 0));
+
+      if (!avoidZone || scored[0].hits === 0 || this.inKentron(toPt.lat, toPt.lon)) {
+        return scored[0].route;
+      }
+
+      // Если прямой маршрут проходит через запретную зону — пробуем реальные объезды вокруг Кентрона и Нор хчуги
+      const bypasses = [
+        [fromPt, { lat: 40.1755, lon: 44.4890 }, toPt],
+        [fromPt, { lat: 40.1780, lon: 44.4850 }, { lat: 40.1995, lon: 44.5020 }, toPt],
+        [fromPt, { lat: 40.1680, lon: 44.5400 }, { lat: 40.1945, lon: 44.5350 }, toPt]
+      ];
+      const extra = await Promise.allSettled(bypasses.map(pts => fetchOsrm(pts)));
+      extra.forEach(res => {
+        if (res.status !== 'fulfilled' || !res.value) return;
+        res.value.forEach(r => {
+          scored.push({
+            route: r,
+            hits: this.countRouteHits(r.geometry && r.geometry.coordinates)
+          });
+        });
+      });
+
+      scored.sort((a, b) => a.hits - b.hits || (a.route.distance || 0) - (b.route.distance || 0));
+      return scored[0].route;
     }
   };
 

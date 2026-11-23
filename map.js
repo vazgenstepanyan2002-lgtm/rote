@@ -291,7 +291,22 @@
    if(!c||!c.length)throw 0;
    return c;
   });
-  loadRoad('https://router.project-osrm.org/route/v1/driving/').catch(()=>loadRoad('https://routing.openstreetmap.de/routed-car/route/v1/driving/')).then(c=>{
+  const isDay=typeof getShift==='function'&&getShift()==='day';
+  const loadSafe=async()=>{
+   if(isDay&&window.ZoneService&&ZoneService.fetchSafeRoute&&ll.length<=8){
+    const segs=[];
+    for(let i=0;i<ll.length-1;i++){
+     const a={lat:ll[i][1],lon:ll[i][0]},b={lat:ll[i+1][1],lon:ll[i+1][0]};
+     const r0=await ZoneService.fetchSafeRoute(a,b,true);
+     const rc=r0&&r0.geometry&&r0.geometry.coordinates;
+     if(!rc||!rc.length)throw 0;
+     segs.push(i===0?rc:rc.slice(1));
+    }
+    return segs.flat();
+   }
+   return loadRoad('https://router.project-osrm.org/route/v1/driving/').catch(()=>loadRoad('https://routing.openstreetmap.de/routed-car/route/v1/driving/'));
+  };
+  loadSafe().then(c=>{
    if(tok!==_tok||_map!==map)return;
    routeCoords=c;routeDashed=false;
    if(styleReady&&map.getSource('route-src')){

@@ -433,16 +433,23 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
    }
 
    const tok=++_subRouteTok;
-   const coords=baseLL.join(',')+';'+ptLL.join(',');
-   const loadRoad=u=>fetch(u+coords+'?overview=full&geometries=geojson').then(r=>r.json()).then(j=>{
-    const r0=j.routes&&j.routes[0];
-    if(!r0||!r0.geometry||!r0.geometry.coordinates||!r0.geometry.coordinates.length)throw 0;
-    return r0;
-   });
-   loadRoad('https://router.project-osrm.org/route/v1/driving/').catch(()=>loadRoad('https://routing.openstreetmap.de/routed-car/route/v1/driving/')).then(r0=>{
+   const routeProm=(window.ZoneService&&ZoneService.fetchSafeRoute)
+    ? ZoneService.fetchSafeRoute(BASE_PT,item,!item.inK)
+    : (()=>{
+     const coords=baseLL.join(',')+';'+ptLL.join(',');
+     const loadRoad=u=>fetch(u+coords+'?overview=full&geometries=geojson').then(r=>r.json()).then(j=>{
+      const r0=j.routes&&j.routes[0];
+      if(!r0||!r0.geometry||!r0.geometry.coordinates||!r0.geometry.coordinates.length)throw 0;
+      return r0;
+     });
+     return loadRoad('https://router.project-osrm.org/route/v1/driving/').catch(()=>loadRoad('https://routing.openstreetmap.de/routed-car/route/v1/driving/'));
+    })();
+   routeProm.then(r0=>{
     if(tok!==_subRouteTok||!_map||TAB!=='map')return;
+    const rc=r0.geometry&&r0.geometry.coordinates;
+    if(!rc||!rc.length)return;
     if(_map.getSource('sub-route-src')){
-     _map.getSource('sub-route-src').setData({type:'Feature',geometry:{type:'LineString',coordinates:r0.geometry.coordinates}});
+     _map.getSource('sub-route-src').setData({type:'Feature',geometry:{type:'LineString',coordinates:rc}});
      if(_map.getLayer('sub-route-dash'))_map.setLayoutProperty('sub-route-dash','visibility','none');
      if(_map.getLayer('sub-route-solid'))_map.setLayoutProperty('sub-route-solid','visibility','visible');
     }
