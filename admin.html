@@ -483,6 +483,12 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
 .att-nm-app i{font-style:normal;font-size:10px;opacity:.75;flex-shrink:0}
 .att-tag-man{font-size:9.5px;font-weight:700;color:#94a3b8;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:5px;padding:0 4px;flex-shrink:0}
 .adm-att-on{background:linear-gradient(135deg,#fde047 0%,#facc15 55%,#eab308 100%)!important;color:#141102!important;border-color:rgba(255,255,255,.35)!important}
+.adm-hd-btns{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.adm-hd-btn{position:relative;width:40px;height:40px;padding:0;border-radius:13px;display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#e2e8f0;transition:.15s}
+.adm-hd-btn:active{transform:scale(.94)}
+.adm-hd-btn.chat{background:rgba(16,185,129,.16);border-color:rgba(52,211,153,.4);color:#6ee7b7}
+.adm-hd-bdg{position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:1px 5px;border-radius:99px;line-height:1.2;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+.adm-hd-bdg[hidden]{display:none!important}
 </style></head><body>
 <a class="back" href="./" onclick="event.preventDefault();location.replace('./')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>В приложение</a>
 <div id="login" class="auth-wrap"><div class="card">
@@ -500,7 +506,7 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
 </div></div>
 
 <div id="panel" hidden>
- <h2 style="flex-wrap:wrap;gap:10px;align-items:center"><div style="display:flex;align-items:center;gap:10px;flex:1;min-width:170px"><span class="adm-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span><span style="min-width:0"><span style="display:flex;align-items:center;gap:6px"><span>Админ</span><span id="livePill" title="Живое обновление" style="display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:99px;background:rgba(16,185,129,.14);border:1px solid rgba(52,211,153,.32);color:#6ee7b7;font-size:10.5px;font-weight:500"><i style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;display:inline-block"></i><span id="liveTxt">Live</span></span></span><small id="who"></small></span></div><button id="admAttBtn" class="out" style="padding:7px 11px;font-size:12.5px;white-space:nowrap;background:rgba(168,85,247,.16);border-color:rgba(192,132,252,.4);color:#d8b4fe" hidden>📅 Табель</button><div style="display:flex;align-items:center;gap:6px;width:100%;justify-content:flex-end"><button id="diagBtn" class="out" style="padding:7px 11px;font-size:12.5px;white-space:nowrap;background:rgba(56,189,248,.14);border-color:rgba(56,189,248,.38);color:#7dd3fc">🩺 API</button><button id="admChatBtn" class="out" style="padding:7px 11px;font-size:12.5px;white-space:nowrap;background:rgba(16,185,129,.16);border-color:rgba(52,211,153,.4);color:#6ee7b7">💬 Чат<span id="admChatBdg" style="background:#ef4444;color:#fff;border-radius:99px;padding:1px 5px;font-size:10.5px;margin-left:4px" hidden>0</span></button><button id="chgPwBtn" class="out" style="padding:7px 11px;font-size:12.5px;white-space:nowrap;background:rgba(250,204,21,.14);border-color:rgba(250,204,21,.38);color:#fde047">🔑 Пароль</button><button id="out" class="out" style="padding:7px 11px;font-size:12.5px;white-space:nowrap">Выйти</button></div></h2>
+ <h2 style="flex-wrap:nowrap;gap:10px;align-items:center"><div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0"><span class="adm-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span><span style="min-width:0;flex:1"><span style="display:flex;align-items:center;gap:6px"><span>Админ</span><span id="livePill" title="Живое обновление" style="display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:99px;background:rgba(16,185,129,.14);border:1px solid rgba(52,211,153,.32);color:#6ee7b7;font-size:10.5px;font-weight:500"><i style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;display:inline-block"></i><span id="liveTxt">Live</span></span></span><small id="who" style="max-width:100%"></small></span></div><div class="adm-hd-btns"><button id="admChatBtn" class="adm-hd-btn chat" aria-label="Общий чат" title="Общий чат"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span id="admChatBdg" class="adm-hd-bdg" hidden>0</span></button><button id="admMenuBtn" class="adm-hd-btn" aria-label="Меню" title="Меню"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button></div></h2>
  <div id="err" hidden></div>
  <div class="tabs">
   <button data-tab="online"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Онлайн</button>
@@ -531,13 +537,13 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
   </div>
  </div>
 </div>
-<script src="storage.js?v=20261123020651"></script>
-<script src="geo.js?v=20261123020651"></script>
-<script src="zones.js?v=20261123020651"></script>
-<script src="bonus-engine.js?v=20261123020651"></script>
-<script src="table-viewer.js?v=20261123020651"></script>
-<script src="yandex.js?v=20261123020651"></script>
-<script src="admin.js?v=20261123020651"></script>
+<script src="storage.js?v=20261123121917"></script>
+<script src="geo.js?v=20261123121917"></script>
+<script src="zones.js?v=20261123121917"></script>
+<script src="bonus-engine.js?v=20261123121917"></script>
+<script src="table-viewer.js?v=20261123121917"></script>
+<script src="yandex.js?v=20261123121917"></script>
+<script src="admin.js?v=20261123121917"></script>
 <script>
 ['lgEm','lgPw'].forEach(id=>{
  const el=document.getElementById(id);

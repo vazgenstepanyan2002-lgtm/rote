@@ -1855,10 +1855,35 @@ function openSelectModal(){
   document.addEventListener('keydown',onK);
   requestAnimationFrame(()=>{ov.classList.add('show');});
  }
- if(g('chgPwBtn'))g('chgPwBtn').onclick=openChangePw;
- if(g('admAttBtn'))g('admAttBtn').onclick=()=>{TAB='att';draw()};
- g('admChatBtn').onclick=openAdmChat;
- g('out').onclick=async ()=>auth.signOut();
+ function openAdmMenu(){
+  const sub=isSubAdm(),u=auth.currentUser;
+  const ov=document.createElement('div');ov.className='ov';
+  let items='';
+  if(!sub){
+   items+='<div class="sel-it'+(TAB==='att'?' on':'')+'" data-op="att"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(168,85,247,.16);border-color:rgba(192,132,252,.4);color:#d8b4fe">📅</span><div><div class="sel-it-nm">Табель пропусков</div><div class="sel-it-sb">Учёт выходов и отсутствий по экипажам</div></div></div>'+(TAB==='att'?'<div class="sel-it-r"><span class="sel-chk">✓</span></div>':'')+'</div>';
+  }
+  items+='<div class="sel-it" data-op="diag"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(56,189,248,.14);border-color:rgba(56,189,248,.38);color:#7dd3fc">🩺</span><div><div class="sel-it-nm">Диагностика и API</div><div class="sel-it-sb">Статус сервисов, кэша и ошибок</div></div></div></div>'
+   +'<div class="sel-it" data-op="pw"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(250,204,21,.14);border-color:rgba(250,204,21,.38);color:#fde047">🔑</span><div><div class="sel-it-nm">Сменить пароль</div><div class="sel-it-sb">'+(u&&u.email?esc(u.email):'Безопасность аккаунта')+'</div></div></div></div>'
+   +'<div class="sel-it" data-op="out" style="border-color:rgba(239,68,68,.3)"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.38);color:#f87171">🚪</span><div><div class="sel-it-nm" style="color:#fca5a5">Выйти из админки</div><div class="sel-it-sb">Завершить текущую сессию</div></div></div></div>';
+  ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>⚙️ Меню управления</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'+items+'</div></div>';
+  document.body.appendChild(ov);
+  const close=()=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),180)};
+  ov.querySelector('.sel-x').onclick=close;
+  ov.onclick=async e=>{
+   if(e.target===ov){close();return}
+   const it=e.target.closest('.sel-it');if(!it)return;
+   const op=it.dataset.op;close();
+   if(op==='att'){TAB='att';draw()}
+   else if(op==='diag'){if(typeof window._openAdmDiag==='function')window._openAdmDiag()}
+   else if(op==='pw'){openChangePw()}
+   else if(op==='out'){
+    if(await ask('Выйти из панели администратора?',{title:'Выход',okText:'Выйти',danger:true}))auth.signOut();
+   }
+  };
+  requestAnimationFrame(()=>ov.classList.add('show'));
+ }
+ if(g('admMenuBtn'))g('admMenuBtn').onclick=openAdmMenu;
+ if(g('admChatBtn'))g('admChatBtn').onclick=openAdmChat;
  auth.onAuthStateChanged(u=>{
   if(u){
    g('login').hidden=true;g('panel').hidden=false;g('who').textContent=(isSubAdm()?'Доставка · ':'')+(u.email||'');
@@ -1952,6 +1977,7 @@ function openSelectModal(){
     run();
   }
 
+  window._openAdmDiag = openDiag;
   document.addEventListener('click', e => {
     if (e.target && e.target.closest('#diagBtn')) openDiag();
   });
