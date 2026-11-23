@@ -194,9 +194,11 @@
     return best;
   }
 
-  function createXlsxBlob(allRows, hasTotal, mergeFirstCol, rowTypes = []) {
+  function createXlsxBlob(allRows, hasTotal, mergeFirstCol, rowTypes = [], mergeCols = null) {
     const colCount = allRows.reduce((m, r) => Math.max(m, (r && r.length) || 0), 0);
     const widths = new Array(colCount).fill(0);
+    const mCols = Array.isArray(mergeCols) && mergeCols.length ? mergeCols : (mergeFirstCol ? [0] : []);
+    const mColSet = new Set(mCols);
 
     for (let r = 0; r < allRows.length; r++) {
       const row = allRows[r] || [];
@@ -221,10 +223,10 @@
       return `<col min="${i + 1}" max="${i + 1}" width="${cw}" bestFit="1" customWidth="1"/>`;
     }).join('') + '</cols>' : '';
 
-    // Объединение одинаковых подряд идущих ячеек в первом столбце (например, экипажи)
+    // Объединение одинаковых подряд идущих групп строк по первому столбцу (например, экипажи и их итоги)
     const merges = [];
-    const skipFirstCol = new Set();
-    if (mergeFirstCol && allRows.length > 2) {
+    const skipCells = new Set();
+    if (mCols.length && allRows.length > 2) {
       const lastDataIdx = hasTotal ? allRows.length - 2 : allRows.length - 1;
       let i = 1;
       while (i <= lastDataIdx) {
@@ -234,8 +236,13 @@
           j++;
         }
         if (val && j > i) {
-          merges.push(`A${i + 1}:A${j + 1}`);
-          for (let k = i + 1; k <= j; k++) skipFirstCol.add(k);
+          mCols.forEach(mc => {
+            if (mc >= 0 && mc < colCount) {
+              const colL = colLetter(mc);
+              merges.push(`${colL}${i + 1}:${colL}${j + 1}`);
+              for (let k = i + 1; k <= j; k++) skipCells.add(k + ':' + mc);
+            }
+          });
         }
         i = j + 1;
       }
@@ -249,12 +256,12 @@
       const cells = [];
       for (let c = 0; c < colCount; c++) {
         const ref = colLetter(c) + rNum;
-        if (c === 0 && skipFirstCol.has(rIdx)) {
-          cells.push(`<c r="${ref}" s="6"/>`);
+        if (skipCells.has(rIdx + ':' + c)) {
+          cells.push(`<c r="${ref}" s="${c === 0 ? 6 : 14}"/>`);
           continue;
         }
         const val = row && row[c] !== undefined && row[c] !== null ? row[c] : '';
-        const isShort = widths[c] <= 3.5;
+        const isShort = widths[c] <= 3.5 && !(mColSet.has(c) && c > 0);
         let styleId = isHead ? (isShort ? 2 : 1) : (isTot ? (isShort ? 4 : 3) : (isShort ? 5 : 0));
         if (mergeFirstCol && c === 0 && !isHead && !isTot) styleId = 6;
         if (mergeFirstCol && c === 0 && isHead) styleId = 2;
@@ -411,11 +418,12 @@
   }
 
   // Печать таблицы на принтер (чистый белый лист А4, альбомная для широких таблиц)
-  function printTable({ title, headers = [], rows = [], totalRow = null, mergeFirstCol = false, rowTypes = [] }) {
+  function printTable({ title, headers = [], rows = [], totalRow = null, mergeFirstCol = false, rowTypes = [], mergeCols = null }) {
     const isWide = headers.length > 7;
     const isCatalog = rowTypes && rowTypes.length > 0;
+    const mColSet = new Set(Array.isArray(mergeCols) && mergeCols.length ? mergeCols : (mergeFirstCol ? [0] : []));
     const spans = new Array(rows.length).fill(1);
-    if (mergeFirstCol) {
+    if (mColSet.size) {
       let i = 0;
       while (i < rows.length) {
         const v = String((rows[i] && rows[i][0]) || '');
@@ -429,14 +437,16 @@
       }
     }
 
-    const thHtml = headers.map((h, idx) => `<th class="${isCatalog ? (idx === 1 ? '' : 'r') : (idx > 1 ? 'c' : (mergeFirstCol && idx === 0 ? 'c' : ''))}">${esc(h)}</th>`).join('');
+    const thHtml = headers.map((h, idx) => `<th class="${isCatalog ? (idx === 1 ? '' : 'r') : (mColSet.has(idx) && idx > 0 ? 'r' : (idx > 1 ? 'c' : (mergeFirstCol && idx === 0 ? 'c' : '')))}">${esc(h)}</th>`).join('');
     const tbHtml = rows.map((r, rIdx) => {
       const rt = rowTypes[rIdx] || '';
       const trCls = rt === 'cat' ? ' class="cat-r"' : (rt === 'hi' ? ' class="hi-r"' : '');
       const tds = r.map((c, idx) => {
-        if (mergeFirstCol && idx === 0) {
+        if (mColSet.has(idx)) {
           if (spans[rIdx] === 0) return '';
-          return `<td rowspan="${spans[rIdx]}" class="crew">${esc(c)}</td>`;
+          if (idx === 0) return `<td rowspan="${spans[rIdx]}" class="crew">${esc(c)}</td>`;
+          const valM = typeof c === 'number' ? fm(c) : String(c == null ? '' : c);
+          return `<td rowspan="${spans[rIdx]}" class="r${idx === r.length - 1 ? ' b' : ''}" style="vertical-align:middle">${esc(valM)}</td>`;
         }
         const s = String(c == null ? '' : c);
         if (s === '✕') return `<td class="c abs">✕</td>`;
@@ -454,7 +464,7 @@
     }).join('');
     const tfHtml = totalRow ? `<tfoot><tr>${totalRow.map((c, idx) => {
       const val = typeof c === 'number' ? fm(c) : String(c == null ? '' : c);
-      const cls = isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'c' : 'r')) : (idx > 1 ? 'c' : '');
+      const cls = isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'c' : 'r')) : (mColSet.has(idx) && idx > 0 ? 'r' : (idx > 1 ? 'c' : ''));
       return `<td class="${cls}">${esc(val)}</td>`;
     }).join('')}</tr></tfoot>` : '';
     const pLang = (() => { try { const l = localStorage.getItem('EXCEL_LANG'); return (l === 'ru' || l === 'hy' || l === 'en') ? l : ((window.getLang && window.getLang()) || 'ru'); } catch (e) { return 'ru'; } })();
@@ -620,7 +630,7 @@
 
   const TableViewer = {
     // Открыть модальное окно с таблицей
-    open({ title, filename, headers = [], rows = [], totalRow = null, mergeFirstCol = false, rowTypes = [], nameCol = -1 }) {
+    open({ title, filename, headers = [], rows = [], totalRow = null, mergeFirstCol = false, rowTypes = [], nameCol = -1, mergeCols = null }) {
       const old = document.getElementById('tvMdl');
       if (old) {
         if (typeof old._tvClose === 'function') old._tvClose();
@@ -645,7 +655,7 @@
         const lRows = rows.map(r => r.map((c, idx) => trExcelVal(c, lang, mergeFirstCol && idx === 0, idx === nameCol)));
         const lTotal = totalRow ? totalRow.map(c => trExcelVal(c, lang, false, false)) : null;
         const allRows = [lHeaders, ...lRows, ...(lTotal ? [lTotal] : [])];
-        const lBlob = createXlsxBlob(allRows, !!lTotal, !!mergeFirstCol, rowTypes);
+        const lBlob = createXlsxBlob(allRows, !!lTotal, !!mergeFirstCol, rowTypes, mergeCols);
         const lName = lang === 'ru' ? baseXlsxName : baseXlsxName.replace(/\.xlsx$/i, '_' + lang.toUpperCase() + '.xlsx');
         return { lTitle, lHeaders, lRows, lTotal, lBlob, lName };
       };
@@ -669,7 +679,7 @@
 
       const langSegBtn = (k, lbl) => `<button type="button" data-tvl="${k}" style="width:auto!important;margin:0!important;height:26px!important;padding:0 8px!important;border-radius:7px!important;font-size:11px!important;font-weight:800!important;cursor:pointer;border:1px solid ${excelLang === k ? 'rgba(250,204,21,.55)' : 'transparent'}!important;background:${excelLang === k ? 'rgba(250,204,21,.22)' : 'transparent'}!important;color:${excelLang === k ? '#fde047' : '#94a3b8'}!important;box-shadow:none!important">${lbl}</button>`;
 
-      const renderThead = (hdrs) => `<tr style="background:#131c2e;position:sticky;top:0;z-index:2;box-shadow:0 1px 0 rgba(255,255,255,.1)">${hdrs.map((h, idx) => `<th style="padding:10px 14px;font-weight:700;color:#94a3b8;border-bottom:1px solid rgba(255,255,255,.1);white-space:nowrap;${isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'text-align:center;' : 'text-align:right;')) : (idx > 1 ? 'text-align:right;' : '')}">${esc(h)}</th>`).join('')}</tr>`;
+      const renderThead = (hdrs) => `<tr style="background:#131c2e;position:sticky;top:0;z-index:2;box-shadow:0 1px 0 rgba(255,255,255,.1)">${hdrs.map((h, idx) => `<th style="padding:10px 14px;font-weight:700;color:#94a3b8;border-bottom:1px solid rgba(255,255,255,.1);white-space:nowrap;${isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'text-align:center;' : 'text-align:right;')) : (mergeFirstCol && idx === 0 ? 'text-align:center;' : (idx > 1 ? 'text-align:right;' : ''))}">${esc(h)}</th>`).join('')}</tr>`;
       const renderTfoot = (tot) => tot ? `<tr style="background:#131c2e;position:sticky;bottom:0;z-index:2;border-top:2px solid rgba(250,204,21,.35);font-weight:800;color:#fde047">${tot.map((c, idx) => `<td style="padding:10px 14px;white-space:nowrap;${isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'text-align:center;' : 'text-align:right;')) : (idx > 1 ? 'text-align:right;' : '')}">${esc(typeof c === 'number' ? fm(c) : c)}</td>`).join('')}</tr>` : '';
 
       m.innerHTML = `
@@ -696,7 +706,7 @@
           <div class="tv-scroll" data-no-i18n="1" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0;max-width:100%;min-width:0;touch-action:pan-x pan-y">
             <table id="tvTable" style="width:max-content;min-width:100%;border-collapse:collapse;font-size:12px;line-height:1.35;text-align:left">
               <thead id="tvThead">${renderThead(loc.lHeaders)}</thead>
-              <tbody id="tvTbody">${this.renderRowsHtml(loc.lRows, mergeFirstCol, rowTypes, loc.lHeaders.length)}</tbody>
+              <tbody id="tvTbody">${this.renderRowsHtml(loc.lRows, mergeFirstCol, rowTypes, loc.lHeaders.length, mergeCols)}</tbody>
               <tfoot id="tvTfoot">${renderTfoot(loc.lTotal)}</tfoot>
             </table>
           </div>
@@ -738,7 +748,7 @@
       const applySearch = () => {
         const q = (searchInp.value || '').trim().toLowerCase();
         if (!q) {
-          tbody.innerHTML = this.renderRowsHtml(loc.lRows, mergeFirstCol, rowTypes, loc.lHeaders.length);
+          tbody.innerHTML = this.renderRowsHtml(loc.lRows, mergeFirstCol, rowTypes, loc.lHeaders.length, mergeCols);
           countEl.textContent = loc.lRows.length;
           return;
         }
@@ -749,7 +759,7 @@
             fTypes.push(rowTypes[idx] || '');
           }
         });
-        tbody.innerHTML = this.renderRowsHtml(filtered, mergeFirstCol, fTypes, loc.lHeaders.length);
+        tbody.innerHTML = this.renderRowsHtml(filtered, mergeFirstCol, fTypes, loc.lHeaders.length, mergeCols);
         countEl.textContent = filtered.length;
       };
 
@@ -783,7 +793,7 @@
       // Печать (на ПК)
       const printBtn = document.getElementById('tvPrint');
       if (printBtn) {
-        printBtn.onclick = () => printTable({ title: loc.lTitle, headers: loc.lHeaders, rows: loc.lRows, totalRow: loc.lTotal, mergeFirstCol, rowTypes, lang: excelLang });
+        printBtn.onclick = () => printTable({ title: loc.lTitle, headers: loc.lHeaders, rows: loc.lRows, totalRow: loc.lTotal, mergeFirstCol, rowTypes, mergeCols });
       }
 
       // Поделиться (на мобильном)
@@ -816,13 +826,14 @@
     },
 
     // Отрисовка строк таблицы
-    renderRowsHtml(rows, mergeFirstCol = false, rowTypes = [], colSpan = 10) {
+    renderRowsHtml(rows, mergeFirstCol = false, rowTypes = [], colSpan = 10, mergeCols = null) {
       if (!rows.length) {
         return `<tr><td colspan="${Math.max(1, colSpan || 10)}" style="padding:28px 12px;text-align:center;color:#64748b">Ничего не найдено</td></tr>`;
       }
       const isCatalog = rowTypes && rowTypes.some(Boolean);
+      const mColSet = new Set(Array.isArray(mergeCols) && mergeCols.length ? mergeCols : (mergeFirstCol ? [0] : []));
       const spans = new Array(rows.length).fill(1);
-      if (mergeFirstCol) {
+      if (mColSet.size) {
         let i = 0;
         while (i < rows.length) {
           const v = String((rows[i] && rows[i][0]) || '');
@@ -845,9 +856,13 @@
         return `
           <tr style="${bg}">
             ${r.map((c, idx) => {
-              if (mergeFirstCol && idx === 0) {
+              if (mColSet.has(idx)) {
                 if (spans[rIdx] === 0) return '';
-                return `<td rowspan="${spans[rIdx]}" style="padding:9px 14px;white-space:nowrap;text-align:center;vertical-align:middle;font-weight:800;color:#6ee7b7;border-right:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.1)">${esc(c)}</td>`;
+                if (idx === 0) {
+                  return `<td rowspan="${spans[rIdx]}" style="padding:9px 14px;white-space:nowrap;text-align:center;vertical-align:middle;font-weight:800;color:#6ee7b7;border-right:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.1)">${esc(c)}</td>`;
+                }
+                const txtM = typeof c === 'number' ? fm(c) : String(c == null ? '' : c);
+                return `<td rowspan="${spans[rIdx]}" style="padding:9px 14px;white-space:nowrap;text-align:right;vertical-align:middle;border-left:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.1);${idx === r.length - 1 ? 'font-weight:800;color:#fde047;' : 'font-weight:700;color:#f8fafc;'}">${esc(txtM)}</td>`;
               }
               const s = String(c == null ? '' : c);
               if (s === '✕') {
