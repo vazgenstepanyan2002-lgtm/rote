@@ -2288,6 +2288,8 @@ function openSelectModal(){
  if(g('admChatBtn'))g('admChatBtn').onclick=openAdmChat;
  auth.onAuthStateChanged(u=>{
   if(u){
+   let profNick='';try{profNick=(localStorage.getItem('USER_NAME')||'').trim()}catch(e){}
+   if(g('admNick'))g('admNick').textContent=profNick||'Admin';
    g('login').hidden=true;g('panel').hidden=false;g('who').textContent=(isSubAdm()?'Доставка · ':'')+(u.email||'');
    start();draw();
   }else{
