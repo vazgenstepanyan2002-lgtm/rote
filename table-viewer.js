@@ -185,7 +185,7 @@
           if (!isHead && !isTot && rType === '') {
             if (str === '✕') styleId = 7;
             else if (str === '✓') styleId = 8;
-            else if (str === 'В') styleId = 9;
+            else if (str === 'В' || str === 'Հ' || str === 'Off') styleId = 9;
           }
           cells.push(`<c r="${ref}" t="inlineStr" s="${styleId}"><is><t>${xmlEsc(str)}</t></is></c>`);
         }
@@ -351,7 +351,7 @@
         const s = String(c == null ? '' : c);
         if (s === '✕') return `<td class="c abs">✕</td>`;
         if (s === '✓') return `<td class="c wrk">✓</td>`;
-        if (s === 'В') return `<td class="c off">В</td>`;
+        if (s === 'В' || s === 'Հ' || s === 'Off') return `<td class="c off">${esc(s)}</td>`;
         const val = typeof c === 'number' ? fm(c) : s;
         if (isCatalog) {
           const al = idx === 1 ? '' : (idx === 2 ? 'c' : 'r');
@@ -415,6 +415,23 @@
     }, 150);
   }
 
+  function trExcelVal(val, lang, keepCrewCode) {
+    if (typeof val === 'number' || val == null || val === '') return val;
+    const s = String(val);
+    if (lang === 'ru') return s;
+    // Коды экипажей (BB, CC, VV, RR, EE, GG, XX, ZZ, ADMIN) всегда на латинском
+    if (keepCrewCode || /^[A-Z]{2,5}$/.test(s.trim())) return s;
+    // «Экипаж BB (имена)» — переводим только слово «Экипаж», код и имена сохраняем
+    const mCrew = s.match(/^Экипаж ([A-Z0-9]+)(.*)$/);
+    if (mCrew) {
+      const pref = lang === 'hy' ? 'Անձնակազմ ' : 'Crew ';
+      const rest = mCrew[2] ? (window.i18nTranslateText ? window.i18nTranslateText(mCrew[2], lang) : mCrew[2]) : '';
+      return pref + mCrew[1] + rest;
+    }
+    if (window.i18nTranslateText) return window.i18nTranslateText(s, lang);
+    return s;
+  }
+
   const TableViewer = {
     // Открыть модальное окно с таблицей
     open({ title, filename, headers = [], rows = [], totalRow = null, mergeFirstCol = false, rowTypes = [] }) {
@@ -426,9 +443,21 @@
 
       const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
       const isCatalog = rowTypes && rowTypes.length > 0;
-      const xlsxName = String(filename || 'EuroBaza.xlsx').replace(/\.csv$/i, '.xlsx');
-      const allRows = [headers, ...rows, ...(totalRow ? [totalRow] : [])];
-      const blob = createXlsxBlob(allRows, !!totalRow, !!mergeFirstCol, rowTypes);
+      const baseXlsxName = String(filename || 'EuroBaza.xlsx').replace(/\.csv$/i, '.xlsx');
+      let excelLang = (window.getLang && window.getLang()) || 'ru';
+
+      const buildLocalized = (lang) => {
+        const lTitle = trExcelVal(title || 'Ведомость', lang, false);
+        const lHeaders = headers.map(h => trExcelVal(h, lang, false));
+        const lRows = rows.map(r => r.map((c, idx) => trExcelVal(c, lang, mergeFirstCol && idx === 0)));
+        const lTotal = totalRow ? totalRow.map(c => trExcelVal(c, lang, false)) : null;
+        const allRows = [lHeaders, ...lRows, ...(lTotal ? [lTotal] : [])];
+        const lBlob = createXlsxBlob(allRows, !!lTotal, !!mergeFirstCol, rowTypes);
+        const lName = lang === 'ru' ? baseXlsxName : baseXlsxName.replace(/\.xlsx$/i, '_' + lang.toUpperCase() + '.xlsx');
+        return { lTitle, lHeaders, lRows, lTotal, lBlob, lName };
+      };
+
+      let loc = buildLocalized(excelLang);
 
       const prevHtmlOv = document.documentElement.style.overflow;
       const prevBodyOv = document.body.style.overflow;
@@ -445,14 +474,22 @@
         ? `<button type="button" id="tvPrint" title="Напечатать" style="width:auto!important;margin:0!important;height:34px!important;padding:0 12px!important;border-radius:9px!important;background:linear-gradient(135deg,rgba(168,85,247,.26),rgba(124,58,237,.16))!important;border:1px solid rgba(192,132,252,.5)!important;color:#e9d5ff!important;font-size:12px!important;font-weight:700!important;display:inline-flex!important;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:none!important">🖨️ Напечатать</button>`
         : `<button type="button" id="tvShare" title="Поделиться" style="width:auto!important;margin:0!important;height:34px!important;padding:0 10px!important;border-radius:9px!important;background:linear-gradient(135deg,rgba(56,189,248,.25),rgba(2,132,199,.15))!important;border:1px solid rgba(56,189,248,.5)!important;color:#7dd3fc!important;font-size:12px!important;font-weight:700!important;display:inline-flex!important;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:none!important">📤 Поделиться</button>`;
 
+      const langSegBtn = (k, lbl) => `<button type="button" data-tvl="${k}" style="width:auto!important;margin:0!important;height:26px!important;padding:0 8px!important;border-radius:7px!important;font-size:11px!important;font-weight:800!important;cursor:pointer;border:1px solid ${excelLang === k ? 'rgba(250,204,21,.55)' : 'transparent'}!important;background:${excelLang === k ? 'rgba(250,204,21,.22)' : 'transparent'}!important;color:${excelLang === k ? '#fde047' : '#94a3b8'}!important;box-shadow:none!important">${lbl}</button>`;
+
+      const renderThead = (hdrs) => `<tr style="background:#131c2e;position:sticky;top:0;z-index:2;box-shadow:0 1px 0 rgba(255,255,255,.1)">${hdrs.map((h, idx) => `<th style="padding:10px 14px;font-weight:700;color:#94a3b8;border-bottom:1px solid rgba(255,255,255,.1);white-space:nowrap;${isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'text-align:center;' : 'text-align:right;')) : (idx > 1 ? 'text-align:right;' : '')}">${esc(h)}</th>`).join('')}</tr>`;
+      const renderTfoot = (tot) => tot ? `<tr style="background:#131c2e;position:sticky;bottom:0;z-index:2;border-top:2px solid rgba(250,204,21,.35);font-weight:800;color:#fde047">${tot.map((c, idx) => `<td style="padding:10px 14px;white-space:nowrap;${isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'text-align:center;' : 'text-align:right;')) : (idx > 1 ? 'text-align:right;' : '')}">${esc(typeof c === 'number' ? fm(c) : c)}</td>`).join('')}</tr>` : '';
+
       m.innerHTML = `
         <div class="tv-box" style="max-width:min(94vw,1180px);width:100%;height:min(88dvh,760px);display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:18px;background:#0d131f;border:1px solid rgba(255,255,255,.16);box-shadow:0 18px 45px rgba(0,0,0,.75);animation:cmIn .16s ease-out">
-          <div class="tv-hd" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0">
-            <div style="min-width:0">
-              <div style="font-size:15px;font-weight:800;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📊 ${esc(title || 'Ведомость')}</div>
+          <div class="tv-hd" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0">
+            <div style="min-width:0;flex:1">
+              <div id="tvTitle" data-no-i18n="1" style="font-size:14.5px;font-weight:800;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📊 ${esc(loc.lTitle)}</div>
               <div style="font-size:11.5px;color:#94a3b8;margin-top:2px">Строк: <b id="tvRowCount">${rows.length}</b></div>
             </div>
-            <button type="button" id="tvClose" style="width:32px!important;height:32px!important;margin:0!important;padding:0!important;background:transparent!important;border:none!important;color:#94a3b8!important;font-size:18px!important;cursor:pointer;display:flex!important;align-items:center;justify-content:center;border-radius:8px;box-shadow:none!important">✕</button>
+            <div id="tvLangBar" data-no-i18n="1" style="display:inline-flex;align-items:center;gap:2px;padding:3px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);flex-shrink:0">
+              ${langSegBtn('ru', 'RU')}${langSegBtn('hy', 'HY')}${langSegBtn('en', 'EN')}
+            </div>
+            <button type="button" id="tvClose" style="width:32px!important;height:32px!important;margin:0!important;padding:0!important;background:transparent!important;border:none!important;color:#94a3b8!important;font-size:18px!important;cursor:pointer;display:flex!important;align-items:center;justify-content:center;border-radius:8px;box-shadow:none!important;flex-shrink:0">✕</button>
           </div>
 
           <div class="tv-bar" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(0,0,0,.15);border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;box-sizing:border-box">
@@ -463,22 +500,11 @@
             </button>
           </div>
 
-          <div class="tv-scroll" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0;max-width:100%;min-width:0;touch-action:pan-x pan-y">
+          <div class="tv-scroll" data-no-i18n="1" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0;max-width:100%;min-width:0;touch-action:pan-x pan-y">
             <table id="tvTable" style="width:max-content;min-width:100%;border-collapse:collapse;font-size:12px;line-height:1.35;text-align:left">
-              <thead>
-                <tr style="background:#131c2e;position:sticky;top:0;z-index:2;box-shadow:0 1px 0 rgba(255,255,255,.1)">
-                  ${headers.map((h, idx) => `<th style="padding:10px 14px;font-weight:700;color:#94a3b8;border-bottom:1px solid rgba(255,255,255,.1);white-space:nowrap;${isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'text-align:center;' : 'text-align:right;')) : (idx > 1 ? 'text-align:right;' : '')}">${esc(h)}</th>`).join('')}
-                </tr>
-              </thead>
-              <tbody id="tvTbody">
-                ${this.renderRowsHtml(rows, mergeFirstCol, rowTypes)}
-              </tbody>
-              ${totalRow ? `
-              <tfoot>
-                <tr style="background:#131c2e;position:sticky;bottom:0;z-index:2;border-top:2px solid rgba(250,204,21,.35);font-weight:800;color:#fde047">
-                  ${totalRow.map((c, idx) => `<td style="padding:10px 14px;white-space:nowrap;${isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'text-align:center;' : 'text-align:right;')) : (idx > 1 ? 'text-align:right;' : '')}">${esc(typeof c === 'number' ? fm(c) : c)}</td>`).join('')}
-                </tr>
-              </tfoot>` : ''}
+              <thead id="tvThead">${renderThead(loc.lHeaders)}</thead>
+              <tbody id="tvTbody">${this.renderRowsHtml(loc.lRows, mergeFirstCol, rowTypes)}</tbody>
+              <tfoot id="tvTfoot">${renderTfoot(loc.lTotal)}</tfoot>
             </table>
           </div>
         </div>
@@ -502,44 +528,19 @@
       document.getElementById('tvClose').onclick = close;
       m.onclick = e => { if (e.target === m) close(); };
 
-      // Печать (на ПК)
-      const printBtn = document.getElementById('tvPrint');
-      if (printBtn) {
-        printBtn.onclick = () => printTable({ title, headers, rows, totalRow, mergeFirstCol, rowTypes });
-      }
-
-      // Поделиться (на мобильном)
-      const shareBtn = document.getElementById('tvShare');
-      if (shareBtn) {
-        shareBtn.onclick = async () => {
-          const res = await shareFile(blob, xlsxName, title);
-          if (res === 'unsupported' || res === 'error') {
-            downloadBlob(blob, xlsxName);
-            if (window.toast) window.toast('Файл скачан');
-          }
-        };
-      }
-
-      // Скачать Excel (.xlsx)
-      document.getElementById('tvDownload').onclick = () => {
-        downloadBlob(blob, xlsxName);
-        if (window.toast) window.toast('Файл Excel скачан');
-      };
-
-      // Живой поиск
       const searchInp = document.getElementById('tvSearch');
       const tbody = document.getElementById('tvTbody');
       const countEl = document.getElementById('tvRowCount');
 
-      searchInp.oninput = () => {
-        const q = searchInp.value.trim().toLowerCase();
+      const applySearch = () => {
+        const q = (searchInp.value || '').trim().toLowerCase();
         if (!q) {
-          tbody.innerHTML = this.renderRowsHtml(rows, mergeFirstCol, rowTypes);
-          countEl.textContent = rows.length;
+          tbody.innerHTML = this.renderRowsHtml(loc.lRows, mergeFirstCol, rowTypes);
+          countEl.textContent = loc.lRows.length;
           return;
         }
         const filtered = [], fTypes = [];
-        rows.forEach((r, idx) => {
+        loc.lRows.forEach((r, idx) => {
           if (r.some(cell => String(cell || '').toLowerCase().includes(q))) {
             filtered.push(r);
             fTypes.push(rowTypes[idx] || '');
@@ -548,6 +549,59 @@
         tbody.innerHTML = this.renderRowsHtml(filtered, mergeFirstCol, fTypes);
         countEl.textContent = filtered.length;
       };
+
+      // Переключатель языка Excel-файла (RU / HY / EN)
+      const langBar = document.getElementById('tvLangBar');
+      if (langBar) {
+        langBar.onclick = e => {
+          const b = e.target.closest('button[data-tvl]');
+          if (!b) return;
+          const nl = b.dataset.tvl;
+          if (!nl || nl === excelLang) return;
+          excelLang = nl;
+          loc = buildLocalized(excelLang);
+          langBar.querySelectorAll('button[data-tvl]').forEach(x => {
+            const on = x.dataset.tvl === excelLang;
+            x.style.borderColor = on ? 'rgba(250,204,21,.55)' : 'transparent';
+            x.style.background = on ? 'rgba(250,204,21,.22)' : 'transparent';
+            x.style.color = on ? '#fde047' : '#94a3b8';
+          });
+          const ttl = document.getElementById('tvTitle');
+          if (ttl) ttl.textContent = '📊 ' + loc.lTitle;
+          const th = document.getElementById('tvThead');
+          if (th) th.innerHTML = renderThead(loc.lHeaders);
+          const tf = document.getElementById('tvTfoot');
+          if (tf) tf.innerHTML = renderTfoot(loc.lTotal);
+          applySearch();
+        };
+      }
+
+      // Печать (на ПК)
+      const printBtn = document.getElementById('tvPrint');
+      if (printBtn) {
+        printBtn.onclick = () => printTable({ title: loc.lTitle, headers: loc.lHeaders, rows: loc.lRows, totalRow: loc.lTotal, mergeFirstCol, rowTypes });
+      }
+
+      // Поделиться (на мобильном)
+      const shareBtn = document.getElementById('tvShare');
+      if (shareBtn) {
+        shareBtn.onclick = async () => {
+          const res = await shareFile(loc.lBlob, loc.lName, loc.lTitle);
+          if (res === 'unsupported' || res === 'error') {
+            downloadBlob(loc.lBlob, loc.lName);
+            if (window.toast) window.toast('Файл скачан');
+          }
+        };
+      }
+
+      // Скачать Excel (.xlsx)
+      document.getElementById('tvDownload').onclick = () => {
+        downloadBlob(loc.lBlob, loc.lName);
+        if (window.toast) window.toast('Файл Excel скачан');
+      };
+
+      // Живой поиск
+      searchInp.oninput = applySearch;
     },
 
     // Отрисовка строк таблицы
@@ -591,8 +645,8 @@
               if (s === '✓') {
                 return `<td style="padding:9px 14px;white-space:nowrap;text-align:center;font-weight:800;color:#6ee7b7;background:rgba(16,185,129,.26)">✓</td>`;
               }
-              if (s === 'В') {
-                return `<td style="padding:9px 14px;white-space:nowrap;text-align:center;font-weight:700;color:#fbbf24;background:rgba(245,158,11,.12)">В</td>`;
+              if (s === 'В' || s === 'Հ' || s === 'Off') {
+                return `<td style="padding:9px 14px;white-space:nowrap;text-align:center;font-weight:700;color:#fbbf24;background:rgba(245,158,11,.12)">${esc(s)}</td>`;
               }
               const txt = typeof c === 'number' ? fm(c) : s;
               if (isCatalog) {

@@ -357,7 +357,95 @@
   "Шкаф 3 двери":["Պահարան 3 դուռ","Wardrobe 3 doors"],
   "Шкаф 4 двери":["Պահարան 4 դուռ","Wardrobe 4 doors"],
   "Шкаф 5 дверей":["Պահարան 5 դուռ","Wardrobe 5 doors"],
-  "Шкаф 6 дверей":["Պահարան 6 դուռ","Wardrobe 6 doors"]
+  "Шкаф 6 дверей":["Պահարան 6 դուռ","Wardrobe 6 doors"],
+  "В приложение":["Դեպի հավելված","Back to app"],
+  "Онлайн":["Առցանց","Online"],
+  "Карта":["Քարտեզ","Map"],
+  "Табель":["Տաբել","Attendance"],
+  "Словарь":["Բառարան","Dictionary"],
+  "Версия":["Տարբերակ","Version"],
+  "онлайн":["առցանց","online"],
+  "за 24 часа":["24 ժամում","last 24h"],
+  "всего":["ընդհանուր","total"],
+  "сотрудников":["աշխատակից","workers"],
+  "пропусков":["բացակայություն","absences"],
+  "не вышли сегодня":["չեն եկել այսօր","absent today"],
+  "не тек. месяц":["այլ ամիս","other month"],
+  "Рабочий":["Աշխատակից","Worker"],
+  "Отчёт":["Հաշվետվություն","Report"],
+  "Все экипажи":["Բոլոր անձնակազմերը","All crews"],
+  "Без экипажа":["Առանց անձնակազմի","No crew"],
+  "Поиск по имени или экипажу...":["Որոնում անունով կամ անձնակազմով...","Search by name or crew..."],
+  "Экипаж / Сотрудник":["Անձնակազմ / Աշխատակից","Crew / Worker"],
+  "Экипаж":["Անձնակազմ","Crew"],
+  "Сотрудник":["Աշխատակից","Worker"],
+  "Итог":["Ամփոփ.","Total"],
+  "ИТОГО":["ԸՆԴԱՄԵՆԸ","TOTAL"],
+  "Пропусков":["Բացակ.","Absences"],
+  "В вых.":["Հանգ. օր","Day-off"],
+  "Тариф (֏)":["Սակագին (֏)","Rate (֏)"],
+  "Товар / Категория":["Ապրանքատեսակ","Item / Category"],
+  "Кол-во":["Քանակ","Qty"],
+  "Количество (шт)":["Քանակ (հատ)","Qty (pcs)"],
+  "Сумма (֏)":["Գումար (֏)","Amount (֏)"],
+  "Экипаж / Водители":["Անձնակազմ / Վարորդներ","Crew / Drivers"],
+  "Меню управления":["Կառավարման մենյու","Control menu"],
+  "Табель пропусков":["Բացակայությունների տաբել","Attendance sheet"],
+  "Учёт выходов и отсутствий по экипажам":["Հաճախումների և բացակայությունների հաշվառում","Crew attendance tracking"],
+  "Диагностика и API":["Ախտորոշում և API","Diagnostics & API"],
+  "Статус сервисов, кэша и ошибок":["Ծառայությունների և քեշի կարգավիճակ","Services & cache status"],
+  "Сменить пароль":["Փոխել գաղտնաբառը","Change password"],
+  "Выйти из админки":["Դուրս գալ ադմինից","Sign out"],
+  "Завершить текущую сессию":["Ավարտել ընթացիկ սեսիան","End current session"],
+  "Язык интерфейса":["Ինտերֆեյսի լեզու","Interface language"],
+  "Напечатать":["Տպել","Print"],
+  "Поиск...":["Որոնում...","Search..."],
+  "Ничего не найдено":["Ոչինչ չի գտնվել","Nothing found"],
+  "Текущий месяц":["Ընթացիկ ամիս","Current month"],
+  "Текущий месяц · по экипажам":["Ընթացիկ ամիս · ըստ անձնակազմերի","Current month · by crew"],
+  "Скачать Excel по экипажам":["Ներբեռնել Excel ըստ անձնակազմերի","Download Excel by crew"],
+  "Открыть таблицу / Excel":["Բացել աղյուսակը / Excel","Open table / Excel"],
+  "Архив сохранённых месяцев":["Պահպանված ամիսների արխիվ","Saved months archive"],
+  "Опубликованная версия":["Հրապարակված տարբերակ","Published version"],
+  "Версии на устройствах":["Տարբերակները սարքերում","Versions on devices"],
+  "Принудительное обновление":["Հարկադիր թարմացում","Force update"],
+  "Обновить у всех":["Թարմացնել բոլորի մոտ","Update everyone"],
+  "В сети":["Ցանցում է","Online"],
+  "Январь":["Հունվար","January"],
+  "Февраль":["Փետրվար","February"],
+  "Март":["Մարտ","March"],
+  "Апрель":["Ապրիլ","April"],
+  "Май":["Մայիս","May"],
+  "Июнь":["Հունիս","June"],
+  "Июль":["Հուլիս","July"],
+  "Август":["Օգոստոս","August"],
+  "Сентябрь":["Սեպտեմբեր","September"],
+  "Октябрь":["Հոկտեմբեր","October"],
+  "Ноябрь":["Նոյեմբեր","November"],
+  "Декабрь":["Դեկտեմբեր","December"],
+  "Пн":["Երկ","Mon"],
+  "Вт":["Երք","Tue"],
+  "Ср":["Չոր","Wed"],
+  "Чт":["Հնգ","Thu"],
+  "Пт":["Ուրբ","Fri"],
+  "Сб":["Շաբ","Sat"],
+  "Вс":["Կիր","Sun"],
+  "В":["Հ","Off"],
+  "Комплект":["Հավաքածու","Set"],
+  "До 1,6":["Մինչև 1,6","Up to 1.6"],
+  "Более 1,6":["1,6-ից ավել","Over 1.6"],
+  "1,6 м":["1,6 մ","1.6 m"],
+  "2–3 м":["2–3 մ","2–3 m"],
+  "До 1,7":["Մինչև 1,7","Up to 1.7"],
+  "Более 1,7":["1,7-ից ավել","Over 1.7"],
+  "Эксклюзив":["Էքսկլյուզիվ","Exclusive"],
+  "2 двери":["2 դուռ","2 doors"],
+  "3 двери":["3 դուռ","3 doors"],
+  "3 двери без комода":["3 դուռ առանց կոմոդ","3 doors without dresser"],
+  "3 двери с комодом":["3 դուռ կոմոդով","3 doors with dresser"],
+  "4 двери":["4 դուռ","4 doors"],
+  "5 дверей":["5 դուռ","5 doors"],
+  "6 дверей":["6 դուռ","6 doors"]
  };
 
  // AUTO_I18N_TRANSLATIONS
@@ -425,7 +513,16 @@
   [/^Ошибка распознавания: ([\s\S]+)\n\nПовторить отправку этого же фото\?$/,(m,l,i)=>['Ճանաչման սխալ՝ '+m[1]+'\n\nԿրկնե՞լ նույն լուսանկարի ուղարկումը։','Recognition error: '+m[1]+'\n\nRetry sending the same photo?'][i]],
   [/^Выберите нужный вариант · источник: (.+):$/,(m,l,i)=>['Ընտրեք տարբերակը · աղբյուր՝ '+m[1]+'՝','Choose an option · source: '+m[1]+':'][i]],
   [/^Не удалось найти координаты: «([\s\S]+)»$/,(m,l,i)=>['Չհաջողվեց գտնել կոորդինատները՝ «'+m[1]+'»','Could not find coordinates: “'+m[1]+'”'][i]],
-  [/^Не удалось найти координаты: (.+)$/,(m,l,i)=>['Չհաջողվեց գտնել կոորդինատները՝ '+m[1],'Could not find coordinates: '+m[1]][i]]
+  [/^Не удалось найти координаты: (.+)$/,(m,l,i)=>['Չհաջողվեց գտնել կոորդինատները՝ '+m[1],'Could not find coordinates: '+m[1]][i]],
+  [/^(.+) \(Район\)$/,(m,l,i)=>{const base=tc(m[1],l)||m[1];return base+[' (Մարզ)',' (Region)'][i]}],
+  [/^ИТОГО · Экипаж ([A-Z0-9]+)$/,(m,l,i)=>['ԸՆԴԱՄԵՆԸ · '+m[1],'TOTAL · '+m[1]][i]],
+  [/^Табель · (.+)$/,(m,l,i)=>['Տաբել · '+(tc(m[1],l)||m[1]),'Attendance · '+(tc(m[1],l)||m[1])][i]],
+  [/^Ведомость по экипажам · (.+)$/,(m,l,i)=>['Ամփոփագիր ըստ անձնակազմերի · '+(tc(m[1],l)||m[1]),'Crew summary · '+(tc(m[1],l)||m[1])][i]],
+  [/^(Январь|Февраль|Март|Апрель|Май|Июнь|Июль|Август|Сентябрь|Октябрь|Ноябрь|Декабрь) (\d{4})$/,(m,l,i)=>(D[m[1]]?D[m[1]][i]:m[1])+' '+m[2]],
+  [/^Экипажи в текущем месяце \((\d+)\)$/,(m,l,i)=>['Անձնակազմերն ընթացիկ ամսում ('+m[1]+')','Crews this month ('+m[1]+')'][i]],
+  [/^Архив сохранённых месяцев \((\d+)\)$/,(m,l,i)=>['Պահպանված ամիսների արխիվ ('+m[1]+')','Saved months archive ('+m[1]+')'][i]],
+  [/^Скачать Excel за (.+)$/,(m,l,i)=>['Ներբեռնել Excel · '+(tc(m[1],l)||m[1]),'Download Excel · '+(tc(m[1],l)||m[1])][i]],
+  [/^Записей: (\d+)(.*)$/,(m,l,i)=>['Գրառումներ՝ '+m[1]+m[2],'Entries: '+m[1]+m[2]][i]]
  ];
  function tc(core,l){
   const i=l==='hy'?0:1;
@@ -463,8 +560,17 @@
    m[a].out=want;
   }
  }
- const FLT={acceptNode:n=>n.nodeType===1&&(n.tagName==='SCRIPT'||n.tagName==='STYLE')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT};
+ const FLT={acceptNode:n=>n.nodeType===1&&(n.tagName==='SCRIPT'||n.tagName==='STYLE'||(n.hasAttribute&&n.hasAttribute('data-no-i18n')))?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT};
+ function isIgnored(n){
+  let el=n&&n.nodeType===3?n.parentElement:n;
+  while(el&&el.nodeType===1){
+   if(el.hasAttribute&&el.hasAttribute('data-no-i18n'))return true;
+   el=el.parentElement;
+  }
+  return false;
+ }
  function walk(root){
+  if(isIgnored(root))return;
   if(root.nodeType===3){doText(root);return}
   if(root.nodeType!==1)return;
   if(root.tagName==='SCRIPT'||root.tagName==='STYLE')return;
@@ -475,10 +581,20 @@
  new MutationObserver(ms=>{
   if(L==='ru')return;
   for(const m of ms){
-   if(m.type==='characterData')doText(m.target);
+   if(m.type==='characterData'){if(!isIgnored(m.target))doText(m.target)}
    else m.addedNodes.forEach(walk);
   }
  }).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
+
+ window.i18nTranslateText=function(raw,targetLang){
+  const lang=targetLang||L;
+  if(lang==='ru'||raw==null)return String(raw==null?'':raw);
+  const str=String(raw);
+  // Коды экипажей (BB, CC, VV, RR, EE, GG, XX, ZZ, ADMIN) всегда остаются на латинском
+  if(/^[A-Z]{2,5}$/.test(str.trim()))return str;
+  const r=tx(str,lang);
+  return r==null?str:r;
+ };
 
  // Текст для буфера обмена («Итоги → Скопировать»)
  window.i18nCopy=function(s){
@@ -517,9 +633,11 @@
   m.querySelectorAll('button[data-l]').forEach(b=>b.classList.toggle('on',b.dataset.l===L));
   m.classList.add('open');
  }
- btn=document.createElement('button');btn.id='lgBtn';btn.type='button';btn.className='hdr-lg';btn.innerHTML='<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';btn.onclick=openDlg;
- const hdr=document.querySelector('h2');
- if(hdr)hdr.appendChild(btn);else document.body.appendChild(btn);
+ if(!document.getElementById('admMenuBtn')){
+  btn=document.createElement('button');btn.id='lgBtn';btn.type='button';btn.className='hdr-lg';btn.innerHTML='<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';btn.onclick=openDlg;
+  const hdr=document.querySelector('h2');
+  if(hdr)hdr.appendChild(btn);else document.body.appendChild(btn);
+ }
  document.documentElement.lang=L;window.LANG_SR=SR[L];
  lab();
  if(L!=='ru')walk(document.body);
