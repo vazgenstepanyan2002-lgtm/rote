@@ -1782,8 +1782,17 @@ function openSelectModal(){
    clrBtn.onclick=async()=>{
     const curCh=isSubAdm()?'dlv':DM_TAB;
     if(await ask('Удалить переписку ('+(curCh==='dlv'?'Доставка':'Админ')+') с водителем «'+who+'»?',{title:'Очистка чата',okText:'Очистить',danger:true})){
-     const chPath='dm/'+uid+(curCh==='dlv'?'/dlv':'/adm');
-     db.ref(chPath).remove().then(()=>toast('Переписка очищена')).catch(()=>toast('Ошибка',true));
+     try{
+      if(curCh==='dlv'){
+       await db.ref('dm/'+uid+'/dlv').remove();
+      }else{
+       const snap=await db.ref('dm/'+uid).once('value'),val=snap.val()||{};
+       const patch={adm:null};
+       Object.keys(val).forEach(k=>{if(k!=='dlv'&&k!=='adm')patch[k]=null});
+       await db.ref('dm/'+uid).update(patch);
+      }
+      toast('Переписка очищена');
+     }catch(err){toast('Ошибка',true)}
     }
    };
   }
@@ -1791,9 +1800,13 @@ function openSelectModal(){
    if(isSubAdm())return;
    const b=e.target.closest('[data-dk]');
    if(b){
-    const curCh=isSubAdm()?'dlv':DM_TAB;
-    const chPath='dm/'+uid+(curCh==='dlv'?'/dlv':'/adm')+'/'+b.dataset.dk;
-    db.ref(chPath).remove().catch(()=>{});
+    const curCh=isSubAdm()?'dlv':DM_TAB,dk=b.dataset.dk;
+    if(curCh==='dlv'){
+     db.ref('dm/'+uid+'/dlv/'+dk).remove().catch(()=>{});
+    }else{
+     db.ref('dm/'+uid+'/adm/'+dk).remove().catch(()=>{});
+     if(dk!=='dlv'&&dk!=='adm')db.ref('dm/'+uid+'/'+dk).remove().catch(()=>{});
+    }
    }
   };
   const inp=g('admDmInp'),snd=g('admDmSnd');
