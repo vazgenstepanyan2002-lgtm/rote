@@ -266,12 +266,13 @@
     return String(m.car || "").trim().toUpperCase();
   }
   function renderChatRows(){
-    const box=g("chatMsgs");if(!box)return;const my=ls("ADM_UID")||"";
+    const box=g("chatMsgs");if(!box)return;const my=ls("ADM_UID")||"",myCar=(ls("USER_CAR")||"").toUpperCase();
     if(!_chatList.length){box.innerHTML='<div class="ch-empty">Сообщений пока нет</div>';return}
     let ld="",h="";
     _chatList.forEach(m=>{
       const dl=dayLabel(m.t);if(dl&&dl!==ld){ld=dl;h+='<div class="ch-day">'+esc(dl)+'</div>'}
-      const mine=m.uid&&m.uid===my,adm=!!m.adm,dlv=adm&&(m.role==="delivery"||m.name==="Доставка");
+      const adm=!!m.adm,dlv=adm&&(m.role==="delivery"||m.name==="Доставка");
+      const mine=(m.uid&&m.uid===my)||(myCar==="ADMIN"&&adm&&!dlv);
       const msgCar=!adm?getMsgCar(m):"";
       const isAdmCrew=!adm&&msgCar==="ADMIN";
       const rn=adm?(dlv?"Доставка":"Админ"):(m.name||"Водитель");
@@ -283,7 +284,8 @@
       const au=adm?('<div class="ch-au">'+(dlv?'👩‍💼 Доставка':'👑 Администратор')+'</div>')
         :(isAdmCrew?('<div class="ch-au">'+admCrewLabel+'</div>')
         :(!mine?('<div class="ch-au">'+cb+'<span>'+esc(rn)+'</span></div>'):(cb?'<div class="ch-au">'+cb+'<span>'+esc(dispRn)+'</span></div>':'')));
-      const msgCls='ch-msg'+(mine?" mine":"")+(adm?(dlv?" dlv":" adm"):(isAdmCrew?(mine?" adm-crew":" adm adm-crew"):""));
+      const isGoldAdm=(adm&&!dlv)||isAdmCrew;
+      const msgCls='ch-msg'+(mine?" mine":"")+(dlv?" dlv":(isGoldAdm?(mine?" adm-crew":" adm adm-crew"):""));
       h+='<div class="ch-row'+(mine?" mine":"")+'">'+av+'<div class="'+msgCls+'">'+au+'<div class="ch-body"><span class="ch-txt">'+esc(m.txt||"")+'</span><span class="ch-tm">'+fmtTime(m.t)+'</span></div></div></div>';
     });
     box.innerHTML=h;box.scrollTop=box.scrollHeight;
