@@ -176,7 +176,10 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
    if(!cd)return;
    if(isSubAdm()&&cd==='ADMIN')return;
    const q=+it.qty||0,s=+it.sum||0;
-   const mems=Array.isArray(it.crew)&&it.crew.length?it.crew:['—'];
+   const appMems=devs()
+    .filter(d=>String(d.u.car||'').toUpperCase()===cd)
+    .map(d=>LABELS[d.id]||profName(d)||devName(d.u.ua));
+   const mems=appMems.length?appMems:(Array.isArray(it.crew)&&it.crew.length?it.crew:['—']);
    calcQty+=q;calcSum+=s;
    mems.forEach(nm0=>data.push([cd,nm0,q,s]));
   });
