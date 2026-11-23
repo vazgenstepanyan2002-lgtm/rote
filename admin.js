@@ -1059,7 +1059,7 @@ function drawTotals(){
   requestAnimationFrame(()=>ov.classList.add('show'));
  }
  function attExportCsv(){
-  const groups=attBuildGroups();
+  const groups=attBuildGroups().filter(gr=>!!gr.code);
   const hasAny=groups.some(gr=>gr.members.length);
   if(!hasAny){toast('Нет сотрудников в табеле',true);return}
   const p=ATT_YM.split('-'),yr=+p[0],mo=(+p[1]||1)-1;
