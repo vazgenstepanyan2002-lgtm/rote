@@ -169,38 +169,16 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
   toast('Таблица Excel скачана');
  }
  function exportCrewMonthCsv(title,items,totQty,totSum){
-  const byCode={};
+  const data=[];
+  let calcQty=0,calcSum=0;
   (items||[]).forEach(it=>{
    const cd=String((it&&it.code)||'').trim().toUpperCase();
    if(!cd)return;
-   if(!byCode[cd])byCode[cd]={qty:0,sum:0};
-   byCode[cd].qty+=(+it.qty||0);
-   byCode[cd].sum+=(+it.sum||0);
-  });
-  const attGroups=attBuildGroups().filter(gr=>!!gr.code);
-  const used=new Set();
-  const data=[];
-  let calcQty=0,calcSum=0;
-  attGroups.forEach(gr=>{
-   used.add(gr.code);
-   const st=byCode[gr.code]||{qty:0,sum:0};
-   if(!gr.members.length&&!st.qty&&!st.sum)return;
-   calcQty+=st.qty;calcSum+=st.sum;
-   if(gr.members.length){
-    gr.members.forEach(m=>data.push([gr.code,m.name,st.qty,st.sum]));
-   }else{
-    data.push([gr.code,'—',st.qty,st.sum]);
-   }
-  });
-  Object.keys(byCode).forEach(cd=>{
-   if(used.has(cd))return;
    if(isSubAdm()&&cd==='ADMIN')return;
-   const st=byCode[cd];
-   if(!st.qty&&!st.sum)return;
-   calcQty+=st.qty;calcSum+=st.sum;
-   const mems=devs().filter(d=>String(d.u.car||'').toUpperCase()===cd).map(d=>LABELS[d.id]||profName(d)||devName(d.u.ua));
-   if(mems.length)mems.forEach(nm0=>data.push([cd,nm0,st.qty,st.sum]));
-   else data.push([cd,'—',st.qty,st.sum]);
+   const q=+it.qty||0,s=+it.sum||0;
+   const mems=Array.isArray(it.crew)&&it.crew.length?it.crew:['—'];
+   calcQty+=q;calcSum+=s;
+   mems.forEach(nm0=>data.push([cd,nm0,q,s]));
   });
   if(!data.length){toast('Нет данных для выгрузки',true);return}
   const header=['Экипаж','Сотрудник','Количество (шт)','Сумма (֏)'];
@@ -1867,7 +1845,7 @@ function openSelectModal(){
   else if(a==='cpcur'){e.stopPropagation();const curList=allCars().filter(c=>c.qty>0||c.sum>0).map(c=>({name:'Экипаж '+c.code+(c.crew.length?' ('+c.crew.join(', ')+')':''),sum:c.sum,qty:c.qty})).sort((a,b)=>b.sum-a.sum);copyReport('Текущий месяц (по экипажам)',curList,curList.reduce((a,x)=>a+x.qty,0),curList.reduce((a,x)=>a+x.sum,0))}
   else if(a==='csvcur'){
    e.stopPropagation();
-   const curList=allCars().map(c=>({code:c.code,sum:c.sum,qty:c.qty}));
+   const curList=allCars().filter(c=>c.qty>0||c.sum>0||c.crew.length>0).sort((a,b)=>b.sum-a.sum);
    exportCrewMonthCsv('Текущий_месяц_по_экипажам',curList,curList.reduce((a,x)=>a+x.qty,0),curList.reduce((a,x)=>a+x.sum,0));
   }
   else if(a==='cpmonth'){e.stopPropagation();const mObj=aggCarMonths(allCars()).find(x=>x.m===b.dataset.m);if(mObj)copyReport(monthName(mObj.m),mObj.cars,mObj.qty,mObj.sum)}
