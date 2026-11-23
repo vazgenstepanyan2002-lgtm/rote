@@ -286,12 +286,16 @@ body:has(#login:not([hidden])){height:100dvh;overflow:hidden;overscroll-behavior
 body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behavior:none!important}
 
 /* ADMIN-ADAPTIVE */
+@media (max-width: 520px){
+  .tabs{gap:3px!important;padding:4px!important;max-width:100%;overflow:hidden}
+  .tabs button{flex-direction:column!important;gap:3px!important;padding:7px 2px!important;font-size:10px!important;line-height:1.1!important;min-width:0!important;overflow:hidden;text-overflow:ellipsis}
+  .tabs button svg{width:15px!important;height:15px!important}
+}
 @media (max-width: 380px){
   body{padding:10px 10px 28px!important}
   #panel h2{padding:10px!important;border-radius:18px!important}
-  .tabs{gap:3px!important;padding:4px!important}
-  .tabs button{font-size:10px!important;padding:8px 1px!important;gap:2px!important}
-  .tabs button svg{width:13px!important;height:13px!important}
+  .tabs button{font-size:9.5px!important;padding:6px 1px!important}
+  .tabs button svg{width:14px!important;height:14px!important}
   .tiles{gap:6px!important}
   .tile{padding:10px 4px!important;border-radius:14px!important}
   .tile b{font-size:21px!important}
@@ -556,14 +560,14 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
   </div>
  </div>
 </div>
-<script src="storage.js?v=20261123194132"></script>
-<script src="geo.js?v=20261123194132"></script>
-<script src="zones.js?v=20261123194132"></script>
-<script src="bonus-engine.js?v=20261123194132"></script>
-<script src="table-viewer.js?v=20261123194132"></script>
-<script src="yandex.js?v=20261123194132"></script>
-<script src="i18n.js?v=20261123194132"></script>
-<script src="admin.js?v=20261123194132"></script>
+<script src="storage.js?v=20261123194943"></script>
+<script src="geo.js?v=20261123194943"></script>
+<script src="zones.js?v=20261123194943"></script>
+<script src="bonus-engine.js?v=20261123194943"></script>
+<script src="table-viewer.js?v=20261123194943"></script>
+<script src="yandex.js?v=20261123194943"></script>
+<script src="i18n.js?v=20261123194943"></script>
+<script src="admin.js?v=20261123194943"></script>
 <script>
 ['lgEm','lgPw'].forEach(id=>{
  const el=document.getElementById(id);

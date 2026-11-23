@@ -415,18 +415,109 @@
     }, 150);
   }
 
-  function trExcelVal(val, lang, keepCrewCode) {
+  // Словарь и транслитерация имён для Excel (RU / HY / EN)
+  const KNOWN_NAMES = {
+    narek: { ru: 'Нарек', hy: 'Նարեկ', en: 'Narek' },
+    vazgen: { ru: 'Вазген', hy: 'Վազգեն', en: 'Vazgen' },
+    nver: { ru: 'Нвер', hy: 'Նվեր', en: 'Nver' },
+    edo: { ru: 'Эдо', hy: 'Էդո', en: 'Edo' },
+    davo: { ru: 'Даво', hy: 'Դավո', en: 'Davo' },
+    lyov: { ru: 'Лёв', hy: 'Լյով', en: 'Lyov' },
+    vito: { ru: 'Вито', hy: 'Վիտո', en: 'Vito' },
+    aleks: { ru: 'Алекс', hy: 'Ալեքս', en: 'Aleks' },
+    alex: { ru: 'Алекс', hy: 'Ալեքս', en: 'Alex' },
+    gor: { ru: 'Гор', hy: 'Գոռ', en: 'Gor' },
+    karen: { ru: 'Карен', hy: 'Կարեն', en: 'Karen' },
+    mher: { ru: 'Мгер', hy: 'Մհեր', en: 'Mher' },
+    hayk: { ru: 'Айк', hy: 'Հայկ', en: 'Hayk' },
+    artur: { ru: 'Артур', hy: 'Արթուր', en: 'Artur' },
+    tiko: { ru: 'Тико', hy: 'Տիկո', en: 'Tiko' },
+    aren: { ru: 'Арен', hy: 'Արեն', en: 'Aren' },
+    sanasar: { ru: 'Санасар', hy: 'Սանասար', en: 'Sanasar' },
+    sasun: { ru: 'Сасун', hy: 'Սասուն', en: 'Sasun' },
+    harut: { ru: 'Арут', hy: 'Հարութ', en: 'Harut' },
+    hrant: { ru: 'Грант', hy: 'Հրանտ', en: 'Hrant' },
+    armen: { ru: 'Армен', hy: 'Արմեն', en: 'Armen' },
+    artak: { ru: 'Артак', hy: 'Արտակ', en: 'Artak' },
+    arman: { ru: 'Арман', hy: 'Արման', en: 'Arman' },
+    arthur: { ru: 'Артур', hy: 'Արթուր', en: 'Arthur' },
+    davit: { ru: 'Давид', hy: 'Դավիթ', en: 'Davit' },
+    david: { ru: 'Давид', hy: 'Դավիթ', en: 'David' },
+    tigran: { ru: 'Тигран', hy: 'Տիգրան', en: 'Tigran' },
+    samvel: { ru: 'Самвел', hy: 'Սամվել', en: 'Samvel' },
+    vahe: { ru: 'Ваге', hy: 'Վահե', en: 'Vahe' },
+    gevorg: { ru: 'Геворг', hy: 'Գևորգ', en: 'Gevorg' },
+    vahan: { ru: 'Ваган', hy: 'Վահան', en: 'Vahan' },
+    hovhannes: { ru: 'Ованес', hy: 'Հովհաննես', en: 'Hovhannes' },
+    aram: { ru: 'Арам', hy: 'Արամ', en: 'Aram' },
+    sargis: { ru: 'Саркис', hy: 'Սարգիս', en: 'Sargis' },
+    ruben: { ru: 'Рубен', hy: 'Ռուբեն', en: 'Ruben' },
+    levon: { ru: 'Левон', hy: 'Լևոն', en: 'Levon' },
+    grigor: { ru: 'Григор', hy: 'Գրիգոր', en: 'Grigor' },
+    sergey: { ru: 'Сергей', hy: 'Սերգեյ', en: 'Sergey' },
+    diana: { ru: 'Диана', hy: 'Դիանա', en: 'Diana' },
+    dianna: { ru: 'Дианна', hy: 'Դիաննա', en: 'Dianna' }
+  };
+
+  function toLatinBase(s) {
+    const cyr = { а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'yo',ж:'zh',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'kh',ц:'ts',ч:'ch',ш:'sh',щ:'shch',ъ:'',ы:'y',ь:'',э:'e',ю:'yu',я:'ya' };
+    const arm = { ա:'a',բ:'b',գ:'g',դ:'d',ե:'e',զ:'z',է:'e',ը:'y',թ:'t',ժ:'zh',ի:'i',լ:'l',խ:'kh',ծ:'ts',կ:'k',հ:'h',ձ:'dz',ղ:'gh',ճ:'ch',մ:'m',յ:'y',ն:'n',շ:'sh',ո:'o',չ:'ch',պ:'p',ջ:'j',ռ:'r',ս:'s',վ:'v',տ:'t',ր:'r',ց:'ts',ւ:'v',փ:'p',ք:'k',և:'ev',օ:'o',ֆ:'f' };
+    return s.toLowerCase().replace(/ու/g, 'u').split('').map(ch => cyr[ch] !== undefined ? cyr[ch] : (arm[ch] !== undefined ? arm[ch] : ch)).join('');
+  }
+
+  function translitWord(word, lang) {
+    if (!word || /^(BB|CC|VV|RR|EE|GG|XX|ZZ|ADMIN)$/.test(word) || /^\d+$/.test(word)) return word;
+    const base = toLatinBase(word);
+    if (KNOWN_NAMES[base] && KNOWN_NAMES[base][lang]) return KNOWN_NAMES[base][lang];
+    const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+    if (lang === 'en') {
+      if (/^[A-Za-z0-9._-]+$/.test(word)) return word;
+      return cap(base);
+    }
+    if (lang === 'ru') {
+      if (/[А-Яа-яЁё]/.test(word)) return word;
+      let r = base
+        .replace(/shch/g, 'щ').replace(/zh/g, 'ж').replace(/kh/g, 'х').replace(/ts/g, 'ц')
+        .replace(/ch/g, 'ч').replace(/sh/g, 'ш').replace(/yu/g, 'ю').replace(/ya/g, 'я')
+        .replace(/yo/g, 'ё').replace(/gh/g, 'г').replace(/dz/g, 'дз').replace(/ev/g, 'ев');
+      const m = { a:'а',b:'б',c:'к',d:'д',e:'е',f:'ф',g:'г',h:'г',i:'и',j:'дж',k:'к',l:'л',m:'м',n:'н',o:'о',p:'п',q:'к',r:'р',s:'с',t:'т',u:'у',v:'в',w:'в',x:'кс',y:'й',z:'з' };
+      r = r.split('').map(ch => m[ch] !== undefined ? m[ch] : ch).join('');
+      return cap(r);
+    }
+    if (lang === 'hy') {
+      if (/[\u0531-\u0587]/.test(word)) return word;
+      let r = base
+        .replace(/sh/g, 'շ').replace(/ch/g, 'չ').replace(/zh/g, 'ժ').replace(/kh/g, 'խ')
+        .replace(/ts/g, 'ծ').replace(/dz/g, 'ձ').replace(/gh/g, 'ղ').replace(/yu/g, 'յու')
+        .replace(/ya/g, 'յա').replace(/yo/g, 'յո').replace(/ev/g, 'և');
+      const m = { a:'ա',b:'բ',c:'ց',d:'դ',e:'ե',f:'ֆ',g:'գ',h:'հ',i:'ի',j:'ջ',k:'կ',l:'լ',m:'մ',n:'ն',o:'ո',p:'պ',q:'ք',r:'ր',s:'ս',t:'տ',u:'ու',v:'վ',w:'վ',x:'խ',y:'յ',z:'զ' };
+      r = r.split('').map(ch => m[ch] !== undefined ? m[ch] : ch).join('');
+      if (r.startsWith('ե')) r = 'է' + r.slice(1);
+      return cap(r);
+    }
+    return word;
+  }
+
+  function translitPersonName(name, lang) {
+    const s = String(name == null ? '' : name);
+    if (!s.trim()) return s;
+    return s.replace(/[\p{L}]+/gu, w => translitWord(w, lang));
+  }
+
+  function trExcelVal(val, lang, keepCrewCode, isPersonName) {
     if (typeof val === 'number' || val == null || val === '') return val;
     const s = String(val);
-    if (lang === 'ru') return s;
     // Коды экипажей (BB, CC, VV, RR, EE, GG, XX, ZZ, ADMIN) всегда на латинском
-    if (keepCrewCode || /^[A-Z]{2,5}$/.test(s.trim())) return s;
-    // «Экипаж BB (имена)» — переводим только слово «Экипаж», код и имена сохраняем
-    const mCrew = s.match(/^Экипаж ([A-Z0-9]+)(.*)$/);
+    if (keepCrewCode || /^(BB|CC|VV|RR|EE|GG|XX|ZZ|ADMIN)$/.test(s.trim())) return s;
+    if (isPersonName) return translitPersonName(s, lang);
+    if (lang === 'ru') return s;
+    // «Экипаж BB (имена)» — переводим слово «Экипаж» и имена в скобках, код BB сохраняем
+    const mCrew = s.match(/^Экипаж ([A-Z0-9]+)(?:\s*\(([^)]+)\))?(.*)$/);
     if (mCrew) {
       const pref = lang === 'hy' ? 'Անձնակազմ ' : 'Crew ';
-      const rest = mCrew[2] ? (window.i18nTranslateText ? window.i18nTranslateText(mCrew[2], lang) : mCrew[2]) : '';
-      return pref + mCrew[1] + rest;
+      const names = mCrew[2] ? (' (' + translitPersonName(mCrew[2], lang) + ')') : '';
+      const rest = mCrew[3] ? (window.i18nTranslateText ? window.i18nTranslateText(mCrew[3], lang) : mCrew[3]) : '';
+      return pref + mCrew[1] + names + rest;
     }
     if (window.i18nTranslateText) return window.i18nTranslateText(s, lang);
     return s;
@@ -434,7 +525,7 @@
 
   const TableViewer = {
     // Открыть модальное окно с таблицей
-    open({ title, filename, headers = [], rows = [], totalRow = null, mergeFirstCol = false, rowTypes = [] }) {
+    open({ title, filename, headers = [], rows = [], totalRow = null, mergeFirstCol = false, rowTypes = [], nameCol = -1 }) {
       const old = document.getElementById('tvMdl');
       if (old) {
         if (typeof old._tvClose === 'function') old._tvClose();
@@ -447,10 +538,10 @@
       let excelLang = (window.getLang && window.getLang()) || 'ru';
 
       const buildLocalized = (lang) => {
-        const lTitle = trExcelVal(title || 'Ведомость', lang, false);
-        const lHeaders = headers.map(h => trExcelVal(h, lang, false));
-        const lRows = rows.map(r => r.map((c, idx) => trExcelVal(c, lang, mergeFirstCol && idx === 0)));
-        const lTotal = totalRow ? totalRow.map(c => trExcelVal(c, lang, false)) : null;
+        const lTitle = trExcelVal(title || 'Ведомость', lang, false, false);
+        const lHeaders = headers.map(h => trExcelVal(h, lang, false, false));
+        const lRows = rows.map(r => r.map((c, idx) => trExcelVal(c, lang, mergeFirstCol && idx === 0, idx === nameCol)));
+        const lTotal = totalRow ? totalRow.map(c => trExcelVal(c, lang, false, false)) : null;
         const allRows = [lHeaders, ...lRows, ...(lTotal ? [lTotal] : [])];
         const lBlob = createXlsxBlob(allRows, !!lTotal, !!mergeFirstCol, rowTypes);
         const lName = lang === 'ru' ? baseXlsxName : baseXlsxName.replace(/\.xlsx$/i, '_' + lang.toUpperCase() + '.xlsx');

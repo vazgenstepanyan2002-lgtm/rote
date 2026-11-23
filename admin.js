@@ -1121,7 +1121,7 @@ function drawTotals(){
   const title=monthName(ATT_YM);
   const fn='EuroBaza_Табель_'+title.replace(/[\s\/:*?"<>|]+/g,'_')+'.csv';
   if(window.TableViewer){
-   TableViewer.open({title:'Табель · '+title,filename:fn,headers:header,rows:rows,totalRow:totalRow,mergeFirstCol:true});
+   TableViewer.open({title:'Табель · '+title,filename:fn,headers:header,rows:rows,totalRow:totalRow,mergeFirstCol:true,nameCol:1});
    return;
   }
   downloadCsv(fn,[header,...rows,totalRow]);
