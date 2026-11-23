@@ -46,6 +46,17 @@
  const CARS_LIST=['BB','CC','VV','RR','EE','GG','XX','ZZ'];
  const CREW_OFF={BB:1,CC:2,VV:3,RR:4,EE:5,GG:6,XX:0,ZZ:0};
  const CREW_OFF_LBL={BB:'Пн',CC:'Вт',VV:'Ср',RR:'Чт',EE:'Пт',GG:'Сб',XX:'Вс',ZZ:'Вс'};
+ const WD_SHORT=['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+ function getCrewOff(code){
+  if(!code)return -1;
+  const custom=ATT&&ATT.crewOff&&ATT.crewOff[code];
+  if(typeof custom==='number'&&custom>=-1&&custom<=6)return custom;
+  return CREW_OFF[code]!==undefined?CREW_OFF[code]:-1;
+ }
+ function getCrewOffLbl(code){
+  const wd=getCrewOff(code);
+  return wd>=0&&wd<=6?WD_SHORT[wd]:'';
+ }
 const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
  let USERS={},LABELS={},ACCOUNTS={},CARS={},OCR_PEND={},OCR_MAP={},OCR_Q='',CHAT=[],CHAT_OPEN=false,DMS={},DM_UID=null,DM_TAB='adm',FU=0,PUB=undefined,TAB='online',SEL='all',ONL_CAR='all',ONL_Q='';
  let ATT={},ATT_ERR=false,ATT_SCROLLED_YM='',ATT_YM=(()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')})();
@@ -175,6 +186,12 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
    const cd=String((it&&it.code)||'').trim().toUpperCase();
    if(!cd)return;
    if(isSubAdm()&&cd==='ADMIN')return;
+   const hasPeople=devs().some(d=>{
+    if(String(d.u.car||'').toUpperCase()!==cd)return false;
+    const acc=accByUid(d.id);
+    return !((acc&&acc.blocked)||d.u.blocked);
+   });
+   if(!hasPeople)return;
    const q=+it.qty||0,s=+it.sum||0;
    calcQty+=q;calcSum+=s;
    data.push([cd,q,s]);
@@ -1081,7 +1098,7 @@ function drawTotals(){
    return s;
   };
   groups.forEach(gr=>{
-   const offWd=(gr.code&&CREW_OFF[gr.code]!==undefined)?CREW_OFF[gr.code]:-1;
+   const offWd=getCrewOff(gr.code);
    let ga=0,gw=0;
    gr.members.forEach(m=>{
     const wm=mData[m.pid]||{};
@@ -1098,7 +1115,7 @@ function drawTotals(){
    gAbs[gr.code]=ga;gWork[gr.code]=gw;
   });
 
-  const structKey=ATT_YM+'|'+groups.map(gr=>gr.code+':'+gr.members.map(m=>m.pid+'='+m.name).join(',')).join(';');
+  const structKey=ATT_YM+'|'+groups.map(gr=>gr.code+':'+getCrewOff(gr.code)+':'+gr.members.map(m=>m.pid+'='+m.name).join(',')).join(';');
   const exWrap=g('attWrap');
 
   // Точечное обновление без пересоздания DOM (ноль дёрганий и сбросов скролла)
@@ -1142,11 +1159,11 @@ function drawTotals(){
   let tbody='';
   groups.forEach(gr=>{
    const isNone=!gr.code;
-   const offWd=(!isNone && CREW_OFF[gr.code]!==undefined)?CREW_OFF[gr.code]:-1;
-   const offLbl=(!isNone && CREW_OFF_LBL[gr.code])?CREW_OFF_LBL[gr.code]:'';
+   const offWd=isNone?-1:getCrewOff(gr.code);
+   const offLbl=isNone?'':getCrewOffLbl(gr.code);
    const ga=gAbs[gr.code]||0,gw=gWork[gr.code]||0;
    tbody+='<tr class="att-grp"><td class="att-nm-col"><div class="att-grp-hd">'
-    +'<span class="att-grp-t'+(isNone?' none':'')+'">'+(isNone?'🚫 Без экипажа':'🚚 '+esc(gr.code)+(offLbl?' <span class="att-off-b" title="Выходной: '+offLbl+'">'+offLbl+'</span>':''))+'</span>'
+    +'<span class="att-grp-t'+(isNone?' none':'')+'">'+(isNone?'🚫 Без экипажа':'🚚 <span data-no-i18n="1">'+esc(gr.code)+'</span> <button type="button" class="att-off-b" data-act="att-off" data-car="'+esc(gr.code)+'" title="Изменить выходной экипажа">'+(offLbl?offLbl+' ▾':'Без вых. ▾')+'</button>')+'</span>'
     +'<button type="button" class="att-grp-add" data-act="att-add" data-car="'+esc(gr.code)+'" title="Добавить рабочего в '+(isNone?'Без экипажа':'экипаж '+esc(gr.code))+'">+</button>'
     +'</div></td>';
    for(let d=1;d<=daysInMonth;d++){
@@ -1224,7 +1241,7 @@ function drawTotals(){
   thead+='<th class="att-tot-col">Итог</th></tr>';
 
   h+='<div id="attWrap" class="att-wrap" data-ym="'+esc(ATT_YM)+'" data-sk="'+esc(structKey)+'"><table class="att-tbl"><thead>'+thead+'</thead><tbody id="attBody">'+tbody+'</tbody><tfoot id="attFoot">'+tfoot+'</tfoot></table></div>';
-  h+='<div class="mut hint">📱 — приложение · <b style="color:#fbbf24">В</b> — выходной · <b style="color:#fca5a5">✕</b> — не вышел на смену · <b style="color:#6ee7b7">✓</b> — вышел в выходной.</div>';
+  h+='<div class="mut hint">📱 — приложение · <b style="color:#fbbf24">В</b> — выходной · <b style="color:#fca5a5">✕</b> — не вышел на смену · <b style="color:#6ee7b7">✓</b> — вышел в выходной · Нажмите на день у экипажа, чтобы сменить выходной.</div>';
   g('view').innerHTML=h;
 
   const wrap=g('attWrap');
@@ -1395,9 +1412,51 @@ function drawTotals(){
   };
   requestAnimationFrame(()=>ov.classList.add('show'));
  }
+ function openCrewOffModal(carCode){
+  const code=String(carCode||'').trim().toUpperCase();
+  if(!code||!CARS_LIST.includes(code))return;
+  const old=g('attOffOv');if(old){if(typeof old._close==='function')old._close();else old.remove()}
+  const curWd=getCrewOff(code),defWd=CREW_OFF[code]!==undefined?CREW_OFF[code]:-1;
+  const days=[
+   [1,'Понедельник','Пн'],
+   [2,'Вторник','Вт'],
+   [3,'Среда','Ср'],
+   [4,'Четверг','Чт'],
+   [5,'Пятница','Пт'],
+   [6,'Суббота','Сб'],
+   [0,'Воскресенье','Вс'],
+   [-1,'Без выходного','—']
+  ];
+  const items=days.map(([wd,name,sh])=>{
+   const on=wd===curWd,isDef=wd===defWd;
+   const icStyle=wd===-1?'background:rgba(148,163,184,.14);border-color:rgba(148,163,184,.32);color:#cbd5e1':'background:rgba(245,158,11,.15);border-color:rgba(251,191,36,.4);color:#fcd34d;font-size:12px;font-weight:800';
+   return '<div class="sel-it'+(on?' on':'')+'" data-wd="'+wd+'"><div class="sel-it-l"><span class="sel-ic" style="'+icStyle+'">'+sh+'</span><div><div class="sel-it-nm">'+name+'</div>'+(isDef?'<div class="sel-it-sb">По умолчанию</div>':'')+'</div></div><div class="sel-it-r"><span class="sel-chk">✓</span></div></div>';
+  }).join('');
+  const ov=document.createElement('div');ov.id='attOffOv';ov.className='ov';
+  ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b><span>📅 Выходной экипажа</span> <span data-no-i18n="1">'+esc(code)+'</span></b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'+items+'</div></div>';
+  document.body.appendChild(ov);
+  let closed=false;
+  const close=()=>{if(closed)return;closed=true;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
+  ov._close=close;
+  const onK=e=>{if(e.key==='Escape')close()};
+  document.addEventListener('keydown',onK);
+  ov.querySelector('.sel-x').onclick=close;
+  ov.onclick=async e=>{
+   if(e.target===ov){close();return}
+   const it=e.target.closest('.sel-it');if(!it)return;
+   const wd=+it.dataset.wd;
+   close();
+   try{
+    if(wd===defWd)await db.ref('attendance/crewOff/'+code).remove();
+    else await db.ref('attendance/crewOff/'+code).set(wd);
+    toast('Выходной обновлён');
+   }catch(err){toast('Ошибка сохранения',true)}
+  };
+  requestAnimationFrame(()=>ov.classList.add('show'));
+ }
  function attExportCsv(){
-  const groups=attBuildGroups().filter(gr=>!!gr.code);
-  const hasAny=groups.some(gr=>gr.members.length);
+  const groups=attBuildGroups().filter(gr=>!!gr.code&&gr.members.length>0);
+  const hasAny=groups.length>0;
   if(!hasAny){toast('Нет сотрудников в табеле',true);return}
   const p=ATT_YM.split('-'),yr=+p[0],mo=(+p[1]||1)-1;
   const dim=new Date(yr,mo+1,0).getDate();
@@ -1409,7 +1468,7 @@ function drawTotals(){
   let totA=0,totW=0;
   const rows=[];
   groups.forEach(gr=>{
-   const offWd=(gr.code&&CREW_OFF[gr.code]!==undefined)?CREW_OFF[gr.code]:-1;
+   const offWd=getCrewOff(gr.code);
    gr.members.forEach(m=>{
     const wm=mData[m.pid]||{},r=[gr.code?gr.code:'—',m.name];
     let ca=0,cw=0;
@@ -1445,7 +1504,7 @@ function drawTotals(){
   const lines=['📅 Табель — '+monthName(ATT_YM)];
   groups.forEach(gr=>{
    if(!gr.members.length)return;
-   const offWd=(gr.code&&CREW_OFF[gr.code]!==undefined)?CREW_OFF[gr.code]:-1;
+   const offWd=getCrewOff(gr.code);
    lines.push('',(gr.code?'🚚 Экипаж '+gr.code:'🚫 Без экипажа')+':');
    gr.members.forEach(m=>{
     const wm=mData[m.pid]||{},absDays=[],workDays=[];
@@ -1873,6 +1932,7 @@ function openSelectModal(){
   else if(a==='att-next'){ATT_YM=attShiftYm(ATT_YM,1);ATT_SCROLLED_YM='';drawAtt()}
   else if(a==='att-today'){ATT_YM=attCurYm();ATT_SCROLLED_YM='';drawAtt()}
   else if(a==='att-add'){attAddWorker(b.dataset.car)}
+  else if(a==='att-off'){e.stopPropagation();openCrewOffModal(b.dataset.car)}
   else if(a==='att-tog'){attToggle(b.dataset.w,+b.dataset.d)}
   else if(a==='att-worker'){openAttWorkerModal(b.dataset.w)}
   else if(a==='att-csv'){attExportCsv()}
