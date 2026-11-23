@@ -301,6 +301,86 @@
     }
   }
 
+  // Печать таблицы на принтер (чистый белый лист А4, альбомная для широких таблиц)
+  function printTable({ title, headers = [], rows = [], totalRow = null, mergeFirstCol = false }) {
+    const isWide = headers.length > 7;
+    const spans = new Array(rows.length).fill(1);
+    if (mergeFirstCol) {
+      let i = 0;
+      while (i < rows.length) {
+        const v = String((rows[i] && rows[i][0]) || '');
+        let j = i;
+        while (j + 1 < rows.length && String((rows[j + 1] && rows[j + 1][0]) || '') === v) j++;
+        if (v && j > i) {
+          spans[i] = j - i + 1;
+          for (let k = i + 1; k <= j; k++) spans[k] = 0;
+        }
+        i = j + 1;
+      }
+    }
+
+    const thHtml = headers.map((h, idx) => `<th class="${idx > 1 ? 'c' : (mergeFirstCol && idx === 0 ? 'c' : '')}">${esc(h)}</th>`).join('');
+    const tbHtml = rows.map((r, rIdx) => {
+      const tds = r.map((c, idx) => {
+        if (mergeFirstCol && idx === 0) {
+          if (spans[rIdx] === 0) return '';
+          return `<td rowspan="${spans[rIdx]}" class="crew">${esc(c)}</td>`;
+        }
+        const s = String(c == null ? '' : c);
+        if (s === '✕') return `<td class="c abs">✕</td>`;
+        if (s === '✓') return `<td class="c wrk">✓</td>`;
+        if (s === 'В') return `<td class="c off">В</td>`;
+        const val = typeof c === 'number' ? fm(c) : s;
+        return `<td class="${idx > 1 ? 'c' : ''}${idx === r.length - 1 ? ' b' : ''}">${esc(val)}</td>`;
+      }).join('');
+      return `<tr>${tds}</tr>`;
+    }).join('');
+    const tfHtml = totalRow ? `<tfoot><tr>${totalRow.map((c, idx) => `<td class="${idx > 1 ? 'c' : ''}">${esc(c)}</td>`).join('')}</tr></tfoot>` : '';
+    const dt = new Date().toLocaleDateString('ru-RU');
+
+    const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>${esc(title || 'EuroBaza')}</title><style>
+      @page { size: A4 ${isWide ? 'landscape' : 'portrait'}; margin: 9mm; }
+      * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #0f172a; background: #fff; }
+      .hd { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 5px; }
+      .hd h1 { margin: 0; font-size: ${isWide ? '14px' : '16px'}; font-weight: 800; }
+      .hd span { font-size: 11px; color: #475569; }
+      table { width: 100%; border-collapse: collapse; font-size: ${isWide ? '9px' : '11.5px'}; table-layout: auto; }
+      th, td { border: 1px solid #cbd5e1; padding: ${isWide ? '3px 2px' : '6px 8px'}; text-align: left; white-space: nowrap; }
+      thead th { background: #e2e8f0; font-weight: 800; color: #0f172a; }
+      tfoot td { background: #f1f5f9; font-weight: 800; border-top: 2px solid #64748b; }
+      .c { text-align: center; }
+      .b { font-weight: 700; }
+      .crew { text-align: center; vertical-align: middle; font-weight: 800; background: #f8fafc; }
+      .abs { background: #fecaca; color: #b91c1c; font-weight: 800; }
+      .wrk { background: #a7f3d0; color: #047857; font-weight: 800; }
+      .off { background: #fef3c7; color: #b45309; font-weight: 700; }
+    </style></head><body>
+      <div class="hd"><h1>EuroBaza · ${esc(title || 'Таблица')}</h1><span>Дата печати: ${dt}</span></div>
+      <table><thead><tr>${thHtml}</tr></thead><tbody>${tbHtml}</tbody>${tfHtml}</table>
+    </body></html>`;
+
+    const old = document.getElementById('tvPrintFrame');
+    if (old) old.remove();
+    const fr = document.createElement('iframe');
+    fr.id = 'tvPrintFrame';
+    fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+    document.body.appendChild(fr);
+    const doc = fr.contentDocument || fr.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    setTimeout(() => {
+      try {
+        fr.contentWindow.focus();
+        fr.contentWindow.print();
+      } catch (e) {
+        if (window.toast) window.toast('Не удалось открыть печать', true);
+      }
+      setTimeout(() => fr.remove(), 60000);
+    }, 150);
+  }
+
   const TableViewer = {
     // Открыть модальное окно с таблицей
     open({ title, filename, headers = [], rows = [], totalRow = null, mergeFirstCol = false }) {
@@ -310,6 +390,7 @@
         else old.remove();
       }
 
+      const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
       const xlsxName = String(filename || 'EuroBaza.xlsx').replace(/\.csv$/i, '.xlsx');
       const allRows = [headers, ...rows, ...(totalRow ? [totalRow] : [])];
       const blob = createXlsxBlob(allRows, !!totalRow, !!mergeFirstCol);
@@ -325,6 +406,10 @@
       m.id = 'tvMdl';
       m.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;padding:12px;touch-action:none;overscroll-behavior:contain;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)';
 
+      const midBtn = isDesktop
+        ? `<button type="button" id="tvPrint" title="Напечатать" style="width:auto!important;margin:0!important;height:34px!important;padding:0 12px!important;border-radius:9px!important;background:linear-gradient(135deg,rgba(168,85,247,.26),rgba(124,58,237,.16))!important;border:1px solid rgba(192,132,252,.5)!important;color:#e9d5ff!important;font-size:12px!important;font-weight:700!important;display:inline-flex!important;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:none!important">🖨️ Напечатать</button>`
+        : `<button type="button" id="tvShare" title="Поделиться" style="width:auto!important;margin:0!important;height:34px!important;padding:0 10px!important;border-radius:9px!important;background:linear-gradient(135deg,rgba(56,189,248,.25),rgba(2,132,199,.15))!important;border:1px solid rgba(56,189,248,.5)!important;color:#7dd3fc!important;font-size:12px!important;font-weight:700!important;display:inline-flex!important;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:none!important">📤 Поделиться</button>`;
+
       m.innerHTML = `
         <div class="tv-box" style="max-width:min(94vw,1180px);width:100%;height:min(88dvh,760px);display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:18px;background:#0d131f;border:1px solid rgba(255,255,255,.16);box-shadow:0 18px 45px rgba(0,0,0,.75);animation:cmIn .16s ease-out">
           <div class="tv-hd" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0">
@@ -337,9 +422,7 @@
 
           <div class="tv-bar" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(0,0,0,.15);border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;box-sizing:border-box">
             <input type="search" id="tvSearch" placeholder="🔍 Поиск..." style="flex:1 1 auto;width:auto;min-width:0;height:34px;margin:0;padding:0 10px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#f8fafc;font-size:12.5px;outline:none;box-sizing:border-box">
-            <button type="button" id="tvShare" title="Поделиться" style="width:auto!important;margin:0!important;height:34px!important;padding:0 10px!important;border-radius:9px!important;background:linear-gradient(135deg,rgba(56,189,248,.25),rgba(2,132,199,.15))!important;border:1px solid rgba(56,189,248,.5)!important;color:#7dd3fc!important;font-size:12px!important;font-weight:700!important;display:inline-flex!important;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:none!important">
-              📤 Поделиться
-            </button>
+            ${midBtn}
             <button type="button" id="tvDownload" title="Скачать Excel" style="width:auto!important;margin:0!important;height:34px!important;padding:0 10px!important;border-radius:9px!important;background:rgba(16,185,129,.18)!important;border:1px solid rgba(52,211,153,.45)!important;color:#6ee7b7!important;font-size:12px!important;font-weight:700!important;display:inline-flex!important;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:none!important">
               📥 Excel
             </button>
@@ -384,14 +467,23 @@
       document.getElementById('tvClose').onclick = close;
       m.onclick = e => { if (e.target === m) close(); };
 
-      // Поделиться
-      document.getElementById('tvShare').onclick = async () => {
-        const res = await shareFile(blob, xlsxName, title);
-        if (res === 'unsupported' || res === 'error') {
-          downloadBlob(blob, xlsxName);
-          if (window.toast) window.toast('Файл скачан');
-        }
-      };
+      // Печать (на ПК)
+      const printBtn = document.getElementById('tvPrint');
+      if (printBtn) {
+        printBtn.onclick = () => printTable({ title, headers, rows, totalRow, mergeFirstCol });
+      }
+
+      // Поделиться (на мобильном)
+      const shareBtn = document.getElementById('tvShare');
+      if (shareBtn) {
+        shareBtn.onclick = async () => {
+          const res = await shareFile(blob, xlsxName, title);
+          if (res === 'unsupported' || res === 'error') {
+            downloadBlob(blob, xlsxName);
+            if (window.toast) window.toast('Файл скачан');
+          }
+        };
+      }
 
       // Скачать Excel (.xlsx)
       document.getElementById('tvDownload').onclick = () => {
