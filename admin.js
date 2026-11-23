@@ -1669,7 +1669,7 @@ function openSelectModal(){
    const drvName=(m.uid&&USERS[m.uid])?dispName(parseDev(m.uid,USERS[m.uid])):(m.name||'Водитель');
    const isAdmCrew=!m.adm&&car==='ADMIN';
    const admCrewWho=/^(admin|админ|администратор)$/i.test(drvName.trim())?'👑 Администратор':('👑 Админ · '+esc(drvName));
-   const who=m.adm?(isDeliv?'👩‍💼 Доставка':'👑 Админ'):(isAdmCrew?admCrewWho:(crewBadgeHtml(car)+'<span>'+esc(drvName)+'</span>'));
+   const who=m.adm?(isDeliv?'👩‍💼 Доставка':'👑 Администратор'):(isAdmCrew?admCrewWho:(crewBadgeHtml(car)+'<span>'+esc(drvName)+'</span>'));
    return '<div class="ach-m'+(m.adm?(isDeliv?' dlv':' adm'):(isAdmCrew?' adm':''))+'"><div class="ach-mt"><span>'+who+'</span>'+(isSubAdm()?'':'<button type="button" class="ach-del" data-ck="'+esc(m.k)+'" aria-label="Удалить">✕</button>')+'</div><div class="ach-bd"><span class="ach-tx">'+esc(m.txt||'')+'</span><span class="ach-tm">'+tm+'</span></div></div>';
   }).join('');
   box.scrollTop=box.scrollHeight;
@@ -1717,7 +1717,7 @@ function openSelectModal(){
    const isDeliv=m.adm&&(m.role==='delivery'||m.name==='Доставка');
    const car=!m.adm?String((USERS[DM_UID]&&USERS[DM_UID].car)||m.car||'').toUpperCase():'';
    const drvName=USERS[DM_UID]?dispName(parseDev(DM_UID,USERS[DM_UID])):(m.name||'Водитель');
-   const who=m.adm?(isDeliv?'👩‍💼 Доставка':'👑 Админ'):(crewBadgeHtml(car)+'<span>'+esc(drvName)+'</span>');
+   const who=m.adm?(isDeliv?'👩‍💼 Доставка':'👑 Администратор'):(crewBadgeHtml(car)+'<span>'+esc(drvName)+'</span>');
    const dBtn=!isSubAdm()?'<button type="button" class="ach-del" data-dk="'+esc(m.k)+'" aria-label="Удалить">✕</button>':'';
    return '<div class="ach-m'+(m.adm?(isDeliv?' dlv':' adm'):'')+'"><div class="ach-mt"><span>'+who+'</span>'+dBtn+'</div><div class="ach-bd"><span class="ach-tx">'+esc(m.txt||'')+'</span><span class="ach-tm">'+tm+'</span></div></div>';
   }).join('');
