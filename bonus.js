@@ -130,6 +130,7 @@
  function bindCarPool(code){
   code = String(code || "").trim().toUpperCase();
   if (code === CAR_CODE && _carRef) { updCarBadge(); return; }
+  flushManualLog();
   if (_carRef && _carFn) { try { _carRef.off("value", _carFn); } catch(e){} }
   if (_histRef && _histFn) { try { _histRef.off("value", _histFn); } catch(e){} }
   _carRef = null; _carFn = null; _histRef = null; _histFn = null; _carHist = {};
@@ -158,13 +159,21 @@
      if (inp2 && document.activeElement !== inp2) inp2.value = s.qty2;
     }));
     upd();
+    const sm = g("bnSm");
+    if (sm && sm.classList.contains("open")) {
+     if (sm.querySelector(".bn-back") && CUR_VIEW && CUR_VIEW.k === "cur") showMonth("cur");
+     else if (!sm.querySelector(".bn-back")) histView();
+    }
    }
   });
   _histRef = db.ref("cars/" + code + "/hist");
   _histFn = _histRef.on("value", snap => {
    _carHist = snap.val() || {};
    const sm = g("bnSm");
-   if (sm && sm.classList.contains("open")) histView();
+   if (sm && sm.classList.contains("open")) {
+    if (sm.querySelector(".bn-back") && CUR_VIEW && CUR_VIEW.k && CUR_VIEW.k !== "cur" && _carHist[CUR_VIEW.k]) showMonth(CUR_VIEW.k);
+    else if (!sm.querySelector(".bn-back")) histView();
+   }
   });
  }
  window._setDriverCar = bindCarPool;
@@ -331,6 +340,7 @@
   let rs=0,rq=0;B.forEach(c=>c.subs.forEach(s=>{const q1=num(s.qty),q2=num(s.qty2);rs+=q1*num(s.price)+q2*num(s.price2);rq+=q1+q2}));
   const msg=rq>0?(CAR_CODE==='ADMIN'?'Обнулить '+fm(rq)+' шт на сумму '+fm(rs)+' '+CUR+'?':'Обнулить '+fm(rq)+' шт ('+fm(rs)+' '+CUR+') у экипажа '+CAR_CODE+' и очистить журнал накладных?'):'Количества по нулям. Очистить журнал накладных?';
   if(!await askC(msg,'Обнулить','🔄'))return;
+  clearTimeout(_manTimer);_manTimer=null;_manBuf={};
   B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));
   if(window.firebase&&firebase.apps&&firebase.apps.length){firebase.database().ref('cars/'+CAR_CODE+'/qty').remove().catch(()=>{});firebase.database().ref('cars/'+CAR_CODE+'/docs').remove().catch(()=>{});}
   render();tst('Количества обнулены');
@@ -369,7 +379,9 @@
  function capName(n){return n.charAt(0).toUpperCase()+n.slice(1)}
  function monthName(k){
   const p=String(k).split('-');if(p.length<2)return String(k);
-  const L=curLang(),nm=capName((MN[L]||MN.ru)[+p[1]-1]||'');
+  const L=curLang(),arr=MN[L]||MN.ru,mi=+p[1]-1;
+  if(!Number.isInteger(mi)||mi<0||mi>=arr.length)return String(k);
+  const nm=capName(arr[mi]);
   return L==='ru'?nm+' '+p[0]+' г.':nm+' '+p[0];
  }
  // Окно выбора месяца и года, возвращает 'YYYY-MM' или null
@@ -416,7 +428,7 @@
    totS+=z.v;totQ+=z.n;
    if(z.l==='Район')regS+=z.v;else if(z.l==='Город')cityS+=z.v;else oneS+=z.v;
   })));
-  const pCity=totS?Math.round(cityS*100/totS):0,pReg=totS?Math.round(regS*100/totS):0,pOne=Math.max(0,100-pCity-pReg);
+  const pCity=totS?Math.round(cityS*100/totS):0,pReg=totS?Math.min(100-pCity,Math.round(regS*100/totS)):0,pOne=Math.max(0,100-pCity-pReg);
   let html=(withBack?'<div class="bn-back" data-m="back">← Все итоги</div>':'')
    +'<div class="sum-dash"><div class="sum-top"><div><div class="sum-lbl">'+esc(title)+(sub?' · '+esc(sub):'')+'</div><div class="sum-val">'+fm(totS)+' <span>'+CUR+'</span></div></div>'
    +'<div class="sum-kpis"><div class="sum-kpi"><b>'+fm(totQ)+'</b><span>штук</span></div><div class="sum-kpi"><b>'+rows.length+'</b><span>катег.</span></div></div></div>'
@@ -510,11 +522,13 @@
  }
  async function saveMonth(){
   if(!CAR_CODE){showNoCrewAlert();return}
-  const rows=sumRows();
-  if(!rows.length){tst('Пока ничего не выбрано','err');return}
+  if(!sumRows().length){tst('Пока ничего не выбрано','err');return}
   const mk=await pickMonth();if(!mk)return;
   const ok=await askC('Сохранить итоги за выбранный месяц и обнулить количества?','Сохранить','💾');
   if(!ok)return;
+  clearTimeout(_manTimer);_manTimer=null;_manBuf={};
+  const rows=sumRows();
+  if(!rows.length){tst('Пока ничего не выбрано','err');return}
   const now=new Date(),id=now.getTime().toString(36);
   const h=HIST(),rec={m:mk,t:now.getTime(),sum:sumOf(rows),qty:qtyOf(rows),rows:rows};
   h[id]=rec;
@@ -619,7 +633,7 @@
   if(!CAR_CODE){showNoCrewAlert();return}
   flushManualLog();
   let m=g('bnDocsMdl');if(m)m.remove();m=document.createElement('div');m.id='bnDocsMdl';m.className='cm open';
-  m.innerHTML='<div class="cm-b ob-pk-box" style="max-width:420px;height:min(82dvh,580px);display:flex;flex-direction:column;padding:0;overflow:hidden"><div class="ob-pk-hd" style="padding:14px 16px;flex-shrink:0"><div><b>📜 История изменений</b><small>Экипаж '+esc(CAR_CODE)+'</small></div><button type="button" class="pt-x" id="bdX">✕</button></div><div style="padding:8px 12px;background:rgba(0,0,0,.18);border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0"><input id="bdSearch" type="search" placeholder="🔍 Поиск по имени, накладной или товару..." style="width:100%;height:36px;padding:0 12px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#f8fafc;font-size:12.5px;outline:none;box-sizing:border-box"></div><div class="ob-pk-list" id="bdList" style="flex:1;overflow:auto;padding:12px"><div class="pt-empty">Загрузка...</div></div></div>';
+  m.innerHTML='<div class="cm-b ob-pk-box" style="max-width:420px;height:min(82dvh,580px);display:flex;flex-direction:column;padding:0;overflow:hidden"><div class="ob-pk-hd" style="padding:14px 16px;flex-shrink:0"><div><b>📜 История изменений</b><small><span>Экипаж</span> <span data-no-i18n="1">'+esc(CAR_CODE)+'</span></small></div><button type="button" class="pt-x" id="bdX">✕</button></div><div style="padding:8px 12px;background:rgba(0,0,0,.18);border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0"><input id="bdSearch" type="search" placeholder="🔍 Поиск по имени, накладной или товару..." style="width:100%;height:36px;padding:0 12px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#f8fafc;font-size:12.5px;outline:none;box-sizing:border-box"></div><div class="ob-pk-list" id="bdList" style="flex:1;overflow:auto;padding:12px"><div class="pt-empty">Загрузка...</div></div></div>';
   document.body.appendChild(m);const cl=()=>m.remove();g('bdX').onclick=cl;m.onclick=ev=>{if(ev.target===m)cl()};
   try{
    const val=(await firebase.database().ref('cars/'+CAR_CODE+'/docs').once('value')).val()||{};
@@ -639,13 +653,13 @@
      const signS=sv>0?'+':'',signQ=qv>0?'+':'';
      const sumCol=sv<0?'#fca5a5':'#fde047';
      const right=(qv||sv)?'<div class="bd-r"><b style="color:'+sumCol+'">'+(isMan?signS:'')+fm(sv)+' '+CUR+'</b><small>'+(isMan?signQ:'')+fm(qv)+' шт</small></div>':'';
-     const titleHtml=isMan?'<span>Вручную</span>':'<span>№ '+esc(x.doc||'—')+'</span>';
+     const titleHtml=isMan?'<span>Вручную</span>':'<span>№ <span data-no-i18n="1">'+esc(x.doc||'—')+'</span></span>';
      const itemsHtml=(x.p&&typeof x.p==='object'&&Object.keys(x.p).length)?'<div style="margin-top:7px;padding-top:6px;border-top:1px dashed rgba(255,255,255,.08);display:flex;flex-direction:column;gap:3px">'+Object.keys(x.p).map(k=>{
       const dn=+x.p[k]||0,pr=bonKeyPrice(k),dv=dn*pr;
       const col=dn<0?'#fca5a5':'#6ee7b7';
       return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:#cbd5e1"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(bonKeyLabel(k))+'</span><b style="white-space:nowrap;color:'+col+'">'+(dn>0?'+':'')+fm(dn)+' шт'+(dv?' · '+fm(dv)+' '+CUR:'')+'</b></div>';
      }).join('')+'</div>':'';
-     return '<div class="bd-card"><div class="bd-top"><div class="bd-l"><span class="bd-ic">'+(isMan?'✏️':'🧾')+'</span><div><div class="bd-num">'+titleHtml+(zn?'<span class="bd-z">'+zn+'</span>':'')+rp+'</div><div class="bd-meta">'+esc(x.by||'Водитель')+(tm?' · '+tm:'')+'</div></div></div>'+right+'</div>'+itemsHtml+'</div>';
+     return '<div class="bd-card"><div class="bd-top"><div class="bd-l"><span class="bd-ic">'+(isMan?'✏️':'🧾')+'</span><div><div class="bd-num">'+titleHtml+(zn?'<span class="bd-z">'+zn+'</span>':'')+rp+'</div><div class="bd-meta"><span data-no-i18n="1">'+esc(x.by||'Водитель')+'</span>'+(tm?' · '+tm:'')+'</div></div></div>'+right+'</div>'+itemsHtml+'</div>';
     }).join('');
    };
    renderDocs(allList);
@@ -689,6 +703,7 @@
 
  function openBon(noPush){
   if (!CAR_CODE) {
+   try{sessionStorage.removeItem('BON_WAS_OPEN')}catch(e){}
    showNoCrewAlert();
    return;
   }
@@ -705,7 +720,7 @@
   try{sessionStorage.removeItem('BON_WAS_OPEN')}catch(e){}
   if(src!=='pop'){try{if(history.state&&history.state.bn)setTimeout(()=>history.back(),0)}catch(e){}}
  }
- window.addEventListener('popstate',()=>{if(skipPop>0){skipPop--;return}const repush=()=>{const m=g('bnMdl');if(m&&m.classList.contains('open'))try{history.pushState({bn:1},'')}catch(e){}};if(g('ocrLiveCam')){const c=g('olcClose');if(c)c.click();repush();return}if(g('ocrCatMdl')){const c=g('obPkX');if(c)c.click();repush();return}if(g('ocrSrcMdl')){const c=g('ocrPickNo');if(c)c.click();repush();return}if(g('ocrBonMdl')){const c=g('obX');if(c)c.click();repush();return}const o=g('bnSm');if(o&&o.classList.contains('open')){o.classList.remove('open');repush();return}const m=g('bnMdl');if(m&&m.classList.contains('open'))closeBon('pop')});
+ window.addEventListener('popstate',()=>{if(skipPop>0){skipPop--;return}const repush=()=>{const m=g('bnMdl');if(m&&m.classList.contains('open'))try{history.pushState({bn:1},'')}catch(e){}};const tv=g('tvMdl');if(tv){if(typeof tv._tvClose==='function')tv._tvClose('pop');else tv.remove();repush();return}if(g('bnDocsMdl')){const c=g('bdX');if(c)c.click();else g('bnDocsMdl').remove();repush();return}if(g('noCrewMdl')){g('noCrewMdl').remove();repush();return}if(g('mPick')){g('mPick').remove();repush();return}if(g('ocrLiveCam')){const c=g('olcClose');if(c)c.click();repush();return}if(g('ocrCatMdl')){const c=g('obPkX');if(c)c.click();repush();return}if(g('ocrSrcMdl')){const c=g('ocrPickNo');if(c)c.click();repush();return}if(g('ocrBonMdl')){const c=g('obX');if(c)c.click();repush();return}const o=g('bnSm');if(o&&o.classList.contains('open')){o.classList.remove('open');repush();return}const m=g('bnMdl');if(m&&m.classList.contains('open'))closeBon('pop')});
  const restoreBon=()=>{try{if(sessionStorage.getItem('BON_WAS_OPEN')==='1'&&(!g('bnMdl')||!g('bnMdl').classList.contains('open')))openBon(true)}catch(e){}};setTimeout(restoreBon,120);document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(restoreBon,150)});
 
  // Перерисовка названий мебели при смене языка приложения
@@ -714,7 +729,12 @@
   if(m && m.classList.contains('open')) {
    render();
    const sm=g('bnSm');
-   if(sm && sm.classList.contains('open')) histView();
+   if(sm && sm.classList.contains('open')) {
+    if(sm.querySelector('.bn-back') && CUR_VIEW && CUR_VIEW.k) {
+     if(CUR_VIEW.k==='cur' || _carHist[CUR_VIEW.k]) showMonth(CUR_VIEW.k);
+     else histView();
+    } else histView();
+   }
   }
  }).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
 

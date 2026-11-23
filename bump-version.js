@@ -30,15 +30,23 @@ if (!vOld || !/^\d{14}$/.test(vOld)) {
 
 console.log('📦 Старая версия:', vOld);
 
-// 3. Обновляем версию во всех 4 файлах
+// 3. Обновляем версию во всех 4 файлах (устойчиво к рассинхрону отдельных ?v= меток)
 const files = ['version.json', 'sw.js', 'index.html', 'admin.html'];
 for (const fn of files) {
   const fp = path.join(__dirname, fn);
-  let content = fs.readFileSync(fp, 'utf8');
-  if (!content.includes(vOld)) {
-    console.error(`Предупреждение: в ${fn} не найдена старая версия ${vOld}`);
+  const orig = fs.readFileSync(fp, 'utf8');
+  let content = orig;
+  if (fn === 'version.json') {
+    content = content.replace(/"v"\s*:\s*"\d{14}"/, `"v":"${vNew}"`);
+  } else if (fn === 'sw.js') {
+    content = content.replace(/eurobaza-v\d{14}/g, `eurobaza-v${vNew}`);
+  } else {
+    content = content.replace(/\?v=\d{14}/g, `?v=${vNew}`).replaceAll(vOld, vNew);
   }
-  content = content.replaceAll(vOld, vNew);
+  if (content === orig) {
+    console.error(`❌ Ошибка: в ${fn} не удалось обновить версию (ожидалась ${vOld})`);
+    process.exit(1);
+  }
   fs.writeFileSync(fp, content, 'utf8');
   console.log(`✔ Обновлена версия в ${fn}`);
 }

@@ -138,7 +138,9 @@
     }
     return '';
   }
+  let _cmTries = 0;
   const _cmWait = setInterval(() => {
+    if (++_cmTries > 45) { clearInterval(_cmWait); return; }
     if (!window.firebase || !firebase.apps || !firebase.apps.length) return;
     clearInterval(_cmWait);
     firebase.database().ref('config/ocrMap').on('value', s => {
@@ -713,10 +715,12 @@ async function askGemini(b64){
       const cand = Array.isArray(data && data.candidates) ? data.candidates[0] : null;
       const parts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : [];
       const ans = parts.find(p => p && !p.thought && typeof p.text === 'string') || parts[parts.length - 1];
-      const parsed = JSON.parse(((ans && ans.text) || '{}').replace(/```json|```/gi, '').trim());
+      const parsedRaw = JSON.parse(((ans && ans.text) || '{}').replace(/```json|```/gi, '').trim());
+      const parsed = (parsedRaw && typeof parsedRaw === 'object') ? parsedRaw : {};
       const items = [];
       (Array.isArray(parsed.items) ? parsed.items : []).forEach(x => {
-        const name = fixOcrName(String((x && x.name) || '').trim()), qty = Math.max(1, Math.round(+x.qty || 1));
+        if (!x || typeof x !== 'object') return;
+        const name = fixOcrName(String(x.name || '').trim()), qty = Math.max(1, Math.round(+x.qty || 1));
         if (!name) return;
         const cls = classifyProduct(name);
         if (!cls.ignore) items.push({ name, qty, code: cls.code || '' });
@@ -791,7 +795,7 @@ async function askGemini(b64){
       let pm = g('ocrCatMdl'); if (pm) pm.remove();
       let selCat = (r.code && BON_BY_CODE[r.code]) ? BON_BY_CODE[r.code].cat : 'all', q = '';
       pm = document.createElement('div'); pm.id = 'ocrCatMdl'; pm.className = 'cm open';
-      pm.innerHTML = '<div class="cm-b ob-pk-box"><div class="ob-pk-hd"><div><b>Категория бонусов</b><small>' + esc(r.name) + '</small></div><button type="button" class="pt-x" id="obPkX">✕</button></div><div class="ob-pk-srch"><input id="obPkInp" type="search" placeholder="Поиск мебели..."></div><div class="ob-pk-chips" id="obPkChips"><button type="button" data-c="all" class="' + (selCat === 'all' ? 'on' : '') + '">Все</button>' + catsList.map(c => '<button type="button" data-c="' + esc(c) + '" class="' + (selCat === c ? 'on' : '') + '">' + (CAT_ICO[c] || '📦') + ' ' + esc(c) + '</button>').join('') + '</div><div class="ob-pk-list" id="obPkList"></div></div>';
+      pm.innerHTML = '<div class="cm-b ob-pk-box"><div class="ob-pk-hd"><div><b>Категория бонусов</b><small data-no-i18n="1">' + esc(r.name) + '</small></div><button type="button" class="pt-x" id="obPkX">✕</button></div><div class="ob-pk-srch"><input id="obPkInp" type="search" placeholder="Поиск мебели..."></div><div class="ob-pk-chips" id="obPkChips"><button type="button" data-c="all" class="' + (selCat === 'all' ? 'on' : '') + '">Все</button>' + catsList.map(c => '<button type="button" data-c="' + esc(c) + '" class="' + (selCat === c ? 'on' : '') + '">' + (CAT_ICO[c] || '📦') + ' ' + esc(c) + '</button>').join('') + '</div><div class="ob-pk-list" id="obPkList"></div></div>';
       document.body.appendChild(pm);
       const closePk = () => pm.remove();
       g('obPkX').onclick = closePk; pm.onclick = ev => { if (ev.target === pm) closePk(); };
@@ -827,9 +831,9 @@ async function askGemini(b64){
     g('obX').onclick = () => close('closed'); m.onclick = e => { if (e.target === m) close('closed'); };
 
     const carCode = (() => { try { return (localStorage.getItem('USER_CAR') || '').trim().toUpperCase(); } catch (e) { return ''; } })();
-    const docTag = cleanDoc ? ' · № ' + esc(cleanDoc) : '';
+    const docTag = cleanDoc ? ' · № <span data-no-i18n="1">' + esc(cleanDoc) + '</span>' : '';
     const syncSub = () => {
-      if (g('obSub')) g('obSub').innerHTML = carCode && carCode !== 'ADMIN' ? 'Экипаж <b style="color:#6ee7b7">' + esc(carCode) + '</b> · ' + (isCity ? 'Ереван → Город' : 'Область → Район') + docTag : (carCode === 'ADMIN' ? 'Режим Админ' + docTag : '<span style="color:#fbbf24">⚠️ Экипаж не назначен</span>');
+      if (g('obSub')) g('obSub').innerHTML = carCode && carCode !== 'ADMIN' ? 'Экипаж <b data-no-i18n="1" style="color:#6ee7b7">' + esc(carCode) + '</b> · ' + (isCity ? 'Ереван → Город' : 'Область → Район') + docTag : (carCode === 'ADMIN' ? 'Режим <span data-no-i18n="1">Admin</span>' + docTag : '<span style="color:#fbbf24">⚠️ Экипаж не назначен</span>');
     };
     syncSub();
 
@@ -844,7 +848,7 @@ async function askGemini(b64){
         const pickLabel = info
           ? '<span class="ob-pick-l"><span>' + (CAT_ICO[info.cat] || '📦') + '</span><b>' + esc(info.name) + '</b></span><span class="ob-pick-r"><span class="ob-pick-tag">' + fm(up) + ' ' + CUR + '</span><span>▾</span></span>'
           : '<span class="ob-pick-l"><span>⚠️</span><b style="color:#fbbf24">Выберите категорию бонусов</b></span><span class="ob-pick-r"><span>▾</span></span>';
-        return '<div class="ob-card' + (info ? '' : ' unk') + '"><div class="ob-top"><div class="ob-nm">' + esc(r.name) + '</div><button type="button" class="ob-del" data-i="' + i + '">✕</button></div>'
+        return '<div class="ob-card' + (info ? '' : ' unk') + '"><div class="ob-top"><div class="ob-nm" data-no-i18n="1">' + esc(r.name) + '</div><button type="button" class="ob-del" data-i="' + i + '">✕</button></div>'
           + '<button type="button" class="ob-pick' + (info ? '' : ' unk') + '" data-pick="' + i + '">' + pickLabel + '</button>'
           + '<div class="ob-bot"><div class="ob-qbox"><button type="button" class="ob-pm" data-act="dec" data-i="' + i + '">−</button><b>' + r.qty + ' шт</b><button type="button" class="ob-pm" data-act="inc" data-i="' + i + '">+</button></div>'
           + '<div class="ob-pr">' + (info ? (fm(up) + ' × ' + r.qty + ' = <b>' + fm(up * r.qty) + ' ' + CUR + '</b>') : '<span style="color:#fbbf24">Не выбрано</span>') + '</div></div></div>';
@@ -882,14 +886,19 @@ async function askGemini(b64){
             if (!ok) { close(); return; }
           }
         }
-        const qRef = db.ref('cars/' + code + '/qty'), cur = (await qRef.once('value')).val() || {}, patch = {}, docP = {};
+        const qRef = db.ref('cars/' + code + '/qty'), docP = {};
         let s = 0, q = 0;
         valid.forEach(r => {
           const info = BON_BY_CODE[r.code], k = info.one ? r.code : (isCity ? r.code : r.code + '_2');
-          patch[k] = (+cur[k] || 0) + r.qty; docP[k] = (docP[k] || 0) + r.qty;
+          docP[k] = (docP[k] || 0) + r.qty;
           s += (info.one ? info.p1 : (isCity ? info.p1 : info.p2)) * r.qty; q += r.qty;
         });
-        await qRef.update(patch); await db.ref('cars/' + code + '/t').set(Date.now());
+        await qRef.transaction(cur => {
+          const next = (cur && typeof cur === 'object') ? Object.assign({}, cur) : {};
+          Object.keys(docP).forEach(k => { next[k] = (+next[k] || 0) + docP[k]; });
+          return next;
+        });
+        await db.ref('cars/' + code + '/t').set(Date.now());
         {
           const meName = (() => { try { return localStorage.getItem('USER_NAME') || (code === 'ADMIN' ? 'Администратор' : 'Водитель'); } catch (e) { return code === 'ADMIN' ? 'Администратор' : 'Водитель'; } })();
           const baseKey = docKey || ('doc_' + Date.now().toString(36));
@@ -975,7 +984,7 @@ async function askGemini(b64){
     }
     let saved = 0;
     const next = async (idx, lastReason) => {
-      if (tok !== _batchTok) return;
+      if (tok !== _batchTok) { setBusy(false); return; }
       if (idx >= total) { setBusy(false);
         if (saved > 1 && lastReason === "saved") setTimeout(() => {
           if (tok === _batchTok && window.toast) toast(
@@ -984,8 +993,13 @@ async function askGemini(b64){
           toast("Загрузка накладных завершена"); return; }
       if (!slots[idx]) { setBusy(true); window.toast && toast(
         "Распознаю накладную " + (idx + 1) + " из " + total + "..."); }
-      let sl = await getSlot(idx);
-      if (tok !== _batchTok) return; setBusy(false);
+      let sl;
+      try {
+        sl = await getSlot(idx);
+      } finally {
+        setBusy(false);
+      }
+      if (tok !== _batchTok || !sl) return;
       while (!sl.ok) { const msg = sl.err || "Ошибка";
         const q = /дневной лимит|quota|free.?tier/i.test(msg);
         if (!q && typeof askC === "function") {
@@ -994,14 +1008,15 @@ async function askGemini(b64){
           const qt = (bs ? "Сервер распознавания временно перегружен. Повторить отправку фото " : ("Ошибка распознавания (" + (idx + 1) + "/" + total + "): " + msg + "\n\nПовторить отправку фото ")) + (idx + 1) + " из " + total + "?";
           const ok = await askC(qt, "Повторить", "🔄",
             idx + 1 < total ? "Пропустить" : "Отмена");
-          if (tok !== _batchTok) return;
+          if (tok !== _batchTok) { setBusy(false); return; }
           if (ok) { setBusy(true); window.toast && toast(
             "Повторяю отправку " + (idx + 1) + "/" + total + "...");
             try { const b = sl.b64 || await compressImage(list[idx]);
               sl = { ok: true, res: await askGemini(b) };
             } catch (e2) { sl = { ok: false, b64: sl.b64,
               err: (e2 && e2.message) || String(e2 || "") }; }
-            setBusy(false); if (tok !== _batchTok) return; continue;
+            finally { setBusy(false); }
+            if (tok !== _batchTok) return; continue;
           } } else window.toast && toast("Ошибка OCR (" +
             (idx + 1) + "/" + total + "): " + msg, "err");
         next(idx + 1, "skip"); return; }
@@ -1010,15 +1025,17 @@ async function askGemini(b64){
         next(idx + 1, "empty"); return; }
       openBonusInvoiceModal(items, detectZone(addr), doc, {
         idx: idx + 1, total, onDone: async rsn => {
-          if (tok !== _batchTok) return;
+          if (tok !== _batchTok) { setBusy(false); return; }
           if (rsn === "saved") { saved++; next(idx + 1, "saved"); return; }
           const rem = total - (idx + 1);
           if (rem > 0 && typeof askC === "function") {
             const cm = g("cm"); if (cm) document.body.appendChild(cm);
             const go = await askC("Пропустить эту накладную и перейти к следующей? (осталось " + rem + ")", "Следующая", "📄", "Остановить все");
-            if (tok !== _batchTok) return;
-            if (go) next(idx + 1, "skip"); else { _batchTok++;
+            if (tok !== _batchTok) { setBusy(false); return; }
+            if (go) next(idx + 1, "skip"); else { _batchTok++; setBusy(false);
               window.toast && toast("Загрузка остальных накладных отменена"); }
+          } else {
+            next(idx + 1, "closed");
           } } }, addr); };
     next(0, "");
   }
@@ -1048,6 +1065,11 @@ async function askGemini(b64){
       return;
     }
 
+    if (!b64) {
+      setScanBusy(false);
+      window.toast && toast("Не удалось прочитать изображение", "err");
+      return;
+    }
     let firstPass = true;
     try {
       while (b64) {
@@ -1224,6 +1246,7 @@ async function askGemini(b64){
           return { stream: st2, lenses: sorted, curIdx: 0, sig };
         }
         stream = await tryOpenVideo({ facingMode: { ideal: "environment" } });
+        tr = stream ? stream.getVideoTracks()[0] : null;
       }
     }
 
@@ -1290,14 +1313,15 @@ async function askGemini(b64){
     const vr = vidEl.getBoundingClientRect();
     const fr = frameEl ? frameEl.getBoundingClientRect() : vr;
     const vw = vidEl.videoWidth || srcW, vh = vidEl.videoHeight || srcH;
-    const coverScale = Math.max(vr.width / vw, vr.height / vh);
-    const renW = vw * coverScale, renH = vh * coverScale;
-    const offX = (vr.width - renW) / 2, offY = (vr.height - renH) / 2;
+    const validRect = vr.width > 0 && vr.height > 0 && vw > 0 && vh > 0;
+    const coverScale = validRect ? Math.max(vr.width / vw, vr.height / vh) : 1;
+    const renW = validRect ? vw * coverScale : 1, renH = validRect ? vh * coverScale : 1;
+    const offX = validRect ? (vr.width - renW) / 2 : 0, offY = validRect ? (vr.height - renH) / 2 : 0;
     const clamp01 = v => Math.max(0, Math.min(1, v));
-    const nx1 = clamp01((fr.left - vr.left - offX) / renW);
-    const ny1 = clamp01((fr.top - vr.top - offY) / renH);
-    const nx2 = clamp01((fr.right - vr.left - offX) / renW);
-    const ny2 = clamp01((fr.bottom - vr.top - offY) / renH);
+    const nx1 = validRect ? clamp01((fr.left - vr.left - offX) / renW) : 0;
+    const ny1 = validRect ? clamp01((fr.top - vr.top - offY) / renH) : 0;
+    const nx2 = validRect ? clamp01((fr.right - vr.left - offX) / renW) : 1;
+    const ny2 = validRect ? clamp01((fr.bottom - vr.top - offY) / renH) : 1;
 
     const vScale = Math.min(srcW / vw, srcH / vh);
     const visW = vw * vScale, visH = vh * vScale;
@@ -1443,14 +1467,26 @@ async function askGemini(b64){
       try { if (torchOn && track && track.applyConstraints) await track.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {}); } catch (e) {}
       stopStream(stream);
       await sleep(60);
+      const restorePrev = async () => {
+        const prevSt = await tryOpenVideo(activeId ? { deviceId: { exact: activeId } } : { facingMode: { ideal: "environment" } })
+          || await tryOpenVideo({ facingMode: { ideal: "environment" } });
+        if (prevSt) {
+          stream = prevSt;
+          track = prevSt.getVideoTracks()[0];
+          vid.srcObject = stream;
+          try { await vid.play(); } catch (e) {}
+          syncCurLensMeta();
+        }
+      };
       const st = await tryOpenVideo({ deviceId: { exact: target.deviceId } }, wantTorch ? [{ torch: true }] : null);
-      if (!st) return false;
+      if (!st) { await restorePrev(); return false; }
       const tr = st.getVideoTracks()[0];
       if (isFrontDev(target.label || (tr && tr.label), tr)) {
         stopStream(st);
         lenses.splice(nextIdx, 1);
         curIdx = Math.max(0, lenses.findIndex(x => x.deviceId === activeId));
         saveCaps();
+        await restorePrev();
         return false;
       }
       stream = st;
@@ -1500,7 +1536,17 @@ async function askGemini(b64){
         stopStream(stream);
         await sleep(50);
         const newSt = await tryOpenVideo(devId ? { deviceId: { exact: devId } } : { facingMode: "environment" }, [{ torch: on }]);
-        if (!newSt) return false;
+        if (!newSt) {
+          const fallbackSt = await tryOpenVideo(devId ? { deviceId: { exact: devId } } : { facingMode: { ideal: "environment" } })
+            || await tryOpenVideo({ facingMode: { ideal: "environment" } });
+          if (fallbackSt) {
+            stream = fallbackSt;
+            track = stream.getVideoTracks()[0];
+            vid.srcObject = stream;
+            try { await vid.play(); } catch (e) {}
+          }
+          return false;
+        }
         stream = newSt;
         track = stream.getVideoTracks()[0];
         vid.srcObject = stream;

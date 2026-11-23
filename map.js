@@ -49,7 +49,7 @@
  const STYLE_PRIMARY='https://tiles.openfreemap.org/styles/dark';
  const STYLE_FALLBACK='https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
  const SAT_URL='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
- let _lp=null,_map=null,_tok=0,_fit=null;
+ let _lp=null,_map=null,_tok=0,_fit=null,_routeCtrl=null;
  function getSat(){try{return localStorage.getItem('MAP_SAT')!=='0'}catch(e){return true}}
  function setSat(v){try{localStorage.setItem('MAP_SAT',v?'1':'0')}catch(e){}}
  function lock(on){document.documentElement.classList.toggle('lock',on);document.body.classList.toggle('lock',on)}
@@ -60,10 +60,12 @@
    let idx=0;
    const go=()=>{
     const src=CDNS[idx];
+    let done=false;
     const c=document.createElement('link');c.rel='stylesheet';c.href=src.css;document.head.appendChild(c);
     const s=document.createElement('script');s.src=src.js;
-    s.onload=()=>{if(window.maplibregl&&maplibregl.Map)res();else fail()};
-    const fail=()=>{s.remove();c.remove();idx++;if(idx<CDNS.length)go();else{_lp=null;rej(new Error('maplibre'))}};
+    const tid=setTimeout(()=>{if(!done)fail()},12000);
+    const fail=()=>{if(done)return;done=true;clearTimeout(tid);s.remove();c.remove();idx++;if(idx<CDNS.length)go();else{_lp=null;rej(new Error('maplibre'))}};
+    s.onload=()=>{if(done)return;done=true;clearTimeout(tid);if(window.maplibregl&&maplibregl.Map)res();else{done=false;fail()}};
     s.onerror=fail;
     document.head.appendChild(s);
    };
@@ -82,7 +84,9 @@
   return m;
  }
  function closeMap(src){
-  _tok++;_fit=null;if(src!=='pop'){try{if(history.state&&history.state.map)setTimeout(()=>history.back(),0)}catch(e){}}
+  _tok++;_fit=null;
+  if(_routeCtrl){try{_routeCtrl.abort()}catch(e){}_routeCtrl=null}
+  if(src!=='pop'){try{if(history.state&&history.state.map)setTimeout(()=>history.back(),0)}catch(e){}}
   if(_map){try{_map.remove()}catch(e){}_map=null}
   const m=g('mapM');if(m)m.classList.remove('open');
   lock(false);
@@ -97,7 +101,7 @@
   const cur=(window.CUR||[]).map((x,idx)=>Object.assign({},x,{_origIdx:idx})).filter(x=>!x.done);
   if(!cur||!cur.length){window.toast&&toast('Сначала постройте маршрут','err');return}
   let sv={};try{sv=JSON.parse(localStorage.getItem('R_SAVE')||'{}')||{}}catch(e){}
-  const start=sv.startPt&&isFinite(sv.startPt.lat)&&isFinite(sv.startPt.lon)?sv.startPt:null;
+  const start=sv.startPt&&typeof sv.startPt.lat==='number'&&Number.isFinite(sv.startPt.lat)&&typeof sv.startPt.lon==='number'&&Number.isFinite(sv.startPt.lon)?sv.startPt:null;
   const m=ensureModal(),tok=++_tok;
   m.classList.add('open');lock(true);try{history.pushState({map:1},'')}catch(e){}
   g('mapInfo').textContent='Загружаю карту...';
@@ -109,6 +113,7 @@
   draw(cur,start,sv,tok);
  }
  function draw(cur,start,sv,tok){
+  if(_routeCtrl){try{_routeCtrl.abort()}catch(e){}_routeCtrl=null}
   if(_map){try{_map.remove()}catch(e){}_map=null}
   const box=g('mapBox');box.innerHTML='';
   const etas=document.querySelectorAll('#o ol li:not(.done) .eta');
@@ -119,16 +124,18 @@
    markers.push({lngLat:[start.lon,start.lat],cls:'me',lbl:'Вы',html:'<b>Вы здесь</b><br>Старт маршрута'});
   }
   cur.forEach((it,k)=>{
+   const lat=+it.lat,lon=+it.lon;
+   if(!Number.isFinite(lat)||!Number.isFinite(lon))return;
    const name=String(it.name),base=name.indexOf('🏁')===0,inex=name.indexOf('📍')>=0;
    if(inex)bad++;
-   ll.push([it.lon,it.lat]);
+   ll.push([lon,lat]);
    const eta=etas[k]?etas[k].textContent:'';
-   let h='<b>'+esc(name)+'</b>';
+   let h='<b data-no-i18n="1">'+esc(name)+'</b>';
    if(eta)h+='<br>'+esc(eta);
-   if(it.sub)h+='<br>'+esc(it.sub);
+   if(it.sub)h+='<br><span data-no-i18n="1">'+esc(it.sub)+'</span>';
    if(inex)h+='<br><span style="color:#fbbf24">⚠️ Неточный адрес: Яндекс нашёл только район или город</span>';
-   h+='<div class="mp-acts"><a class="mp-nav" href="yandexnavi://build_route_on_map?lat_to='+it.lat+'&lon_to='+it.lon+'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>Поехать</a>'+(base?'':'<button type="button" class="mp-done" data-oidx="'+it._origIdx+'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Выполнено</button>')+'</div>';
-   markers.push({lngLat:[it.lon,it.lat],cls:base?'base':inex?'bad':'ok',lbl:base?'🏁':String(k+1),html:h});
+   h+='<div class="mp-acts"><a class="mp-nav" href="yandexnavi://build_route_on_map?lat_to='+lat+'&lon_to='+lon+'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>Поехать</a>'+(base?'':'<button type="button" class="mp-done" data-oidx="'+it._origIdx+'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Выполнено</button>')+'</div>';
+   markers.push({lngLat:[lon,lat],cls:base?'base':inex?'bad':'ok',lbl:base?'🏁':String(k+1),html:h});
   });
 
   const bounds=new maplibregl.LngLatBounds();
@@ -216,40 +223,44 @@
    applySat(isSat);
   };
 
-  const setupLayers=()=>{
-   if(_map!==map)return;
-   styleReady=true;
-   const stObj=map.getStyle();
-   const layers=(stObj&&stObj.layers)?stObj.layers.slice():[];
-   const own=new Set(['sat-layer','kentron-fill','kentron-line','saralanj-glow','saralanj-line','route-glow','route-dash','route-solid']);
-   origMeta=layers.filter(l=>!own.has(l.id)).map(l=>({id:l.id,type:l.type,vis:(l.layout&&l.layout.visibility)||'visible'}));
-   const sym=layers.find(l=>l.type==='symbol');
-   const firstSymId=sym?sym.id:undefined;
-   hasSym=!!firstSymId;
+   const onKentronClick=e=>{
+    new maplibregl.Popup().setLngLat(e.lngLat).setHTML('<b>⛔ Зона Кентрон</b><br>Въезд грузовым машинам до 21:00 запрещён').addTo(map);
+   };
+   const onSaralanjClick=e=>{
+    new maplibregl.Popup().setLngLat(e.lngLat).setHTML('<b>⛔ Дорога Сараландж</b><br>Камеры штрафа для грузовых днём (до 21:00)').addTo(map);
+   };
+   const setupLayers=()=>{
+    if(_map!==map)return;
+    styleReady=true;
+    const stObj=map.getStyle();
+    const layers=(stObj&&stObj.layers)?stObj.layers.slice():[];
+    const own=new Set(['sat-layer','kentron-fill','kentron-line','saralanj-glow','saralanj-line','route-glow','route-dash','route-solid']);
+    origMeta=layers.filter(l=>!own.has(l.id)).map(l=>({id:l.id,type:l.type,vis:(l.layout&&l.layout.visibility)||'visible'}));
+    const sym=layers.find(l=>l.type==='symbol');
+    const firstSymId=sym?sym.id:undefined;
+    hasSym=!!firstSymId;
 
-   if(!map.getSource('sat-src')){
-    map.addSource('sat-src',{type:'raster',tiles:[SAT_URL],tileSize:256,maxzoom:18,attribution:'Tiles © Esri'});
-    map.addLayer({id:'sat-layer',type:'raster',source:'sat-src',layout:{visibility:isSat?'visible':'none'}},firstSymId);
-   }
-   if(typeof KENTRON_POLY!=='undefined'&&typeof getShift==='function'&&getShift()==='day'&&!map.getSource('kentron-src')){
-    const ring=KENTRON_POLY.map(p=>[p[1],p[0]]);
-    ring.push(ring[0]);
-    map.addSource('kentron-src',{type:'geojson',data:{type:'Feature',geometry:{type:'Polygon',coordinates:[ring]}}});
-    map.addLayer({id:'kentron-fill',type:'fill',source:'kentron-src',paint:{'fill-color':'#ef4444','fill-opacity':0.16}},firstSymId);
-    map.addLayer({id:'kentron-line',type:'line',source:'kentron-src',paint:{'line-color':'#ef4444','line-width':2.2,'line-dasharray':[3,3]}},firstSymId);
-    map.on('click','kentron-fill',e=>{
-     new maplibregl.Popup().setLngLat(e.lngLat).setHTML('<b>⛔ Зона Кентрон</b><br>Въезд грузовым машинам до 21:00 запрещён').addTo(map);
-    });
-   }
-   if(typeof SARALANJ_LINE!=='undefined'&&SARALANJ_LINE.length>1&&typeof getShift==='function'&&getShift()==='day'&&!map.getSource('saralanj-src')){
-    const sLine=SARALANJ_LINE.map(p=>[p[1],p[0]]);
-    map.addSource('saralanj-src',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:sLine}}});
-    map.addLayer({id:'saralanj-glow',type:'line',source:'saralanj-src',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ef4444','line-width':14,'line-opacity':0.28}},firstSymId);
-    map.addLayer({id:'saralanj-line',type:'line',source:'saralanj-src',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ef4444','line-width':3.2,'line-dasharray':[3,2]}},firstSymId);
-    map.on('click','saralanj-glow',e=>{
-     new maplibregl.Popup().setLngLat(e.lngLat).setHTML('<b>⛔ Дорога Сараландж</b><br>Камеры штрафа для грузовых днём (до 21:00)').addTo(map);
-    });
-   }
+    if(!map.getSource('sat-src')){
+     map.addSource('sat-src',{type:'raster',tiles:[SAT_URL],tileSize:256,maxzoom:18,attribution:'Tiles © Esri'});
+     map.addLayer({id:'sat-layer',type:'raster',source:'sat-src',layout:{visibility:isSat?'visible':'none'}},firstSymId);
+    }
+    if(typeof KENTRON_POLY!=='undefined'&&typeof getShift==='function'&&getShift()==='day'&&!map.getSource('kentron-src')){
+     const ring=KENTRON_POLY.map(p=>[p[1],p[0]]);
+     ring.push(ring[0]);
+     map.addSource('kentron-src',{type:'geojson',data:{type:'Feature',geometry:{type:'Polygon',coordinates:[ring]}}});
+     map.addLayer({id:'kentron-fill',type:'fill',source:'kentron-src',paint:{'fill-color':'#ef4444','fill-opacity':0.16}},firstSymId);
+     map.addLayer({id:'kentron-line',type:'line',source:'kentron-src',paint:{'line-color':'#ef4444','line-width':2.2,'line-dasharray':[3,3]}},firstSymId);
+     map.off('click','kentron-fill',onKentronClick);
+     map.on('click','kentron-fill',onKentronClick);
+    }
+    if(typeof SARALANJ_LINE!=='undefined'&&SARALANJ_LINE.length>1&&typeof getShift==='function'&&getShift()==='day'&&!map.getSource('saralanj-src')){
+     const sLine=SARALANJ_LINE.map(p=>[p[1],p[0]]);
+     map.addSource('saralanj-src',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:sLine}}});
+     map.addLayer({id:'saralanj-glow',type:'line',source:'saralanj-src',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ef4444','line-width':14,'line-opacity':0.28}},firstSymId);
+     map.addLayer({id:'saralanj-line',type:'line',source:'saralanj-src',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ef4444','line-width':3.2,'line-dasharray':[3,2]}},firstSymId);
+     map.off('click','saralanj-glow',onSaralanjClick);
+     map.on('click','saralanj-glow',onSaralanjClick);
+    }
    if(!map.getSource('route-src')){
     map.addSource('route-src',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:routeCoords}}});
     map.addLayer({id:'route-glow',type:'line',source:'route-src',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#0284c7','line-width':10,'line-opacity':0.42}},firstSymId);
@@ -283,28 +294,40 @@
   info();
   if(ll.length<2){note='';info();return}
 
+  const routeCtrl=typeof AbortController!=='undefined'?new AbortController():null;
+  _routeCtrl=routeCtrl;
   const coords=ll.map(p=>p.join(',')).join(';');
   const q='?overview=full&geometries=geojson';
-  const loadRoad=u=>fetch(u+coords+q).then(r=>r.json()).then(j=>{
-   const r0=j.routes&&j.routes.at(0);
-   const c=r0&&r0.geometry&&r0.geometry.coordinates;
-   if(!c||!c.length)throw 0;
-   return c;
-  });
+  const loadRoad=u=>{
+   const ctrl=typeof AbortController!=='undefined'?new AbortController():null;
+   const onExt=()=>ctrl&&ctrl.abort();
+   if(routeCtrl&&ctrl){if(routeCtrl.signal.aborted)ctrl.abort();else routeCtrl.signal.addEventListener('abort',onExt,{once:true})}
+   const tid=ctrl?setTimeout(()=>ctrl.abort(),12000):null;
+   return fetch(u+coords+q,ctrl?{signal:ctrl.signal}:undefined).finally(()=>{if(tid)clearTimeout(tid);if(routeCtrl)routeCtrl.signal.removeEventListener('abort',onExt)}).then(r=>{if(!r.ok)throw 0;return r.json()}).then(j=>{
+    const r0=j&&j.routes&&j.routes[0];
+    const c=r0&&r0.geometry&&r0.geometry.coordinates;
+    if(!c||!c.length)throw 0;
+    return c;
+   });
+  };
   const isDay=typeof getShift==='function'&&getShift()==='day';
   const loadSafe=async()=>{
-   if(isDay&&window.ZoneService&&ZoneService.fetchSafeRoute&&ll.length<=8){
-    const segs=[];
+   if(isDay&&window.ZoneService&&ZoneService.fetchSafeRoute&&ll.length<=25){
+    const segs=[];let okAny=false;
     for(let i=0;i<ll.length-1;i++){
+     if(tok!==_tok||_map!==map)throw 0;
      const a={lat:ll[i][1],lon:ll[i][0]},b={lat:ll[i+1][1],lon:ll[i+1][0]};
-     const r0=await ZoneService.fetchSafeRoute(a,b,true);
-     const rc=r0&&r0.geometry&&r0.geometry.coordinates;
-     if(!rc||!rc.length)throw 0;
-     segs.push(i===0?rc:rc.slice(1));
+     try{
+      const r0=await ZoneService.fetchSafeRoute(a,b,true,routeCtrl?routeCtrl.signal:undefined);
+      const rc=r0&&r0.geometry&&r0.geometry.coordinates;
+      if(rc&&rc.length){segs.push(i===0?rc:rc.slice(1));okAny=true;continue}
+     }catch(e){if(routeCtrl&&routeCtrl.signal.aborted)throw e}
+     segs.push(i===0?[ll[i],ll[i+1]]:[ll[i+1]]);
     }
-    return segs.flat();
+    if(okAny)return segs.flat();
+    throw 0;
    }
-   return loadRoad('https://router.project-osrm.org/route/v1/driving/').catch(()=>loadRoad('https://routing.openstreetmap.de/routed-car/route/v1/driving/'));
+   return loadRoad('https://router.project-osrm.org/route/v1/driving/').catch(e=>{if(routeCtrl&&routeCtrl.signal.aborted)throw e;return loadRoad('https://routing.openstreetmap.de/routed-car/route/v1/driving/')});
   };
   loadSafe().then(c=>{
    if(tok!==_tok||_map!==map)return;

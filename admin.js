@@ -304,7 +304,8 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
   _lfProm=new Promise((res,rej)=>{let idx=0;const go=()=>{const s0=ADM_CDNS[idx],c=document.createElement("link");c.rel="stylesheet";c.href=s0.css;document.head.appendChild(c);const s=document.createElement("script");s.src=s0.js;s.onload=()=>{if(window.maplibregl&&maplibregl.Map)res();else fail()};const fail=()=>{s.remove();c.remove();idx++;if(idx<ADM_CDNS.length)go();else{_lfProm=null;rej(new Error("Ошибка загрузки MapLibre"))}};s.onerror=fail;document.head.appendChild(s)};go()});
   return _lfProm;
  }
- function destroyMap(){if(_mapRO){try{_mapRO.disconnect()}catch(e){}_mapRO=null}if(_map){try{_map.remove()}catch(e){}_map=null}_markers={};_baseMk=null;_subMk=null;_subFit=null;_subRouteTok++;_didFit=false;_applyAdmSat=null}
+ let _mapTok=0;
+function destroyMap(){_mapTok++;if(_mapRO){try{_mapRO.disconnect()}catch(e){}_mapRO=null}if(_map){try{_map.remove()}catch(e){}_map=null}_markers={};_baseMk=null;_subMk=null;_subFit=null;_subRouteTok++;_didFit=false;_applyAdmSat=null}
  function fitAllDrivers(){
   if(!_map||!window.maplibregl)return;
   const now=Date.now(),baseLL=[BASE_PT.lon,BASE_PT.lat],pts=[baseLL];
@@ -504,8 +505,8 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
     let lat=it.lat,lon=it.lon,name=cleanLbl(it.name),exact=it.exact!==false;
     if(lat==null||lon==null){
      const q=cleanLbl(it.text||it.name);
-     const hit=typeof ADR_CACHE!=='undefined'&&ADR_CACHE.find(x=>x.name===q&&x.lat!=null);
-     if(hit){lat=hit.lat;lon=hit.lon;name=hit.name;exact=true}
+     const hit=typeof ADR_CACHE!=='undefined'&&ADR_CACHE.find(x=>x&&x.name===q&&x.lat!=null);
+     if(hit){lat=hit.lat;lon=hit.lon;name=hit.name;exact=hit.exact!==false}
      else if(typeof yan==='function'){
       const resEl=g('subMapRes');
       if(resEl){resEl.className='subm-res';resEl.innerHTML='<div class="subm-sub" style="margin:0">Ищу адрес...</div>'}
@@ -515,7 +516,7 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
      }
     }
     if(lat==null||lon==null){toast('Адрес не найден',true);return}
-    if(typeof saveAdrCache==='function')saveAdrCache({name:name,lat:lat,lon:lon});
+    if(typeof saveAdrCache==='function')saveAdrCache({name:name,lat:lat,lon:lon,exact:exact});
     showSubPoint({name:name,lat:lat,lon:lon,exact:exact},true);
    };
    const runSearch=async()=>{
@@ -551,7 +552,10 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
    if(clr)clr.onclick=()=>{if(inp){inp.value='';inp.focus()}clr.hidden=true;_picked=null;showSugs([])};
 
    try{
-    await ensureLeaflet();if(TAB!=='map'||!g('admMap'))return;
+    const mTok=++_mapTok;
+    await ensureLeaflet();if(mTok!==_mapTok||TAB!=='map'||!g('admMap'))return;
+    if(_mapRO){try{_mapRO.disconnect()}catch(e){}_mapRO=null}
+    if(_map){try{_map.remove()}catch(e){}_map=null}
     const kentronCenter=[44.515,40.181];
     const baseLL=[BASE_PT.lon,BASE_PT.lat];
     _map=new maplibregl.Map({container:'admMap',style:'https://tiles.openfreemap.org/styles/dark',center:kentronCenter,zoom:12.2,attributionControl:false});
@@ -631,7 +635,10 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
   if(!g("admMap")){
    g("view").innerHTML='<div class="map-wrap"><div id="admMap"></div><div class="map-bar"><button type="button" id="admSatBtn" class="map-btn" data-act="mapsat"></button><button type="button" id="mapFilterBtn" class="map-btn" data-act="mapfilter">⚪ Все водители</button></div></div><div id="mapCards"></div>';
    try{
-    await ensureLeaflet();if(TAB!=="map"||!g("admMap"))return;
+    const mTok=++_mapTok;
+    await ensureLeaflet();if(mTok!==_mapTok||TAB!=="map"||!g("admMap"))return;
+    if(_mapRO){try{_mapRO.disconnect()}catch(e){}_mapRO=null}
+    if(_map){try{_map.remove()}catch(e){}_map=null}
     const baseLL=[BASE_PT.lon,BASE_PT.lat];
     _map=new maplibregl.Map({container:"admMap",style:"https://tiles.openfreemap.org/styles/dark",center:baseLL,zoom:12,attributionControl:false});
     _map.addControl(new maplibregl.NavigationControl({showCompass:true,showZoom:true}),"top-left");
@@ -721,11 +728,12 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
    const pOn  ='background:rgba(16,185,129,.14);border:1px solid rgba(52,211,153,.32);color:#6ee7b7;';
    const pAdr ='background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.28);color:#7dd3fc;';
 
+   const sub=isSubAdm();
    const row1=new Array(
     pill('📱 '+esc(devInfo(d.u.ua)),pBase),
     pill('🌐 '+esc((d.u.lang||'ru').toUpperCase()),pBase)
    );
-   if(acc&&acc.pin)row1.push(pill('🔑 '+esc(acc.pin),pPin));
+   if(!sub&&acc&&acc.pin)row1.push(pill('🔑 '+esc(acc.pin),pPin));
 
    const car=String(d.u.car||'').toUpperCase();
    const pCar=car?'background:rgba(16,185,129,.18);border:1px solid rgba(52,211,153,.45);color:#6ee7b7;font-weight:800;':'background:rgba(245,158,11,.14);border:1px solid rgba(245,158,11,.35);color:#fbbf24;font-weight:700;';
@@ -738,7 +746,6 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
 
    const blkBadge=blk?' <span style="display:inline-block;background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.45);color:#fca5a5;font-size:10px;font-weight:800;padding:1px 6px;border-radius:99px;vertical-align:middle;margin-left:4px">🚫 БЛОК</span>':'';
    const rowStyle=blk?' style="cursor:default;border-color:rgba(239,68,68,.45);background:linear-gradient(180deg,rgba(45,18,24,.88) 0%,rgba(22,12,16,.95) 100%)"':' style="cursor:default"';
-   const sub=isSubAdm();
    const un=dmUnread(d.id);
    const dmBtn='<button class="dm-btn" data-act="dm" data-id="'+esc(d.id)+'" aria-label="Личный чат">✉️'+(un?'<span class="dm-bdg">'+(un>99?'99+':un)+'</span>':'')+'</button>';
    const editNameBtn=sub?'':'<button class="xb" style="background:rgba(168,85,247,.16);border-color:rgba(192,132,252,.38);color:#d8b4fe" data-act="editname" data-id="'+esc(d.id)+'" aria-label="Изменить имя">✏️</button>';
@@ -749,7 +756,7 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
    const delBtn=sub?'':'<button class="xb" data-act="del" data-id="'+esc(d.id)+'" aria-label="Удалить">✕</button>';
 
    return '<div class="row"'+rowStyle+'><span class="dot'+(live&&!blk?' on':'')+'"></span>'
-    +'<div class="rm"><div class="rt" style="margin-bottom:6px;display:flex;align-items:center;gap:8px"><div'+(sub?' style="min-width:0;flex:1"':' data-act="rename" data-id="'+esc(d.id)+'" style="min-width:0;flex:1;cursor:pointer"')+'>'+dispHtml(d)+blkBadge+'</div>'+(car==="ADMIN"?(sub?'<span style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:11px;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(124,58,237,.1));border:1px solid rgba(167,139,250,.45);color:#c4b5fd;font-size:12.5px;font-weight:800;letter-spacing:.3px;line-height:1"><span style="font-size:13px">🛡️</span><span data-no-i18n="1">Admin</span></span>':'<button type="button" data-act="setcar" data-id="'+esc(d.id)+'" style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:11px;background:linear-gradient(135deg,rgba(167,139,250,.24),rgba(124,58,237,.12));border:1px solid rgba(167,139,250,.5);box-shadow:0 2px 10px rgba(139,92,246,.16);color:#c4b5fd;font-size:12.5px;font-weight:800;letter-spacing:.3px;cursor:pointer;line-height:1"><span style="font-size:13px">🛡️</span><span data-no-i18n="1">Admin</span><span style="opacity:.65;font-size:10px">▾</span></button>'):car?'<button type="button" data-act="setcar" data-id="'+esc(d.id)+'" style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:11px;background:linear-gradient(135deg,rgba(16,185,129,.24),rgba(5,150,105,.12));border:1px solid rgba(52,211,153,.5);box-shadow:0 2px 10px rgba(16,185,129,.16);color:#6ee7b7;font-size:12.5px;font-weight:800;letter-spacing:.4px;cursor:pointer;line-height:1"><span style="font-size:14px">🚚</span><span>'+esc(car)+'</span><span style="opacity:.65;font-size:10px">▾</span></button>':'<button type="button" data-act="setcar" data-id="'+esc(d.id)+'" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:11px;background:rgba(245,158,11,.13);border:1px dashed rgba(251,191,36,.45);color:#fbbf24;font-size:11.5px;font-weight:700;cursor:pointer;line-height:1"><span>🚚</span><span>Экипаж</span><span style="opacity:.7;font-size:10px">▾</span></button>')+'</div>'
+    +'<div class="rm"><div class="rt" style="margin-bottom:6px;display:flex;align-items:center;gap:8px"><div'+(sub?' style="min-width:0;flex:1"':' data-act="rename" data-id="'+esc(d.id)+'" style="min-width:0;flex:1;cursor:pointer"')+'>'+dispHtml(d)+blkBadge+'</div>'+(car==="ADMIN"?(sub?'<span style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:11px;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(124,58,237,.1));border:1px solid rgba(167,139,250,.45);color:#c4b5fd;font-size:12.5px;font-weight:800;letter-spacing:.3px;line-height:1"><span style="font-size:13px">🛡️</span><span data-no-i18n="1">Admin</span></span>':'<button type="button" data-act="setcar" data-id="'+esc(d.id)+'" style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:11px;background:linear-gradient(135deg,rgba(167,139,250,.24),rgba(124,58,237,.12));border:1px solid rgba(167,139,250,.5);box-shadow:0 2px 10px rgba(139,92,246,.16);color:#c4b5fd;font-size:12.5px;font-weight:800;letter-spacing:.3px;cursor:pointer;line-height:1"><span style="font-size:13px">🛡️</span><span data-no-i18n="1">Admin</span><span style="opacity:.65;font-size:10px">▾</span></button>'):car?'<button type="button" data-act="setcar" data-id="'+esc(d.id)+'" style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:11px;background:linear-gradient(135deg,rgba(16,185,129,.24),rgba(5,150,105,.12));border:1px solid rgba(52,211,153,.5);box-shadow:0 2px 10px rgba(16,185,129,.16);color:#6ee7b7;font-size:12.5px;font-weight:800;letter-spacing:.4px;cursor:pointer;line-height:1"><span style="font-size:14px">🚚</span><span data-no-i18n="1">'+esc(car)+'</span><span style="opacity:.65;font-size:10px">▾</span></button>':'<button type="button" data-act="setcar" data-id="'+esc(d.id)+'" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:11px;background:rgba(245,158,11,.13);border:1px dashed rgba(251,191,36,.45);color:#fbbf24;font-size:11.5px;font-weight:700;cursor:pointer;line-height:1"><span>🚚</span><span>Экипаж</span><span style="opacity:.7;font-size:10px">▾</span></button>')+'</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">'+row1.join('')+'</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:4px">'+row2.join('')+'</div></div>'
     +'<div class="rv">'+money(car && car !== "ADMIN" ? parseCar(car).sum : (car === "ADMIN" ? 0 : d.cur.sum))+'</div>'
@@ -964,10 +971,10 @@ function drawTotals(){
    h+=pendList.map(({uid,k,p})=>{
     const prevCd=p.from||OCR_MAP[k]||'';
     const diffHtml=prevCd
-     ?'<div class="rs" style="margin-top:4px;line-height:1.45">Было: <span style="color:#fca5a5">'+esc(OCR_CAT_NAMES[prevCd]||prevCd)+'</span><br>Стало: <b style="color:#6ee7b7">'+esc(OCR_CAT_NAMES[p.code]||p.code)+'</b> · от '+esc(p.by||'Водитель')+'</div>'
-     :'<div class="rs" style="margin-top:4px;line-height:1.45"><span style="display:inline-block;padding:1px 7px;border-radius:6px;background:rgba(56,189,248,.16);border:1px solid rgba(56,189,248,.38);color:#7dd3fc;font-size:11px;font-weight:700;margin-right:5px">🆕 Новый товар</span>Добавить в: <b style="color:#6ee7b7">'+esc(OCR_CAT_NAMES[p.code]||p.code)+'</b> · от '+esc(p.by||'Водитель')+'</div>';
+     ?'<div class="rs" style="margin-top:4px;line-height:1.45">Было: <span style="color:#fca5a5">'+esc(OCR_CAT_NAMES[prevCd]||prevCd)+'</span><br>Стало: <b style="color:#6ee7b7">'+esc(OCR_CAT_NAMES[p.code]||p.code)+'</b> · от <span data-no-i18n="1">'+esc(p.by||'Водитель')+'</span></div>'
+     :'<div class="rs" style="margin-top:4px;line-height:1.45"><span style="display:inline-block;padding:1px 7px;border-radius:6px;background:rgba(56,189,248,.16);border:1px solid rgba(56,189,248,.38);color:#7dd3fc;font-size:11px;font-weight:700;margin-right:5px">🆕 Новый товар</span>Добавить в: <b style="color:#6ee7b7">'+esc(OCR_CAT_NAMES[p.code]||p.code)+'</b> · от <span data-no-i18n="1">'+esc(p.by||'Водитель')+'</span></div>';
     return '<div class="mr col" style="cursor:default;border-color:rgba(250,204,21,.4);background:linear-gradient(180deg,rgba(36,30,14,.92) 0%,rgba(16,18,28,.96) 100%)">'
-     +'<div class="rm"><div class="rt" style="font-size:14px">📄 '+esc(p.raw||k)+'</div>'+diffHtml+'</div>'
+     +'<div class="rm"><div class="rt" style="font-size:14px">📄 <span data-no-i18n="1">'+esc(p.raw||k)+'</span></div>'+diffHtml+'</div>'
      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
      +'<button type="button" data-act="ocr-ok" data-uid="'+esc(uid)+'" data-k="'+esc(k)+'" data-code="'+esc(p.code)+'" style="height:36px;border-radius:10px;background:rgba(16,185,129,.22);border:1px solid rgba(52,211,153,.45);color:#6ee7b7;font-size:13px;font-weight:700">✓ Одобрить для всех</button>'
      +'<button type="button" data-act="ocr-no" data-uid="'+esc(uid)+'" data-k="'+esc(k)+'" style="height:36px;border-radius:10px;background:rgba(239,68,68,.16);border:1px solid rgba(239,68,68,.38);color:#fca5a5;font-size:13px;font-weight:700">✕ Отклонить</button>'
@@ -989,7 +996,7 @@ function drawTotals(){
    box.innerHTML=keys.map(k=>{
     const cd=OCR_MAP[k];
     return '<div class="row" data-act="ocr-edit" data-k="'+esc(k)+'" style="padding:11px 12px">'
-     +'<div class="rm"><div class="rt" style="font-size:14px">📄 '+esc(k)+'</div>'
+     +'<div class="rm"><div class="rt" style="font-size:14px">📄 <span data-no-i18n="1">'+esc(k)+'</span></div>'
      +'<div class="rs" style="color:#6ee7b7;font-weight:600">'+esc(OCR_CAT_NAMES[cd]||cd)+'</div></div>'
      +'<button type="button" class="xb" data-act="ocr-del" data-k="'+esc(k)+'" aria-label="Удалить">✕</button></div>';
    }).join('');
@@ -1509,7 +1516,7 @@ function drawTotals(){
     ok.onclick = no.onclick = ov.onclick = inp.onkeydown = null;
     setTimeout(() => { ov.hidden = true; res(val); }, 180);
    };
-   const onKey = e => { if(e.key === "Escape") close(isInput ? null : false); };
+   const onKey = e => { if(e.key === "Escape"){ e.preventDefault(); e.stopImmediatePropagation(); close(isInput ? null : false); } };
 
    ok.onclick = () => close(isInput ? inp.value : true);
    no.onclick = () => close(isInput ? null : false);
@@ -1535,26 +1542,29 @@ function drawTotals(){
   const u = USERS[uid];
   let raw = [];
   try { raw = JSON.parse(u.bonRaw || "[]"); } catch(e){}
-  const qtyPatch = {};
-  const curQ = (CARS && CARS[carCode] && CARS[carCode].qty) || {};
+  const qtyDelta = {};
   if (Array.isArray(raw)) {
    raw.forEach(c => {
     if (!c || !Array.isArray(c.subs)) return;
     c.subs.forEach(sub => {
      const q1 = +sub.qty || 0, q2 = sub.one ? 0 : (+sub.qty2 || 0);
      const k1 = c.pk + "_" + sub.sk, k2 = k1 + "_2";
-     if (q1 > 0) qtyPatch[k1] = (+curQ[k1] || 0) + q1;
-     if (q2 > 0) qtyPatch[k2] = (+curQ[k2] || 0) + q2;
+     if (q1 > 0) qtyDelta[k1] = (qtyDelta[k1] || 0) + q1;
+     if (q2 > 0) qtyDelta[k2] = (qtyDelta[k2] || 0) + q2;
     });
    });
   }
   let histObj = {};
   try { histObj = JSON.parse(u.hist || "{}"); } catch(e){}
-  const hasQty = Object.keys(qtyPatch).length > 0;
+  const hasQty = Object.keys(qtyDelta).length > 0;
   const hasHist = histObj && typeof histObj === "object" && Object.keys(histObj).length > 0;
   if (!hasQty && !hasHist) return false;
   if (hasQty) {
-   await db.ref("cars/" + carCode + "/qty").update(qtyPatch);
+   await db.ref("cars/" + carCode + "/qty").transaction(cur => {
+    const next = (cur && typeof cur === "object") ? Object.assign({}, cur) : {};
+    Object.keys(qtyDelta).forEach(k => { next[k] = (+next[k] || 0) + qtyDelta[k]; });
+    return next;
+   });
    await db.ref("cars/" + carCode + "/t").set(Date.now());
   }
   if (hasHist) {
@@ -1811,8 +1821,8 @@ function openSelectModal(){
   else if(a==='rename'){if(!isSubAdm())rename(b.dataset.id)}
   else if(a==='editname'){e.stopPropagation();if(!isSubAdm())editUserName(b.dataset.id)}
   else if(a==='dm'){e.stopPropagation();openAdmDm(b.dataset.id)}
-  else if(a==='block'){e.stopPropagation();const id=b.dataset.id,k=b.dataset.key,isBlk=b.dataset.blk==='1',du=USERS[id]||{};const who=dispName(parseDev(id,du));const ok=await ask(isBlk?'Разблокировать водителя и телефон «'+who+'»?':'Заблокировать водителя и этот телефон («'+who+'»)? Он сразу выйдет и не сможет войти даже под новым именем.',{title:isBlk?'Разблокировка':'Блокировка',okText:isBlk?'Разблокировать':'Заблокировать',danger:!isBlk});if(!ok)return;try{const nv=isBlk?null:true;await db.ref('users/'+id+'/blocked').set(nv);if(k)await db.ref('accounts/'+k+'/blocked').set(nv);if(du.devId)await db.ref('accounts/__dev_'+du.devId).set(isBlk?null:{blocked:true});if(!isBlk)await db.ref('online/'+id).remove();toast(isBlk?'Разблокировано':'Заблокировано')}catch(err){toast('Ошибка сохранения',true)}}
-  else if(a==='pin'){e.stopPropagation();const k=b.dataset.key,cur=ACCOUNTS[k]&&ACCOUNTS[k].pin||'';const np=await askInput('Смена ПИН-кода','Введите новый 4-значный код для водителя',cur,'Например: 1234');if(np===null)return;const clean=np.replace(/\D/g,'');if(clean.length!==4){toast('Нужно ровно 4 цифры',true);return}try{await db.ref('accounts/'+k+'/pin').set(clean);toast('ПИН-код обновлён')}catch(err){toast('Ошибка сохранения',true)}}
+  else if(a==='block'){e.stopPropagation();if(isSubAdm())return;const id=b.dataset.id,k=b.dataset.key,isBlk=b.dataset.blk==='1',du=USERS[id]||{};const who=dispName(parseDev(id,du));const ok=await ask(isBlk?'Разблокировать водителя и телефон «'+who+'»?':'Заблокировать водителя и этот телефон («'+who+'»)? Он сразу выйдет и не сможет войти даже под новым именем.',{title:isBlk?'Разблокировка':'Блокировка',okText:isBlk?'Разблокировать':'Заблокировать',danger:!isBlk});if(!ok)return;try{const nv=isBlk?null:true;await db.ref('users/'+id+'/blocked').set(nv);if(k)await db.ref('accounts/'+k+'/blocked').set(nv);if(du.devId)await db.ref('accounts/__dev_'+du.devId).set(isBlk?null:{blocked:true});if(!isBlk)await db.ref('online/'+id).remove();toast(isBlk?'Разблокировано':'Заблокировано')}catch(err){toast('Ошибка сохранения',true)}}
+  else if(a==='pin'){e.stopPropagation();if(isSubAdm())return;const k=b.dataset.key,cur=ACCOUNTS[k]&&ACCOUNTS[k].pin||'';const np=await askInput('Смена ПИН-кода','Введите новый 4-значный код для водителя',cur,'Например: 1234');if(np===null)return;const clean=np.replace(/\D/g,'');if(clean.length!==4){toast('Нужно ровно 4 цифры',true);return}try{await db.ref('accounts/'+k+'/pin').set(clean);toast('ПИН-код обновлён')}catch(err){toast('Ошибка сохранения',true)}}
   else if(a==='month'){OPEN[b.dataset.key]=!OPEN[b.dataset.key];draw()}
   else if(a==='subopen'){openAdmSumModal(SEL,b.dataset.sub)}
   else if(a==='subback'){delete OPEN['sub|'+SEL];draw()}
@@ -1822,7 +1832,7 @@ function openSelectModal(){
   else if(a==='cpcur'){e.stopPropagation();const curList=allCars().filter(c=>c.qty>0||c.sum>0).map(c=>({name:'Экипаж '+c.code+(c.crew.length?' ('+c.crew.join(', ')+')':''),sum:c.sum,qty:c.qty})).sort((a,b)=>b.sum-a.sum);copyReport('Текущий месяц (по экипажам)',curList,curList.reduce((a,x)=>a+x.qty,0),curList.reduce((a,x)=>a+x.sum,0))}
   else if(a==='csvcur'){
    e.stopPropagation();
-   const curList=allCars().filter(c=>c.qty>0||c.sum>0||(c.docs&&Object.keys(c.docs).length>0)).map(c=>({name:'Экипаж '+c.code+(c.crew.length?' ('+c.crew.join(', ')+')':''),sum:c.sum,qty:c.qty})).sort((a,b)=>b.sum-a.sum);
+   const curList=allCars().filter(c=>c.qty>0||c.sum>0).map(c=>({name:'Экипаж '+c.code+(c.crew.length?' ('+c.crew.join(', ')+')':''),sum:c.sum,qty:c.qty})).sort((a,b)=>b.sum-a.sum);
    exportCrewMonthCsv('Текущий_месяц_по_экипажам',curList.length?curList:[{name:'Экипажи',sum:0,qty:0}],curList.reduce((a,x)=>a+x.qty,0),curList.reduce((a,x)=>a+x.sum,0));
   }
   else if(a==='cpmonth'){e.stopPropagation();const mObj=aggCarMonths(allCars()).find(x=>x.m===b.dataset.m);if(mObj)copyReport(monthName(mObj.m),mObj.cars,mObj.qty,mObj.sum)}
@@ -1962,14 +1972,16 @@ function openSelectModal(){
    const obj=raw[uid]||{};
    const parseCh=data=>{
     if(!data||typeof data!=='object')return[];
-    const all=Object.keys(data).map(k=>Object.assign({k:k},data[k])).sort((a,b)=>(+a.t||0)-(+b.t||0));
+    const all=Object.keys(data)
+     .filter(k=>k!=='adm'&&k!=='dlv'&&data[k]&&typeof data[k]==='object'&&('txt' in data[k]||'t' in data[k]))
+     .map(k=>Object.assign({k:k},data[k]))
+     .sort((a,b)=>(+a.t||0)-(+b.t||0));
     return all.slice(-50);
    };
    let admMsgs=[],dlvMsgs=[];
    if(obj.dlv&&typeof obj.dlv==='object'){
     dlvMsgs=parseCh(obj.dlv);
-    const admObj=obj.adm&&typeof obj.adm==='object'?obj.adm:(Array.isArray(obj)?{}:obj);
-    admMsgs=parseCh(admObj);
+    admMsgs=obj.adm&&typeof obj.adm==='object'?parseCh(obj.adm):parseCh(obj);
    }else if(obj.adm&&typeof obj.adm==='object'){
     admMsgs=parseCh(obj.adm);
    }else{
@@ -2003,23 +2015,24 @@ function openSelectModal(){
   }
   if(TAB==='online')drawOnline();
  }
+ function getAdmChatSeenKey(){return isSubAdm()?'SUBADM_CHAT_SEEN':'ADM_CHAT_SEEN'}
  function updAdmChatBdg(){
   const b=g('admChatBdg');if(!b)return;
-  const seen=+(localStorage.getItem('ADM_CHAT_SEEN')||0);
+  const seen=+(localStorage.getItem(getAdmChatSeenKey())||0);
   const n=CHAT.filter(m=>(+m.t||0)>seen&&!m.adm).length;
   b.textContent=n>99?'99+':String(n);b.hidden=n===0;
  }
  function markAdmChatSeen(){
   if(!CHAT.length)return;
   const mx=Math.max.apply(null,CHAT.map(m=>+m.t||0));
-  if(mx>0)localStorage.setItem('ADM_CHAT_SEEN',String(mx));
+  if(mx>0)try{localStorage.setItem(getAdmChatSeenKey(),String(mx))}catch(e){}
   updAdmChatBdg();
  }
  function crewBadgeHtml(car){
   const c=String(car||'').trim().toUpperCase();
   if(!c)return '';
-  if(c==='ADMIN')return '<span class="ch-crew adm-c">🛡️ Админ</span>';
-  return '<span class="ch-crew">🚚 '+esc(c)+'</span>';
+  if(c==='ADMIN')return '<span class="ch-crew adm-c">🛡️ <span data-no-i18n="1">Admin</span></span>';
+  return '<span class="ch-crew">🚚 <span data-no-i18n="1">'+esc(c)+'</span></span>';
  }
  function renderAdmChat(){
   const box=g('achList');if(!box)return;
@@ -2030,19 +2043,22 @@ function openSelectModal(){
    const car=!m.adm?String((m.uid&&USERS[m.uid]&&USERS[m.uid].car)||m.car||'').toUpperCase():'';
    const drvName=(m.uid&&USERS[m.uid])?dispName(parseDev(m.uid,USERS[m.uid])):(m.name||'Водитель');
    const isAdmCrew=!m.adm&&car==='ADMIN';
-   const admCrewWho=/^(admin|админ|администратор)$/i.test(drvName.trim())?'👑 Администратор':('👑 Админ · '+esc(drvName));
-   const who=m.adm?(isDeliv?'👩‍💼 Доставка':'👑 Администратор'):(isAdmCrew?admCrewWho:(crewBadgeHtml(car)+'<span>'+esc(drvName)+'</span>'));
-   return '<div class="ach-m'+(m.adm?(isDeliv?' dlv':' adm'):(isAdmCrew?' adm':''))+'"><div class="ach-mt"><span>'+who+'</span>'+(isSubAdm()?'':'<button type="button" class="ach-del" data-ck="'+esc(m.k)+'" aria-label="Удалить">✕</button>')+'</div><div class="ach-bd"><span class="ach-tx">'+esc(m.txt||'')+'</span><span class="ach-tm">'+tm+'</span></div></div>';
+   const admCrewWho=/^(admin|админ|администратор)$/i.test(drvName.trim())?'👑 Администратор':('👑 Админ · <span data-no-i18n="1">'+esc(drvName)+'</span>');
+   const who=m.adm?(isDeliv?'👩‍💼 Доставка':'👑 Администратор'):(isAdmCrew?admCrewWho:(crewBadgeHtml(car)+'<span data-no-i18n="1">'+esc(drvName)+'</span>'));
+   return '<div class="ach-m'+(m.adm?(isDeliv?' dlv':' adm'):(isAdmCrew?' adm':''))+'"><div class="ach-mt"><span>'+who+'</span>'+(isSubAdm()?'':'<button type="button" class="ach-del" data-ck="'+esc(m.k)+'" aria-label="Удалить">✕</button>')+'</div><div class="ach-bd"><span class="ach-tx" data-no-i18n="1">'+esc(m.txt||'')+'</span><span class="ach-tm">'+tm+'</span></div></div>';
   }).join('');
   box.scrollTop=box.scrollHeight;
  }
  function openAdmChat(){
   reqAdmNotify();
+  const oldChat=g('admChatOv');if(oldChat){if(typeof oldChat._close==='function')oldChat._close();else oldChat.remove()}
   CHAT_OPEN=true;markAdmChatSeen();
-  const ov=document.createElement('div');ov.className='ov';
+  const ov=document.createElement('div');ov.id='admChatOv';ov.className='ov';
   ov.innerHTML='<div class="dlg ach-box"><div class="ach-hd"><div class="ach-hd-l"><div class="ach-hd-ic">💬</div><div><b>Общий чат</b><small>Канал водителей (до 50 сообщ.)</small></div></div><div class="ach-acts"><button type="button" id="achClr" class="ach-clr">Очистить</button><button type="button" id="achX" class="ach-x">✕</button></div></div><div id="achList" class="ach-list"></div><div class="ach-bar"><input id="achInp" maxlength="300" placeholder="Написать водителям..."><button type="button" id="achSnd" aria-label="Отправить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></div>';
   document.body.appendChild(ov);
-  const close=()=>{CHAT_OPEN=false;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
+  let closed=false;
+  const close=()=>{if(closed)return;closed=true;CHAT_OPEN=false;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
+  ov._close=close;
   const onK=e=>{if(e.key==='Escape')close()};
   g('achX').onclick=close;ov.onclick=e=>{if(e.target===ov)close()};
   if(isSubAdm())g('achClr').hidden=true;
@@ -2079,16 +2095,16 @@ function openSelectModal(){
    const isDeliv=m.adm&&(m.role==='delivery'||m.name==='Доставка');
    const car=!m.adm?String((USERS[DM_UID]&&USERS[DM_UID].car)||m.car||'').toUpperCase():'';
    const drvName=USERS[DM_UID]?dispName(parseDev(DM_UID,USERS[DM_UID])):(m.name||'Водитель');
-   const who=m.adm?(isDeliv?'👩‍💼 Доставка':'👑 Администратор'):(crewBadgeHtml(car)+'<span>'+esc(drvName)+'</span>');
+   const who=m.adm?(isDeliv?'👩‍💼 Доставка':'👑 Администратор'):(crewBadgeHtml(car)+'<span data-no-i18n="1">'+esc(drvName)+'</span>');
    const dBtn=!isSubAdm()?'<button type="button" class="ach-del" data-dk="'+esc(m.k)+'" aria-label="Удалить">✕</button>':'';
-   return '<div class="ach-m'+(m.adm?(isDeliv?' dlv':' adm'):'')+'"><div class="ach-mt"><span>'+who+'</span>'+dBtn+'</div><div class="ach-bd"><span class="ach-tx">'+esc(m.txt||'')+'</span><span class="ach-tm">'+tm+'</span></div></div>';
+   return '<div class="ach-m'+(m.adm?(isDeliv?' dlv':' adm'):'')+'"><div class="ach-mt"><span>'+who+'</span>'+dBtn+'</div><div class="ach-bd"><span class="ach-tx" data-no-i18n="1">'+esc(m.txt||'')+'</span><span class="ach-tm">'+tm+'</span></div></div>';
   }).join('');
   box.scrollTop=box.scrollHeight;
  }
  function openAdmDm(uid){
   if(!uid)return;
   reqAdmNotify();
-  const old=g('admDmOv');if(old)old.remove();
+  const old=g('admDmOv');if(old){if(typeof old._close==='function')old._close();else old.remove()}
   DM_UID=uid;
   if(isSubAdm()){
    DM_TAB='dlv';
@@ -2110,10 +2126,12 @@ function openSelectModal(){
      + '</div>'
    : '';
 
-  ov.innerHTML='<div class="dlg ach-box"><div class="ach-hd"><div class="ach-hd-l"><div class="ach-hd-ic">✉️</div><div><b style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">'+crewBadgeHtml(hdCar)+'<span>'+esc(who)+'</span></b><small>'+(isSubAdm()?'Личный чат с Отделом доставки':'Личные чаты (Админ / Доставка)')+'</small></div></div><div class="ach-acts">'+(isSubAdm()?'':'<button type="button" id="admDmClr" class="ach-clr">Очистить</button>')+'<button type="button" id="admDmX" class="ach-x">✕</button></div></div>'+tabsHtml+'<div id="admDmList" class="ach-list"></div><div class="ach-bar"><input id="admDmInp" maxlength="300" placeholder="'+(isSubAdm()?'Сообщение водителю от отдела доставки...':'Личное сообщение водителю...')+'"><button type="button" id="admDmSnd" aria-label="Отправить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></div>';
+  ov.innerHTML='<div class="dlg ach-box"><div class="ach-hd"><div class="ach-hd-l"><div class="ach-hd-ic">✉️</div><div><b style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">'+crewBadgeHtml(hdCar)+'<span data-no-i18n="1">'+esc(who)+'</span></b><small>'+(isSubAdm()?'Личный чат с Отделом доставки':'Личные чаты (Админ / Доставка)')+'</small></div></div><div class="ach-acts">'+(isSubAdm()?'':'<button type="button" id="admDmClr" class="ach-clr">Очистить</button>')+'<button type="button" id="admDmX" class="ach-x">✕</button></div></div>'+tabsHtml+'<div id="admDmList" class="ach-list"></div><div class="ach-bar"><input id="admDmInp" maxlength="300" placeholder="'+(isSubAdm()?'Сообщение водителю от отдела доставки...':'Личное сообщение водителю...')+'"><button type="button" id="admDmSnd" aria-label="Отправить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></div>';
   document.body.appendChild(ov);
   updAdmDmTabBadges();
-  const close=()=>{DM_UID=null;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
+  let closed=false;
+  const close=()=>{if(closed)return;closed=true;if(DM_UID===uid)DM_UID=null;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
+  ov._close=close;
   const onK=e=>{if(e.key==='Escape')close()};
   g('admDmX').onclick=close;ov.onclick=e=>{if(e.target===ov)close()};
 
@@ -2200,11 +2218,13 @@ function openSelectModal(){
  function openChangePw(){
   const u=auth.currentUser;
   if(!u||!u.email){toast('Нет активной сессии',true);return}
-  const old=g('pwOv');if(old)old.remove();
+  const old=g('pwOv');if(old){if(typeof old._close==='function')old._close();else old.remove()}
   const ov=document.createElement('div');ov.id='pwOv';ov.className='ov';
   ov.innerHTML='<div class="dlg" style="max-width:380px;text-align:left"><div class="dlg-ic" style="background:rgba(250,204,21,.14);border-color:rgba(250,204,21,.38);color:#fde047">🔑</div><div class="dlg-t" style="text-align:center">Смена пароля</div><div class="dlg-m" style="text-align:center;margin-bottom:14px">'+esc(u.email)+'</div><input id="pwOld" class="dlg-inp" type="password" autocomplete="current-password" placeholder="Текущий пароль" style="margin-bottom:10px"><input id="pwNew1" class="dlg-inp" type="password" autocomplete="new-password" placeholder="Новый пароль (минимум 6 символов)" style="margin-bottom:10px"><input id="pwNew2" class="dlg-inp" type="password" autocomplete="new-password" placeholder="Повторите новый пароль" style="margin-bottom:10px"><div id="pwErr" style="color:#f87171;font-size:12.5px;min-height:18px;margin-bottom:10px;text-align:center"></div><div class="dlg-act"><button type="button" id="pwNo" class="dlg-no">Отмена</button><button type="button" id="pwOk" class="dlg-ok">Сохранить</button></div></div>';
   document.body.appendChild(ov);
-  const close=()=>{ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
+  let closed=false;
+  const close=()=>{if(closed)return;closed=true;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
+  ov._close=close;
   const onK=e=>{if(e.key==='Escape')close()};
   g('pwNo').onclick=close;ov.onclick=e=>{if(e.target===ov)close()};
   const ok=g('pwOk'),err=g('pwErr'),p0=g('pwOld'),p1=g('pwNew1'),p2=g('pwNew2');
@@ -2293,20 +2313,29 @@ function openSelectModal(){
    g('login').hidden=true;g('panel').hidden=false;g('who').textContent=(isSubAdm()?'Доставка · ':'')+(u.email||'');
    start();draw();
   }else{
-   stop();USERS={};LABELS={};ACCOUNTS={};ATT={};ATT_ERR=false;
+   stop();
+   if(_map)destroyMap();
+   USERS={};LABELS={};ACCOUNTS={};ATT={};ATT_ERR=false;CARS={};OCR_MAP={};CHAT=[];DMS={};DM_UID=null;CHAT_OPEN=false;_admChatInit=false;_admDmInit=false;SEL='all';
+   document.querySelectorAll('.ov').forEach(o=>{if(typeof o._close==='function')o._close();else if(o.id!=='dlgOv')o.remove()});
    g('panel').hidden=true;g('login').hidden=false;
   }
+ });
+ document.addEventListener('visibilitychange',()=>{
+  if(document.hidden||g('panel').hidden)return;
+  if(CHAT_OPEN)markAdmChatSeen();
+  if(DM_UID){markAdmDmSeen(DM_UID,DM_TAB);updAdmDmTabBadges();if(TAB==='online')drawOnline()}
  });
 })();
 
 
 ;(function(){
   const ERR_LOG = [];
+  const escD = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const pushErr = (t, m) => {
     ERR_LOG.unshift({ t: new Date().toLocaleTimeString('ru-RU'), type: t, msg: String(m || '').slice(0, 220) });
     if (ERR_LOG.length > 20) ERR_LOG.pop();
   };
-  window.addEventListener('error', e => pushErr('JS', e.message + (e.filename ? ' (' + e.filename.split('/').pop() + ':' + e.lineno + ')' : '')));
+  window.addEventListener('error', e => pushErr('JS', (e.message || 'Resource error') + (e.filename ? ' (' + e.filename.split('/').pop() + ':' + e.lineno + ')' : '')));
   window.addEventListener('unhandledrejection', e => pushErr('Promise', e.reason && (e.reason.message || e.reason)));
 
   const pulseLive = () => {
@@ -2331,13 +2360,17 @@ function openSelectModal(){
   }
 
   async function openDiag() {
+    const oldDg = document.getElementById('dgOv');
+    if (oldDg) { if (typeof oldDg._close === 'function') oldDg._close(); else oldDg.remove(); }
     const ov = document.createElement('div');
+    ov.id = 'dgOv';
     ov.className = 'ov show';
     ov.style.cssText = 'position:fixed;inset:0;overflow:hidden;touch-action:none;display:flex;align-items:center;justify-content:center;padding:12px;z-index:9999';
     ov.innerHTML = '<div class="dlg" style="position:relative;overflow:hidden;max-width:440px;width:100%;padding:14px;border-radius:24px;background:linear-gradient(180deg,rgba(19,28,43,.98) 0%,rgba(10,15,25,.99) 100%);border:1px solid rgba(255,255,255,.14);box-shadow:0 24px 60px rgba(0,0,0,.85)"><div style="position:absolute;top:0;left:24px;right:24px;height:1px;background:linear-gradient(90deg,transparent,rgba(52,211,153,.7),rgba(250,204,21,.5),transparent)"></div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="display:flex;align-items:center;gap:9px"><span style="width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,rgba(16,185,129,.22),rgba(14,165,233,.18));border:1px solid rgba(52,211,153,.38);color:#6ee7b7;display:flex;align-items:center;justify-content:center">🩺</span><div><div style="font-size:15px;font-weight:800;color:#f8fafc;line-height:1.15">Диагностика и API</div><div style="font-size:10.5px;color:#94a3b8">Статус сервисов и кэша</div></div></div><button id="dgClose" style="width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#94a3b8;font-size:14px;cursor:pointer">✕</button></div><div id="dgBody" style="display:flex;flex-direction:column;gap:8px"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px"><button id="dgRe" style="height:40px;border-radius:12px;font-size:12.5px;font-weight:700;cursor:pointer;background:rgba(16,185,129,.16);border:1px solid rgba(52,211,153,.38);color:#6ee7b7">↻ Проверить</button><button id="dgClrCache" style="height:40px;border-radius:12px;font-size:12.5px;font-weight:700;cursor:pointer;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.36);color:#fca5a5">✕ Сбросить кэш</button></div></div>';
     document.body.style.overflow = 'hidden';
     document.body.appendChild(ov);
     const close = () => { document.body.style.overflow = ''; ov.remove(); };
+    ov._close = close;
     ov.querySelector('#dgClose').onclick = close;
     ov.onclick = ev => { if (ev.target === ov) close(); };
     ov.querySelector('#dgClrCache').onclick = async () => {
@@ -2372,10 +2405,10 @@ function openSelectModal(){
       const srvVer = verRes && verRes.v ? verRes.v : '—';
       const grid = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">' + checks.map(c => {
         const bg = c.ok ? 'rgba(16,185,129,.10)' : 'rgba(239,68,68,.14)', bd = c.ok ? 'rgba(52,211,153,.28)' : 'rgba(248,113,113,.36)', dot = c.ok ? '#10b981' : '#ef4444', stCol = c.ok ? '#6ee7b7' : '#fca5a5';
-        return '<div style="padding:8px 9px;border-radius:12px;background:' + bg + ';border:1px solid ' + bd + ';display:flex;flex-direction:column;gap:2px"><div style="display:flex;align-items:center;gap:5px"><i style="width:7px;height:7px;border-radius:50%;background:' + dot + ';box-shadow:0 0 7px ' + dot + ';flex-shrink:0"></i><span style="font-size:11.5px;font-weight:700;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + c.name + '</span></div><div style="font-size:10px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + c.keyInfo + '</div><div style="font-size:10.5px;font-weight:600;color:' + stCol + '">' + c.detail + '</div></div>';
+        return '<div style="padding:8px 9px;border-radius:12px;background:' + bg + ';border:1px solid ' + bd + ';display:flex;flex-direction:column;gap:2px"><div style="display:flex;align-items:center;gap:5px"><i style="width:7px;height:7px;border-radius:50%;background:' + dot + ';box-shadow:0 0 7px ' + dot + ';flex-shrink:0"></i><span style="font-size:11.5px;font-weight:700;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escD(c.name) + '</span></div><div style="font-size:10px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escD(c.keyInfo) + '</div><div style="font-size:10.5px;font-weight:600;color:' + stCol + '">' + escD(c.detail) + '</div></div>';
       }).join('') + '</div>';
-      const errBar = ERR_LOG.length ? '<div style="padding:7px 10px;border-radius:12px;background:rgba(239,68,68,.12);border:1px solid rgba(248,113,113,.3);font-size:10.5px;color:#fca5a5"><b>Ошибки (' + ERR_LOG.length + '):</b> ' + String((ERR_LOG[0] && ERR_LOG[0].msg) || '').replace(/[<>&"]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[s])) + '</div>' : '<div style="padding:7px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);display:flex;justify-content:space-between;font-size:11px;color:#94a3b8"><span>Журнал ошибок JS</span><span style="color:#6ee7b7;font-weight:600">0 ошибок</span></div>';
-      box.innerHTML = grid + '<div style="padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);display:flex;flex-direction:column;gap:3px;font-size:11px"><div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">Версия на сервере</span><code style="color:#fde047;font-weight:700">' + srvVer + '</code></div><div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">Service Worker</span><span style="color:#e2e8f0;font-weight:600">' + swInfo + '</span></div><div style="display:flex;justify-content:space-between;gap:8px"><span style="color:#94a3b8;flex-shrink:0">Cache</span><code style="color:#7dd3fc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + cacheList + '</code></div></div>' + errBar;
+      const errBar = ERR_LOG.length ? '<div style="padding:7px 10px;border-radius:12px;background:rgba(239,68,68,.12);border:1px solid rgba(248,113,113,.3);font-size:10.5px;color:#fca5a5"><b>Ошибки (' + ERR_LOG.length + '):</b> ' + escD(ERR_LOG[0] && ERR_LOG[0].msg) + '</div>' : '<div style="padding:7px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);display:flex;justify-content:space-between;font-size:11px;color:#94a3b8"><span>Журнал ошибок JS</span><span style="color:#6ee7b7;font-weight:600">0 ошибок</span></div>';
+      box.innerHTML = grid + '<div style="padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);display:flex;flex-direction:column;gap:3px;font-size:11px"><div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">Версия на сервере</span><code style="color:#fde047;font-weight:700">' + escD(srvVer) + '</code></div><div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">Service Worker</span><span style="color:#e2e8f0;font-weight:600">' + escD(swInfo) + '</span></div><div style="display:flex;justify-content:space-between;gap:8px"><span style="color:#94a3b8;flex-shrink:0">Cache</span><code style="color:#7dd3fc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escD(cacheList) + '</code></div></div>' + errBar;
     };
     ov.querySelector('#dgRe').onclick = run;
     run();
@@ -2441,7 +2474,7 @@ function openSelectModal(){
 
 /* ADM-MODAL-BACK */
 ;(function(){
-  const getOpenOvs = () => Array.from(document.querySelectorAll(".ov")).filter(el => !el.hidden && (el.classList.contains("show") || getComputedStyle(el).display !== "none"));
+  const getOpenOvs = () => Array.from(document.querySelectorAll(".ov")).filter(el => !el.hidden && el.classList.contains("show"));
   let depth = 0, fromPop = false, skipPop = 0;
   const sync = () => {
     const cur = getOpenOvs().length;
@@ -2459,6 +2492,13 @@ function openSelectModal(){
   };
   window.addEventListener("popstate", () => {
     if (skipPop > 0) { skipPop--; return; }
+    const tv = document.getElementById("tvMdl");
+    if (tv) {
+      window._admSkipBack = true;
+      if (typeof tv._tvClose === "function") tv._tvClose("pop");
+      else tv.remove();
+      return;
+    }
     const list = getOpenOvs();
     if (!list.length) return;
     window._admSkipBack = true;

@@ -133,6 +133,11 @@
             btn.innerHTML = '<span>Продолжить</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>';
             return;
           }
+          const prevUid = ls("LAST_UID") || "";
+          if (prevUid && prevUid !== acc.uid) {
+            lsDel("CHAT_SEEN"); lsDel("DM_SEEN_ADM"); lsDel("DM_SEEN_DLV"); lsDel("DM_SEEN"); lsDel("CHAT_NOTIF_T"); lsDel("DM_NOTIF_T");
+          }
+          lsSet("LAST_UID", acc.uid);
           if (uData){
             if (typeof uData.hist === "string" && uData.hist.length > 2) lsSet("BON_HIST", uData.hist);
             if (typeof uData.bonRaw === "string" && uData.bonRaw.length > 2) lsSet("BON", uData.bonRaw);
@@ -148,21 +153,28 @@
           }
           m.remove();
           if (window._onlineBeatNow) window._onlineBeatNow();
-          bindDm(); if (window._admPushNow) window._admPushNow();
+          bindDm(); bindBlockWatch(true); if (window._admPushNow) window._admPushNow();
           reqNotifyPerm();
           window.toast && toast("С возвращением, " + (acc.name || rawName) + "!");
           setTimeout(() => location.reload(), 350);
         } else {
+          const prevUid = ls("LAST_UID") || "";
           let uid = ls("ADM_UID");
           if (!uid){
             uid = "a" + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
             lsSet("ADM_UID", uid);
           }
+          if (prevUid && prevUid !== uid) {
+            lsDel("CHAT_SEEN"); lsDel("DM_SEEN_ADM"); lsDel("DM_SEEN_DLV"); lsDel("DM_SEEN"); lsDel("CHAT_NOTIF_T"); lsDel("DM_NOTIF_T");
+          }
+          lsSet("LAST_UID", uid);
           await accRef.set({ uid: uid, name: rawName, pin: pin, created: Date.now() });
           lsSet("USER_NAME", rawName);
           lsSet("USER_KEY", key);
           m.remove();
           renderUserBtn();
+          bindDm();
+          bindBlockWatch(true);
           reqNotifyPerm();
           window.toast && toast("Профиль создан: " + rawName);
           if (window._admPushNow) window._admPushNow();
@@ -278,15 +290,15 @@
       const rn=adm?(dlv?"Доставка":"Админ"):(m.name||"Водитель");
       const dispRn=mine?(ls("USER_NAME")||rn):rn;
       const isAdmWord=/^(admin|админ|администратор)$/i.test(dispRn.trim());
-      const admCrewLabel=isAdmWord?"👑 Администратор":("👑 Админ · "+esc(dispRn));
+      const admCrewLabel=isAdmWord?"👑 Администратор":('👑 Админ · <span data-no-i18n="1">'+esc(dispRn)+'</span>');
       const cb=(!adm&&!isAdmCrew)?crewBadgeHtml(msgCar):"";
-      const av=!mine?'<div class="ch-av" style="background:'+(adm?(dlv?"#0284c7":"#ca8a04"):(isAdmCrew?"#ca8a04":avColor(rn)))+'">'+(((adm&&!dlv)||isAdmCrew)?"👑":esc(rn.trim().slice(0,2).toUpperCase()))+'</div>':'';
+      const av=!mine?'<div class="ch-av" data-no-i18n="1" style="background:'+(adm?(dlv?"#0284c7":"#ca8a04"):(isAdmCrew?"#ca8a04":avColor(rn)))+'">'+(((adm&&!dlv)||isAdmCrew)?"👑":esc(rn.trim().slice(0,2).toUpperCase()))+'</div>':'';
       const au=adm?('<div class="ch-au">'+(dlv?'👩‍💼 Доставка':'👑 Администратор')+'</div>')
         :(isAdmCrew?('<div class="ch-au">'+admCrewLabel+'</div>')
-        :(!mine?('<div class="ch-au">'+cb+'<span>'+esc(rn)+'</span></div>'):(cb?'<div class="ch-au">'+cb+'<span>'+esc(dispRn)+'</span></div>':'')));
+        :(!mine?('<div class="ch-au">'+cb+'<span data-no-i18n="1">'+esc(rn)+'</span></div>'):(cb?'<div class="ch-au">'+cb+'<span data-no-i18n="1">'+esc(dispRn)+'</span></div>':'')));
       const isGoldAdm=(adm&&!dlv)||isAdmCrew;
       const msgCls='ch-msg'+(mine?" mine":"")+(dlv?" dlv":(isGoldAdm?(mine?" adm-crew":" adm adm-crew"):""));
-      h+='<div class="ch-row'+(mine?" mine":"")+'">'+av+'<div class="'+msgCls+'">'+au+'<div class="ch-body"><span class="ch-txt">'+esc(m.txt||"")+'</span><span class="ch-tm">'+fmtTime(m.t)+'</span></div></div></div>';
+      h+='<div class="ch-row'+(mine?" mine":"")+'">'+av+'<div class="'+msgCls+'">'+au+'<div class="ch-body"><span class="ch-txt" data-no-i18n="1">'+esc(m.txt||"")+'</span><span class="ch-tm">'+fmtTime(m.t)+'</span></div></div></div>';
     });
     box.innerHTML=h;box.scrollTop=box.scrollHeight;
   }
@@ -324,11 +336,13 @@
   window.openChat = openChat;
   let _dmList = [], _dmDlvList = [], _dmOpen = false, _dmActiveCh = "adm", _dmBound = false, _dmInit = false, _dmLastNotifT = +(ls("DM_NOTIF_T") || 0);
   function dmUnreadAdm(){
-    const seen = +(ls("DM_SEEN_ADM") || ls("DM_SEEN") || 0);
+    const raw = ls("DM_SEEN_ADM");
+    const seen = +(raw !== null ? raw : (ls("DM_SEEN") || 0));
     return _dmList.filter(m => (+m.t || 0) > seen && !!m.adm).length;
   }
   function dmUnreadDlv(){
-    const seen = +(ls("DM_SEEN_DLV") || ls("DM_SEEN") || 0);
+    const raw = ls("DM_SEEN_DLV");
+    const seen = +(raw !== null ? raw : (ls("DM_SEEN") || 0));
     return _dmDlvList.filter(m => (+m.t || 0) > seen && !!m.adm).length;
   }
   function dmUnreadCount(){
@@ -344,7 +358,6 @@
       } else {
         lsSet("DM_SEEN_ADM", String(maxT));
       }
-      lsSet("DM_SEEN", String(Math.max(+(ls("DM_SEEN_ADM") || 0), +(ls("DM_SEEN_DLV") || 0))));
       const uid = ls("ADM_UID");
       if (uid && window.firebase && firebase.apps && firebase.apps.length){
         try {
@@ -368,8 +381,8 @@
       const adm=!!m.adm;
       const isDeliv=adm&&(m.role==="delivery"||m.name==="Доставка"||_dmActiveCh==="dlv");
       const myCb=!adm?crewBadgeHtml(ls("USER_CAR")||m.car||""):"";
-      const au=adm?(isDeliv?'<div class="ch-au" style="color:#7dd3fc">👩‍💼 Доставка</div>':'<div class="ch-au" style="color:#fde047">👑 Администратор</div>'):(myCb?'<div class="ch-au">'+myCb+'<span>'+esc(ls("USER_NAME")||m.name||"Водитель")+'</span></div>':'');
-      h+='<div class="ch-row'+(!adm?" mine":"")+'"><div class="ch-msg'+(!adm?" mine":(isDeliv?" dlv":" adm"))+'">'+au+'<div class="ch-body"><span class="ch-txt">'+esc(m.txt||"")+'</span><span class="ch-tm">'+fmtTime(m.t)+'</span></div></div></div>';
+      const au=adm?(isDeliv?'<div class="ch-au" style="color:#7dd3fc">👩‍💼 Доставка</div>':'<div class="ch-au" style="color:#fde047">👑 Администратор</div>'):(myCb?'<div class="ch-au">'+myCb+'<span data-no-i18n="1">'+esc(ls("USER_NAME")||m.name||"Водитель")+'</span></div>':'');
+      h+='<div class="ch-row'+(!adm?" mine":"")+'"><div class="ch-msg'+(!adm?" mine":(isDeliv?" dlv":" adm"))+'">'+au+'<div class="ch-body"><span class="ch-txt" data-no-i18n="1">'+esc(m.txt||"")+'</span><span class="ch-tm">'+fmtTime(m.t)+'</span></div></div></div>';
     });
     box.innerHTML=h;box.scrollTop=box.scrollHeight;
   }
@@ -471,13 +484,15 @@
       const val = snap.val() || {};
       const parseList = data => {
         if (!data || typeof data !== "object") return [];
-        return Object.keys(data).map(k => Object.assign({ k: k }, data[k])).sort((a, b) => (+a.t || 0) - (+b.t || 0)).slice(-50);
+        return Object.keys(data)
+          .filter(k => k !== "adm" && k !== "dlv" && data[k] && typeof data[k] === "object" && ("txt" in data[k] || "t" in data[k]))
+          .map(k => Object.assign({ k: k }, data[k]))
+          .sort((a, b) => (+a.t || 0) - (+b.t || 0)).slice(-50);
       };
       let nextAdm = [], nextDlv = [];
       if (val.dlv && typeof val.dlv === "object") {
         nextDlv = parseList(val.dlv);
-        const admRaw = (val.adm && typeof val.adm === "object") ? val.adm : (Array.isArray(val) ? {} : val);
-        nextAdm = parseList(admRaw);
+        nextAdm = (val.adm && typeof val.adm === "object") ? parseList(val.adm) : parseList(val);
       } else if (val.adm && typeof val.adm === "object") {
         nextAdm = parseList(val.adm);
       } else {
@@ -616,9 +631,9 @@ function openProfileMenu(){
   const nm=ls("USER_NAME")||"Водитель",car=(ls("USER_CAR")||"").toUpperCase(),av=ls("USER_AVATAR")||"";
   m=document.createElement("div");m.id="profMdl";m.className="cm sheet-ov open";
   m.innerHTML='<div class="sheet-b"><div class="sheet-grab"></div><button type="button" class="sheet-x" id="pmX">✕</button>'
-    +'<div class="sh-head"><div class="sh-av-wrap" id="pmAvBtn"><div class="sh-av" id="pmAvBox">'+(av?'<img src="'+av+'">':esc(nm.trim().slice(0,2).toUpperCase()))+'</div><span class="sh-cam">📷</span></div>'
-    +'<div class="sh-name">'+esc(nm)+'</div>'
-    +'<div class="sh-meta"><span class="sh-dot"></span><span>В сети</span>'+(car&&car!=="ADMIN"?' · <b style="color:#6ee7b7">Экипаж '+esc(car)+'</b>':'')+'</div></div>'
+    +'<div class="sh-head"><div class="sh-av-wrap" id="pmAvBtn"><div class="sh-av" id="pmAvBox" data-no-i18n="1">'+(av?'<img src="'+esc(av)+'">':esc(nm.trim().slice(0,2).toUpperCase()))+'</div><span class="sh-cam">📷</span></div>'
+    +'<div class="sh-name" data-no-i18n="1">'+esc(nm)+'</div>'
+    +'<div class="sh-meta"><span class="sh-dot"></span><span>В сети</span>'+(car&&car!=="ADMIN"?' · <b style="color:#6ee7b7"><span>Экипаж</span> <span data-no-i18n="1">'+esc(car)+'</span></b>':'')+'</div></div>'
     +'<div class="sh-group">'
     +'<button type="button" class="sh-row" id="pmDm"><span class="sh-ico" style="background:rgba(56,189,248,.16);color:#38bdf8">✉️</span><span class="sh-lbl">Личные сообщения</span><span id="pmDmBadge" class="pm-bdg" hidden>0</span><span class="sh-chev">›</span></button>'
     +'<button type="button" class="sh-row" id="pmSet"><span class="sh-ico" style="background:rgba(148,163,184,.16);color:#e2e8f0">⚙️</span><span class="sh-lbl">Настройки</span><span class="sh-chev">›</span></button>'
@@ -629,36 +644,54 @@ function openProfileMenu(){
   document.body.appendChild(m);
   const close=()=>m.remove();
   m.onclick=ev=>{if(ev.target===m)close()};g("pmX").onclick=close;
-  g("pmAvBtn").onclick=async()=>{const d=await pickLocalAvatar();if(!d)return;lsSet("USER_AVATAR",d);const b=g("pmAvBox");if(b)b.innerHTML='<img src="'+d+'">';window.toast&&toast("Фото сохранено")};
+  g("pmAvBtn").onclick=async()=>{const d=await pickLocalAvatar();if(!d)return;lsSet("USER_AVATAR",d);const b=g("pmAvBox");if(b)b.innerHTML='<img src="'+esc(d)+'">';window.toast&&toast("Фото сохранено")};
   g("pmDm").onclick=()=>{close();openDmChat()};
   g("pmSet").onclick=()=>{close();openUserSettings()};
   g("pmAdm").onclick=()=>{close();location.href="admin.html"};
   if(window.getVerText)window.getVerText(v=>{const ve=g("pmVer");if(ve)ve.textContent=v});
-  g("pmOut").onclick=async()=>{close();if(typeof askC==="function"&&!(await askC("Выйти из профиля «"+nm+"» на этом телефоне? Данные останутся в облаке.","Выйти","👤")))return;lsDel("USER_NAME");lsDel("USER_KEY");lsDel("ADM_UID");lsDel("USER_CAR");lsDel("BON");lsDel("BON_HIST");lsDel("SPEC");lsDel("USER_AVATAR");location.replace(location.pathname)};
+  g("pmOut").onclick=async()=>{close();if(typeof askC==="function"&&!(await askC("Выйти из профиля «"+nm+"» на этом телефоне? Данные останутся в облаке.","Выйти","👤")))return;const curUid=ls("ADM_UID");if(curUid)lsSet("LAST_UID",curUid);lsDel("USER_NAME");lsDel("USER_KEY");lsDel("ADM_UID");lsDel("USER_CAR");lsDel("BON");lsDel("BON_HIST");lsDel("SPEC");lsDel("USER_AVATAR");location.replace(location.pathname)};
   updBadges();
 }
-let _blkBound = false;
-  function bindBlockWatch(){
-    if (_blkBound || !window.firebase || !firebase.apps || !firebase.apps.length) return;
+let _blkBound = false, _blkRefs = [];
+  function unbindBlockWatch(){
+    _blkRefs.forEach(([r, fn]) => { try { r.off("value", fn); } catch(e){} });
+    _blkRefs = [];
+    _blkBound = false;
+  }
+  function bindBlockWatch(force){
+    if (!window.firebase || !firebase.apps || !firebase.apps.length) return;
+    if (_blkBound && !force) return;
+    if (force) unbindBlockWatch();
     _blkBound = true;
     const db = firebase.database();
     const uid = ls("ADM_UID"), key = ls("USER_KEY"), devId = getDevId();
     const kick = (byDev) => {
       if (byDev) _devBlocked = true;
-      try { if (uid) db.ref("online/" + uid).remove(); } catch(e){}
-      lsDel("USER_NAME"); lsDel("USER_KEY"); lsDel("ADM_UID"); lsDel("USER_CAR"); lsDel("BON"); lsDel("BON_HIST"); lsDel("SPEC");
+      try { if (uid) db.ref("online/" + uid).set({ t: 0 }).catch(() => {}); } catch(e){}
+      unbindBlockWatch();
+      lsDel("USER_NAME"); lsDel("USER_KEY"); lsDel("ADM_UID"); lsDel("USER_CAR"); lsDel("BON"); lsDel("BON_HIST"); lsDel("SPEC"); lsDel("USER_AVATAR");
       ensureModal();
       const err = g("auErr"), btn = g("auGo");
       if (err) err.textContent = byDev ? "Это устройство заблокировано администратором" : "Ваш профиль заблокирован администратором";
       if (btn && byDev) btn.disabled = true;
       const ub = g("usrBtn"); if (ub) ub.remove();
     };
-    db.ref("accounts/__dev_" + devId + "/blocked").on("value", s => {
+    const rDev = db.ref("accounts/__dev_" + devId + "/blocked");
+    const fDev = rDev.on("value", s => {
       if (s.val()) kick(true);
       else if (_devBlocked){ _devBlocked = false; const err = g("auErr"), btn = g("auGo"); if (err) err.textContent = ""; if (btn) btn.disabled = false; }
     }, () => {});
-    if (uid) db.ref("users/" + uid + "/blocked").on("value", s => { if (s.val()) kick(false); }, () => {});
-    if (key) db.ref("accounts/" + key + "/blocked").on("value", s => { if (s.val()) kick(false); }, () => {});
+    _blkRefs.push([rDev, fDev]);
+    if (uid) {
+      const rU = db.ref("users/" + uid + "/blocked");
+      const fU = rU.on("value", s => { if (s.val()) kick(false); }, () => {});
+      _blkRefs.push([rU, fU]);
+    }
+    if (key) {
+      const rA = db.ref("accounts/" + key + "/blocked");
+      const fA = rA.on("value", s => { if (s.val()) kick(false); }, () => {});
+      _blkRefs.push([rA, fA]);
+    }
   }
   let _chatInit = false, _lastNotifiedT = +(ls("CHAT_NOTIF_T") || 0);
   function reqNotifyPerm(){
@@ -753,7 +786,7 @@ let _blkBound = false;
       b.className = "hdr-usr";
       left.appendChild(b);
     }
-    b.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>' + esc(uname) + '</span><span id="usrBadge" class="usr-bdg" hidden>0</span>';
+    b.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span data-no-i18n="1">' + esc(uname) + '</span><span id="usrBadge" class="usr-bdg" hidden>0</span>';
     b.onclick = openProfileMenu; updBadges();
   }
   window._renderUserBtn = renderUserBtn;

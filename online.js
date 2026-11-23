@@ -112,15 +112,20 @@
     setCount(n);
   }
 
-  window.addEventListener('pagehide', () => { try { const aid = localStorage.getItem('ADM_UID'); if (ref && aid) ref.child(aid).remove(); } catch(e){} });
+  window.addEventListener('pagehide', () => { try { const aid = localStorage.getItem('ADM_UID'); if (ref && aid) ref.child(aid).set({ t: 0 }).catch(() => {}); } catch(e){} });
 
-  function boot(){
+  let _sdkStarted = false;
+  function tryBootOnline(){
+    if (_sdkStarted) return;
     ensureBadge();
-    loadSDK().then(start).catch(() => {
-      const b = ensureBadge();
-      b.textContent = '🔴 –';
-      b.title = 'Онлайн недоступен';
+    loadSDK().then(() => { _sdkStarted = true; start(); }).catch(() => {
+      ensureBadge();
+      syncConnStatus(false);
     });
+  }
+  function boot(){
+    tryBootOnline();
+    window.addEventListener('online', () => { if (!_sdkStarted) tryBootOnline(); });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
@@ -159,11 +164,11 @@
   function payload(){
     const uname = ls('USER_NAME') || '';
     const ukey = ls('USER_KEY') || '';
-    const bonRaw = ls('BON') || '[]';
+    const rawBon = ls('BON');
     const specPts = ls('SPEC') || '';
     let addr = 0;
     try { addr = typeof P !== 'undefined' && Array.isArray(P) ? P.length : 0; } catch(e){}
-    return {
+    const out = {
       t: Date.now(),
       v: ls('APP_V') || '',
       lang: ls('LANG') || 'ru',
@@ -174,11 +179,14 @@
       devId: DEV_ID,
       uname: uname,
       ukey: ukey,
-      bonRaw: bonRaw,
       specPts: specPts,
-      cur: JSON.stringify(curSummary()),
       hist: ls('BON_HIST') || '{}'
     };
+    if (rawBon !== null) {
+      out.bonRaw = rawBon;
+      out.cur = JSON.stringify(curSummary());
+    }
+    return out;
   }
 
   let dbRef = null, lastSig = '', lastUid = '';
@@ -201,7 +209,7 @@
     const g = id => document.getElementById(id);
     const open = id => g(id) && g(id).classList.contains('open');
     return !!((g('a') && g('a').value.trim()) || (g('pn') && g('pn').value.trim()) ||
-      ['ptMdl','ptAddMdl','cm','mapM','bnMdl','chatMdl','dmMdl','setMdl','ocrBonMdl','ocrCatMdl','ocrSrcMdl','kzMdl'].some(open) || !!g('ocrLiveCam'));
+      ['ptMdl','ptAddMdl','cm','mapM','bnMdl','chatMdl','dmMdl','setMdl','authMdl','profMdl','lgM','tvMdl','ocrBonMdl','ocrCatMdl','ocrSrcMdl','kzMdl'].some(open) || !!g('ocrLiveCam'));
   }
   async function applyFU(){
     lsSet('FU_SEEN', String(pendingFU));
@@ -222,12 +230,14 @@
     const db = firebase.database();
     dbRef = db;
 
-    let _watchedCarUid = "";
+    let _watchedCarUid = "", _carRefW = null, _carFnW = null;
     const watchCar = () => {
       const uid = ls("ADM_UID") || "";
       if (!uid || uid === _watchedCarUid) return;
+      if (_carRefW && _carFnW) { try { _carRefW.off("value", _carFnW); } catch(e){} }
       _watchedCarUid = uid;
-      db.ref("users/" + uid + "/car").on("value", snap => {
+      _carRefW = db.ref("users/" + uid + "/car");
+      _carFnW = _carRefW.on("value", snap => {
         const c = String(snap.val() || "").trim().toUpperCase();
         lsSet("USER_CAR", c);
         if (window._setDriverCar) window._setDriverCar(c);
@@ -250,12 +260,14 @@
         if (av && !av.querySelector("img")) av.textContent = srv.slice(0, 2).toUpperCase();
       }
     };
-    let _watchedNameUid = "";
+    let _watchedNameUid = "", _nameRefW = null, _nameFnW = null;
     const watchName = () => {
       const uid = ls("ADM_UID") || "";
       if (!uid || uid === _watchedNameUid) return;
+      if (_nameRefW && _nameFnW) { try { _nameRefW.off("value", _nameFnW); } catch(e){} }
       _watchedNameUid = uid;
-      db.ref("users/" + uid + "/uname").on("value", snap => {
+      _nameRefW = db.ref("users/" + uid + "/uname");
+      _nameFnW = _nameRefW.on("value", snap => {
         applySrvName(snap.val());
       }, () => {});
     };

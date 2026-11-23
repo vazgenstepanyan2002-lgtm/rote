@@ -214,12 +214,12 @@
       }
     }
 
-    const colsXml = '<cols>' + widths.map((w, i) => {
+    const colsXml = colCount > 0 ? '<cols>' + widths.map((w, i) => {
       const cw = w <= 3.6
         ? Math.max(4.4, +(w + 2.2).toFixed(1))
         : Math.max(6.0, Math.min(120, +(w + 3.2).toFixed(1)));
       return `<col min="${i + 1}" max="${i + 1}" width="${cw}" bestFit="1" customWidth="1"/>`;
-    }).join('') + '</cols>';
+    }).join('') + '</cols>' : '';
 
     // Объединение одинаковых подряд идущих ячеек в первом столбце (например, экипажи)
     const merges = [];
@@ -457,9 +457,11 @@
       const cls = isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'c' : 'r')) : (idx > 1 ? 'c' : '');
       return `<td class="${cls}">${esc(val)}</td>`;
     }).join('')}</tr></tfoot>` : '';
-    const dt = new Date().toLocaleDateString('ru-RU');
+    const pLang = (() => { try { const l = localStorage.getItem('EXCEL_LANG'); return (l === 'ru' || l === 'hy' || l === 'en') ? l : ((window.getLang && window.getLang()) || 'ru'); } catch (e) { return 'ru'; } })();
+    const dt = new Date().toLocaleDateString(pLang === 'hy' ? 'hy-AM' : (pLang === 'en' ? 'en-US' : 'ru-RU'));
+    const printLbl = pLang === 'hy' ? 'Տպման ամսաթիվը՝' : (pLang === 'en' ? 'Print date:' : 'Дата печати:');
 
-    const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>${esc(title || 'EuroBaza')}</title><style>
+    const html = `<!doctype html><html lang="${esc(pLang)}"><head><meta charset="utf-8"><title>${esc(title || 'EuroBaza')}</title><style>
       @page { size: A4 ${isWide ? 'landscape' : 'portrait'}; margin: 8mm; }
       * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #0f172a; background: #fff; }
@@ -480,7 +482,7 @@
       .wrk { background: #a7f3d0; color: #047857; font-weight: 800; }
       .off { background: #fef3c7; color: #b45309; font-weight: 700; }
     </style></head><body>
-      <div class="hd"><h1>EuroBaza · ${esc(title || 'Таблица')}</h1><span>Дата печати: ${dt}</span></div>
+      <div class="hd"><h1>EuroBaza · ${esc(title || 'Таблица')}</h1><span>${printLbl} ${dt}</span></div>
       <table><thead><tr>${thHtml}</tr></thead><tbody>${tbHtml}</tbody>${tfHtml}</table>
     </body></html>`;
 
@@ -490,10 +492,13 @@
     fr.id = 'tvPrintFrame';
     fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
     document.body.appendChild(fr);
-    const doc = fr.contentDocument || fr.contentWindow.document;
+    const doc = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+    if (!doc) { fr.remove(); if (window.toast) window.toast('Не удалось открыть печать', true); return; }
     doc.open();
     doc.write(html);
     doc.close();
+    const cleanup = () => { try { fr.remove(); } catch (e) {} };
+    try { if (fr.contentWindow) fr.contentWindow.addEventListener('afterprint', cleanup, { once: true }); } catch (e) {}
     setTimeout(() => {
       try {
         fr.contentWindow.focus();
@@ -501,7 +506,7 @@
       } catch (e) {
         if (window.toast) window.toast('Не удалось открыть печать', true);
       }
-      setTimeout(() => fr.remove(), 60000);
+      setTimeout(cleanup, 120000);
     }, 150);
   }
 
@@ -622,7 +627,7 @@
         else old.remove();
       }
 
-      const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) && !(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
       const isCatalog = rowTypes && rowTypes.length > 0;
       const baseXlsxName = String(filename || 'EuroBaza.xlsx').replace(/\.csv$/i, '.xlsx');
       let excelLang = 'ru';
@@ -691,7 +696,7 @@
           <div class="tv-scroll" data-no-i18n="1" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0;max-width:100%;min-width:0;touch-action:pan-x pan-y">
             <table id="tvTable" style="width:max-content;min-width:100%;border-collapse:collapse;font-size:12px;line-height:1.35;text-align:left">
               <thead id="tvThead">${renderThead(loc.lHeaders)}</thead>
-              <tbody id="tvTbody">${this.renderRowsHtml(loc.lRows, mergeFirstCol, rowTypes)}</tbody>
+              <tbody id="tvTbody">${this.renderRowsHtml(loc.lRows, mergeFirstCol, rowTypes, loc.lHeaders.length)}</tbody>
               <tfoot id="tvTfoot">${renderTfoot(loc.lTotal)}</tfoot>
             </table>
           </div>
@@ -700,20 +705,30 @@
 
       document.body.appendChild(m);
 
-      const onKey = e => { if (e.key === 'Escape') close(); };
-      const close = () => {
+      let closed = false;
+      const onKey = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); close(); } };
+      const onPop = () => { if (!closed) close('pop'); };
+      const close = (src) => {
+        if (closed) return;
+        closed = true;
         document.documentElement.style.overflow = prevHtmlOv;
         document.body.style.overflow = prevBodyOv;
         document.body.style.overscrollBehavior = prevBodyObs;
         document.removeEventListener('keydown', onKey);
+        window.removeEventListener('popstate', onPop);
         m.remove();
+        if (src !== 'pop') {
+          try { if (history.state && history.state.tv) history.back(); } catch (e) {}
+        }
       };
       m._tvClose = close;
+      try { history.pushState({ tv: 1 }, ''); } catch (e) {}
+      window.addEventListener('popstate', onPop);
       m.addEventListener('touchmove', e => {
         if (!e.target.closest('.tv-scroll')) e.preventDefault();
       }, { passive: false });
       document.addEventListener('keydown', onKey);
-      document.getElementById('tvClose').onclick = close;
+      document.getElementById('tvClose').onclick = () => close();
       m.onclick = e => { if (e.target === m) close(); };
 
       const searchInp = document.getElementById('tvSearch');
@@ -723,18 +738,18 @@
       const applySearch = () => {
         const q = (searchInp.value || '').trim().toLowerCase();
         if (!q) {
-          tbody.innerHTML = this.renderRowsHtml(loc.lRows, mergeFirstCol, rowTypes);
+          tbody.innerHTML = this.renderRowsHtml(loc.lRows, mergeFirstCol, rowTypes, loc.lHeaders.length);
           countEl.textContent = loc.lRows.length;
           return;
         }
         const filtered = [], fTypes = [];
         loc.lRows.forEach((r, idx) => {
-          if (r.some(cell => String(cell || '').toLowerCase().includes(q))) {
+          if (r.some(cell => String(cell == null ? '' : cell).toLowerCase().includes(q))) {
             filtered.push(r);
             fTypes.push(rowTypes[idx] || '');
           }
         });
-        tbody.innerHTML = this.renderRowsHtml(filtered, mergeFirstCol, fTypes);
+        tbody.innerHTML = this.renderRowsHtml(filtered, mergeFirstCol, fTypes, loc.lHeaders.length);
         countEl.textContent = filtered.length;
       };
 
@@ -768,17 +783,24 @@
       // Печать (на ПК)
       const printBtn = document.getElementById('tvPrint');
       if (printBtn) {
-        printBtn.onclick = () => printTable({ title: loc.lTitle, headers: loc.lHeaders, rows: loc.lRows, totalRow: loc.lTotal, mergeFirstCol, rowTypes });
+        printBtn.onclick = () => printTable({ title: loc.lTitle, headers: loc.lHeaders, rows: loc.lRows, totalRow: loc.lTotal, mergeFirstCol, rowTypes, lang: excelLang });
       }
 
       // Поделиться (на мобильном)
       const shareBtn = document.getElementById('tvShare');
       if (shareBtn) {
+        let sharing = false;
         shareBtn.onclick = async () => {
-          const res = await shareFile(loc.lBlob, loc.lName, loc.lTitle);
-          if (res === 'unsupported' || res === 'error') {
-            downloadBlob(loc.lBlob, loc.lName);
-            if (window.toast) window.toast('Файл скачан');
+          if (sharing) return;
+          sharing = true;
+          try {
+            const res = await shareFile(loc.lBlob, loc.lName, loc.lTitle);
+            if (res === 'unsupported' || res === 'error') {
+              downloadBlob(loc.lBlob, loc.lName);
+              if (window.toast) window.toast('Файл скачан');
+            }
+          } finally {
+            sharing = false;
           }
         };
       }
@@ -794,9 +816,9 @@
     },
 
     // Отрисовка строк таблицы
-    renderRowsHtml(rows, mergeFirstCol = false, rowTypes = []) {
+    renderRowsHtml(rows, mergeFirstCol = false, rowTypes = [], colSpan = 10) {
       if (!rows.length) {
-        return `<tr><td colspan="10" style="padding:28px 12px;text-align:center;color:#64748b">Ничего не найдено</td></tr>`;
+        return `<tr><td colspan="${Math.max(1, colSpan || 10)}" style="padding:28px 12px;text-align:center;color:#64748b">Ничего не найдено</td></tr>`;
       }
       const isCatalog = rowTypes && rowTypes.some(Boolean);
       const spans = new Array(rows.length).fill(1);

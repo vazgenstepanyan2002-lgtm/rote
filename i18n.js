@@ -134,7 +134,7 @@
   'Навигатор: по умолчанию':['Նավիգատոր՝ լռելյայն','Navigator: default'],
   'Навигатор: Яндекс':['Նավիգատոր՝ Yandex','Navigator: Yandex'],
   'Навигатор':['Նավիգատոր','Navigator'],
-  'Яндекс':['Yandex','Yandex'],
+  'Яндекс':['Յանդեքս','Yandex'],
   'По умолчанию':['Լռելյայն','Default'],
   'Откроется Яндекс Навигатор':['Կբացվի Yandex Navigator-ը','Yandex Navigator will open'],
   'Откроется навигатор по умолчанию':['Կբացվի լռելյայն նավիգատորը','The default navigator will open'],
@@ -239,7 +239,6 @@
  'Повторяю отправку...':['Կրկնում եմ ուղարկումը...','Retrying...'],
  'Сервер распознавания временно перегружен. Повторить отправку этого же фото?':['Ճանաչման սերվերը ժամանակավորապես ծանրաբեռնված է։ Կրկնե՞լ նույն լուսանկարի ուղարկումը։','Recognition server is temporarily busy. Retry sending the same photo?'],
  'Дневной лимит бесплатного OCR исчерпан, попробуйте чуть позже':['Անվճար OCR-ի օրական սահմանաչափը սպառվել է, փորձեք ավելի ուշ','Daily free OCR limit reached, please try again later'],
- 'Продолжить':['Շարունակել','Continue'],
  'Бонусы по накладной':['Բոնուսներ ըստ ապրանքագրի','Invoice bonuses'],
  'Город (Ереван)':['Քաղաք (Երևան)','City (Yerevan)'],
  'Район (Области)':['Մարզ (Շրջաններ)','Region (Provinces)'],
@@ -360,7 +359,6 @@
   "Шкаф 6 дверей":["Պահարան 6 դուռ","Wardrobe 6 doors"],
   "В приложение":["Դեպի հավելված","Back to app"],
   "Онлайн":["Առցանց","Online"],
-  "Карта":["Քարտեզ","Map"],
   "Табель":["Տաբել","Attendance"],
   "Словарь":["Բառարան","Dictionary"],
   "Версия":["Տարբերակ","Version"],
@@ -384,15 +382,10 @@
   "Дорога Сараландж":["Սարալանջի խճուղի","Saralanj road"],
   "Камеры штрафа для грузовых днём (до 21:00)":["Բեռնատարների տուգանքի տեսախցիկներ ցերեկը (մինչև 21:00)","Daytime truck fine cameras (until 21:00)"],
   "Неточный адрес: найден только район или город":["Ոչ ճշգրիտ հասցե. գտնվել է միայն թաղամասը կամ քաղաքը","Approximate address: only district or city found"],
-  "Весь маршрут":["Ամբողջ երթուղին","Fit route"],
-  "Север":["Հյուսիս","North"],
-  "Зона Кентрон":["Կենտրոն գոտի","Kentron zone"],
-  "Въезд грузовым машинам до 21:00 запрещён":["Բեռնատարների մուտքը մինչև 21:00 արգելված է","Truck entry restricted until 21:00"],
   "Ищу адрес...":["Փնտրում եմ հասցեն...","Searching address..."],
   "Адрес не найден":["Հասցեն չի գտնվել","Address not found"],
   "Введите адрес выше или нажмите на точку на карте — красная зона показывает Кентрон (запрет днём до 21:00)":["Մուտքագրեք հասցեն վերևում կամ սեղմեք քարտեզի կետի վրա — կարմիր գոտին Կենտրոնն է (արգելք ցերեկը մինչև 21:00)","Enter an address above or tap the map — red zone is Kentron (restricted until 21:00)"],
   "Недавние проверки":["Վերջին ստուգումները","Recent checks"],
-  "День":["Ցերեկ","Day"],
   "Вечер":["Երեկո","Evening"],
   "Версия приложения":["Հավելվածի տարբերակը","App version"],
   "Обновление и версии на устройствах":["Թարմացում և սարքերի տարբերակներ","Updates and device versions"],
@@ -423,8 +416,6 @@
   "Язык интерфейса":["Ինտերֆեյսի լեզու","Interface language"],
   "Напечатать":["Տպել","Print"],
   "Поиск...":["Որոնում...","Search..."],
-  "Ничего не найдено":["Ոչինչ չի գտնվել","Nothing found"],
-  "Текущий месяц":["Ընթացիկ ամիս","Current month"],
   "Текущий месяц · по экипажам":["Ընթացիկ ամիս · ըստ անձնակազմերի","Current month · by crew"],
   "Скачать Excel по экипажам":["Ներբեռնել Excel ըստ անձնակազմերի","Download Excel by crew"],
   "Открыть таблицу / Excel":["Բացել աղյուսակը / Excel","Open table / Excel"],
@@ -433,7 +424,6 @@
   "Версии на устройствах":["Տարբերակները սարքերում","Versions on devices"],
   "Принудительное обновление":["Հարկադիր թարմացում","Force update"],
   "Обновить у всех":["Թարմացնել բոլորի մոտ","Update everyone"],
-  "В сети":["Ցանցում է","Online"],
   "только что":["հենց նոր","just now"],
   "давно":["վաղուց","long ago"],
   "Январь":["Հունվար","January"],
@@ -550,7 +540,8 @@
   [/^Записей: (\d+)(.*)$/,(m,l,i)=>['Գրառումներ՝ '+m[1]+m[2],'Entries: '+m[1]+m[2]][i]],
   [/^(\d+) мин назад$/,(m,l,i)=>[m[1]+' ր առաջ',m[1]+' min ago'][i]],
   [/^(\d+) ч назад$/,(m,l,i)=>[m[1]+' ժ առաջ',m[1]+' h ago'][i]],
-  [/^(\d+) дн назад$/,(m,l,i)=>[m[1]+' օր առաջ',m[1]+' d ago'][i]]
+  [/^(\d+) дн назад$/,(m,l,i)=>[m[1]+' օր առաջ',m[1]+' d ago'][i]],
+  [/^Язык: (.+)$/,(m,l,i)=>['Լեզու: '+m[1],'Language: '+m[1]][i]]
  ];
  function tc(core,l){
   const i=l==='hy'?0:1;
@@ -584,8 +575,8 @@
    const cur=el.getAttribute(a);
    if(!m[a]||m[a].out!==cur)m[a]={o:cur,out:cur};
    const r=tx(m[a].o,L),want=r==null?m[a].o:r;
-   if(cur!==want)el.setAttribute(a,want);
    m[a].out=want;
+   if(cur!==want)el.setAttribute(a,want);
   }
  }
  const FLT={acceptNode:n=>n.nodeType===1&&(n.tagName==='SCRIPT'||n.tagName==='STYLE'||(n.hasAttribute&&n.hasAttribute('data-no-i18n')))?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT};
@@ -610,9 +601,13 @@
   if(L==='ru')return;
   for(const m of ms){
    if(m.type==='characterData'){if(!isIgnored(m.target))doText(m.target)}
+   else if(m.type==='attributes'){
+    const el=m.target;
+    if(el&&el.nodeType===1&&el.tagName!=='SCRIPT'&&el.tagName!=='STYLE'&&!isIgnored(el)&&AT.includes(m.attributeName))attrs(el);
+   }
    else m.addedNodes.forEach(walk);
   }
- }).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
+ }).observe(document.documentElement,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:AT});
 
  window.i18nTranslateText=function(raw,targetLang){
   const lang=targetLang||L;
@@ -636,7 +631,8 @@
  };
 
  let btn=null;
- const lab=()=>{if(btn){btn.title='Язык: '+LANGS[L];btn.setAttribute('aria-label','Язык: '+LANGS[L]);}};
+ const LP={ru:'Язык: ',hy:'Լեզու: ',en:'Language: '};
+ const lab=()=>{if(btn){const t=(LP[L]||LP.ru)+LANGS[L];btn.title=t;btn.setAttribute('aria-label',t);}};
  function setLang(l){
   if(!LANGS[l])return;
   L=l;try{localStorage.setItem('LANG',l)}catch(e){}

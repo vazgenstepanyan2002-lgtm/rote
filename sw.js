@@ -1,9 +1,14 @@
-const CACHE_NAME = 'eurobaza-v20261123214321';
+const CACHE_NAME = 'eurobaza-v20261123230302';
 const ASSETS = [
   './',
   'index.html',
   'admin.html',
   'style.css',
+  'storage.js',
+  'geo.js',
+  'zones.js',
+  'bonus-engine.js',
+  'table-viewer.js',
   'app.js',
   'yandex.js',
   'ocr.js',

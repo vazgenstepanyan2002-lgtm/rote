@@ -73,6 +73,49 @@
     return Math.hypot(px - cx, py - cy);
   }
 
+  // Проверка пересечения двух отрезков [a1, a2] и [b1, b2] (координаты [lat, lon])
+  function segsIntersect(a1, a2, b1, b2) {
+    const ccw = (p, q, r) => (r[0] - p[0]) * (q[1] - p[1]) - (q[0] - p[0]) * (r[1] - p[1]);
+    const onSeg = (p, q, r) =>
+      Math.min(p[0], r[0]) - 1e-12 <= q[0] && q[0] <= Math.max(p[0], r[0]) + 1e-12 &&
+      Math.min(p[1], r[1]) - 1e-12 <= q[1] && q[1] <= Math.max(p[1], r[1]) + 1e-12;
+    const d1 = ccw(a1, a2, b1), d2 = ccw(a1, a2, b2);
+    const d3 = ccw(b1, b2, a1), d4 = ccw(b1, b2, a2);
+    if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return true;
+    if (Math.abs(d1) < 1e-12 && onSeg(a1, b1, a2)) return true;
+    if (Math.abs(d2) < 1e-12 && onSeg(a1, b2, a2)) return true;
+    if (Math.abs(d3) < 1e-12 && onSeg(b1, a1, b2)) return true;
+    if (Math.abs(d4) < 1e-12 && onSeg(b1, a2, b2)) return true;
+    return false;
+  }
+
+  // Минимальное расстояние между отрезками [a1, a2] и [b1, b2] в метрах
+  function segToSegMeters(a1, a2, b1, b2) {
+    if (segsIntersect(a1, a2, b1, b2)) return 0;
+    return Math.min(
+      pointToSegMeters(a1[0], a1[1], b1, b2),
+      pointToSegMeters(a2[0], a2[1], b1, b2),
+      pointToSegMeters(b1[0], b1[1], a1, a2),
+      pointToSegMeters(b2[0], b2[1], a1, a2)
+    );
+  }
+
+  // fetch с кроссбраузерным таймаутом и поддержкой внешнего AbortSignal
+  function fetchWithTimeout(url, ms, extSignal) {
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    if (!ctrl) return fetch(url);
+    const onExt = () => ctrl.abort();
+    if (extSignal) {
+      if (extSignal.aborted) { ctrl.abort(); }
+      else extSignal.addEventListener('abort', onExt, { once: true });
+    }
+    const tid = setTimeout(() => ctrl.abort(), ms);
+    return fetch(url, { signal: ctrl.signal }).finally(() => {
+      clearTimeout(tid);
+      if (extSignal) extSignal.removeEventListener('abort', onExt);
+    });
+  }
+
   const ZoneService = {
     BASE: BASE_POINT,
     KENTRON_POLY: KENTRON_POLY,
@@ -115,42 +158,70 @@
       return this.inKentronPoly(lat, lon) || this.inSaralanj(lat, lon);
     },
 
-    // Проверка пересечения отрезка пути с запретными зонами (Кентрон / Сараландж)
-    segmentIntersectsKentron(pA, pB, steps = 15) {
+    // Проверка пересечения отрезка пути с запретными зонами (Кентрон / Сараландж) — точная по отрезкам
+    segmentIntersectsKentron(pA, pB) {
       if (!pA || !pB) return false;
-      if (this.inKentron(pA.lat, pA.lon) || this.inKentron(pB.lat, pB.lon)) return true;
-      for (let k = 1; k <= steps; k++) {
-        const t = k / (steps + 1);
-        const curLat = pA.lat + (pB.lat - pA.lat) * t;
-        const curLon = pA.lon + (pB.lon - pA.lon) * t;
-        if (this.inKentron(curLat, curLon)) return true;
+      const latA = +pA.lat, lonA = +pA.lon, latB = +pB.lat, lonB = +pB.lon;
+      if (!Number.isFinite(latA) || !Number.isFinite(lonA) || !Number.isFinite(latB) || !Number.isFinite(lonB)) return false;
+      if (this.inKentron(latA, lonA) || this.inKentron(latB, lonB)) return true;
+      const a = [latA, lonA], b = [latB, lonB];
+      for (let i = 0, j = KENTRON_POLY.length - 1; i < KENTRON_POLY.length; j = i++) {
+        if (segsIntersect(a, b, KENTRON_POLY[j], KENTRON_POLY[i])) return true;
+      }
+      for (let i = 0; i < SARALANJ_LINE.length - 1; i++) {
+        if (segToSegMeters(a, b, SARALANJ_LINE[i], SARALANJ_LINE[i + 1]) <= SARALANJ_RADIUS_M) return true;
       }
       return false;
     },
 
     // Подсчёт попаданий линии маршрута [lon, lat] в дневные запретные зоны (Кентрон + Нор хчуги)
     countRouteHits(coords) {
-      if (!coords || coords.length < 3) return 0;
+      if (!coords || coords.length < 2) return 0;
       let hits = 0;
-      const step = coords.length > 250 ? 2 : 1;
-      for (let i = 1; i < coords.length - 1; i += step) {
-        const p = coords[i];
-        if (this.inKentron(p[1], p[0])) hits++;
+      for (let i = 0; i < coords.length - 1; i++) {
+        const p1 = coords[i], p2 = coords[i + 1];
+        if (!p1 || !p2) continue;
+        // Пропускаем первую и последнюю точки как конечные адреса, проверяем тело сегмента и внутренние узлы
+        const a = { lat: p1[1], lon: p1[0] }, b = { lat: p2[1], lon: p2[0] };
+        const aIn = i > 0 && this.inKentron(a.lat, a.lon);
+        const bIn = i + 1 < coords.length - 1 && this.inKentron(b.lat, b.lon);
+        if (aIn || bIn) {
+          hits++;
+          continue;
+        }
+        // Точная проверка пересечения отрезка (чтобы длинные сегменты не перепрыгивали 85м коридор Сараланджа)
+        const s1 = [a.lat, a.lon], s2 = [b.lat, b.lon];
+        let crossed = false;
+        for (let k = 0, j = KENTRON_POLY.length - 1; k < KENTRON_POLY.length; j = k++) {
+          if (segsIntersect(s1, s2, KENTRON_POLY[j], KENTRON_POLY[k])) { crossed = true; break; }
+        }
+        if (!crossed) {
+          for (let k = 0; k < SARALANJ_LINE.length - 1; k++) {
+            if (segToSegMeters(s1, s2, SARALANJ_LINE[k], SARALANJ_LINE[k + 1]) <= SARALANJ_RADIUS_M) { crossed = true; break; }
+          }
+        }
+        if (crossed) hits++;
       }
       return hits;
     },
 
     // Построение автомобильного маршрута с объездом дневных запретных зон (Кентрон + Нор хчуги)
-    async fetchSafeRoute(fromPt, toPt, avoidZone = true) {
+    async fetchSafeRoute(fromPt, toPt, avoidZone = true, extSignal) {
       const fetchOsrm = pts => {
         const c = pts.map(p => p.lon + ',' + p.lat).join(';');
         const q = '?overview=full&geometries=geojson&alternatives=true';
-        const one = u => fetch(u + c + q).then(r => r.json()).then(j => {
+        const one = u => fetchWithTimeout(u + c + q, 12000, extSignal).then(r => {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        }).then(j => {
           if (!j || !j.routes || !j.routes.length) throw 0;
           return j.routes;
         });
         return one('https://router.project-osrm.org/route/v1/driving/')
-          .catch(() => one('https://routing.openstreetmap.de/routed-car/route/v1/driving/'));
+          .catch(e => {
+            if (extSignal && extSignal.aborted) throw e;
+            return one('https://routing.openstreetmap.de/routed-car/route/v1/driving/');
+          });
       };
 
       const directRoutes = await fetchOsrm([fromPt, toPt]);

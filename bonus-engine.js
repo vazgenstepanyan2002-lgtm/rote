@@ -7,13 +7,14 @@
   const BonusEngine = {
     // Безопасное число
     num(v) {
-      const n = +v;
-      return isNaN(n) ? 0 : n;
+      const n = typeof v === 'string' ? +v.replace(',', '.').trim() : +v;
+      return Number.isFinite(n) && n >= 0 ? n : 0;
     },
 
     // Форматирование числа с разделением тысяч
     formatMoney(val) {
-      return (this.num(val) || 0).toLocaleString('ru-RU');
+      const v = Math.round((this.num(val) || 0) * 100) / 100;
+      return v.toLocaleString('ru-RU');
     },
 
     // Расчёт и группировка итоговых строк из дерева категорий
