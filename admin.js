@@ -1667,8 +1667,10 @@ function openSelectModal(){
    const isDeliv=m.adm&&(m.role==='delivery'||m.name==='Доставка');
    const car=!m.adm?String((m.uid&&USERS[m.uid]&&USERS[m.uid].car)||m.car||'').toUpperCase():'';
    const drvName=(m.uid&&USERS[m.uid])?dispName(parseDev(m.uid,USERS[m.uid])):(m.name||'Водитель');
-   const who=m.adm?(isDeliv?'👩‍💼 Доставка':'👑 Админ'):(crewBadgeHtml(car)+'<span>'+esc(drvName)+'</span>');
-   return '<div class="ach-m'+(m.adm?(isDeliv?' dlv':' adm'):'')+'"><div class="ach-mt"><span>'+who+'</span>'+(isSubAdm()?'':'<button type="button" class="ach-del" data-ck="'+esc(m.k)+'" aria-label="Удалить">✕</button>')+'</div><div class="ach-bd"><span class="ach-tx">'+esc(m.txt||'')+'</span><span class="ach-tm">'+tm+'</span></div></div>';
+   const isAdmCrew=!m.adm&&car==='ADMIN';
+   const admCrewWho=/^(admin|админ|администратор)$/i.test(drvName.trim())?'👑 Администратор':('👑 Админ · '+esc(drvName));
+   const who=m.adm?(isDeliv?'👩‍💼 Доставка':'👑 Админ'):(isAdmCrew?admCrewWho:(crewBadgeHtml(car)+'<span>'+esc(drvName)+'</span>'));
+   return '<div class="ach-m'+(m.adm?(isDeliv?' dlv':' adm'):(isAdmCrew?' adm':''))+'"><div class="ach-mt"><span>'+who+'</span>'+(isSubAdm()?'':'<button type="button" class="ach-del" data-ck="'+esc(m.k)+'" aria-label="Удалить">✕</button>')+'</div><div class="ach-bd"><span class="ach-tx">'+esc(m.txt||'')+'</span><span class="ach-tm">'+tm+'</span></div></div>';
   }).join('');
   box.scrollTop=box.scrollHeight;
  }

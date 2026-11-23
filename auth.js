@@ -272,11 +272,19 @@
     _chatList.forEach(m=>{
       const dl=dayLabel(m.t);if(dl&&dl!==ld){ld=dl;h+='<div class="ch-day">'+esc(dl)+'</div>'}
       const mine=m.uid&&m.uid===my,adm=!!m.adm,dlv=adm&&(m.role==="delivery"||m.name==="Доставка");
+      const msgCar=!adm?getMsgCar(m):"";
+      const isAdmCrew=!adm&&msgCar==="ADMIN";
       const rn=adm?(dlv?"Доставка":"Админ"):(m.name||"Водитель");
-      const cb=!adm?crewBadgeHtml(getMsgCar(m)):"";
-      const av=!mine?'<div class="ch-av" style="background:'+(adm?(dlv?"#0284c7":"#ca8a04"):avColor(rn))+'">'+esc(rn.trim().slice(0,2).toUpperCase())+'</div>':'';
-      const au=adm?('<div class="ch-au">'+(dlv?'👩‍💼 Доставка':'👑 Администратор')+'</div>'):(!mine?('<div class="ch-au">'+cb+'<span>'+esc(rn)+'</span></div>'):(cb?'<div class="ch-au">'+cb+'<span>'+esc(ls("USER_NAME")||rn)+'</span></div>':''));
-      h+='<div class="ch-row'+(mine?" mine":"")+'">'+av+'<div class="ch-msg'+(mine?" mine":"")+(adm?(dlv?" dlv":" adm"):"")+'">'+au+'<div class="ch-body"><span class="ch-txt">'+esc(m.txt||"")+'</span><span class="ch-tm">'+fmtTime(m.t)+'</span></div></div></div>';
+      const dispRn=mine?(ls("USER_NAME")||rn):rn;
+      const isAdmWord=/^(admin|админ|администратор)$/i.test(dispRn.trim());
+      const admCrewLabel=isAdmWord?"👑 Администратор":("👑 Админ · "+esc(dispRn));
+      const cb=(!adm&&!isAdmCrew)?crewBadgeHtml(msgCar):"";
+      const av=!mine?'<div class="ch-av" style="background:'+(adm?(dlv?"#0284c7":"#ca8a04"):(isAdmCrew?"#ca8a04":avColor(rn)))+'">'+(isAdmCrew?"👑":esc(rn.trim().slice(0,2).toUpperCase()))+'</div>':'';
+      const au=adm?('<div class="ch-au">'+(dlv?'👩‍💼 Доставка':'👑 Администратор')+'</div>')
+        :(isAdmCrew?('<div class="ch-au">'+admCrewLabel+'</div>')
+        :(!mine?('<div class="ch-au">'+cb+'<span>'+esc(rn)+'</span></div>'):(cb?'<div class="ch-au">'+cb+'<span>'+esc(dispRn)+'</span></div>':'')));
+      const msgCls='ch-msg'+(mine?" mine":"")+(adm?(dlv?" dlv":" adm"):(isAdmCrew?(mine?" adm-crew":" adm adm-crew"):""));
+      h+='<div class="ch-row'+(mine?" mine":"")+'">'+av+'<div class="'+msgCls+'">'+au+'<div class="ch-body"><span class="ch-txt">'+esc(m.txt||"")+'</span><span class="ch-tm">'+fmtTime(m.t)+'</span></div></div></div>';
     });
     box.innerHTML=h;box.scrollTop=box.scrollHeight;
   }
