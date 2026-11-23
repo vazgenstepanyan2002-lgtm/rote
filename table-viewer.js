@@ -269,8 +269,8 @@
         else if (rType === 'hi') styleId = (typeof val === 'number' && isFinite(val)) ? 13 : 12;
 
         if (typeof val === 'number' && isFinite(val)) {
-          if (rType === '' && !isHead && !isTot && !isShort) styleId = 14;
-          if (isTot && !isShort) styleId = 15;
+          if (rType === '' && !isHead && !isTot && (!isShort || colCount <= 4)) styleId = 14;
+          if (isTot && (!isShort || colCount <= 4)) styleId = 15;
           cells.push(`<c r="${ref}" s="${styleId}"><v>${val}</v></c>`);
         } else {
           const str = String(val);
@@ -437,7 +437,8 @@
       }
     }
 
-    const thHtml = headers.map((h, idx) => `<th class="${isCatalog ? (idx === 1 ? '' : 'r') : (mColSet.has(idx) && idx > 0 ? 'r' : (idx > 1 ? 'c' : (mergeFirstCol && idx === 0 ? 'c' : '')))}">${esc(h)}</th>`).join('');
+    const isNumCol = idx => idx > 0 && rows.some(r => r && typeof r[idx] === 'number');
+    const thHtml = headers.map((h, idx) => `<th class="${isCatalog ? (idx === 1 ? '' : 'r') : (mColSet.has(idx) && idx > 0 ? 'r' : (isNumCol(idx) && !isWide ? 'r' : (idx > 1 ? 'c' : (mergeFirstCol && idx === 0 ? 'c' : ''))))}">${esc(h)}</th>`).join('');
     const tbHtml = rows.map((r, rIdx) => {
       const rt = rowTypes[rIdx] || '';
       const trCls = rt === 'cat' ? ' class="cat-r"' : (rt === 'hi' ? ' class="hi-r"' : '');
@@ -458,13 +459,14 @@
           const bld = (rt === 'cat' || (rt === 'hi' && idx >= 2)) ? ' b' : '';
           return `<td class="${al}${bld}">${esc(val)}</td>`;
         }
-        return `<td class="${idx > 1 ? 'c' : ''}${idx === r.length - 1 ? ' b' : ''}">${esc(val)}</td>`;
+        const alCls = isNumCol(idx) && !isWide ? 'r' : (idx > 1 ? 'c' : '');
+        return `<td class="${alCls}${idx === r.length - 1 ? ' b' : ''}">${esc(val)}</td>`;
       }).join('');
       return `<tr${trCls}>${tds}</tr>`;
     }).join('');
     const tfHtml = totalRow ? `<tfoot><tr>${totalRow.map((c, idx) => {
       const val = typeof c === 'number' ? fm(c) : String(c == null ? '' : c);
-      const cls = isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'c' : 'r')) : (mColSet.has(idx) && idx > 0 ? 'r' : (idx > 1 ? 'c' : ''));
+      const cls = isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'c' : 'r')) : (mColSet.has(idx) && idx > 0 ? 'r' : (isNumCol(idx) && !isWide ? 'r' : (idx > 1 ? 'c' : '')));
       return `<td class="${cls}">${esc(val)}</td>`;
     }).join('')}</tr></tfoot>` : '';
     const pLang = (() => { try { const l = localStorage.getItem('EXCEL_LANG'); return (l === 'ru' || l === 'hy' || l === 'en') ? l : ((window.getLang && window.getLang()) || 'ru'); } catch (e) { return 'ru'; } })();
@@ -679,8 +681,9 @@
 
       const langSegBtn = (k, lbl) => `<button type="button" data-tvl="${k}" style="width:auto!important;margin:0!important;height:26px!important;padding:0 8px!important;border-radius:7px!important;font-size:11px!important;font-weight:800!important;cursor:pointer;border:1px solid ${excelLang === k ? 'rgba(250,204,21,.55)' : 'transparent'}!important;background:${excelLang === k ? 'rgba(250,204,21,.22)' : 'transparent'}!important;color:${excelLang === k ? '#fde047' : '#94a3b8'}!important;box-shadow:none!important">${lbl}</button>`;
 
-      const renderThead = (hdrs) => `<tr style="background:#131c2e;position:sticky;top:0;z-index:2;box-shadow:0 1px 0 rgba(148,163,184,.28)">${hdrs.map((h, idx) => `<th style="padding:10px 14px;font-weight:700;color:#94a3b8;border:1px solid rgba(148,163,184,.22);white-space:nowrap;${isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'text-align:center;' : 'text-align:right;')) : (mergeFirstCol && idx === 0 ? 'text-align:center;' : (idx > 1 ? 'text-align:right;' : ''))}">${esc(h)}</th>`).join('')}</tr>`;
-      const renderTfoot = (tot) => tot ? `<tr style="background:#131c2e;position:sticky;bottom:0;z-index:2;border-top:2px solid rgba(250,204,21,.45);font-weight:800;color:#fde047">${tot.map((c, idx) => `<td style="padding:10px 14px;white-space:nowrap;border:1px solid rgba(148,163,184,.22);${isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'text-align:center;' : 'text-align:right;')) : (idx > 1 ? 'text-align:right;' : '')}">${esc(typeof c === 'number' ? fm(c) : c)}</td>`).join('')}</tr>` : '';
+      const isNumCol = idx => idx > 0 && rows.some(r => r && typeof r[idx] === 'number');
+      const renderThead = (hdrs) => `<tr style="background:#131c2e;position:sticky;top:0;z-index:2;box-shadow:0 1px 0 rgba(148,163,184,.28)">${hdrs.map((h, idx) => `<th style="padding:10px 14px;font-weight:700;color:#94a3b8;border:1px solid rgba(148,163,184,.22);white-space:nowrap;${isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'text-align:center;' : 'text-align:right;')) : (mergeFirstCol && idx === 0 ? 'text-align:center;' : ((idx > 1 || isNumCol(idx)) ? 'text-align:right;' : ''))}">${esc(h)}</th>`).join('')}</tr>`;
+      const renderTfoot = (tot) => tot ? `<tr style="background:#131c2e;position:sticky;bottom:0;z-index:2;border-top:2px solid rgba(250,204,21,.45);font-weight:800;color:#fde047">${tot.map((c, idx) => `<td style="padding:10px 14px;white-space:nowrap;border:1px solid rgba(148,163,184,.22);${isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'text-align:center;' : 'text-align:right;')) : ((idx > 1 || isNumCol(idx)) ? 'text-align:right;' : '')}">${esc(typeof c === 'number' ? fm(c) : c)}</td>`).join('')}</tr>` : '';
 
       m.innerHTML = `
         <div class="tv-box" style="max-width:min(94vw,1180px);width:100%;height:min(88dvh,760px);display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:18px;background:#0d131f;border:1px solid rgba(255,255,255,.16);box-shadow:0 18px 45px rgba(0,0,0,.75);animation:cmIn .16s ease-out">
@@ -885,7 +888,7 @@
                 return `<td style="padding:7px 12px;white-space:nowrap;border:1px solid rgba(148,163,184,.2);${al}${col}">${esc(txt)}</td>`;
               }
               const isNum = typeof c === 'number' || (!isNaN(+c) && idx > 1);
-              return `<td style="padding:9px 14px;white-space:nowrap;color:#cbd5e1;border:1px solid rgba(148,163,184,.2);${idx > 1 ? 'text-align:right;' : ''}${idx === r.length - 1 ? 'font-weight:700;color:#f8fafc;' : ''}">${esc(isNum && typeof c === 'number' ? fm(c) : c)}</td>`;
+              return `<td style="padding:9px 14px;white-space:nowrap;color:#cbd5e1;border:1px solid rgba(148,163,184,.2);${(idx > 1 || typeof c === 'number') ? 'text-align:right;' : ''}${idx === r.length - 1 ? 'font-weight:800;color:#fde047;' : (typeof c === 'number' ? 'font-weight:700;color:#f8fafc;' : '')}">${esc(isNum && typeof c === 'number' ? fm(c) : c)}</td>`;
             }).join('')}
           </tr>
         `;

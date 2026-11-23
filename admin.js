@@ -176,16 +176,12 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
    if(!cd)return;
    if(isSubAdm()&&cd==='ADMIN')return;
    const q=+it.qty||0,s=+it.sum||0;
-   const appMems=devs()
-    .filter(d=>String(d.u.car||'').toUpperCase()===cd)
-    .map(d=>LABELS[d.id]||profName(d)||devName(d.u.ua));
-   const mems=appMems.length?appMems:(Array.isArray(it.crew)&&it.crew.length?it.crew:['—']);
    calcQty+=q;calcSum+=s;
-   mems.forEach(nm0=>data.push([cd,nm0,q,s]));
+   data.push([cd,q,s]);
   });
   if(!data.length){toast('Нет данных для выгрузки',true);return}
-  const header=['Экипаж','Сотрудник','Количество (шт)','Сумма (֏)'];
-  const totalRow=['ИТОГО','',calcQty,calcSum];
+  const header=['Экипаж','Количество (шт)','Сумма (֏)'];
+  const totalRow=['ИТОГО',calcQty,calcSum];
   const fn=('EuroBaza_'+title.replace(/[\s\/:*?"<>|]+/g,'_')+'.csv');
   if(window.TableViewer){
    TableViewer.open({
@@ -194,9 +190,7 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
     headers:header,
     rows:data,
     totalRow:totalRow,
-    mergeFirstCol:true,
-    mergeCols:[0,2,3],
-    nameCol:1
+    mergeFirstCol:true
    });
    return;
   }
