@@ -296,6 +296,7 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
  const ADM_CDNS=[{css:"https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css",js:"https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"},{css:"https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css",js:"https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"}];
  const ADM_SAT_URL="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
  let _lfProm=null,_map=null,_markers={},_baseMk=null,_didFit=false,MAP_ONLY_ONLINE=true,_applyAdmSat=null;
+ let _subMk=null,_subFit=null,_subRouteTok=0,_subCurPt=null,_subHist=[];
  let ADM_SAT=(()=>{try{return localStorage.getItem("ADM_MAP_SAT")!=="0"}catch(e){return true}})();
  function ensureLeaflet(){
   if(window.maplibregl&&maplibregl.Map)return Promise.resolve();
@@ -303,7 +304,7 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
   _lfProm=new Promise((res,rej)=>{let idx=0;const go=()=>{const s0=ADM_CDNS[idx],c=document.createElement("link");c.rel="stylesheet";c.href=s0.css;document.head.appendChild(c);const s=document.createElement("script");s.src=s0.js;s.onload=()=>{if(window.maplibregl&&maplibregl.Map)res();else fail()};const fail=()=>{s.remove();c.remove();idx++;if(idx<ADM_CDNS.length)go();else{_lfProm=null;rej(new Error("Ошибка загрузки MapLibre"))}};s.onerror=fail;document.head.appendChild(s)};go()});
   return _lfProm;
  }
- function destroyMap(){if(_map){try{_map.remove()}catch(e){}_map=null}_markers={};_baseMk=null;_didFit=false;_applyAdmSat=null}
+ function destroyMap(){if(_map){try{_map.remove()}catch(e){}_map=null}_markers={};_baseMk=null;_subMk=null;_subFit=null;_subRouteTok++;_didFit=false;_applyAdmSat=null}
  function fitAllDrivers(){
   if(!_map||!window.maplibregl)return;
   const now=Date.now(),baseLL=[BASE_PT.lon,BASE_PT.lat],pts=[baseLL];
@@ -333,7 +334,265 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
   Object.keys(_markers).forEach(id=>{if(!seen[id]){_markers[id].remove();delete _markers[id]}});
   if(!_didFit){_didFit=true;fitAllDrivers()}
  }
+ async function drawSubMap(){
+  const cleanLbl=t=>String(t||'').replace(/[\s]*[\u{1F50E}\u{1F4CD}]\s*$/u,'').trim();
+  const fmtMin=sec=>{
+   const m=Math.max(1,Math.round(sec/60));
+   if(m<60)return m+' мин';
+   const h=Math.floor(m/60),r=m%60;
+   return h+' ч'+(r?' '+r+' мин':'');
+  };
+  const renderSubHist=()=>{
+   const el=g('subMapHist');if(!el)return;
+   if(!_subHist.length){el.innerHTML='';return}
+   el.innerHTML='<div class="sec">Недавние проверки</div>'+_subHist.map((it,idx)=>
+    '<div class="subm-hist-it" data-act="submap-hist" data-idx="'+idx+'"><div style="min-width:0;flex:1"><div style="font-size:13px;font-weight:700;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(it.name)+'</div>'
+    +(it.km?'<div style="font-size:11.5px;color:#94a3b8;margin-top:2px">'+esc(it.km)+' · '+esc(it.tm)+'</div>':'')
+    +'</div><span class="subm-bdg '+(it.inK?'eve':'day')+'">'+(it.inK?'🌙 Вечер':'☀️ День')+'</span></div>'
+   ).join('');
+  };
+  const renderSubRes=(pt,routeInfo)=>{
+   const el=g('subMapRes');if(!el)return;
+   if(!pt){
+    el.className='subm-res';
+    el.innerHTML='<div class="subm-sub" style="margin:0">Введите адрес выше или нажмите на точку на карте — красная зона показывает Кентрон (запрет днём до 21:00)</div>';
+    return;
+   }
+   el.className='subm-res '+(pt.inK?'eve':'day');
+   let h='<div class="subm-verdict">'+(pt.inK?'🌙 Только вечером (после 21:00)':'☀️ Можно ставить днём')+'</div>'
+    +'<div class="subm-sub">'+(pt.inK?'Адрес в зоне Кентрон — въезд грузовым до 21:00 запрещён':'Адрес вне зоны Кентрон — ограничений нет')+'</div>'
+    +'<div class="subm-adr" data-no-i18n="1">📍 '+esc(pt.name)+'</div>';
+   if(pt.exact===false){
+    h+='<div class="subm-warn">⚠️ Неточный адрес: найден только район или город</div>';
+   }
+   if(routeInfo){
+    h+='<div class="subm-pills">'
+     +(routeInfo.tm?'<span class="subm-pill tm">Время: <b>'+esc(routeInfo.tm)+'</b></span>':'')
+     +(routeInfo.km?'<span class="subm-pill km">Путь: <b>'+esc(routeInfo.km)+'</b></span>':'')
+     +'</div>';
+   }
+   el.innerHTML=h;
+  };
+  const showSubPoint=(pt,saveHist)=>{
+   if(!_map||!window.maplibregl)return;
+   const inK=typeof inKentron==='function'?inKentron(pt.lat,pt.lon):false;
+   const item={name:cleanLbl(pt.name)||(pt.lat.toFixed(5)+', '+pt.lon.toFixed(5)),lat:pt.lat,lon:pt.lon,exact:pt.exact!==false,inK:inK,km:'',tm:''};
+   _subCurPt=item;
+   if(_subMk){try{_subMk.remove()}catch(e){}_subMk=null}
+   const mel=document.createElement('div');
+   mel.className='subm-mk '+(item.exact?(inK?'eve':'day'):'bad');
+   mel.textContent=inK?'🌙':'☀️';
+   const popHtml='<div class="pop-t">'+esc(item.name)+'</div><div class="pop-s">'+(inK?'🌙 Только вечером (после 21:00)':'☀️ Можно ставить днём')+'</div>';
+   _subMk=new maplibregl.Marker({element:mel,anchor:'center'}).setLngLat([item.lon,item.lat]).setPopup(new maplibregl.Popup({offset:18}).setHTML(popHtml)).addTo(_map);
+
+   const baseLL=[BASE_PT.lon,BASE_PT.lat],ptLL=[item.lon,item.lat];
+   const straight=[baseLL,ptLL];
+   if(_map.getSource('sub-route-src')){
+    _map.getSource('sub-route-src').setData({type:'Feature',geometry:{type:'LineString',coordinates:straight}});
+    if(_map.getLayer('sub-route-dash'))_map.setLayoutProperty('sub-route-dash','visibility','visible');
+    if(_map.getLayer('sub-route-solid'))_map.setLayoutProperty('sub-route-solid','visibility','none');
+   }
+   _subFit=()=>{
+    if(!_map)return;
+    const b=new maplibregl.LngLatBounds();b.extend(baseLL);b.extend(ptLL);
+    _map.fitBounds(b,{padding:48,maxZoom:15,duration:350});
+   };
+   _subFit();
+
+   const approxKm=Math.max(1,Math.round(Math.hypot((item.lat-BASE_PT.lat)*111,(item.lon-BASE_PT.lon)*85)*1.25));
+   item.km='~'+approxKm+' км';
+   renderSubRes(item,{km:item.km,tm:'…'});
+   if(saveHist){
+    const idx=_subHist.findIndex(x=>x.name===item.name);
+    if(idx>=0)_subHist.splice(idx,1);
+    _subHist.unshift(item);
+    if(_subHist.length>6)_subHist.pop();
+    renderSubHist();
+   }
+
+   const tok=++_subRouteTok;
+   const coords=baseLL.join(',')+';'+ptLL.join(',');
+   const loadRoad=u=>fetch(u+coords+'?overview=full&geometries=geojson').then(r=>r.json()).then(j=>{
+    const r0=j.routes&&j.routes[0];
+    if(!r0||!r0.geometry||!r0.geometry.coordinates||!r0.geometry.coordinates.length)throw 0;
+    return r0;
+   });
+   loadRoad('https://router.project-osrm.org/route/v1/driving/').catch(()=>loadRoad('https://routing.openstreetmap.de/routed-car/route/v1/driving/')).then(r0=>{
+    if(tok!==_subRouteTok||!_map||TAB!=='map')return;
+    if(_map.getSource('sub-route-src')){
+     _map.getSource('sub-route-src').setData({type:'Feature',geometry:{type:'LineString',coordinates:r0.geometry.coordinates}});
+     if(_map.getLayer('sub-route-dash'))_map.setLayoutProperty('sub-route-dash','visibility','none');
+     if(_map.getLayer('sub-route-solid'))_map.setLayoutProperty('sub-route-solid','visibility','visible');
+    }
+    item.km=Math.max(1,Math.round((r0.distance||0)/1000))+' км';
+    item.tm=fmtMin(r0.duration||0);
+    renderSubRes(item,{km:item.km,tm:item.tm});
+    renderSubHist();
+   }).catch(()=>{
+    if(tok!==_subRouteTok||TAB!=='map')return;
+    renderSubRes(item,{km:item.km,tm:''});
+   });
+  };
+  window._subShowPt=showSubPoint;
+
+  if(!g('admMap')){
+   g('view').innerHTML=''
+    +'<div class="subm-srch">'
+    +'<div class="subm-inpw"><input id="subMapInp" type="search" autocomplete="off" placeholder="Введите адрес для проверки..."><button type="button" id="subMapClr" class="subm-clr" hidden>✕</button></div>'
+    +'<button type="button" id="subMapGo" class="subm-go">Найти</button>'
+    +'</div>'
+    +'<div id="subMapSug" class="subm-sug"></div>'
+    +'<div id="subMapRes" class="subm-res"></div>'
+    +'<div class="map-wrap"><div id="admMap"></div><div class="map-bar">'
+    +'<button type="button" id="admSatBtn" class="map-btn" data-act="mapsat"></button>'
+    +'<button type="button" class="map-btn" data-act="submap-north">🧭 Север</button>'
+    +'<button type="button" class="map-btn" data-act="submap-fit">⤢ Весь маршрут</button>'
+    +'</div></div>'
+    +'<div id="subMapHist"></div>';
+
+   renderSubRes(_subCurPt,_subCurPt?{km:_subCurPt.km,tm:_subCurPt.tm}:null);
+   renderSubHist();
+
+   const inp=g('subMapInp'),clr=g('subMapClr'),goBtn=g('subMapGo'),sugBox=g('subMapSug');
+   let _st=null,_picked=null;
+   const showSugs=list=>{
+    if(!sugBox)return;
+    sugBox.innerHTML='';
+    (list||[]).forEach(it=>{
+     const b=document.createElement('button');
+     b.type='button';
+     b.className='subm-sug-it';
+     b.setAttribute('data-no-i18n','1');
+     b.textContent=it.name;
+     b.onclick=async()=>{
+      _picked=it;
+      if(inp)inp.value=cleanLbl(it.name);
+      if(clr)clr.hidden=false;
+      showSugs([]);
+      await resolveAndShow(it);
+     };
+     sugBox.appendChild(b);
+    });
+   };
+   const resolveAndShow=async it=>{
+    let lat=it.lat,lon=it.lon,name=cleanLbl(it.name),exact=it.exact!==false;
+    if(lat==null||lon==null){
+     const q=cleanLbl(it.text||it.name);
+     const hit=typeof ADR_CACHE!=='undefined'&&ADR_CACHE.find(x=>x.name===q&&x.lat!=null);
+     if(hit){lat=hit.lat;lon=hit.lon;name=hit.name;exact=true}
+     else if(typeof yan==='function'){
+      const resEl=g('subMapRes');
+      if(resEl){resEl.className='subm-res';resEl.innerHTML='<div class="subm-sub" style="margin:0">Ищу адрес...</div>'}
+      const l=await yan(q);
+      if(!l.length){toast('Адрес не найден',true);renderSubRes(_subCurPt,_subCurPt?{km:_subCurPt.km,tm:_subCurPt.tm}:null);return}
+      lat=l[0].lat;lon=l[0].lon;name=cleanLbl(l[0].name);exact=l[0].exact;
+     }
+    }
+    if(lat==null||lon==null){toast('Адрес не найден',true);return}
+    if(typeof saveAdrCache==='function')saveAdrCache({name:name,lat:lat,lon:lon});
+    showSubPoint({name:name,lat:lat,lon:lon,exact:exact},true);
+   };
+   const runSearch=async()=>{
+    const q=(inp&&inp.value||'').trim();
+    if(!q)return;
+    if(_picked&&cleanLbl(_picked.name)===q){await resolveAndShow(_picked);return}
+    showSugs([]);
+    if(typeof yan!=='function')return;
+    const resEl=g('subMapRes');
+    if(resEl){resEl.className='subm-res';resEl.innerHTML='<div class="subm-sub" style="margin:0">Ищу адрес...</div>'}
+    const l=await yan(q);
+    if(!l.length){toast('Адрес не найден',true);renderSubRes(_subCurPt,_subCurPt?{km:_subCurPt.km,tm:_subCurPt.tm}:null);return}
+    if(l.length===1&&l[0].exact){await resolveAndShow(l[0]);return}
+    showSugs(l);
+    renderSubRes(_subCurPt,_subCurPt?{km:_subCurPt.km,tm:_subCurPt.tm}:null);
+   };
+   if(inp){
+    inp.addEventListener('input',()=>{
+     _picked=null;
+     const q=inp.value.trim();
+     if(clr)clr.hidden=!q;
+     clearTimeout(_st);
+     if(q.length<2){showSugs([]);return}
+     _st=setTimeout(async()=>{
+      if(typeof sugList!=='function')return;
+      const l=await sugList(q);
+      if(inp.value.trim()===q)showSugs(l);
+     },350);
+    });
+    inp.addEventListener('keydown',ev=>{if(ev.key==='Enter'){ev.preventDefault();runSearch()}});
+   }
+   if(goBtn)goBtn.onclick=runSearch;
+   if(clr)clr.onclick=()=>{if(inp){inp.value='';inp.focus()}clr.hidden=true;_picked=null;showSugs([])};
+
+   try{
+    await ensureLeaflet();if(TAB!=='map'||!g('admMap'))return;
+    const kentronCenter=[44.515,40.181];
+    const baseLL=[BASE_PT.lon,BASE_PT.lat];
+    _map=new maplibregl.Map({container:'admMap',style:'https://tiles.openfreemap.org/styles/dark',center:kentronCenter,zoom:12.2,attributionControl:false});
+    _map.addControl(new maplibregl.NavigationControl({showCompass:true,showZoom:true}),'top-left');
+    const bel=document.createElement('div');bel.className='drv-pin';bel.innerHTML='<div class="drv-b base"><i></i><span>База EuroBaza</span></div>';
+    _baseMk=new maplibregl.Marker({element:bel,anchor:'center'}).setLngLat(baseLL).setPopup(new maplibregl.Popup({offset:18}).setHTML('<div class="pop-t">🏁 '+esc(BASE_PT.name)+'</div>')).addTo(_map);
+
+    let sr=false,fc=0,om=[],hs=false;
+    const own=new Set(['adm-sat-layer','kentron-fill','kentron-line','sub-route-glow','sub-route-dash','sub-route-solid']);
+    const boostAdmLabels=sat=>{
+     if(!_map)return;
+     const tc=sat?'#ffffff':'#f1f5f9',hc=sat?'#000000':'#0f172a',hw=sat?2:1.2;
+     const hyExpr=['coalesce',['get','name:hy'],['get','name:arm'],['get','name:nonlatin'],['get','name'],['get','name_en']];
+     om.forEach(l=>{
+      if(l.type!=='symbol'||!_map.getLayer(l.id))return;
+      try{
+       if(_map.getLayoutProperty(l.id,'text-field')!==undefined)_map.setLayoutProperty(l.id,'text-field',hyExpr);
+       if(_map.getPaintProperty(l.id,'text-color')!==undefined){
+        _map.setPaintProperty(l.id,'text-color',tc);
+        _map.setPaintProperty(l.id,'text-halo-color',hc);
+        _map.setPaintProperty(l.id,'text-halo-width',hw);
+        _map.setPaintProperty(l.id,'text-halo-blur',0.5);
+       }
+      }catch(e){}
+     });
+    };
+    _applyAdmSat=sat=>{
+     if(!_map||!_map.getLayer('adm-sat-layer'))return;
+     _map.setLayoutProperty('adm-sat-layer','visibility',sat?'visible':'none');
+     om.forEach(l=>{if(!_map.getLayer(l.id))return;let v=l.vis;if(sat)v=(l.type==='symbol'||(l.type==='line'&&/admin|boundary/i.test(l.id)))?l.vis:'none';try{_map.setLayoutProperty(l.id,'visibility',v)}catch(e){}});
+     boostAdmLabels(sat);
+    };
+    _map.on('style.load',()=>{
+     if(!_map)return;sr=true;const st=_map.getStyle(),ls=(st&&st.layers)?st.layers.slice():[];
+     om=ls.filter(l=>!own.has(l.id)).map(l=>({id:l.id,type:l.type,vis:(l.layout&&l.layout.visibility)||'visible'}));
+     const sym=ls.find(l=>l.type==='symbol'),fid=sym?sym.id:undefined;hs=!!fid;
+     if(!_map.getSource('adm-sat-src')){_map.addSource('adm-sat-src',{type:'raster',tiles:[ADM_SAT_URL],tileSize:256,maxzoom:18});_map.addLayer({id:'adm-sat-layer',type:'raster',source:'adm-sat-src',layout:{visibility:ADM_SAT?'visible':'none'}},fid)}
+     if(typeof KENTRON_POLY!=='undefined'&&!_map.getSource('kentron-src')){
+      const ring=KENTRON_POLY.map(p=>[p[1],p[0]]);ring.push(ring[0]);
+      _map.addSource('kentron-src',{type:'geojson',data:{type:'Feature',geometry:{type:'Polygon',coordinates:[ring]}}});
+      _map.addLayer({id:'kentron-fill',type:'fill',source:'kentron-src',paint:{'fill-color':'#ef4444','fill-opacity':0.2}},fid);
+      _map.addLayer({id:'kentron-line',type:'line',source:'kentron-src',paint:{'line-color':'#ef4444','line-width':2.4,'line-dasharray':[3,3]}},fid);
+     }
+     if(!_map.getSource('sub-route-src')){
+      _map.addSource('sub-route-src',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:[]}}});
+      _map.addLayer({id:'sub-route-glow',type:'line',source:'sub-route-src',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#0284c7','line-width':10,'line-opacity':0.42}},fid);
+      _map.addLayer({id:'sub-route-dash',type:'line',source:'sub-route-src',layout:{'line-cap':'round','line-join':'round',visibility:'none'},paint:{'line-color':'#38bdf8','line-width':4.5,'line-opacity':0.98,'line-dasharray':[2,2]}},fid);
+      _map.addLayer({id:'sub-route-solid',type:'line',source:'sub-route-src',layout:{'line-cap':'round','line-join':'round',visibility:'none'},paint:{'line-color':'#38bdf8','line-width':4.5,'line-opacity':1}},fid);
+     }
+     _applyAdmSat(hs?ADM_SAT:true);
+     if(_subCurPt)showSubPoint(_subCurPt,false);
+    });
+    _map.on('click',ev=>{
+     if(!ev||!ev.lngLat)return;
+     if(ev.originalEvent&&ev.originalEvent.target&&ev.originalEvent.target.closest('.maplibregl-marker,.maplibregl-popup'))return;
+     const lat=ev.lngLat.lat,lon=ev.lngLat.lng;
+     showSubPoint({name:lat.toFixed(5)+', '+lon.toFixed(5),lat:lat,lon:lon,exact:true},true);
+    });
+    _map.on('error',ev=>{if(ev&&ev.sourceId==='adm-sat-src')return;if(!sr&&_map){fc++;try{if(fc===1)_map.setStyle('https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json');else if(fc===2)_map.setStyle({version:8,sources:{'adm-sat-src':{type:'raster',tiles:[ADM_SAT_URL],tileSize:256,maxzoom:18}},layers:[{id:'adm-sat-layer',type:'raster',source:'adm-sat-src'}]})}catch(e){}}});
+    setTimeout(()=>{if(_map)_map.resize()},80);setTimeout(()=>{if(_map)_map.resize()},350);
+   }catch(e){if(g('subMapRes'))g('subMapRes').innerHTML='<div class="box mut">Ошибка карты: '+esc((e&&e.message)||e)+'</div>';return}
+  }
+  const sBtn=g('admSatBtn');if(sBtn){sBtn.classList.toggle('on',ADM_SAT);sBtn.textContent=ADM_SAT?'🛰️ Спутник':'🗺️ Схема'}
+ }
+
  async function drawMap(){
+  if(isSubAdm()){return drawSubMap()}
   const Llist=devs(),now=Date.now();
   const withGeo=Llist.filter(d=>typeof d.u.lat==="number"&&typeof d.u.lon==="number"&&(!MAP_ONLY_ONLINE||(now-(d.u.t||0)<TTL)));
   if(!g("admMap")){
@@ -1166,12 +1425,13 @@ function drawTotals(){
   const mapTab=document.querySelector('.tabs button[data-tab="map"]');
   const attTab=document.querySelector('.tabs button[data-tab="att"]');
   const ocrTab=document.querySelector('.tabs button[data-tab="ocr"]');
+  const verTab=document.querySelector('.tabs button[data-tab="ver"]');
   const admAttBtn=g('admAttBtn');
-  if(mapTab)mapTab.hidden=sub;
+  if(mapTab)mapTab.hidden=false;
   if(attTab)attTab.hidden=!sub;
+  if(verTab)verTab.hidden=sub;
   if(admAttBtn){admAttBtn.hidden=sub;admAttBtn.classList.toggle('adm-att-on',TAB==='att');}
   if(ocrTab)ocrTab.hidden=false;
-  if(sub&&TAB==='map')TAB='online';
   if(sub&&SEL==='ADMIN')SEL='all';
   document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===TAB));
   const st=window.scrollY;
@@ -1550,6 +1810,9 @@ function openSelectModal(){
   else if(a==='csv-single-cur'){e.stopPropagation();const car=b.dataset.car||SEL,c=parseCar(car);exportCarDetailCsv(car,'Текущий_месяц',c.rows,c.qty,c.sum)}
   else if(a==='mapfilter'){MAP_ONLY_ONLINE=!MAP_ONLY_ONLINE;_didFit=false;drawMap()}
   else if(a==='mapsat'){ADM_SAT=!ADM_SAT;try{localStorage.setItem('ADM_MAP_SAT',ADM_SAT?'1':'0')}catch(e){}if(_applyAdmSat)_applyAdmSat(ADM_SAT);const sb=g('admSatBtn');if(sb){sb.classList.toggle('on',ADM_SAT);sb.textContent=ADM_SAT?'🛰️ Спутник':'🗺️ Схема'}}
+  else if(a==='submap-north'){if(_map)_map.easeTo({bearing:0,pitch:0,duration:300})}
+  else if(a==='submap-fit'){if(_subFit)_subFit();else if(_map)_map.easeTo({center:[44.515,40.181],zoom:12.2,duration:350})}
+  else if(a==='submap-hist'){const it=_subHist[+b.dataset.idx];if(it&&typeof window._subShowPt==='function')window._subShowPt(it,false)}
   else if(a==='focus'){const mk=_markers[b.dataset.id];if(mk&&_map){_map.easeTo({center:mk.getLngLat(),zoom:16,duration:400});const p=mk.getPopup();if(p&&!p.isOpen())mk.togglePopup()}}
   else if(a==='att-prev'){ATT_YM=attShiftYm(ATT_YM,-1);ATT_SCROLLED_YM='';drawAtt()}
   else if(a==='att-next'){ATT_YM=attShiftYm(ATT_YM,1);ATT_SCROLLED_YM='';drawAtt()}
@@ -1960,6 +2223,8 @@ function openSelectModal(){
   let items='';
   if(!sub){
    items+='<div class="sel-it'+(TAB==='att'?' on':'')+'" data-op="att"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(168,85,247,.16);border-color:rgba(192,132,252,.4);color:#d8b4fe">📅</span><div><div class="sel-it-nm">Табель пропусков</div><div class="sel-it-sb">Учёт выходов и отсутствий по экипажам</div></div></div>'+(TAB==='att'?'<div class="sel-it-r"><span class="sel-chk">✓</span></div>':'')+'</div>';
+  }else{
+   items+='<div class="sel-it'+(TAB==='ver'?' on':'')+'" data-op="ver"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(168,85,247,.16);border-color:rgba(192,132,252,.4);color:#d8b4fe">🔄</span><div><div class="sel-it-nm">Версия приложения</div><div class="sel-it-sb">Обновление и версии на устройствах</div></div></div>'+(TAB==='ver'?'<div class="sel-it-r"><span class="sel-chk">✓</span></div>':'')+'</div>';
   }
   items+='<div class="sel-it" data-op="lang"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(16,185,129,.16);border-color:rgba(52,211,153,.4);color:#6ee7b7">🌐</span><div><div class="sel-it-nm">Язык интерфейса</div><div class="sel-it-sb">'+lName+'</div></div></div></div>'
    +'<div class="sel-it" data-op="diag"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(56,189,248,.14);border-color:rgba(56,189,248,.38);color:#7dd3fc">🩺</span><div><div class="sel-it-nm">Диагностика и API</div><div class="sel-it-sb">Статус сервисов, кэша и ошибок</div></div></div></div>'
@@ -1974,6 +2239,7 @@ function openSelectModal(){
    const it=e.target.closest('.sel-it');if(!it)return;
    const op=it.dataset.op;close();
    if(op==='att'){TAB='att';draw()}
+   else if(op==='ver'){TAB='ver';draw()}
    else if(op==='lang'){openAdmLangModal()}
    else if(op==='diag'){if(typeof window._openAdmDiag==='function')window._openAdmDiag()}
    else if(op==='pw'){openChangePw()}

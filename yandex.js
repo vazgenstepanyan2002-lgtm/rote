@@ -106,14 +106,15 @@ window.add=async function(){
 };
 
 let _liveSearch;
-document.getElementById("a").addEventListener("input", function(){
+const _inpA = document.getElementById("a");
+if (_inpA) _inpA.addEventListener("input", function(){
  _pick=null;
  clearTimeout(_liveSearch);
  const q = this.value.trim();
  if(q.length < 2){ showList(new Array()); return; }
  _liveSearch = setTimeout(async function(){
   const l = await sugList(q);
-  if(document.getElementById("a").value.trim() === q){
+  if(_inpA.value.trim() === q){
    showList(l, l.length ? "Выберите нужный вариант · источник: "+(window._sugSrc||"?")+":" : "");
   }
  }, 400);
