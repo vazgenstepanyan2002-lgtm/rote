@@ -1,0 +1,30 @@
+{
+  "hosting": {
+    "site": "eurobaza",
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      ".firebaserc",
+      "**/.*",
+      "**/node_modules/**",
+      "EuroBaza для ИИ/**",
+      "*.md",
+      "package.json",
+      "package-lock.json",
+      "bump-version.js",
+      "check.js",
+      "update-context.js"
+    ],
+    "headers": [
+      {
+        "source": "/@(sw.js|version.json|index.html|admin.html)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      }
+    ]
+  }
+}
