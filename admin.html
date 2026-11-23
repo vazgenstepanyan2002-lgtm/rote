@@ -489,6 +489,24 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
 .adm-hd-btn.chat{background:rgba(16,185,129,.16);border-color:rgba(52,211,153,.4);color:#6ee7b7}
 .adm-hd-bdg{position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:1px 5px;border-radius:99px;line-height:1.2;box-shadow:0 2px 6px rgba(0,0,0,.5)}
 .adm-hd-bdg[hidden]{display:none!important}
+
+/* DESKTOP-ADAPTIVE */
+@media (min-width: 768px){
+  body:has(#panel:not([hidden])){max-width:980px;padding:20px 28px 44px}
+  #admMap{height:60vh;min-height:440px}
+  .ach-box{max-width:560px}
+  .att-dth{min-width:30px;padding:6px 1px!important;font-size:11.5px}
+  .att-chk{width:26px;height:26px;font-size:14px}
+  .att-nm-col{min-width:132px;max-width:168px}
+}
+@media (min-width: 920px){
+  #onlRows{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:start}
+  #onlRows .row{margin-bottom:0}
+  #onlRows .box{grid-column:1/-1}
+}
+@media (min-width: 1180px){
+  body:has(#panel:not([hidden])){max-width:1300px}
+}
 </style></head><body>
 <a class="back" href="./" onclick="event.preventDefault();location.replace('./')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>В приложение</a>
 <div id="login" class="auth-wrap"><div class="card">
@@ -537,13 +555,13 @@ body:has(.ov.show),html:has(.ov.show){overflow:hidden!important;overscroll-behav
   </div>
  </div>
 </div>
-<script src="storage.js?v=20261123121917"></script>
-<script src="geo.js?v=20261123121917"></script>
-<script src="zones.js?v=20261123121917"></script>
-<script src="bonus-engine.js?v=20261123121917"></script>
-<script src="table-viewer.js?v=20261123121917"></script>
-<script src="yandex.js?v=20261123121917"></script>
-<script src="admin.js?v=20261123121917"></script>
+<script src="storage.js?v=20261123122617"></script>
+<script src="geo.js?v=20261123122617"></script>
+<script src="zones.js?v=20261123122617"></script>
+<script src="bonus-engine.js?v=20261123122617"></script>
+<script src="table-viewer.js?v=20261123122617"></script>
+<script src="yandex.js?v=20261123122617"></script>
+<script src="admin.js?v=20261123122617"></script>
 <script>
 ['lgEm','lgPw'].forEach(id=>{
  const el=document.getElementById(id);
