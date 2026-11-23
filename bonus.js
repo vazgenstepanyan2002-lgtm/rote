@@ -85,6 +85,7 @@
   '1,7 ից ավել':['Более 1,7','Over 1.7'],
   'Էքսկլ.':['Эксклюзив','Exclusive'],
   '2 դուռ':['2 двери','2 doors'],
+  '3 դուռ':['3 двери','3 doors'],
   '3 դուռ առանց կոմոդ':['3 двери без комода','3 doors without dresser'],
   '3 դուռ կոմոդով':['3 двери с комодом','3 doors with dresser'],
   '4 դուռ':['4 двери','4 doors'],
@@ -169,11 +170,22 @@
  window._setDriverCar = bindCarPool;
 
 
- // Берём только готовый список; из сохранённого переносим количества и «свёрнуто/развёрнуто»
+ // Берём только готовый список; состояние свёрнутости храним отдельно в BON_COL (по умолчанию всё свёрнуто)
+ function loadColMap(){
+  try{return JSON.parse(localStorage.getItem('BON_COL')||'{}')||{}}catch(e){return{}}
+ }
+ function saveColMap(){
+  try{
+   const m={};
+   B.forEach(c=>{m[c.pk]=!!c.col});
+   localStorage.setItem('BON_COL',JSON.stringify(m));
+  }catch(e){}
+ }
  function sync(){
+  const colMap=loadColMap();
   B=PRE.map(p=>{
    const oc=B.find(c=>c.pk===p.pk)||{};
-   return {pk:p.pk,name:p.name,col:oc.col===undefined?true:!!oc.col,subs:p.subs.map(s=>{
+   return {pk:p.pk,name:p.name,col:colMap[p.pk]===undefined?true:!!colMap[p.pk],subs:p.subs.map(s=>{
     const os=(oc.subs||[]).find(x=>x.sk===s.sk)||{};
     return {sk:s.sk,one:s.one?1:0,name:s.name,qty:num(os.qty),price:s.price,qty2:s.one?0:num(os.qty2),price2:s.one?0:s.price2};
    })};
@@ -181,7 +193,7 @@
   save();
  }
  sync();
- try{if(!localStorage.getItem('BON_INIT')){B.forEach(c=>{c.col=true});save();localStorage.setItem('BON_INIT','1')}}catch(e){}
+ try{localStorage.removeItem('BON')}catch(e){}
 
  function upd(){
   let t=0,q=0;
@@ -280,7 +292,7 @@
    const q=b.parentNode.querySelector('.bn-q');if(q)q.value=s[kk];
    save(c.pk,s.sk,b.dataset.k||'',s[kk]);upd();
   }else if(a==='col'){
-   c.col=!c.col;save();render();
+   c.col=!c.col;saveColMap();render();
   }
  }
 
