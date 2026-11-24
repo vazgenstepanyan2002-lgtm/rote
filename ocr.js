@@ -257,10 +257,7 @@
     .replace(/(^|[\s/])([Կկ])ոմ[ոօ][քգթլ](?=$|[\s/])/g, '$1$2ոմոդ')
     .replace(/(^|[\s/])([Սս])երի[հղն]ա(?=$|[\s/])/g, '$1$2երիա')
     .replace(/(Ընդունարանի\s+կ)(?=\s)/g, '$1.')
-    .replace(/(^|\s)ալու(\s+լայթ)/gi, '$1Ալսու$2')
-    .replace(/(^|\s)[ՋԶ]ա[հկ](\s+\d+\s+)մ[մո][մՄ]?(?=\s|$)/g, '$1Ջահ$2մոմ')
-    .replace(/(^|\s)Ավարովսկի(?=\s|$)/g, '$1Սվարովսկի')
-    .replace(/(^|\s)Կլեպատրա(?=\s|$)/g, '$1Կլեոպատրա');
+    .replace(/(^|\s)ալու(\s+լայթ)/gi, '$1Ալսու$2');
 
   const FUZZY_TYPES = [
     ['bed', ['ննջասենյակ', 'ննջասենյակի', 'ննջարան', 'ննջարանի', 'спальня', 'спальный']],
@@ -583,7 +580,7 @@ async function askGemini(b64){
       },
       required: ['doc', 'addr', 'items']
     };
-    const baseModels = ['gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.5-flash'];
+    const baseModels = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-flash-lite-latest'];
     const readSkip = () => {
       try {
         const raw = JSON.parse(localStorage.getItem('OCR_SKIP_MDL') || '{}') || {};
@@ -620,7 +617,7 @@ async function askGemini(b64){
         if (/gemini-2\.5/.test(mdl)) {
           genCfg.temperature = 0;
           genCfg.thinkingConfig = { thinkingBudget: 0 };
-        } else if (/lite|gemini-3\.5-flash/.test(mdl)) {
+        } else if (/lite/.test(mdl)) {
           genCfg.temperature = 0;
           genCfg.thinkingConfig = { thinkingLevel: 'MINIMAL' };
         } else {
@@ -642,8 +639,7 @@ async function askGemini(b64){
           if (extSignal.aborted) return { ok: false, err: '' };
           extSignal.addEventListener('abort', onExtAbort, { once: true });
         }
-        const effTimeout = /lite/.test(mdl) ? timeoutMs : Math.max(timeoutMs, 12000);
-        const tId = setTimeout(() => { timedOut = true; try { ctrl.abort(); } catch (e) {} }, effTimeout);
+        const tId = setTimeout(() => { timedOut = true; try { ctrl.abort(); } catch (e) {} }, timeoutMs);
         try {
           const res = await fetch('https' + '://' + host + '/v1beta/models/' + mdl + ':generateContent?key=' + encodeURIComponent(GKEY), {
             method: 'POST',
