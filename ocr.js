@@ -3,7 +3,9 @@
   const GKEYS = [
     ['AQ.Ab8RN6KVD3rQhqif_rpH63J', '7DMFii0uhrCJaiUDMctTLCyM4nA'].join(''),
     ['AQ.Ab8RN6LGMwUNQeArpxvkt08', 'quS-MMUNeUmPQRvZwgQty8jAXbA'].join(''),
-    ['AQ.Ab8RN6ITKD7FodUM3DIZ207', 'd5OmMHDy5opxiq7lvsDmqUtdEIg'].join('')
+    ['AQ.Ab8RN6ITKD7FodUM3DIZ207', 'd5OmMHDy5opxiq7lvsDmqUtdEIg'].join(''),
+    ['AQ.Ab8RN6LmOuPHcuQEXtdmQkL', 'OkvBVlsT1TdUO89dR1f9aFfW71Q'].join(''),
+    ['AQ.Ab8RN6L9OP9rOzPirOerHs6', 'TRvN1988XjAAa6G284JWuqNzK7A'].join('')
   ];
   const GKEY = GKEYS[0];
   const g = id => document.getElementById(id);
