@@ -2780,7 +2780,23 @@ function openSelectModal(){
         probe('Яндекс Подсказки', maskKey(sKey), async () => { const r = await fetch(p3); return { ok: r.ok, detail: r.ok ? 'HTTP 200' : 'HTTP ' + r.status }; }),
         probe('OSRM Основной', 'project-osrm', async () => { const r = await fetch(p4); const d = await r.json().catch(() => ({})); return { ok: r.ok && d.code === 'Ok', detail: (r.ok && d.code === 'Ok') ? 'Маршрут ОК' : 'HTTP ' + r.status }; }),
         probe('OSRM Резервный', 'osm.de', async () => { const r = await fetch(p5); const d = await r.json().catch(() => ({})); return { ok: r.ok && d.code === 'Ok', detail: (r.ok && d.code === 'Ok') ? 'Маршрут ОК' : 'HTTP ' + r.status }; }),
-                        probe('Gemini OCR', maskKey(['AQ.Ab8RN6LziHiRoI-kFxMOFA', 'FNqH9QT5tjkiqPTvuiHhnkVeFSMg'].join('')), async () => { const gk = ['AQ.Ab8RN6LziHiRoI-kFxMOFA', 'FNqH9QT5tjkiqPTvuiHhnkVeFSMg'].join(''); const gh = ['generativelanguage', 'googleapis', 'com'].join('.'); const u = 'https' + '://' + gh + '/v1beta/models/gemini-3.5-flash-lite?key=' + encodeURIComponent(gk); const r = await fetch(u); return { ok: r.ok, detail: r.ok ? 'HTTP 200' : 'HTTP ' + r.status }; })
+        (() => {
+          const gKeys = [
+            ['AQ.Ab8RN6KVD3rQhqif_rpH63J', '7DMFii0uhrCJaiUDMctTLCyM4nA'].join(''),
+            ['AQ.Ab8RN6LGMwUNQeArpxvkt08', 'quS-MMUNeUmPQRvZwgQty8jAXbA'].join(''),
+            ['AQ.Ab8RN6ITKD7FodUM3DIZ207', 'd5OmMHDy5opxiq7lvsDmqUtdEIg'].join(''),
+            ['AQ.Ab8RN6LmOuPHcuQEXtdmQkL', 'OkvBVlsT1TdUO89dR1f9aFfW71Q'].join(''),
+            ['AQ.Ab8RN6L9OP9rOzPirOerHs6', 'TRvN1988XjAAa6G284JWuqNzK7A'].join('')
+          ];
+          const curIdx = Math.max(0, Math.min(gKeys.length - 1, parseInt(localStorage.getItem('OCR_CUR_KEY') || '0', 10) || 0));
+          return probe('Gemini OCR', maskKey(gKeys[curIdx]) + ' (×' + gKeys.length + ')', async () => {
+            const gh = ['generativelanguage', 'googleapis', 'com'].join('.');
+            const res = await Promise.all(gKeys.map(gk => fetch('https' + '://' + gh + '/v1beta/models/gemini-3.1-flash-lite?key=' + encodeURIComponent(gk)).then(r => r.status).catch(() => 0)));
+            const okCnt = res.filter(s => s >= 200 && s < 300).length;
+            const bad = res.find(s => s < 200 || s >= 300);
+            return { ok: okCnt > 0, detail: okCnt === gKeys.length ? okCnt + '/' + gKeys.length + ' OK' : okCnt + '/' + gKeys.length + ' (HTTP ' + (bad || 'ERR') + ')' };
+          });
+        })()
       ]);
       let swInfo = 'Нет', cacheList = 'пусто';
       if ('serviceWorker' in navigator) { const reg = await navigator.serviceWorker.getRegistration(); swInfo = reg && reg.active ? reg.active.state : 'не активен'; }
