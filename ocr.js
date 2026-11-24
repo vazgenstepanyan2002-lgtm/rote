@@ -580,26 +580,10 @@ async function askGemini(b64){
       },
       required: ['doc', 'addr', 'items']
     };
-    const baseModels = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-flash-lite-latest'];
-    const readSkip = () => {
-      try {
-        const raw = JSON.parse(localStorage.getItem('OCR_SKIP_MDL') || '{}') || {};
-        const now = Date.now(), clean = {};
-        for (const k in raw) if (raw[k] > now) clean[k] = raw[k];
-        return clean;
-      } catch (e) { return {}; }
-    };
-    const markSkip = (mdl, mins) => {
-      try {
-        const s = readSkip();
-        s[mdl] = Date.now() + mins * 60000;
-        localStorage.setItem('OCR_SKIP_MDL', JSON.stringify(s));
-      } catch (e) {}
-    };
+    try { localStorage.removeItem('OCR_SKIP_MDL'); } catch (e) {}
+    const baseModels = ['gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.5-flash-lite'];
     const getOrderedModels = () => {
-      const skip = readSkip();
-      let list = baseModels.filter(m => !skip[m]);
-      if (!list.length) list = baseModels.slice();
+      let list = baseModels.slice();
       try {
         const fc = JSON.parse(localStorage.getItem('OCR_FAST_MDL_V2') || 'null');
         if (fc && fc.m && /lite/.test(fc.m) && fc.t > Date.now() - 20 * 60000 && list.includes(fc.m)) {
@@ -651,14 +635,6 @@ async function askGemini(b64){
             const errData = await res.json().catch(() => ({}));
             const msg = (errData.error && errData.error.message) ? errData.error.message : ('HTTP ' + res.status);
             if (res.status === 400 && !safeMode) continue;
-            if (res.status === 429) {
-              const isDaily = /per\s*day|free\s*tier|limit:\s*0/i.test(msg);
-              markSkip(mdl, isDaily ? 60 : 5);
-            } else if (res.status === 503 || /high demand|overloaded|unavailable/i.test(msg)) {
-              markSkip(mdl, 3);
-            } else if (res.status === 404) {
-              markSkip(mdl, 720);
-            }
             return { ok: false, err: msg };
           }
           const data = await res.json();
