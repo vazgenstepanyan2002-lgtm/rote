@@ -654,8 +654,6 @@ async function askGemini(b64){
             if (res.status === 429) {
               const isDaily = /per\s*day|free\s*tier|limit:\s*0/i.test(msg);
               markSkip(mdl, isDaily ? 60 : 5);
-            } else if (res.status === 503 || /high demand|overloaded|unavailable/i.test(msg)) {
-              markSkip(mdl, 3);
             } else if (res.status === 404) {
               markSkip(mdl, 720);
             }
