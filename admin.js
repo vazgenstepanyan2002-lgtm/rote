@@ -120,6 +120,40 @@
 const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
  let USERS={},LABELS={},ACCOUNTS={},CARS={},OCR_PEND={},OCR_MAP={},OCR_Q='',CHAT=[],CHAT_OPEN=false,DMS={},DM_UID=null,DM_TAB='adm',FU=0,PUB=undefined,TAB='online',SEL='all',ONL_CAR='all',ONL_Q='';
  let ATT={},ATT_ERR=false,ATT_SCROLLED_YM='',ATT_YM=(()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')})();
+ let SUB_LOG=[],SUB_LOG_ERR=false,SUB_LOG_OPEN=false,SUB_LOG_CAT='all',SUB_LOG_Q='',SUB_LOG_PREV_SEEN=0,_subLoginLogged=false;
+ const SUB_LOG_SEEN_KEY='ADM_SUBLOG_SEEN';
+ const subLogSeen=()=>{try{return +(localStorage.getItem(SUB_LOG_SEEN_KEY)||0)||0}catch(e){return 0}};
+ const subLogUnread=()=>{if(isSubAdm()||!SUB_LOG.length)return 0;const s=subLogSeen();return SUB_LOG.filter(x=>(+x.t||0)>s).length};
+ function updSubLogBdg(){
+  const b=g('admMenuBdg');if(!b)return;
+  if(isSubAdm()){b.hidden=true;return}
+  const n=subLogUnread();
+  b.hidden=!n;b.textContent=n>99?'99+':String(n);
+ }
+ function markSubLogSeen(){
+  if(isSubAdm())return;
+  const mx=SUB_LOG.length?Math.max.apply(null,SUB_LOG.map(x=>+x.t||0)):Date.now();
+  try{localStorage.setItem(SUB_LOG_SEEN_KEY,String(Math.max(mx,Date.now())))}catch(e){}
+  updSubLogBdg();
+ }
+ function logSubAct(cat,act,title,detail,extra){
+  try{
+   if(!isSubAdm())return Promise.resolve();
+   const u=auth.currentUser;
+   const rec={
+    cat:String(cat||'sys').slice(0,16),
+    act:String(act||'other').slice(0,32),
+    title:String(title||'').slice(0,120),
+    detail:String(detail||'').slice(0,260),
+    by:(u&&u.email)||SUB_EMAIL,
+    t:firebase.database.ServerValue.TIMESTAMP
+   };
+   if(extra&&extra.car)rec.car=String(extra.car).toUpperCase().slice(0,16);
+   if(extra&&extra.target)rec.target=String(extra.target).slice(0,80);
+   if(extra&&extra.danger)rec.danger=true;
+   return db.ref('subadminLog').push(rec).catch(()=>{});
+  }catch(e){return Promise.resolve()}
+ }
  const OCR_CAT_NAMES={'other_a':'Другое · Стулья, стеллажи','other_b':'Другое · Стулья, столы','other_c':'Другое · Раковина','other_d':'Другое · Комоды','other_e':'Другое · Кровать','other_f':'Другое · Модули','other_g':'Другое · Матрасы','other_h':'Другое · Системы хранения','other_i':'Другое · Дверь','other_j':'Другое · Пуфы','other_k':'Другое · Тумбы','sofas_a':'Диваны · Кресло','sofas_b':'Диваны · Диван','sofas_c':'Диваны · Комплект','recep_a':'Ресепшен · До 1,6 м','recep_b':'Ресепшен · Более 1,6 м','kitchen_a':'Кухни · 1,6 м','kitchen_b':'Кухни · 2–3 м','living_a':'Гостиная · До 1,7 м','living_b':'Гостиная · Более 1,7 м','living_c':'Гостиная · Эксклюзив','bedroom_a':'Спальни · 2 двери','bedroom_b':'Спальни · 3 двери без комода','bedroom_c':'Спальни · 3 двери с комодом','bedroom_d':'Спальни · 4 двери','bedroom_e':'Спальни · 5 дверей','bedroom_f':'Спальни · 6 дверей','bedroom_g':'Спальни · 0,9*2','wardrobe_a':'Шкафы · 2 двери','wardrobe_b':'Шкафы · 3 двери','wardrobe_c':'Шкафы · 4 двери','wardrobe_d':'Шкафы · 5 дверей','wardrobe_e':'Шкафы · 6 дверей'};
  const SUB_EMAIL='diannakirakosyan@gmail.com';
  const isSubAdm=()=>((auth.currentUser&&auth.currentUser.email)||'').toLowerCase()===SUB_EMAIL;
@@ -181,6 +215,34 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
    const attRef=db.ref('attendance');
    const attFn=attRef.on('value',s=>{ATT=s.val()||{};ATT_ERR=false;if(TAB==='att')drawAtt();refreshCrewsMgr()},()=>{ATT_ERR=true;if(TAB==='att')drawAtt()});
    offs.push(()=>attRef.off('value',attFn));
+  }
+  if(!isSubAdm()){
+   const slRef=db.ref('subadminLog');
+   const slFn=slRef.on('value',s=>{
+    SUB_LOG_ERR=false;
+    const obj=s.val()||{};
+    const all=Object.keys(obj).map(k=>Object.assign({k:k},obj[k])).sort((a,b)=>(+b.t||0)-(+a.t||0));
+    if(all.length>300){
+     all.slice(300).forEach(x=>db.ref('subadminLog/'+x.k).remove().catch(()=>{}));
+     SUB_LOG=all.slice(0,300);
+    }else{
+     SUB_LOG=all;
+    }
+    if(SUB_LOG_OPEN&&!document.hidden){
+     renderSubLog();
+     markSubLogSeen();
+    }else{
+     updSubLogBdg();
+    }
+   },()=>{
+    SUB_LOG_ERR=true;
+    SUB_LOG=[];
+    updSubLogBdg();
+    if(SUB_LOG_OPEN)renderSubLog();
+   });
+   offs.push(()=>slRef.off('value',slFn));
+  }else{
+   SUB_LOG=[];SUB_LOG_ERR=false;updSubLogBdg();
   }
   listen('chat',v=>{const obj=v||{};const all=Object.keys(obj).map(k=>Object.assign({k:k},obj[k])).sort((a,b)=>(+a.t||0)-(+b.t||0));const list=all.length>50?(all.slice(0,all.length-50).forEach(x=>db.ref('chat/'+x.k).remove().catch(()=>{})),all.slice(-50)):all;if(_admChatInit){const fresh=list.filter(m=>(+m.t||0)>_admLastNotifT&&!m.adm);if(fresh.length){const lm=fresh[fresh.length-1];_admLastNotifT=+lm.t||Date.now();localStorage.setItem('ADM_CHAT_NOTIF_T',String(_admLastNotifT));if(!CHAT_OPEN||document.hidden)admNotify((lm.name||'Водитель'),String(lm.txt||'').slice(0,140))}}else if(list.length){const mx=Math.max.apply(null,list.map(m=>+m.t||0));if(mx>_admLastNotifT){_admLastNotifT=mx;localStorage.setItem('ADM_CHAT_NOTIF_T',String(_admLastNotifT))}}_admChatInit=true;CHAT=list;if(CHAT_OPEN&&!document.hidden){markAdmChatSeen();renderAdmChat()}else updAdmChatBdg()});
   loadPub();
@@ -1343,6 +1405,7 @@ function drawTotals(){
   if(!clean){toast('Введите имя рабочего',true);return}
   try{
    await db.ref('attendance/workers').push({name:clean,car:carCode,createdAt:Date.now()});
+   logSubAct('att','att_add','Добавлен рабочий в табель',clean+(carCode?' · Экипаж '+carCode:' · Без экипажа'),{car:carCode,target:clean});
    toast('Добавлен: '+clean+(carCode?' (Экипаж '+carCode+')':''));
   }catch(e){toast('Ошибка сохранения: '+((e&&e.message)||e),true)}
  }
@@ -1360,6 +1423,22 @@ function drawTotals(){
    const ref=db.ref('attendance/months/'+ATT_YM+'/'+pid+'/'+day);
    if(isSet)await ref.remove();
    else await ref.set(true);
+   if(isSubAdm()){
+    let nm=pid,car='';
+    if(String(pid).startsWith('u_')){
+     const uid=String(pid).slice(2),du=USERS[uid];
+     if(du){const dp=parseDev(uid,du);nm=dispName(dp);car=String(dp.u.car||'').toUpperCase()}
+    }else{
+     const w=ATT&&ATT.workers&&ATT.workers[pid];
+     if(w){nm=w.name||pid;car=String(w.car||'').toUpperCase()}
+    }
+    const pts=ATT_YM.split('-'),yr=+pts[0]||new Date().getFullYear(),mo=(+pts[1]||1)-1;
+    const wd=new Date(yr,mo,day).getDay();
+    const isOff=car&&typeof getCrewOff==='function'&&getCrewOff(car)===wd;
+    const dtStr=String(day).padStart(2,'0')+'.'+String(mo+1).padStart(2,'0')+'.'+yr;
+    const ttl=isOff?(isSet?'Снята отметка выхода в выходной':'Выход в выходной'):(isSet?'Снят пропуск в табеле':'Отмечен пропуск в табеле');
+    logSubAct('att',isSet?'att_unmark':'att_mark',ttl,nm+' · '+dtStr,{car:car,target:nm});
+   }
   }catch(e){
    if(isSet)ATT.months[ATT_YM][pid][day]=true;
    else delete ATT.months[ATT_YM][pid][day];
@@ -1428,6 +1507,7 @@ function drawTotals(){
    if(!(await ask('Перенести всю статистику табеля от «'+w.name+'» на аккаунт «'+u.name+'» (за все месяцы) и удалить ручной дубликат?',{title:'Привязка к аккаунту',okText:'Перенести'})))return;
    try{
     const cnt=await attMergeManualToApp(wid,uid);
+    logSubAct('att','att_link','Привязка рабочего к аккаунту','«'+w.name+'» → «'+u.name+'»'+(cnt?' · отметок: '+cnt:''),{car:u.car||wCar,target:u.name});
     toast('Привязано к «'+u.name+'»'+(cnt?' · перенесено отметок: '+cnt:''));
    }catch(err){toast('Ошибка переноса: '+((err&&err.message)||err),true)}
   };
@@ -1458,16 +1538,16 @@ function drawTotals(){
     if(nv===null)return;
     const clean=nv.trim().slice(0,32);
     if(!clean){toast('Имя не может быть пустым',true);return}
-    try{await db.ref('attendance/workers/'+wid+'/name').set(clean);toast('Имя обновлено')}
+    try{await db.ref('attendance/workers/'+wid+'/name').set(clean);logSubAct('att','att_ren','Переименован рабочий в табеле','«'+w.name+'» → «'+clean+'»',{car:curCar,target:clean});toast('Имя обновлено')}
     catch(err){toast('Ошибка сохранения',true)}
    }else if(op==='car'){
     openAttPickCarModal('Экипаж для '+w.name,curCar,async nc=>{
-     try{await db.ref('attendance/workers/'+wid+'/car').set(nc||'');toast(nc?'Перенесён в экипаж '+nc:'Перенесён в «Без экипажа»')}
+     try{await db.ref('attendance/workers/'+wid+'/car').set(nc||'');logSubAct('att','att_car','Смена экипажа рабочего',w.name+': '+(curCar||'Без экипажа')+' → '+(nc||'Без экипажа'),{car:nc||curCar,target:w.name});toast(nc?'Перенесён в экипаж '+nc:'Перенесён в «Без экипажа»')}
      catch(err){toast('Ошибка сохранения',true)}
     });
    }else if(op==='del'){
     if(!(await ask('Удалить «'+w.name+'» из списка рабочих?',{title:'Удаление рабочего',okText:'Удалить',danger:true})))return;
-    try{await db.ref('attendance/workers/'+wid).remove();toast('Сотрудник удалён')}
+    try{await db.ref('attendance/workers/'+wid).remove();logSubAct('att','att_del','Удалён рабочий из табеля',w.name+(curCar?' · Экипаж '+curCar:''),{car:curCar,target:w.name,danger:true});toast('Сотрудник удалён')}
     catch(err){toast('Ошибка удаления',true)}
    }
   };
@@ -1499,7 +1579,7 @@ function drawTotals(){
   let closed=false;
   const close=()=>{if(closed)return;closed=true;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
   ov._close=close;
-  const onK=e=>{if(e.key==='Escape')close()};
+  const onK=e=>{if(e.key==='Escape'&&(!g('cOv')||g('cOv').hidden)){e.preventDefault();close()}};
   document.addEventListener('keydown',onK);
   ov.querySelector('.sel-x').onclick=close;
   ov.onclick=async e=>{
@@ -1510,6 +1590,8 @@ function drawTotals(){
    try{
     if(wd===defWd)await db.ref('attendance/crewOff/'+code).remove();
     else await db.ref('attendance/crewOff/'+code).set(wd);
+    const picked=days.find(x=>x[0]===wd);
+    logSubAct('att','att_off','Изменён выходной экипажа','Экипаж '+code+' → '+(picked?picked[1]:wd)+(wd===defWd?' (по умолчанию)':''),{car:code});
     toast('Выходной обновлён');
    }catch(err){toast('Ошибка сохранения',true)}
   };
@@ -1775,6 +1857,7 @@ function openOcrRuleModal(ruleKey, curCode, isNew = false){
    close();
    try {
     await db.ref('config/ocrMap/' + cleanKey).set(selectedCd);
+    logSubAct('ocr', isNew ? 'ocr_add' : 'ocr_edit', isNew ? 'Добавлено правило OCR' : 'Изменено правило OCR', cleanKey + ' → ' + (OCR_CAT_NAMES[selectedCd] || selectedCd), { target: cleanKey });
     toast('Правило успешно сохранено');
     if (typeof drawOcr === 'function') drawOcr();
    } catch (err) {
@@ -1868,6 +1951,11 @@ function openCarModal(uid){
       await attMergeManualToApp(matchWid, uid);
       attMoved = true;
      }
+    }
+    if (nc !== curCar || moved || attMoved) {
+     const drvNm = dispName(d);
+     const det = drvNm + ': ' + (curCar || 'Без экипажа') + ' → ' + (nc || 'Без экипажа') + (moved ? ' · бонусы перенесены' : '') + (attMoved ? ' · табель перенесён' : '');
+     logSubAct('crew', 'set_car', nc ? 'Назначен экипаж водителю' : 'Снят экипаж у водителя', det, { car: nc || curCar, target: drvNm });
     }
     toast(nc === "ADMIN" ? "Включён режим Админ" : (nc ? ('Назначен экипаж ' + nc + (moved ? ' · бонусы перенесены' : '') + (attMoved ? ' · табель перенесён' : '')) : 'Экипаж снята'));
    }catch(err){toast('Ошибка сохранения',true)}
@@ -2145,7 +2233,7 @@ function openSelectModal(){
  // ===== Действия =====
  async function force(){
   if(!(await ask('Отправить всем устройствам команду обновления?', { title: 'Обновление приложения', okText: 'Обновить' })))return;
-  try{await db.ref('config/forceUpdate').set(firebase.database.ServerValue.TIMESTAMP);toast('Команда отправлена')}
+  try{await db.ref('config/forceUpdate').set(firebase.database.ServerValue.TIMESTAMP);logSubAct('sys','force_upd','Принудительное обновление','Отправлена команда обновления всем устройствам');toast('Команда отправлена')}
   catch(e){toast('Не удалось: '+((e&&e.message)||e),true)}
  }
  async function rename(id){
@@ -2223,11 +2311,11 @@ function openSelectModal(){
    if(mObj)exportCrewMonthCsv(monthName(mObj.m),mObj.cars,mObj.qty,mObj.sum);
    else toast('Нет данных за этот месяц',true);
   }
-  else if(a==='ocr-ok'){e.stopPropagation();const uid=b.dataset.uid,k=b.dataset.k,cd=b.dataset.code;if(!uid||!k||!cd)return;try{await db.ref('config/ocrMap/'+k).set(cd);await db.ref('users/'+uid+'/ocrPending/'+k).remove();toast('Правило добавлено для всех')}catch(err){toast('Ошибка сохранения',true)}}
+  else if(a==='ocr-ok'){e.stopPropagation();const uid=b.dataset.uid,k=b.dataset.k,cd=b.dataset.code;if(!uid||!k||!cd)return;try{await db.ref('config/ocrMap/'+k).set(cd);await db.ref('users/'+uid+'/ocrPending/'+k).remove();const who=USERS[uid]?dispName(parseDev(uid,USERS[uid])):uid;logSubAct('ocr','ocr_ok','Одобрена заявка OCR',k+' → '+(OCR_CAT_NAMES[cd]||cd)+' (от '+who+')',{target:k});toast('Правило добавлено для всех')}catch(err){toast('Ошибка сохранения',true)}}
   else if(a==='ocr-add'){e.stopPropagation();openOcrRuleModal('','',true)}
   else if(a==='ocr-edit'){e.stopPropagation();const k=b.dataset.k;if(k)openOcrRuleModal(k,OCR_MAP[k]||'',false)}
-  else if(a==='ocr-del'){e.stopPropagation();const k=b.dataset.k;if(!k)return;if(!(await ask('Удалить правило «'+k+'» из общего словаря?',{title:'Удаление правила',okText:'Удалить',danger:true})))return;try{await db.ref('config/ocrMap/'+k).remove();toast('Правило удалено')}catch(err){toast('Ошибка удаления',true)}}
-  else if(a==='ocr-no'){e.stopPropagation();const uid=b.dataset.uid,k=b.dataset.k;if(!uid||!k)return;try{await db.ref('users/'+uid+'/ocrPending/'+k).remove();toast('Запрос отклонён')}catch(err){toast('Ошибка удаления',true)}}
+  else if(a==='ocr-del'){e.stopPropagation();const k=b.dataset.k;if(!k)return;if(!(await ask('Удалить правило «'+k+'» из общего словаря?',{title:'Удаление правила',okText:'Удалить',danger:true})))return;try{await db.ref('config/ocrMap/'+k).remove();logSubAct('ocr','ocr_del','Удалено правило OCR',k,{target:k,danger:true});toast('Правило удалено')}catch(err){toast('Ошибка удаления',true)}}
+  else if(a==='ocr-no'){e.stopPropagation();const uid=b.dataset.uid,k=b.dataset.k;if(!uid||!k)return;try{await db.ref('users/'+uid+'/ocrPending/'+k).remove();const who=USERS[uid]?dispName(parseDev(uid,USERS[uid])):uid;logSubAct('ocr','ocr_no','Отклонена заявка OCR',k+' (от '+who+')',{target:k,danger:true});toast('Запрос отклонён')}catch(err){toast('Ошибка удаления',true)}}
   else if(a==='onlcar'){ONL_CAR=b.dataset.c||'all';drawOnline()}
   else if(a==='open-onl-flt'){openOnlCrewModal()}
   else if(a==='del-car-hist'){e.stopPropagation();if(isSubAdm())return;const car=b.dataset.car,hk=b.dataset.hk,rec=CARS[car]&&CARS[car].hist&&CARS[car].hist[hk];if(!car||!hk)return;if(!await ask('Удалить сохранённый итог за «'+monthName(rec&&rec.m||hk)+'» у экипажа '+car+'?',{title:'Удаление итога',okText:'Удалить',danger:true}))return;try{await db.ref('cars/'+car+'/hist/'+hk).remove();toast('Итог удалён')}catch(err){toast('Ошибка удаления',true)}}
@@ -2441,7 +2529,7 @@ function openSelectModal(){
   let closed=false;
   const close=()=>{if(closed)return;closed=true;CHAT_OPEN=false;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
   ov._close=close;
-  const onK=e=>{if(e.key==='Escape')close()};
+  const onK=e=>{if(e.key==='Escape'&&(!g('cOv')||g('cOv').hidden)){e.preventDefault();close()}};
   g('achX').onclick=close;ov.onclick=e=>{if(e.target===ov)close()};
   if(isSubAdm())g('achClr').hidden=true;
   g('achClr').onclick=async()=>{if(!isSubAdm()&&await ask('Удалить всю переписку в общем чате?',{title:'Очистка чата',okText:'Очистить',danger:true}))db.ref('chat').remove().then(()=>toast('Чат очищен')).catch(()=>toast('Ошибка',true))};
@@ -2453,6 +2541,7 @@ function openSelectModal(){
    try{
     const cref=db.ref('chat');
     await cref.push({uid:admTag(),name:admRawName(),role:admTag(),adm:true,txt:txt,t:firebase.database.ServerValue.TIMESTAMP});
+    logSubAct('chat','chat_msg','Сообщение в общий чат',txt.slice(0,140));
     const s=await cref.once('value'),av=s.val()||{},ks=Object.keys(av).sort((a,b)=>(+av[a].t||0)-(+av[b].t||0));
     if(ks.length>50)ks.slice(0,ks.length-50).forEach(k=>cref.child(k).remove().catch(()=>{}));
    }catch(e){inp.value=txt;toast('Не удалось отправить',true)}
@@ -2514,7 +2603,7 @@ function openSelectModal(){
   let closed=false;
   const close=()=>{if(closed)return;closed=true;if(DM_UID===uid)DM_UID=null;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
   ov._close=close;
-  const onK=e=>{if(e.key==='Escape')close()};
+  const onK=e=>{if(e.key==='Escape'&&(!g('cOv')||g('cOv').hidden)){e.preventDefault();close()}};
   g('admDmX').onclick=close;ov.onclick=e=>{if(e.target===ov)close()};
 
   if(!isSubAdm()){
@@ -2587,6 +2676,7 @@ function openSelectModal(){
      txt:txt,
      t:firebase.database.ServerValue.TIMESTAMP
     });
+    logSubAct('chat','dm_msg','Личное сообщение водителю',who+': '+txt.slice(0,140),{car:hdCar,target:who});
     const s=await dref.once('value'),av=s.val()||{},ks=Object.keys(av).sort((a,b)=>(+av[a].t||0)-(+av[b].t||0));
     if(ks.length>50)ks.slice(0,ks.length-50).forEach(k=>dref.child(k).remove().catch(()=>{}));
    }catch(e){inp.value=txt;toast('Не удалось отправить',true)}
@@ -2607,7 +2697,7 @@ function openSelectModal(){
   let closed=false;
   const close=()=>{if(closed)return;closed=true;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
   ov._close=close;
-  const onK=e=>{if(e.key==='Escape')close()};
+  const onK=e=>{if(e.key==='Escape'&&(!g('cOv')||g('cOv').hidden)){e.preventDefault();close()}};
   g('pwNo').onclick=close;ov.onclick=e=>{if(e.target===ov)close()};
   const ok=g('pwOk'),err=g('pwErr'),p0=g('pwOld'),p1=g('pwNew1'),p2=g('pwNew2');
   ok.onclick=async()=>{
@@ -2622,6 +2712,7 @@ function openSelectModal(){
     const cred=firebase.auth.EmailAuthProvider.credential(u.email,v0);
     await u.reauthenticateWithCredential(cred);
     await u.updatePassword(v1);
+    logSubAct('sys','pw_change','Смена пароля','Обновлён пароль аккаунта доставки');
     close();
     toast('Пароль успешно изменён');
    }catch(e){
@@ -2652,6 +2743,159 @@ function openSelectModal(){
   };
   requestAnimationFrame(()=>ov.classList.add('show'));
  }
+ function exportSubLogCsv(list){
+  const rows=[['Дата','Время','Категория','Действие','Подробности','Экипаж']];
+  const catNames={att:'Табель',crew:'Экипажи',chat:'Чаты',ocr:'Словарь',sys:'Система'};
+  (list||SUB_LOG).forEach(x=>{
+   const d=x.t?new Date(+x.t):null;
+   const dt=d?(String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear()):'';
+   const tm=d?(String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')):'';
+   rows.push([dt,tm,catNames[x.cat]||x.cat||'',x.title||'',x.detail||'',x.car||'']);
+  });
+  const now=new Date(),fn='Лог_субадмина_'+now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0')+'.csv';
+  downloadCsv(fn,rows);
+ }
+ function renderSubLog(){
+  const box=g('slogList'),statsEl=g('slogStats'),chipsEl=g('slogChips'),subEl=g('slogSub');
+  if(!box)return;
+  const now=new Date(),tdStart=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime(),wkStart=tdStart-6*864e5;
+  const tdCnt=SUB_LOG.filter(x=>(+x.t||0)>=tdStart).length;
+  const wkCnt=SUB_LOG.filter(x=>(+x.t||0)>=wkStart).length;
+  if(statsEl){
+   statsEl.innerHTML='<div class="slog-st ok"><b data-no-i18n="1">'+tdCnt+'</b><small>Сегодня</small></div>'
+    +'<div class="slog-st hi"><b data-no-i18n="1">'+wkCnt+'</b><small>За 7 дней</small></div>'
+    +'<div class="slog-st"><b data-no-i18n="1">'+SUB_LOG.length+'</b><small>Всего записей</small></div>';
+  }
+  if(subEl){
+   subEl.innerHTML='<span data-no-i18n="1">Доставка · '+esc(SUB_EMAIL)+'</span>';
+  }
+  const cats=[
+   {k:'all',ic:'✨',n:'Все'},
+   {k:'att',ic:'📅',n:'Табель'},
+   {k:'crew',ic:'🚚',n:'Экипажи'},
+   {k:'chat',ic:'💬',n:'Чаты'},
+   {k:'ocr',ic:'📖',n:'Словарь'},
+   {k:'sys',ic:'⚙️',n:'Система'}
+  ];
+  if(chipsEl){
+   chipsEl.innerHTML=cats.map(c=>{
+    const cnt=c.k==='all'?SUB_LOG.length:SUB_LOG.filter(x=>x.cat===c.k).length;
+    return '<button type="button" class="slog-chip'+(SUB_LOG_CAT===c.k?' on':'')+'" data-cat="'+c.k+'"><span>'+c.ic+' '+c.n+'</span><span class="cnt" data-no-i18n="1">'+cnt+'</span></button>';
+   }).join('');
+  }
+  if(SUB_LOG_ERR){
+   const ruleSnippet='"subadminLog": {\n  ".read": "auth != null && auth.token.email == \'vazgenstepanyan2002@gmail.com\'",\n  ".write": "auth != null && auth.token.email == \'vazgenstepanyan2002@gmail.com\'",\n  "$id": {\n    ".write": "auth != null && auth.token.email == \'diannakirakosyan@gmail.com\' && !data.exists() && newData.exists()",\n    ".validate": "newData.hasChildren([\'cat\', \'act\', \'t\']) && newData.child(\'t\').isNumber()"\n  }\n}';
+   box.innerHTML='<div class="slog-rule"><b>⚠️ Требуется правило в Firebase Realtime Database</b><div style="margin-top:4px">Добавьте узел <code>subadminLog</code> в консоли Firebase (Rules), чтобы сохранять и читать журнал действий субадмина:</div><pre data-no-i18n="1">'+esc(ruleSnippet)+'</pre><button type="button" id="slogCopyRule">📋 Скопировать правило</button></div>';
+   const cp=g('slogCopyRule');
+   if(cp)cp.onclick=()=>{
+    const done=()=>toast('Правило скопировано в буфер');
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(ruleSnippet).then(done).catch(()=>toast('Не удалось скопировать',true));
+    else toast('Скопируйте вручную из окна',true);
+   };
+   return;
+  }
+  const q=(SUB_LOG_Q||'').trim().toLowerCase();
+  const filt=SUB_LOG.filter(x=>{
+   if(SUB_LOG_CAT!=='all'&&x.cat!==SUB_LOG_CAT)return false;
+   if(!q)return true;
+   const hay=((x.title||'')+' '+(x.detail||'')+' '+(x.car||'')+' '+(x.target||'')).toLowerCase();
+   return hay.includes(q);
+  });
+  if(!filt.length){
+   box.innerHTML='<div class="slog-empty"><div class="eic">'+(SUB_LOG.length?'🔍':'📋')+'</div><div>'+(SUB_LOG.length?'По выбранному фильтру записей нет':'Действий субадмина пока не зафиксировано')+'</div></div>';
+   return;
+  }
+  const catIc={att:'📅',crew:'🚚',chat:'💬',ocr:'📖',sys:'⚙️'};
+  const catLbl={att:'Табель',crew:'Экипажи',chat:'Чаты',ocr:'Словарь',sys:'Система'};
+  const yestStart=tdStart-864e5;
+  const monRu=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  const dayKey=ts=>{
+   if(!ts)return 'Без даты';
+   if(ts>=tdStart)return 'Сегодня';
+   if(ts>=yestStart)return 'Вчера';
+   const d=new Date(ts);
+   return d.getDate()+' '+monRu[d.getMonth()]+' '+d.getFullYear();
+  };
+  const groups=[],gMap={};
+  filt.forEach(x=>{
+   const dk=dayKey(+x.t||0);
+   if(!gMap[dk]){gMap[dk]={label:dk,items:[]};groups.push(gMap[dk])}
+   gMap[dk].items.push(x);
+  });
+  let html='';
+  groups.forEach(gr=>{
+   html+='<div class="slog-day"><span>'+esc(gr.label)+'</span><b data-no-i18n="1">'+gr.items.length+'</b></div>';
+   gr.items.forEach(x=>{
+    const d=x.t?new Date(+x.t):null;
+    const tm=d?(String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')):'—';
+    const isNew=(+x.t||0)>SUB_LOG_PREV_SEEN;
+    const safeCat=Object.prototype.hasOwnProperty.call(catIc,x.cat)?x.cat:'sys';
+    const cls='slog-it c-'+(x.danger?'del':safeCat)+(isNew?' is-new':'');
+    const ic=x.danger?'🗑️':catIc[safeCat];
+    const tags='<span class="slog-tag">'+catLbl[safeCat]+'</span>'
+     +(x.car?'<span class="slog-tag car"><span>🚚</span> <span data-no-i18n="1">'+esc(x.car)+'</span></span>':'');
+    html+='<div class="'+cls+'">'
+     +'<div class="slog-ic">'+ic+'</div>'
+     +'<div class="slog-body">'
+     +'<div class="slog-top"><div class="slog-ttl">'+esc(x.title||'Действие')+'</div><div class="slog-meta">'+(isNew?'<span class="slog-new">НОВОЕ</span>':'')+'<span class="slog-tm" data-no-i18n="1">'+tm+'</span></div></div>'
+     +(x.detail?'<div class="slog-det" data-no-i18n="1">'+esc(x.detail)+'</div>':'')
+     +'<div class="slog-tags">'+tags+'</div>'
+     +'</div></div>';
+   });
+  });
+  box.innerHTML=html;
+ }
+ function openSubLogModal(){
+  if(isSubAdm())return;
+  const old=g('subLogOv');if(old){if(typeof old._close==='function')old._close();else old.remove()}
+  SUB_LOG_PREV_SEEN=subLogSeen();
+  SUB_LOG_CAT='all';SUB_LOG_Q='';SUB_LOG_OPEN=true;
+  const ov=document.createElement('div');ov.id='subLogOv';ov.className='ov';
+  ov.innerHTML='<div class="dlg slog-box">'
+   +'<div class="slog-hd">'
+   +'<div class="slog-hd-l"><div class="slog-hd-ic">📋</div><div class="slog-hd-t"><b>Лог субадмина</b><small id="slogSub"></small></div></div>'
+   +'<div class="slog-acts">'
+   +'<button type="button" id="slogCsv" class="slog-btn csv" title="Выгрузить в Excel">📥 Excel</button>'
+   +'<button type="button" id="slogClr" class="slog-btn clr" title="Очистить журнал">Очистить</button>'
+   +'<button type="button" id="slogX" class="ach-x" aria-label="Закрыть">✕</button>'
+   +'</div></div>'
+   +'<div id="slogStats" class="slog-stats"></div>'
+   +'<div class="slog-ctrl">'
+   +'<div class="slog-srch"><span class="slog-srch-ic">🔍</span><input id="slogInp" type="search" placeholder="Поиск по имени, экипажу, тексту..."><button type="button" id="slogClrQ" class="slog-srch-clr" hidden>✕</button></div>'
+   +'<div id="slogChips" class="slog-chips"></div>'
+   +'</div>'
+   +'<div id="slogList" class="slog-list"></div>'
+   +'</div>';
+  document.body.appendChild(ov);
+  let closed=false;
+  const close=()=>{if(closed)return;closed=true;SUB_LOG_OPEN=false;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
+  ov._close=close;
+  const onK=e=>{if(e.key==='Escape'&&(!g('cOv')||g('cOv').hidden)){e.preventDefault();close()}};
+  g('slogX').onclick=close;
+  ov.onclick=e=>{if(e.target===ov)close()};
+  const inp=g('slogInp'),clrQ=g('slogClrQ');
+  inp.oninput=e=>{SUB_LOG_Q=e.target.value||'';clrQ.hidden=!SUB_LOG_Q;renderSubLog()};
+  clrQ.onclick=()=>{inp.value='';SUB_LOG_Q='';clrQ.hidden=true;renderSubLog();inp.focus()};
+  g('slogChips').onclick=e=>{
+   const b=e.target.closest('.slog-chip');if(!b)return;
+   SUB_LOG_CAT=b.dataset.cat||'all';
+   renderSubLog();
+  };
+  g('slogCsv').onclick=()=>{
+   const q=(SUB_LOG_Q||'').trim().toLowerCase();
+   const filt=SUB_LOG.filter(x=>(SUB_LOG_CAT==='all'||x.cat===SUB_LOG_CAT)&&(!q||((x.title||'')+' '+(x.detail||'')+' '+(x.car||'')+' '+(x.target||'')).toLowerCase().includes(q)));
+   exportSubLogCsv(filt);
+  };
+  g('slogClr').onclick=async()=>{
+   if(!SUB_LOG.length){toast('Журнал уже пуст');return}
+   if(!(await ask('Очистить весь журнал действий субадмина ('+SUB_LOG.length+' зап.)? Это действие необратимо.',{title:'Очистка журнала',okText:'Очистить',danger:true})))return;
+   try{await db.ref('subadminLog').remove();toast('Журнал очищен')}catch(err){toast('Ошибка очистки',true)}
+  };
+  document.addEventListener('keydown',onK);
+  renderSubLog();
+  markSubLogSeen();
+  requestAnimationFrame(()=>ov.classList.add('show'));
+ }
  function openAdmMenu(){
   const sub=isSubAdm(),u=auth.currentUser;
   const curL=window.getLang?window.getLang():'ru';
@@ -2659,8 +2903,11 @@ function openSelectModal(){
   const ov=document.createElement('div');ov.className='ov';
   let items='';
   if(!sub){
+   const slNew=subLogUnread();
+   const slSub=slNew?('Новых событий: '+slNew+' · всего '+SUB_LOG.length):(SUB_LOG.length?('Записей в журнале: '+SUB_LOG.length):'История действий отдела доставки');
    items+='<div class="sel-it'+(TAB==='att'?' on':'')+'" data-op="att"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(168,85,247,.16);border-color:rgba(192,132,252,.4);color:#d8b4fe">📅</span><div><div class="sel-it-nm">Табель пропусков</div><div class="sel-it-sb">Учёт выходов и отсутствий по экипажам</div></div></div>'+(TAB==='att'?'<div class="sel-it-r"><span class="sel-chk">✓</span></div>':'')+'</div>';
    items+='<div class="sel-it" data-op="crews"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(16,185,129,.18);border-color:rgba(52,211,153,.45);color:#6ee7b7">🚚</span><div><div class="sel-it-nm">Управление экипажами</div><div class="sel-it-sb">Экипажей: '+CARS_LIST.length+' · добавить, настроить, удалить</div></div></div></div>';
+   items+='<div class="sel-it" data-op="sublog" style="'+(slNew?'border-color:rgba(167,139,250,.48)':'')+'"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(139,92,246,.18);border-color:rgba(167,139,250,.45);color:#c4b5fd">📋</span><div><div class="sel-it-nm">Лог субадмина</div><div class="sel-it-sb">'+slSub+'</div></div></div>'+(slNew?'<div class="sel-it-r"><span class="menu-bdg" data-no-i18n="1">'+(slNew>99?'99+':slNew)+'</span></div>':'')+'</div>';
   }else{
    items+='<div class="sel-it'+(TAB==='ver'?' on':'')+'" data-op="ver"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(168,85,247,.16);border-color:rgba(192,132,252,.4);color:#d8b4fe">🔄</span><div><div class="sel-it-nm">Версия приложения</div><div class="sel-it-sb">Обновление и версии на устройствах</div></div></div>'+(TAB==='ver'?'<div class="sel-it-r"><span class="sel-chk">✓</span></div>':'')+'</div>';
   }
@@ -2678,12 +2925,16 @@ function openSelectModal(){
    const op=it.dataset.op;close();
    if(op==='att'){TAB='att';draw()}
    else if(op==='crews'){openCrewsManagerModal()}
+   else if(op==='sublog'){openSubLogModal()}
    else if(op==='ver'){TAB='ver';draw()}
    else if(op==='lang'){openAdmLangModal()}
    else if(op==='diag'){if(typeof window._openAdmDiag==='function')window._openAdmDiag()}
    else if(op==='pw'){openChangePw()}
    else if(op==='out'){
-    if(await ask('Выйти из панели администратора?',{title:'Выход',okText:'Выйти',danger:true}))auth.signOut();
+    if(await ask('Выйти из панели администратора?',{title:'Выход',okText:'Выйти',danger:true})){
+     if(isSubAdm())await Promise.race([logSubAct('sys','logout','Выход из админ-панели',devName(navigator.userAgent)),new Promise(r=>setTimeout(r,600))]);
+     auth.signOut();
+    }
    }
   };
   requestAnimationFrame(()=>ov.classList.add('show'));
@@ -2696,10 +2947,14 @@ function openSelectModal(){
    if(g('admNick'))g('admNick').textContent=profNick||'Admin';
    g('login').hidden=true;g('panel').hidden=false;g('who').textContent=(isSubAdm()?'Доставка · ':'')+(u.email||'');
    start();draw();
+   if(isSubAdm()&&!_subLoginLogged){
+    _subLoginLogged=true;
+    logSubAct('sys','login','Вход в админ-панель',devName(navigator.userAgent));
+   }
   }else{
    stop();
    if(_map)destroyMap();
-   USERS={};LABELS={};syncCrewsFromLabels();ACCOUNTS={};ATT={};ATT_ERR=false;CARS={};OCR_MAP={};CHAT=[];DMS={};DM_UID=null;CHAT_OPEN=false;_admChatInit=false;_admDmInit=false;SEL='all';
+   USERS={};LABELS={};syncCrewsFromLabels();ACCOUNTS={};ATT={};ATT_ERR=false;SUB_LOG=[];SUB_LOG_ERR=false;SUB_LOG_OPEN=false;_subLoginLogged=false;updSubLogBdg();CARS={};OCR_MAP={};CHAT=[];DMS={};DM_UID=null;CHAT_OPEN=false;_admChatInit=false;_admDmInit=false;SEL='all';
    document.querySelectorAll('.ov').forEach(o=>{if(typeof o._close==='function')o._close();else if(o.id!=='dlgOv')o.remove()});
    g('panel').hidden=true;g('login').hidden=false;
   }
@@ -2708,6 +2963,7 @@ function openSelectModal(){
   if(document.hidden||g('panel').hidden)return;
   if(CHAT_OPEN)markAdmChatSeen();
   if(DM_UID){markAdmDmSeen(DM_UID,DM_TAB);updAdmDmTabBadges();if(TAB==='online')drawOnline()}
+  if(SUB_LOG_OPEN)markSubLogSeen();
  });
 })();
 
