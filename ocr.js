@@ -498,13 +498,13 @@
 async function compressImage(file){
     if (file && file._preB64) return file._preB64;
     const isCrop = !!(file && file._isCropped);
-    const maxSide = isCrop ? 1180 : 1280;
+    const maxSide = isCrop ? 1500 : 1600;
     const encodeCv = cv => {
       try {
-        const wUrl = cv.toDataURL('image/webp', 0.76);
+        const wUrl = cv.toDataURL('image/webp', 0.85);
         if (wUrl && wUrl.indexOf('data:image/webp') === 0) return wUrl.split(',').pop();
       } catch (e) {}
-      return cv.toDataURL('image/jpeg', 0.78).split(',').pop();
+      return cv.toDataURL('image/jpeg', 0.85).split(',').pop();
     };
     if (window.createImageBitmap) {
       try {
@@ -1409,7 +1409,7 @@ async function askGemini(b64){
     const sw = Math.max(20, Math.min(srcW - sx, Math.round((nx2 - nx1) * visW)));
     const sh = Math.max(20, Math.min(srcH - sy, Math.round((ny2 - ny1) * visH)));
 
-    const maxOut = 1180;
+    const maxOut = 1500;
     let outW = sw, outH = sh;
     if (outW > maxOut || outH > maxOut) {
       if (outW > outH) { outH = Math.round(outH * maxOut / outW); outW = maxOut; }
@@ -1424,10 +1424,10 @@ async function askGemini(b64){
     if (hasFilter) cx.filter = 'none';
     else enhanceInvoiceCanvas(cv);
     let b64 = '';
-    try { const wu = cv.toDataURL('image/webp', 0.76);
+    try { const wu = cv.toDataURL('image/webp', 0.85);
       if (wu && wu.indexOf('data:image/webp') === 0) b64 = wu.split(',').pop();
     } catch (e) {}
-    if (!b64) b64 = cv.toDataURL('image/jpeg', 0.78).split(',').pop();
+    if (!b64) b64 = cv.toDataURL('image/jpeg', 0.85).split(',').pop();
     cv.width = cv.height = 0;
     return b64 ? { size: b64.length, _preB64: b64, _isCropped: true } : null;
   }
@@ -1750,9 +1750,9 @@ async function askGemini(b64){
           }
           if (sw < 100 || sh < 100) { sx = 0; sy = 0; sw = vw; sh = vh; }
           let dw = Math.round(sw), dh = Math.round(sh);
-          if (dw > 1180 || dh > 1180) {
-            if (dw > dh) { dh = Math.round(dh * 1180 / dw); dw = 1180; }
-            else { dw = Math.round(dw * 1180 / dh); dh = 1180; }
+          if (dw > 1500 || dh > 1500) {
+            if (dw > dh) { dh = Math.round(dh * 1500 / dw); dw = 1500; }
+            else { dw = Math.round(dw * 1500 / dh); dh = 1500; }
           }
           let bestCv = null, bestSharp = -1;
           for (let f = 0; f < 2; f++) {
@@ -1780,10 +1780,10 @@ async function askGemini(b64){
           if (typeof bCtx.filter !== 'string') enhanceInvoiceCanvas(bestCv);
           let out = '';
           try {
-            const wu = bestCv.toDataURL('image/webp', 0.76);
+            const wu = bestCv.toDataURL('image/webp', 0.85);
             if (wu && wu.indexOf('data:image/webp') === 0) out = wu.split(',').pop();
           } catch (e) {}
-          if (!out) out = bestCv.toDataURL('image/jpeg', 0.78).split(',').pop();
+          if (!out) out = bestCv.toDataURL('image/jpeg', 0.85).split(',').pop();
           bestCv.width = bestCv.height = 0;
           return { b64: out, blurred: false };
         } catch (e) { return { b64: '', blurred: false }; }
