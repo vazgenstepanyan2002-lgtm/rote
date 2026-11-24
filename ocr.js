@@ -560,7 +560,7 @@ async function askGemini(b64){
     const cleanB64 = String(b64 || '');
     const mime = cleanB64.indexOf('UklGR') === 0 ? 'image/webp' : (cleanB64.indexOf('iVBOR') === 0 ? 'image/png' : 'image/jpeg');
     const host = ['generativelanguage', 'googleapis', 'com'].join('.');
-    const prompt = 'Накладная EuroBaza (HY/RU/EN).\nВАЖНО: Если на фото НЕТ накладной, если снимок пустой, черный, темный, смазанный или это не накладная — верни items: [], doc: "", addr: "". Категорически запрещено выдумывать или генерировать несуществующие товары!\ndoc=номер СТРОГО только из строки «Վաճառքի փաստաթուղթ №» или «Վաճառքի փաստաթուղթ:» (цифры и дефис, обычно 0000-XXXXX, если строки нет — пустая строка ""). КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО брать номер из Բեռնափոխադրման թերթիկ.\naddr=город, село, район или область из строки «Տեղափոխման հասցե» / «Հասցե» на языке оригинала HY/RU (1-3 слова, без номера дома и телефонов; если нет — пустая строка "", не писать none).\nitems=[{name:ТОЛЬКО РЕАЛЬНЫЙ ТЕКСТ из таблицы Ապրանքի անվանումը, qty:целое число из Քանակ}] без доставки (Տեղափոխություն), сборки (Հավաքում) и фурнитуры. Если таблица с товарами не видна — items=[].';
+    const prompt = 'Накладная EuroBaza (HY/RU/EN).\nВАЖНО: Если на фото НЕТ накладной, если снимок пустой, черный, темный, смазанный или это не накладная — верни items: [], doc: "", addr: "". Категорически запрещено выдумывать или генерировать несуществующие товары!\ndoc=номер СТРОГО только из строки «Վաճառքի փաստաթուղթ №» или «Վաճառքի փաստաթուղթ:» (цифры и дефис, обычно 0000-XXXXX, если строки нет — пустая строка ""). КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО брать номер из Բեռնափոխադրման թերթիկ.\naddr=город, село, район или область из строки «Տեղափոխման հասցե» / «Հասցե» на языке оригинала HY/RU (1-3 слова, без номера дома и телефонов; если нет — пустая строка "", не писать none).\nitems=[{name:ТОЛЬКО РЕАЛЬНЫЙ ТЕКСТ из таблицы Ապրանքի անվանումը, qty:целое число СТРОГО из столбца Քանակ; если столбец Քանակ обрезан, скрыт, стёрт, размыт или цифра не читается — СТРОГО верни qty: 0, КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО угадывать или подставлять 1!}] без доставки (Տեղափոխություն), сборки (Հավաքում) и фурнитуры. Если таблица с товарами не видна — items=[].';
     const schema = {
       type: 'OBJECT',
       properties: {
@@ -720,7 +720,9 @@ async function askGemini(b64){
       const items = [];
       (Array.isArray(parsed.items) ? parsed.items : []).forEach(x => {
         if (!x || typeof x !== 'object') return;
-        const name = fixOcrName(String(x.name || '').trim()), qty = Math.max(1, Math.round(+x.qty || 1));
+        const name = fixOcrName(String(x.name || '').trim());
+        const rawQty = Number(x.qty);
+        const qty = (Number.isFinite(rawQty) && rawQty >= 1) ? Math.round(rawQty) : 0;
         if (!name) return;
         const cls = classifyProduct(name);
         if (!cls.ignore) items.push({ name, qty, code: cls.code || '' });
@@ -786,7 +788,7 @@ async function askGemini(b64){
     if (!Array.isArray(items) || !items.length) return;
     let m = g('ocrBonMdl'); if (m) m.remove();
     let isCity = defaultIsCity === 'reg' ? false : (defaultIsCity === 'city' ? true : !!defaultIsCity);
-    const rows = items.map(x => { const c = x.code || classifyProduct(x.name).code || ''; return { name: x.name, qty: x.qty, code: c, origCode: c }; });
+    const rows = items.map(x => { const c = x.code || classifyProduct(x.name).code || ''; const rq = Number(x.qty); const q = (Number.isFinite(rq) && rq >= 1) ? Math.round(rq) : 0; return { name: x.name, qty: q, code: c, origCode: c, edited: !!x.edited }; });
     saveOcrDraft(rows, isCity, cleanDoc);
     const CAT_ICO = { 'Другое': '📦', 'Диваны': '🛋️', 'Ресепшен': '🗄️', 'Кухни': '🍳', 'Гостиная': '📺', 'Спальни': '🛏️', 'Шкафы': '🚪' };
     const catsList = Array.from(new Set(BON_ITEMS.map(x => x.cat)));
@@ -841,17 +843,21 @@ async function askGemini(b64){
       const box = g('obList');
       if (!rows.length) { box.innerHTML = '<div class="pt-empty">Все позиции удалены</div>'; g('obTotSum').textContent = '0 ' + CUR; return; }
       let tot = 0;
-      box.innerHTML = rows.map((r, i) => {
+      const hasNoQty = rows.some(r => !r.qty || r.qty < 1);
+      const banner = hasNoQty ? '<div class="ob-qbanner">⚠️ На фото не видно количество — укажите вручную</div>' : '';
+      box.innerHTML = banner + rows.map((r, i) => {
         const info = r.code ? BON_BY_CODE[r.code] : null;
+        const noQty = !r.qty || r.qty < 1;
         const up = info ? (info.one ? info.p1 : (isCity ? info.p1 : info.p2)) : 0;
-        tot += up * r.qty;
+        tot += up * (noQty ? 0 : r.qty);
         const pickLabel = info
           ? '<span class="ob-pick-l"><span>' + (CAT_ICO[info.cat] || '📦') + '</span><b>' + esc(info.name) + '</b></span><span class="ob-pick-r"><span class="ob-pick-tag">' + fm(up) + ' ' + CUR + '</span><span>▾</span></span>'
           : '<span class="ob-pick-l"><span>⚠️</span><b style="color:#fbbf24">Выберите категорию бонусов</b></span><span class="ob-pick-r"><span>▾</span></span>';
-        return '<div class="ob-card' + (info ? '' : ' unk') + '"><div class="ob-top"><div class="ob-nm" data-no-i18n="1">' + esc(r.name) + '</div><button type="button" class="ob-del" data-i="' + i + '">✕</button></div>'
+        return '<div class="ob-card' + (info ? '' : ' unk') + (noQty ? ' noq' : '') + '"><div class="ob-top"><div class="ob-nm" data-no-i18n="1">' + esc(r.name) + '</div><button type="button" class="ob-del" data-i="' + i + '">✕</button></div>'
           + '<button type="button" class="ob-pick' + (info ? '' : ' unk') + '" data-pick="' + i + '">' + pickLabel + '</button>'
-          + '<div class="ob-bot"><div class="ob-qbox"><button type="button" class="ob-pm" data-act="dec" data-i="' + i + '">−</button><b>' + r.qty + ' шт</b><button type="button" class="ob-pm" data-act="inc" data-i="' + i + '">+</button></div>'
-          + '<div class="ob-pr">' + (info ? (fm(up) + ' × ' + r.qty + ' = <b>' + fm(up * r.qty) + ' ' + CUR + '</b>') : '<span style="color:#fbbf24">Не выбрано</span>') + '</div></div></div>';
+          + (noQty ? '<div class="ob-qwarn">⚠️ Количество не видно — укажите вручную</div>' : '')
+          + '<div class="ob-bot"><div class="ob-qbox' + (noQty ? ' noq' : '') + '"><button type="button" class="ob-pm" data-act="dec" data-i="' + i + '"' + (r.qty <= 1 ? ' disabled' : '') + '>−</button><b>' + (noQty ? 0 : r.qty) + ' шт</b><button type="button" class="ob-pm" data-act="inc" data-i="' + i + '">+</button></div>'
+          + '<div class="ob-pr">' + (noQty ? '<span class="ob-pr-err">Укажите количество</span>' : (info ? (fm(up) + ' × ' + r.qty + ' = <b>' + fm(up * r.qty) + ' ' + CUR + '</b>') : '<span style="color:#fbbf24">Не выбрано</span>')) + '</div></div></div>';
       }).join('');
       g('obTotSum').textContent = fm(tot) + ' ' + CUR;
       saveOcrDraft(rows, isCity, cleanDoc);
@@ -861,9 +867,21 @@ async function askGemini(b64){
     g('obList').onclick = e => {
       const pk = e.target.closest('[data-pick]'); if (pk) { openCatPicker(+pk.dataset.pick); return; }
       const del = e.target.closest('.ob-del'); if (del) { rows.splice(+del.dataset.i, 1); renderRows(); return; }
-      const pm = e.target.closest('.ob-pm'); if (pm && rows[+pm.dataset.i]) { rows[+pm.dataset.i].qty = pm.dataset.act === 'inc' ? rows[+pm.dataset.i].qty + 1 : Math.max(1, rows[+pm.dataset.i].qty - 1); renderRows(); }
+      const pm = e.target.closest('.ob-pm');
+      if (pm && rows[+pm.dataset.i]) {
+        const row = rows[+pm.dataset.i];
+        if (pm.dataset.act === 'inc') row.qty = (row.qty || 0) + 1;
+        else if (row.qty > 1) row.qty -= 1;
+        renderRows();
+      }
     };
     g('obSaveBtn').onclick = async () => {
+      if (rows.some(r => !r.qty || r.qty < 1)) {
+        const card = g('obList') && g('obList').querySelector('.ob-card.noq');
+        if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        window.toast && toast('Укажите количество для всех позиций', 'err');
+        return;
+      }
       const valid = rows.filter(r => r.code && BON_BY_CODE[r.code] && r.qty > 0);
       if (!valid.length) { window.toast && toast('Выберите категорию хотя бы для одной позиции', 'err'); return; }
       const code = (() => { try { return (localStorage.getItem('USER_CAR') || '').trim().toUpperCase(); } catch (e) { return ''; } })();
