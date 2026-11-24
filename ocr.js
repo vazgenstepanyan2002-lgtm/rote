@@ -81,8 +81,63 @@
   const normSearch = s => normText(s).replace(/[,]/g, '.').replace(/["'«»()_\/]+/g, ' ').replace(/(\d)\s*[×xх*]\s*(\d)/g, '$1*$2').replace(/\s+/g, ' ').trim();
   const normModel = s => normText(s).replace(/[\"'«»().,]/g, ' ').replace(/\s+/g, ' ').trim();
   const fbKey = k => normModel(k).replace(/[.#$\[\]\/]+/g, '_').slice(0, 120);
+  const ocrFold = s => normModel(s)
+    .replace(/ռ/g, 'ր').replace(/թ/g, 'տ').replace(/փ/g, 'պ')
+    .replace(/ք/g, 'կ').replace(/օ/g, 'ո').replace(/է/g, 'ե')
+    .replace(/[ձծ]/g, 'ց').replace(/ղ/g, 'դ');
+  const COLOR_STOP_RX = /(?:^|[\s_\/-]+)(?:դուբ|կրաֆտ|սանոմա|սոնոմա|վենգե|սպիտակ|սեվ|գրաֆիտ|մոխրագույն|շագանակագույն|բեժ|կրեմ|շիմո|լայթ|դարկ|գոլդ|ոսկեգույն|անտրացիտ|կաշմիր|կապուչինո|բետոն|մարմար|փայլուն|մատ|գլյանց|սիլվեր|արծաթագույն|կաղնի|ընկույզ|բալ|дуб|крафт|сонома|венге|белый|бел|черный|графит|серый|беж|крем|шимо|лайт|дарк|голд|антрацит|кашмир|капучино|бетон|мрамор|глянец|мат|орех|ясень)(?=$|[\s_\/-]+)/gi;
+  const stripColors = s => normModel(s).replace(COLOR_STOP_RX, ' ').replace(/\s+/g, ' ').trim();
+
   let CLOUD_MAP = (() => { try { return JSON.parse(localStorage.getItem('BON_OCR_MAP') || '{}') || {}; } catch (e) { return {}; } })();
   let LOCAL_MAP = (() => { try { return JSON.parse(localStorage.getItem('BON_OCR_LOCAL') || '{}') || {}; } catch (e) { return {}; } })();
+  let _mapIdxVer = -1, _mapIdx = null;
+  function getMapIndex(){
+    const ver = Object.keys(CLOUD_MAP).length * 10000 + Object.keys(LOCAL_MAP).length;
+    if (_mapIdx && _mapIdxVer === ver) return _mapIdx;
+    const exact = Object.create(null), noCol = Object.create(null), folded = Object.create(null), entries = [];
+    const addMap = m => {
+      for (const k in m) {
+        const cd = m[k];
+        if (!cd || !BON_BY_CODE[cd]) continue;
+        exact[k] = cd;
+        const nk = fbKey(k);
+        if (nk && !exact[nk]) exact[nk] = cd;
+        const sc = stripColors(k.replace(/_/g, ' '));
+        if (sc && sc.length >= 4 && !noCol[sc]) noCol[sc] = cd;
+        const fc = sc ? ocrFold(sc) : '';
+        if (fc && fc.length >= 4 && !folded[fc]) {
+          folded[fc] = cd;
+          entries.push([fc, cd]);
+        }
+      }
+    };
+    addMap(CLOUD_MAP);
+    addMap(LOCAL_MAP);
+    _mapIdxVer = ver;
+    _mapIdx = { exact, noCol, folded, entries };
+    return _mapIdx;
+  }
+  function lookupCustomMap(clean){
+    const fk = fbKey(clean);
+    if (!fk) return '';
+    const idx = getMapIndex();
+    if (idx.exact[fk]) return idx.exact[fk];
+    const sc = stripColors(clean);
+    if (sc && idx.noCol[sc]) return idx.noCol[sc];
+    const fc = sc ? ocrFold(sc) : '';
+    if (fc && idx.folded[fc]) return idx.folded[fc];
+    if (fc && fc.length >= 6 && idx.entries.length) {
+      let bestCd = '', bestD = 3;
+      for (let i = 0; i < idx.entries.length; i++) {
+        const [ek, cd] = idx.entries[i];
+        if (Math.abs(ek.length - fc.length) > 2) continue;
+        const d = ocrEditDist(fc, ek);
+        if (d < bestD) { bestD = d; bestCd = cd; if (d <= 1) break; }
+      }
+      if (bestCd) return bestCd;
+    }
+    return '';
+  }
   let _cmTries = 0;
   const _cmWait = setInterval(() => {
     if (++_cmTries > 45) { clearInterval(_cmWait); return; }
@@ -91,6 +146,7 @@
     firebase.database().ref('config/ocrMap').on('value', s => {
       const val = (s.val() && typeof s.val() === 'object') ? s.val() : {};
       CLOUD_MAP = val;
+      _mapIdx = null;
       Object.keys(val).forEach(k => { if (LOCAL_MAP[k]) delete LOCAL_MAP[k]; });
       try {
         localStorage.setItem('BON_OCR_MAP', JSON.stringify(CLOUD_MAP));
@@ -102,6 +158,7 @@
   function saveCloudModel(rawName, code, isAdminRole, fromCode){
     const fk = fbKey(rawName);
     if (!fk || !code) return;
+    _mapIdx = null;
     if (isAdminRole) {
       CLOUD_MAP[fk] = code;
       try { localStorage.setItem('BON_OCR_MAP', JSON.stringify(CLOUD_MAP)); } catch (e) {}
@@ -284,18 +341,27 @@
   }
 
   function fuzzyClassify(norm){
+    const folded = ocrFold(norm);
     const words = norm.split(/[\s\-_/]+/).filter(w => w.length >= 2);
     if (!words.length) return '';
-    const pairs = [];
+    const fWords = folded.split(/[\s\-_/]+/).filter(w => w.length >= 2);
+    const pairs = [], fPairs = [];
     for (let i = 0; i < words.length - 1; i++) pairs.push(words[i] + ' ' + words[i + 1]);
+    for (let i = 0; i < fWords.length - 1; i++) fPairs.push(fWords[i] + ' ' + fWords[i + 1]);
     const tokens = words.concat(pairs);
+    const fTokens = fWords.concat(fPairs);
 
     let grp = '', bestT = 9;
     for (const [gName, kws] of FUZZY_TYPES) {
-      for (const w of words) {
-        if (w.length < 4) continue;
-        for (const kw of kws) {
-          const d = ocrEditDist(w, kw);
+      for (const kw of kws) {
+        const fkw = ocrFold(kw);
+        if (fkw.length >= 5 && folded.includes(fkw) && 0 < bestT) { bestT = 0; grp = gName; break; }
+        for (let wi = 0; wi < words.length; wi++) {
+          const w = words[wi];
+          if (w.length < 4) continue;
+          const d1 = ocrEditDist(w, kw);
+          const d2 = fWords[wi] ? ocrEditDist(fWords[wi], fkw) : 9;
+          const d = Math.min(d1, d2);
           if (d <= (kw.length <= 5 ? 1 : 2) && d < bestT) { bestT = d; grp = gName; }
         }
       }
@@ -303,8 +369,8 @@
     if (!grp) return '';
     if (grp.startsWith('other_')) return grp;
     if (grp === 'sof') {
-      if (tokens.some(t => ocrEditDist(t, 'բազկաթոռ') <= 2)) return 'sofas_a';
-      if (tokens.some(t => ocrEditDist(t, 'բազմոց') <= 2)) return 'sofas_b';
+      if (fTokens.some(t => ocrEditDist(t, ocrFold('բազկաթոռ')) <= 2) || folded.includes(ocrFold('բազկաթոռ'))) return 'sofas_a';
+      if (fTokens.some(t => ocrEditDist(t, ocrFold('բազմոց')) <= 2) || folded.includes(ocrFold('բազմոց'))) return 'sofas_b';
       return 'sofas_c';
     }
     if (grp === 'bed') {
@@ -322,10 +388,18 @@
     const models = FUZZY_MODELS[grp] || [];
     let bestCode = '', bestD = 9, bestLen = 0;
     for (const [mdl, cd] of models) {
+      const fmdl = ocrFold(mdl);
+      if (fmdl.length >= 4 && folded.includes(fmdl) && (0 < bestD || (bestD === 0 && mdl.length > bestLen))) {
+        bestD = 0; bestCode = cd; bestLen = mdl.length;
+        continue;
+      }
       const maxD = mdl.length <= 4 ? 1 : 2;
-      for (const t of tokens) {
+      for (let ti = 0; ti < tokens.length; ti++) {
+        const t = tokens[ti];
         if (t.length < 3) continue;
-        const d = ocrEditDist(t, mdl);
+        const d1 = ocrEditDist(t, mdl);
+        const d2 = fTokens[ti] ? ocrEditDist(fTokens[ti], fmdl) : 9;
+        const d = Math.min(d1, d2);
         if (d <= maxD && (d < bestD || (d === bestD && mdl.length > bestLen))) {
           bestD = d; bestCode = cd; bestLen = mdl.length;
         }
@@ -339,8 +413,7 @@
     if (!clean) return { ignore: true };
     const norm = normModel(clean);
     if (RULES[0].rx.test(norm)) return { ignore: true };
-    const fk = fbKey(clean);
-    const mapped = CLOUD_MAP[fk] || LOCAL_MAP[fk];
+    const mapped = lookupCustomMap(clean);
     if (mapped && BON_BY_CODE[mapped]) return { ignore: false, code: mapped };
     for (let i = 1; i < RULES.length; i++) if (RULES[i].rx.test(norm)) return { ignore: false, code: RULES[i].code };
     const fz = fuzzyClassify(norm);
@@ -356,38 +429,98 @@
   };
   const detectZone = s => isYerevanAddress(s) ? 'city' : 'reg';
 
-  function encodeOcrCanvas(cv){
-    const q = 0.85;
+  function enhanceInvoiceCanvas(cv){
     try {
-      const wUrl = cv.toDataURL('image/webp', q);
-      if (wUrl && wUrl.indexOf('data:image/webp') === 0) return wUrl.split(',').pop();
+      const w = cv.width, h = cv.height;
+      if (!w || !h) return;
+      const ctx = cv.getContext('2d', { willReadFrequently: true });
+      const img = ctx.getImageData(0, 0, w, h);
+      const d = img.data, len = d.length;
+      const hist = new Uint32Array(256);
+      let total = 0;
+      for (let i = 0; i < len; i += 8) {
+        const y = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8;
+        hist[y]++; total++;
+      }
+      if (!total) return;
+      let lo = 0, hi = 255, acc = 0;
+      const loCut = total * 0.025, hiCut = total * 0.975;
+      for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= loCut) { lo = v; break; } }
+      acc = 0;
+      for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= hiCut) { hi = v; break; } }
+      const span = Math.max(48, hi - lo);
+      const lut = new Uint8Array(256);
+      for (let v = 0; v < 256; v++) {
+        let nv = ((v - lo) * 255) / span;
+        nv = (nv - 128) * 1.12 + 128;
+        lut[v] = nv < 0 ? 0 : (nv > 255 ? 255 : nv | 0);
+      }
+      for (let i = 0; i < len; i += 4) {
+        const gVal = lut[(d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8];
+        d[i] = d[i + 1] = d[i + 2] = gVal;
+      }
+      ctx.putImageData(img, 0, 0);
     } catch (e) {}
-    return cv.toDataURL('image/jpeg', q).split(',').pop();
+  }
+
+  function calcSharpness(src, sx, sy, sw, sh){
+    try {
+      const cw = 192, ch = 192;
+      const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+      const cx = cv.getContext('2d', { willReadFrequently: true });
+      cx.drawImage(src, sx, sy, sw, sh, 0, 0, cw, ch);
+      const d = cx.getImageData(0, 0, cw, ch).data;
+      const gray = new Uint8Array(cw * ch);
+      for (let i = 0, p = 0; i < gray.length; i++, p += 4) {
+        gray[i] = (d[p] * 77 + d[p + 1] * 150 + d[p + 2] * 29) >> 8;
+      }
+      let sum = 0, sumSq = 0, n = 0;
+      for (let y = 1; y < ch - 1; y++) {
+        const row = y * cw;
+        for (let x = 1; x < cw - 1; x++) {
+          const i = row + x;
+          const lap = (gray[i] << 2) - gray[i - 1] - gray[i + 1] - gray[i - cw] - gray[i + cw];
+          sum += lap; sumSq += lap * lap; n++;
+        }
+      }
+      cv.width = cv.height = 0;
+      if (!n) return 100;
+      const mean = sum / n;
+      return (sumSq / n) - mean * mean;
+    } catch (e) { return 100; }
   }
 
 async function compressImage(file){
     if (file && file._preB64) return file._preB64;
     const isCrop = !!(file && file._isCropped);
-    const maxSide = isCrop ? 1280 : 1600;
+    const maxSide = isCrop ? 1180 : 1280;
+    const encodeCv = cv => {
+      try {
+        const wUrl = cv.toDataURL('image/webp', 0.76);
+        if (wUrl && wUrl.indexOf('data:image/webp') === 0) return wUrl.split(',').pop();
+      } catch (e) {}
+      return cv.toDataURL('image/jpeg', 0.78).split(',').pop();
+    };
     if (window.createImageBitmap) {
       try {
         const bmp0 = await createImageBitmap(file);
-        let w = bmp0.width, h = bmp0.height;
+        const w0 = bmp0.width, h0 = bmp0.height;
+        let w = w0, h = h0;
         if (w > maxSide || h > maxSide) {
           if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; }
           else { w = Math.round(w * maxSide / h); h = maxSide; }
         }
         bmp0.close();
         const bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
-        const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+        const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
         const ctx = cv.getContext('2d');
         const hasFilter = typeof ctx.filter === 'string';
         if (!isCrop && hasFilter) ctx.filter = 'grayscale(1) contrast(1.18)';
-        if (bmp.width === w && bmp.height === h) ctx.drawImage(bmp, 0, 0);
-        else ctx.drawImage(bmp, 0, 0, w, h);
+        ctx.drawImage(bmp, 0, 0);
         if (!isCrop && hasFilter) ctx.filter = 'none';
         bmp.close();
-        const out = encodeOcrCanvas(cv);
+        if (!isCrop && !hasFilter) enhanceInvoiceCanvas(cv);
+        const out = encodeCv(cv);
         cv.width = cv.height = 0;
         return out;
       } catch (e) {}
@@ -405,7 +538,8 @@ async function compressImage(file){
         if (!isCrop && hasFilter) ctx.filter = 'grayscale(1) contrast(1.18)';
         ctx.drawImage(img, 0, 0, w, h);
         if (!isCrop && hasFilter) ctx.filter = 'none';
-        const out = encodeOcrCanvas(cv);
+        if (!isCrop && !hasFilter) enhanceInvoiceCanvas(cv);
+        const out = encodeCv(cv);
         cv.width = cv.height = 0;
         res(out);
       };
@@ -446,35 +580,25 @@ async function askGemini(b64){
       },
       required: ['doc', 'addr', 'items']
     };
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      throw new Error('Нет подключения к интернету');
-    }
     const baseModels = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-flash-lite-latest'];
     const readSkip = () => {
       try {
         const raw = JSON.parse(localStorage.getItem('OCR_SKIP_MDL') || '{}') || {};
         const now = Date.now(), clean = {};
-        for (const k in raw) {
-          const v = raw[k];
-          if (typeof v === 'number') { if (v > now) clean[k] = { until: v, hard: (v - now) > 10 * 60000 }; }
-          else if (v && v.until > now) clean[k] = v;
-        }
+        for (const k in raw) if (raw[k] > now) clean[k] = raw[k];
         return clean;
       } catch (e) { return {}; }
     };
-    const markSkip = (mdl, mins, hard) => {
+    const markSkip = (mdl, mins) => {
       try {
         const s = readSkip();
-        s[mdl] = { until: Date.now() + mins * 60000, hard: !!hard };
+        s[mdl] = Date.now() + mins * 60000;
         localStorage.setItem('OCR_SKIP_MDL', JSON.stringify(s));
-        const fc = JSON.parse(localStorage.getItem('OCR_FAST_MDL_V2') || 'null');
-        if (fc && fc.m === mdl) localStorage.removeItem('OCR_FAST_MDL_V2');
       } catch (e) {}
     };
     const getOrderedModels = () => {
       const skip = readSkip();
       let list = baseModels.filter(m => !skip[m]);
-      if (!list.length) list = baseModels.filter(m => !(skip[m] && skip[m].hard));
       if (!list.length) list = baseModels.slice();
       try {
         const fc = JSON.parse(localStorage.getItem('OCR_FAST_MDL_V2') || 'null');
@@ -512,7 +636,7 @@ async function askGemini(b64){
         let timedOut = false;
         const onExtAbort = () => { try { ctrl.abort(); } catch (e) {} };
         if (extSignal) {
-          if (extSignal.aborted) return { ok: false, err: '', kind: '' };
+          if (extSignal.aborted) return { ok: false, err: '' };
           extSignal.addEventListener('abort', onExtAbort, { once: true });
         }
         const tId = setTimeout(() => { timedOut = true; try { ctrl.abort(); } catch (e) {} }, timeoutMs);
@@ -527,39 +651,34 @@ async function askGemini(b64){
             const errData = await res.json().catch(() => ({}));
             const msg = (errData.error && errData.error.message) ? errData.error.message : ('HTTP ' + res.status);
             if (res.status === 400 && !safeMode) continue;
-            let kind = 'other';
             if (res.status === 429) {
               const isDaily = /per\s*day|free\s*tier|limit:\s*0/i.test(msg);
-              markSkip(mdl, isDaily ? 60 : 5, isDaily);
-              kind = isDaily ? 'quota' : 'busy';
+              markSkip(mdl, isDaily ? 60 : 5);
             } else if (res.status === 503 || /high demand|overloaded|unavailable/i.test(msg)) {
-              markSkip(mdl, 3, false);
-              kind = 'busy';
+              markSkip(mdl, 3);
             } else if (res.status === 404) {
-              markSkip(mdl, 720, true);
-              kind = 'notfound';
+              markSkip(mdl, 720);
             }
-            return { ok: false, err: msg, kind };
+            return { ok: false, err: msg };
           }
           const data = await res.json();
           if (data && Array.isArray(data.candidates) && data.candidates.length) {
             return { ok: true, json: data };
           }
-          return { ok: false, err: 'Пустой ответ модели', kind: 'other' };
+          return { ok: false, err: 'Пустой ответ модели' };
         } catch (e) {
-          if (extSignal && extSignal.aborted) return { ok: false, err: '', kind: '' };
-          if (timedOut) return { ok: false, err: 'Таймаут сети', kind: 'timeout' };
-          return { ok: false, err: 'Нет связи с сервером', kind: 'net' };
+          if (extSignal && extSignal.aborted) return { ok: false, err: '' };
+          return { ok: false, err: timedOut ? 'Таймаут сети' : ((e && e.message) || 'Нет связи') };
         } finally {
           clearTimeout(tId);
           if (extSignal) extSignal.removeEventListener('abort', onExtAbort);
         }
       }
-      return { ok: false, err: 'Ошибка параметров запроса', kind: 'other' };
+      return { ok: false, err: 'Ошибка параметров запроса' };
     };
     const raceTwo = (m1, m2, timeoutMs) => new Promise(resolve => {
       const c1 = new AbortController(), c2 = new AbortController();
-      let timer = null, p2Started = false, settled = false, doneCount = 0, firstErr = '', firstKind = '';
+      let timer = null, p2Started = false, settled = false, doneCount = 0, firstErr = '';
       const finish = (ok, payload) => {
         if (settled) return;
         settled = true;
@@ -569,27 +688,25 @@ async function askGemini(b64){
           try { c2.abort(); } catch (e) {}
           resolve({ ok: true, mdl: payload.mdl, json: payload.json });
         } else {
-          resolve({ ok: false, err: payload.err, kind: payload.kind, p2Tried: p2Started });
+          resolve({ ok: false, err: payload, p2Tried: p2Started });
         }
       };
-      const onFail = (r, isP1) => {
+      const onFail = (err, isP1) => {
         doneCount++;
-        if (r && r.err && (!firstErr || (firstKind === 'notfound' && r.kind !== 'notfound'))) {
-          firstErr = r.err; firstKind = r.kind || '';
-        }
-        if (isP1 && !p2Started) { finish(false, { err: firstErr, kind: firstKind }); return; }
-        if (doneCount >= 2) finish(false, { err: firstErr, kind: firstKind });
+        if (!firstErr && err) firstErr = err;
+        if (isP1 && !p2Started) { finish(false, firstErr); return; }
+        if (doneCount >= 2) finish(false, firstErr);
       };
       callModel(m1, timeoutMs, c1.signal).then(r => {
         if (r.ok) finish(true, { mdl: m1, json: r.json });
-        else onFail(r, true);
+        else onFail(r.err, true);
       });
       timer = setTimeout(() => {
         if (settled) return;
         p2Started = true;
         callModel(m2, timeoutMs, c2.signal).then(r => {
           if (r.ok) finish(true, { mdl: m2, json: r.json });
-          else onFail(r, false);
+          else onFail(r.err, false);
         });
       }, 2600);
     });
@@ -614,17 +731,10 @@ async function askGemini(b64){
       return { doc, addr: String((parsed && parsed.addr) || '').trim(), items };
     };
 
-    const passTimeouts = [5200, 7500, 10500];
-    const passWaits = [0, 300, 900];
-    let j = null, winMdl = '', lastErr = '', lastKind = '';
-    const recordErr = (err, kind) => {
-      if (!err) return;
-      if (!lastErr || lastKind === 'notfound' || (kind === 'busy' && lastKind !== 'quota')) {
-        lastErr = err; lastKind = kind || '';
-      }
-    };
+    const passTimeouts = [7200, 10500];
+    const passWaits = [0, 350];
+    let j = null, winMdl = '', lastErr = '';
     for (let p = 0; p < passTimeouts.length; p++) {
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) { lastErr = 'Нет подключения к интернету'; break; }
       if (passWaits[p] > 0) await new Promise(r => setTimeout(r, passWaits[p]));
       const avail = getOrderedModels();
       if (!avail.length) break;
@@ -632,14 +742,14 @@ async function askGemini(b64){
       if (p === 0 && avail.length >= 2) {
         const rr = await raceTwo(avail[0], avail[1], passTimeouts[p]);
         if (rr.ok) { j = rr.json; winMdl = rr.mdl; break; }
-        recordErr(rr.err, rr.kind);
+        if (rr.err) lastErr = rr.err;
         startIdx = rr.p2Tried ? 2 : 1;
       }
       for (let idx = startIdx; idx < avail.length; idx++) {
         const mdl = avail[idx];
         const r = await callModel(mdl, passTimeouts[p], null);
         if (r.ok) { j = r.json; winMdl = mdl; break; }
-        recordErr(r.err, r.kind);
+        if (r.err) lastErr = r.err;
       }
       if (j) break;
     }
@@ -887,7 +997,7 @@ async function askGemini(b64){
           wake(i);
         }
       };
-      const conc = 1;
+      const conc = Math.min(2, total);
       for (let w = 0; w < conc; w++) runWorker();
     }
     let saved = 0;
@@ -912,13 +1022,8 @@ async function askGemini(b64){
         const q = /дневной лимит|quota|free.?tier/i.test(msg);
         if (!q && typeof askC === "function") {
           const cm = g("cm"); if (cm) document.body.appendChild(cm);
-          const bs = /high demand|503|overloaded|unavailable|rate limit|too many requests|429/i.test(msg);
-          const net = /таймаут|timeout|нет связи|нет подключения|failed to fetch|load failed|network/i.test(msg);
-          const qt = (bs
-            ? "Сервер распознавания временно перегружен. Повторить отправку фото "
-            : (net
-              ? "Слабая связь или истекло время ожидания. Повторить отправку фото "
-              : ("Ошибка распознавания (" + (idx + 1) + "/" + total + "): " + msg + "\n\nПовторить отправку фото "))) + (idx + 1) + " из " + total + "?";
+          const bs = /high demand|503|таймаут|timeout|нет связи|overloaded|unavailable/i.test(msg);
+          const qt = (bs ? "Сервер распознавания временно перегружен. Повторить отправку фото " : ("Ошибка распознавания (" + (idx + 1) + "/" + total + "): " + msg + "\n\nПовторить отправку фото ")) + (idx + 1) + " из " + total + "?";
           const ok = await askC(qt, "Повторить", "🔄",
             idx + 1 < total ? "Пропустить" : "Отмена");
           if (tok !== _batchTok) { setBusy(false); return; }
@@ -1008,13 +1113,10 @@ async function askGemini(b64){
           if (!isQuota && typeof askC === "function") {
             const cmEl = g("cm");
             if (cmEl) document.body.appendChild(cmEl);
-            const isBusySrv = /high demand|503|overloaded|unavailable|rate limit|too many requests|429/i.test(msg);
-            const isNetErr = /таймаут|timeout|нет связи|нет подключения|failed to fetch|load failed|network/i.test(msg);
+            const isBusySrv = /high demand|503|таймаут|timeout|нет связи|overloaded|unavailable/i.test(msg);
             const qText = isBusySrv
               ? "Сервер распознавания временно перегружен. Повторить отправку этого же фото?"
-              : (isNetErr
-                ? "Слабая связь или истекло время ожидания. Повторить отправку этого же фото?"
-                : ("Ошибка распознавания: " + msg + "\n\nПовторить отправку этого же фото?"));
+              : ("Ошибка распознавания: " + msg + "\n\nПовторить отправку этого же фото?");
             const okRetry = await askC(qText, "Повторить", "🔄");
             if (okRetry && _ebLastOcrB64) {
               b64 = _ebLastOcrB64;
@@ -1247,7 +1349,7 @@ async function askGemini(b64){
     const sw = Math.max(20, Math.min(srcW - sx, Math.round((nx2 - nx1) * visW)));
     const sh = Math.max(20, Math.min(srcH - sy, Math.round((ny2 - ny1) * visH)));
 
-    const maxOut = 1440;
+    const maxOut = 1180;
     let outW = sw, outH = sh;
     if (outW > maxOut || outH > maxOut) {
       if (outW > outH) { outH = Math.round(outH * maxOut / outW); outW = maxOut; }
@@ -1260,7 +1362,12 @@ async function askGemini(b64){
     if (hasFilter) cx.filter = 'grayscale(1) contrast(1.18)';
     cx.drawImage(src, sx, sy, sw, sh, 0, 0, outW, outH);
     if (hasFilter) cx.filter = 'none';
-    const b64 = encodeOcrCanvas(cv);
+    else enhanceInvoiceCanvas(cv);
+    let b64 = '';
+    try { const wu = cv.toDataURL('image/webp', 0.76);
+      if (wu && wu.indexOf('data:image/webp') === 0) b64 = wu.split(',').pop();
+    } catch (e) {}
+    if (!b64) b64 = cv.toDataURL('image/jpeg', 0.78).split(',').pop();
     cv.width = cv.height = 0;
     return b64 ? { size: b64.length, _preB64: b64, _isCropped: true } : null;
   }
@@ -1565,8 +1672,8 @@ async function askGemini(b64){
     g("olcSys").onclick = () => { stopCam(); if (fallbackInput) fallbackInput.click(); };
     g("olcShot").onclick = async () => {
       const _sb0 = g('olcShot'); if (_sb0) _sb0.disabled = true;
-      const _fastShot = () => {
-        if (torchOn || !vid || Math.max(vid.videoWidth || 0, vid.videoHeight || 0) < 1280 || !vid.videoHeight) return '';
+      const _fastBurst = async () => {
+        if (!vid || Math.max(vid.videoWidth || 0, vid.videoHeight || 0) < 1280 || !vid.videoHeight) return { b64: '', blurred: false };
         try {
           const vw = vid.videoWidth, vh = vid.videoHeight;
           const vr = vid.getBoundingClientRect();
@@ -1583,32 +1690,60 @@ async function askGemini(b64){
           }
           if (sw < 100 || sh < 100) { sx = 0; sy = 0; sw = vw; sh = vh; }
           let dw = Math.round(sw), dh = Math.round(sh);
-          if (dw > 1280 || dh > 1280) {
-            if (dw > dh) { dh = Math.round(dh * 1280 / dw); dw = 1280; }
-            else { dw = Math.round(dw * 1280 / dh); dh = 1280; }
+          if (dw > 1180 || dh > 1180) {
+            if (dw > dh) { dh = Math.round(dh * 1180 / dw); dw = 1180; }
+            else { dw = Math.round(dw * 1180 / dh); dh = 1180; }
           }
-          const cv = document.createElement('canvas'); cv.width = dw; cv.height = dh;
-          const ctx = cv.getContext('2d');
-          const hasFilter = typeof ctx.filter === 'string';
-          if (hasFilter) ctx.filter = 'grayscale(1) contrast(1.18)';
-          ctx.drawImage(vid, sx, sy, sw, sh, 0, 0, dw, dh);
-          if (hasFilter) ctx.filter = 'none';
-          const out = encodeOcrCanvas(cv);
-          cv.width = cv.height = 0;
-          return out;
-        } catch (e) { return ''; }
+          let bestCv = null, bestSharp = -1;
+          for (let f = 0; f < 2; f++) {
+            if (f > 0) await sleep(50);
+            const cv = document.createElement('canvas'); cv.width = dw; cv.height = dh;
+            const ctx = cv.getContext('2d');
+            const hasFilter = typeof ctx.filter === 'string';
+            if (hasFilter) ctx.filter = 'grayscale(1) contrast(1.18)';
+            ctx.drawImage(vid, sx, sy, sw, sh, 0, 0, dw, dh);
+            if (hasFilter) ctx.filter = 'none';
+            const shScore = calcSharpness(cv, 0, 0, dw, dh);
+            if (shScore > bestSharp) {
+              if (bestCv) { bestCv.width = bestCv.height = 0; }
+              bestCv = cv; bestSharp = shScore;
+            } else {
+              cv.width = cv.height = 0;
+            }
+          }
+          if (!bestCv) return { b64: '', blurred: false };
+          if (bestSharp < 12) {
+            bestCv.width = bestCv.height = 0;
+            return { b64: '', blurred: true };
+          }
+          const bCtx = bestCv.getContext('2d');
+          if (typeof bCtx.filter !== 'string') enhanceInvoiceCanvas(bestCv);
+          let out = '';
+          try {
+            const wu = bestCv.toDataURL('image/webp', 0.76);
+            if (wu && wu.indexOf('data:image/webp') === 0) out = wu.split(',').pop();
+          } catch (e) {}
+          if (!out) out = bestCv.toDataURL('image/jpeg', 0.78).split(',').pop();
+          bestCv.width = bestCv.height = 0;
+          return { b64: out, blurred: false };
+        } catch (e) { return { b64: '', blurred: false }; }
       };
-      const _fastB64 = _fastShot();
-      if (_fastB64) {
+      const _fastRes = await _fastBurst();
+      if (_fastRes.blurred) {
+        if (_sb0) _sb0.disabled = false;
+        window.toast && toast("Фото смазано — держите камеру ровнее", "err");
+        return;
+      }
+      if (_fastRes.b64) {
         stopCam();
-        scanBonusFile({ size: _fastB64.length, _preB64: _fastB64, _isCropped: true });
+        scanBonusFile({ size: _fastRes.b64.length, _preB64: _fastRes.b64, _isCropped: true });
         return;
       }
       const shotBtn = g("olcShot");
       if (shotBtn) shotBtn.disabled = true;
       const vw = vid.videoWidth || 1920, vh = vid.videoHeight || 1080;
       const vidPort = vh > vw;
-      if (window.ImageCapture && track && (torchOn || !vid || Math.max(vid.videoWidth || 0, vid.videoHeight || 0) < 1280)) {
+      if (window.ImageCapture && track && (!vid || Math.max(vid.videoWidth || 0, vid.videoHeight || 0) < 1280)) {
         try {
           const ic = new ImageCapture(track);
           let photoOpts = torchOn ? { fillLightMode: "torch" } : {};
