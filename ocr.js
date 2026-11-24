@@ -490,37 +490,47 @@
     } catch (e) { return 100; }
   }
 
+  function encodeOcrCanvas(cv){
+    try {
+      let wUrl = cv.toDataURL('image/webp', 0.76);
+      if (wUrl && wUrl.indexOf('data:image/webp') === 0) {
+        let out = wUrl.split(',').pop();
+        if (out.length > 380000) {
+          wUrl = cv.toDataURL('image/webp', 0.64);
+          if (wUrl && wUrl.indexOf('data:image/webp') === 0) out = wUrl.split(',').pop();
+        }
+        return out;
+      }
+    } catch (e) {}
+    let out = cv.toDataURL('image/jpeg', 0.76).split(',').pop();
+    if (out.length > 420000) out = cv.toDataURL('image/jpeg', 0.64).split(',').pop();
+    if (out.length > 560000) out = cv.toDataURL('image/jpeg', 0.54).split(',').pop();
+    return out;
+  }
+
 async function compressImage(file){
     if (file && file._preB64) return file._preB64;
     const isCrop = !!(file && file._isCropped);
     const maxSide = isCrop ? 1180 : 1280;
-    const encodeCv = cv => {
-      try {
-        const wUrl = cv.toDataURL('image/webp', 0.76);
-        if (wUrl && wUrl.indexOf('data:image/webp') === 0) return wUrl.split(',').pop();
-      } catch (e) {}
-      return cv.toDataURL('image/jpeg', 0.78).split(',').pop();
-    };
     if (window.createImageBitmap) {
       try {
-        const bmp0 = await createImageBitmap(file);
-        const w0 = bmp0.width, h0 = bmp0.height;
-        let w = w0, h = h0;
+        const bmp = await createImageBitmap(file);
+        let w = bmp.width, h = bmp.height;
         if (w > maxSide || h > maxSide) {
           if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; }
           else { w = Math.round(w * maxSide / h); h = maxSide; }
         }
-        bmp0.close();
-        const bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
-        const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
+        const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
         const ctx = cv.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        try { ctx.imageSmoothingQuality = 'high'; } catch (e) {}
         const hasFilter = typeof ctx.filter === 'string';
         if (!isCrop && hasFilter) ctx.filter = 'grayscale(1) contrast(1.18)';
-        ctx.drawImage(bmp, 0, 0);
+        ctx.drawImage(bmp, 0, 0, w, h);
         if (!isCrop && hasFilter) ctx.filter = 'none';
         bmp.close();
         if (!isCrop && !hasFilter) enhanceInvoiceCanvas(cv);
-        const out = encodeCv(cv);
+        const out = encodeOcrCanvas(cv);
         cv.width = cv.height = 0;
         return out;
       } catch (e) {}
@@ -534,12 +544,14 @@ async function compressImage(file){
         if (w > maxSide || h > maxSide) { if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; } else { w = Math.round(w * maxSide / h); h = maxSide; } }
         const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
         const ctx = cv.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        try { ctx.imageSmoothingQuality = 'high'; } catch (e) {}
         const hasFilter = typeof ctx.filter === 'string';
         if (!isCrop && hasFilter) ctx.filter = 'grayscale(1) contrast(1.18)';
         ctx.drawImage(img, 0, 0, w, h);
         if (!isCrop && hasFilter) ctx.filter = 'none';
         if (!isCrop && !hasFilter) enhanceInvoiceCanvas(cv);
-        const out = encodeCv(cv);
+        const out = encodeOcrCanvas(cv);
         cv.width = cv.height = 0;
         res(out);
       };
@@ -580,29 +592,43 @@ async function askGemini(b64){
       },
       required: ['doc', 'addr', 'items']
     };
-    const baseModels = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-flash-lite-latest'];
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      throw new Error('Нет подключения к интернету');
+    }
+    const baseModels = ['gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
     const readSkip = () => {
       try {
         const raw = JSON.parse(localStorage.getItem('OCR_SKIP_MDL') || '{}') || {};
         const now = Date.now(), clean = {};
-        for (const k in raw) if (raw[k] > now) clean[k] = raw[k];
+        for (const k in raw) {
+          const v = raw[k];
+          if (typeof v === 'number') { if (v > now) clean[k] = { until: v, hard: (v - now) > 5 * 60000 }; }
+          else if (v && v.until > now) clean[k] = v;
+        }
         return clean;
       } catch (e) { return {}; }
     };
-    const markSkip = (mdl, mins) => {
+    const markSkip = (mdl, mins, hard) => {
       try {
         const s = readSkip();
-        s[mdl] = Date.now() + mins * 60000;
+        s[mdl] = { until: Date.now() + mins * 60000, hard: !!hard };
         localStorage.setItem('OCR_SKIP_MDL', JSON.stringify(s));
+        const fc = JSON.parse(localStorage.getItem('OCR_FAST_MDL_V2') || 'null');
+        if (fc && fc.m === mdl) localStorage.removeItem('OCR_FAST_MDL_V2');
       } catch (e) {}
     };
-    const getOrderedModels = () => {
+    const getOrderedModels = (ignoreSoftSkip) => {
       const skip = readSkip();
-      let list = baseModels.filter(m => !skip[m]);
+      let list = baseModels.filter(m => {
+        const sk = skip[m];
+        if (!sk) return true;
+        return ignoreSoftSkip && !sk.hard;
+      });
+      if (!list.length) list = baseModels.filter(m => !(skip[m] && skip[m].hard));
       if (!list.length) list = baseModels.slice();
       try {
         const fc = JSON.parse(localStorage.getItem('OCR_FAST_MDL_V2') || 'null');
-        if (fc && fc.m && /lite/.test(fc.m) && fc.t > Date.now() - 20 * 60000 && list.includes(fc.m)) {
+        if (fc && fc.m && /lite/.test(fc.m) && fc.t > Date.now() - 10 * 60000 && list.includes(fc.m)) {
           list = [fc.m].concat(list.filter(x => x !== fc.m));
         }
       } catch (e) {}
@@ -636,7 +662,7 @@ async function askGemini(b64){
         let timedOut = false;
         const onExtAbort = () => { try { ctrl.abort(); } catch (e) {} };
         if (extSignal) {
-          if (extSignal.aborted) return { ok: false, err: '' };
+          if (extSignal.aborted) return { ok: false, err: '', kind: '' };
           extSignal.addEventListener('abort', onExtAbort, { once: true });
         }
         const tId = setTimeout(() => { timedOut = true; try { ctrl.abort(); } catch (e) {} }, timeoutMs);
@@ -651,34 +677,39 @@ async function askGemini(b64){
             const errData = await res.json().catch(() => ({}));
             const msg = (errData.error && errData.error.message) ? errData.error.message : ('HTTP ' + res.status);
             if (res.status === 400 && !safeMode) continue;
+            let kind = 'other';
             if (res.status === 429) {
               const isDaily = /per\s*day|free\s*tier|limit:\s*0/i.test(msg);
-              markSkip(mdl, isDaily ? 60 : 5);
+              markSkip(mdl, isDaily ? 60 : 1.5, isDaily);
+              kind = isDaily ? 'quota' : 'busy';
             } else if (res.status === 503 || /high demand|overloaded|unavailable/i.test(msg)) {
-              markSkip(mdl, 3);
+              markSkip(mdl, 0.35, false);
+              kind = 'busy';
             } else if (res.status === 404) {
-              markSkip(mdl, 720);
+              markSkip(mdl, 720, true);
+              kind = 'notfound';
             }
-            return { ok: false, err: msg };
+            return { ok: false, err: msg, kind };
           }
           const data = await res.json();
           if (data && Array.isArray(data.candidates) && data.candidates.length) {
             return { ok: true, json: data };
           }
-          return { ok: false, err: 'Пустой ответ модели' };
+          return { ok: false, err: 'Пустой ответ модели', kind: 'other' };
         } catch (e) {
-          if (extSignal && extSignal.aborted) return { ok: false, err: '' };
-          return { ok: false, err: timedOut ? 'Таймаут сети' : ((e && e.message) || 'Нет связи') };
+          if (extSignal && extSignal.aborted) return { ok: false, err: '', kind: '' };
+          if (timedOut) return { ok: false, err: 'Таймаут сети', kind: 'timeout' };
+          return { ok: false, err: 'Нет связи с сервером', kind: 'net' };
         } finally {
           clearTimeout(tId);
           if (extSignal) extSignal.removeEventListener('abort', onExtAbort);
         }
       }
-      return { ok: false, err: 'Ошибка параметров запроса' };
+      return { ok: false, err: 'Ошибка параметров запроса', kind: 'other' };
     };
     const raceTwo = (m1, m2, timeoutMs) => new Promise(resolve => {
       const c1 = new AbortController(), c2 = new AbortController();
-      let timer = null, p2Started = false, settled = false, doneCount = 0, firstErr = '';
+      let timer = null, p2Started = false, settled = false, doneCount = 0, firstErr = '', firstKind = '';
       const finish = (ok, payload) => {
         if (settled) return;
         settled = true;
@@ -688,27 +719,29 @@ async function askGemini(b64){
           try { c2.abort(); } catch (e) {}
           resolve({ ok: true, mdl: payload.mdl, json: payload.json });
         } else {
-          resolve({ ok: false, err: payload, p2Tried: p2Started });
+          resolve({ ok: false, err: payload.err, kind: payload.kind, p2Tried: p2Started });
         }
       };
-      const onFail = (err, isP1) => {
+      const onFail = (r, isP1) => {
         doneCount++;
-        if (!firstErr && err) firstErr = err;
-        if (isP1 && !p2Started) { finish(false, firstErr); return; }
-        if (doneCount >= 2) finish(false, firstErr);
+        if (r && r.err && (!firstErr || (firstKind === 'notfound' && r.kind !== 'notfound'))) {
+          firstErr = r.err; firstKind = r.kind || '';
+        }
+        if (isP1 && !p2Started) { finish(false, { err: firstErr, kind: firstKind }); return; }
+        if (doneCount >= 2) finish(false, { err: firstErr, kind: firstKind });
       };
       callModel(m1, timeoutMs, c1.signal).then(r => {
         if (r.ok) finish(true, { mdl: m1, json: r.json });
-        else onFail(r.err, true);
+        else onFail(r, true);
       });
       timer = setTimeout(() => {
         if (settled) return;
         p2Started = true;
         callModel(m2, timeoutMs, c2.signal).then(r => {
           if (r.ok) finish(true, { mdl: m2, json: r.json });
-          else onFail(r.err, false);
+          else onFail(r, false);
         });
-      }, 2600);
+      }, 2000);
     });
 
     const parseResp = data => {
@@ -731,35 +764,49 @@ async function askGemini(b64){
       return { doc, addr: String((parsed && parsed.addr) || '').trim(), items };
     };
 
-    const passTimeouts = [7200, 10500];
-    const passWaits = [0, 350];
-    let j = null, winMdl = '', lastErr = '';
+    const passTimeouts = [9000, 11500, 13000];
+    const passWaits = [0, 900, 1800];
+    let j = null, winMdl = '', lastErr = '', lastKind = '';
+    const recordErr = (err, kind) => {
+      if (!err) return;
+      if (!lastErr || lastKind === 'notfound' || (kind === 'busy' && lastKind !== 'quota')) {
+        lastErr = err; lastKind = kind || '';
+      }
+    };
     for (let p = 0; p < passTimeouts.length; p++) {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) { lastErr = 'Нет подключения к интернету'; break; }
       if (passWaits[p] > 0) await new Promise(r => setTimeout(r, passWaits[p]));
-      const avail = getOrderedModels();
+      const allAvail = getOrderedModels(p > 0);
+      const avail = p === 0 ? allAvail : allAvail.slice(0, 3);
       if (!avail.length) break;
-      let startIdx = 0;
-      if (p === 0 && avail.length >= 2) {
+      let startIdx = 0, netFails = 0;
+      if (avail.length >= 2) {
         const rr = await raceTwo(avail[0], avail[1], passTimeouts[p]);
         if (rr.ok) { j = rr.json; winMdl = rr.mdl; break; }
-        if (rr.err) lastErr = rr.err;
+        recordErr(rr.err, rr.kind);
+        if (rr.kind === 'net') netFails++;
         startIdx = rr.p2Tried ? 2 : 1;
       }
       for (let idx = startIdx; idx < avail.length; idx++) {
         const mdl = avail[idx];
         const r = await callModel(mdl, passTimeouts[p], null);
         if (r.ok) { j = r.json; winMdl = mdl; break; }
-        if (r.err) lastErr = r.err;
+        recordErr(r.err, r.kind);
+        if (r.kind === 'net') {
+          netFails++;
+          if (netFails >= 2) break;
+        }
       }
       if (j) break;
+      if (netFails >= 2 && p >= 1) break;
     }
     if (!j) throw new Error(lastErr || 'Сервер распознавания не ответил');
     let out = { doc: '', addr: '', items: [] };
     try { out = parseResp(j); } catch (e) { out = { doc: '', addr: '', items: [] }; }
     if (!out.items.length) {
-      const altMdl = getOrderedModels().find(m => m !== winMdl);
+      const altMdl = getOrderedModels(true).find(m => m !== winMdl);
       if (altMdl) {
-        const sr = await callModel(altMdl, 4500, null);
+        const sr = await callModel(altMdl, 6500, null);
         if (sr.ok) {
           try {
             const altOut = parseResp(sr.json);
@@ -1022,8 +1069,13 @@ async function askGemini(b64){
         const q = /дневной лимит|quota|free.?tier/i.test(msg);
         if (!q && typeof askC === "function") {
           const cm = g("cm"); if (cm) document.body.appendChild(cm);
-          const bs = /high demand|503|таймаут|timeout|нет связи|overloaded|unavailable/i.test(msg);
-          const qt = (bs ? "Сервер распознавания временно перегружен. Повторить отправку фото " : ("Ошибка распознавания (" + (idx + 1) + "/" + total + "): " + msg + "\n\nПовторить отправку фото ")) + (idx + 1) + " из " + total + "?";
+          const bs = /high demand|503|overloaded|unavailable|rate limit|too many requests|429/i.test(msg);
+          const net = /таймаут|timeout|нет связи|нет подключения|failed to fetch|load failed|network/i.test(msg);
+          const qt = (bs
+            ? "Сервер распознавания временно перегружен. Повторить отправку фото "
+            : (net
+              ? "Слабая связь или истекло время ожидания. Повторить отправку фото "
+              : ("Ошибка распознавания (" + (idx + 1) + "/" + total + "): " + msg + "\n\nПовторить отправку фото "))) + (idx + 1) + " из " + total + "?";
           const ok = await askC(qt, "Повторить", "🔄",
             idx + 1 < total ? "Пропустить" : "Отмена");
           if (tok !== _batchTok) { setBusy(false); return; }
@@ -1113,10 +1165,13 @@ async function askGemini(b64){
           if (!isQuota && typeof askC === "function") {
             const cmEl = g("cm");
             if (cmEl) document.body.appendChild(cmEl);
-            const isBusySrv = /high demand|503|таймаут|timeout|нет связи|overloaded|unavailable/i.test(msg);
+            const isBusySrv = /high demand|503|overloaded|unavailable|rate limit|too many requests|429/i.test(msg);
+            const isNetErr = /таймаут|timeout|нет связи|нет подключения|failed to fetch|load failed|network/i.test(msg);
             const qText = isBusySrv
               ? "Сервер распознавания временно перегружен. Повторить отправку этого же фото?"
-              : ("Ошибка распознавания: " + msg + "\n\nПовторить отправку этого же фото?");
+              : (isNetErr
+                ? "Слабая связь или истекло время ожидания. Повторить отправку этого же фото?"
+                : ("Ошибка распознавания: " + msg + "\n\nПовторить отправку этого же фото?"));
             const okRetry = await askC(qText, "Повторить", "🔄");
             if (okRetry && _ebLastOcrB64) {
               b64 = _ebLastOcrB64;
@@ -1363,11 +1418,7 @@ async function askGemini(b64){
     cx.drawImage(src, sx, sy, sw, sh, 0, 0, outW, outH);
     if (hasFilter) cx.filter = 'none';
     else enhanceInvoiceCanvas(cv);
-    let b64 = '';
-    try { const wu = cv.toDataURL('image/webp', 0.76);
-      if (wu && wu.indexOf('data:image/webp') === 0) b64 = wu.split(',').pop();
-    } catch (e) {}
-    if (!b64) b64 = cv.toDataURL('image/jpeg', 0.78).split(',').pop();
+    const b64 = encodeOcrCanvas(cv);
     cv.width = cv.height = 0;
     return b64 ? { size: b64.length, _preB64: b64, _isCropped: true } : null;
   }
@@ -1718,12 +1769,7 @@ async function askGemini(b64){
           }
           const bCtx = bestCv.getContext('2d');
           if (typeof bCtx.filter !== 'string') enhanceInvoiceCanvas(bestCv);
-          let out = '';
-          try {
-            const wu = bestCv.toDataURL('image/webp', 0.76);
-            if (wu && wu.indexOf('data:image/webp') === 0) out = wu.split(',').pop();
-          } catch (e) {}
-          if (!out) out = bestCv.toDataURL('image/jpeg', 0.78).split(',').pop();
+          const out = encodeOcrCanvas(bestCv);
           bestCv.width = bestCv.height = 0;
           return { b64: out, blurred: false };
         } catch (e) { return { b64: '', blurred: false }; }
