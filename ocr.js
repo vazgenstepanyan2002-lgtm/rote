@@ -1,6 +1,12 @@
 // OCR: автоподсчёт бонусов EuroBaza по накладным (Gemini + облачный словарь)
 (function(){
-  const GKEY = ['AQ.Ab8RN6LziHiRoI-kFxMOFA', 'FNqH9QT5tjkiqPTvuiHhnkVeFSMg'].join('');
+  const GKEYS = [
+    ['AQ.Ab8RN6KVD3rQhqif_rpH63J', '7DMFii0uhrCJaiUDMctTLCyM4nA'].join(''),
+    ['AQ.Ab8RN6LGMwUNQeArpxvkt08', 'quS-MMUNeUmPQRvZwgQty8jAXbA'].join(''),
+    ['AQ.Ab8RN6ITKD7FodUM3DIZ207', 'd5OmMHDy5opxiq7lvsDmqUtdEIg'].join(''),
+    ['AQ.Ab8RN6LziHiRoI-kFxMOFA', 'FNqH9QT5tjkiqPTvuiHhnkVeFSMg'].join('')
+  ];
+  const GKEY = GKEYS[0];
   const g = id => document.getElementById(id);
   const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const CUR = '֏';
@@ -596,13 +602,51 @@ async function askGemini(b64){
         localStorage.setItem('OCR_SKIP_MDL', JSON.stringify(s));
       } catch (e) {}
     };
+    const readSkipKey = () => {
+      try {
+        const raw = JSON.parse(localStorage.getItem('OCR_SKIP_KEY') || '{}') || {};
+        const now = Date.now(), clean = {};
+        for (const k in raw) if (raw[k] > now) clean[k] = raw[k];
+        return clean;
+      } catch (e) { return {}; }
+    };
+    const markSkipKey = (ki, mdl, mins) => {
+      try {
+        const s = readSkipKey();
+        s[ki + ':' + mdl] = Date.now() + mins * 60000;
+        localStorage.setItem('OCR_SKIP_KEY', JSON.stringify(s));
+      } catch (e) {}
+    };
+    const getCurKeyIdx = () => {
+      try {
+        const n = parseInt(localStorage.getItem('OCR_CUR_KEY') || '0', 10);
+        return (Number.isFinite(n) && n >= 0 && n < GKEYS.length) ? n : 0;
+      } catch (e) { return 0; }
+    };
+    const setCurKeyIdx = ki => {
+      try { localStorage.setItem('OCR_CUR_KEY', String(ki)); } catch (e) {}
+      try { window.EUROBAZA_OCR_KEY = GKEYS[ki]; } catch (e) {}
+    };
+    const getActiveKeys = mdl => {
+      const sk = readSkipKey();
+      const start = getCurKeyIdx();
+      const free = [], all = [];
+      for (let i = 0; i < GKEYS.length; i++) {
+        const ki = (start + i) % GKEYS.length;
+        all.push(ki);
+        if (!sk[ki + ':*'] && !sk[ki + ':' + mdl]) free.push(ki);
+      }
+      return { free, list: free.length ? free : all };
+    };
     const getOrderedModels = () => {
       const skip = readSkip();
       let list = baseModels.filter(m => !skip[m]);
       if (!list.length) list = baseModels.slice();
+      const withKeys = list.filter(m => getActiveKeys(m).free.length > 0);
+      if (withKeys.length) list = withKeys.concat(list.filter(m => !withKeys.includes(m)));
       try {
         const fc = JSON.parse(localStorage.getItem('OCR_FAST_MDL_V2') || 'null');
-        if (fc && fc.m && /lite/.test(fc.m) && fc.t > Date.now() - 20 * 60000 && list.includes(fc.m)) {
+        if (fc && fc.m && /lite/.test(fc.m) && fc.t > Date.now() - 20 * 60000 && list.includes(fc.m) && getActiveKeys(fc.m).free.length > 0) {
           list = [fc.m].concat(list.filter(x => x !== fc.m));
         }
       } catch (e) {}
@@ -631,48 +675,67 @@ async function askGemini(b64){
       });
     };
     const callModel = async (mdl, timeoutMs, extSignal) => {
-      for (const safeMode of [false, true]) {
-        const ctrl = new AbortController();
-        let timedOut = false;
-        const onExtAbort = () => { try { ctrl.abort(); } catch (e) {} };
-        if (extSignal) {
-          if (extSignal.aborted) return { ok: false, err: '' };
-          extSignal.addEventListener('abort', onExtAbort, { once: true });
-        }
-        const tId = setTimeout(() => { timedOut = true; try { ctrl.abort(); } catch (e) {} }, timeoutMs);
-        try {
-          const res = await fetch('https' + '://' + host + '/v1beta/models/' + mdl + ':generateContent?key=' + encodeURIComponent(GKEY), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: ctrl.signal,
-            body: buildBody(mdl, safeMode)
-          });
-          if (!res.ok) {
-            const errData = await res.json().catch(() => ({}));
-            const msg = (errData.error && errData.error.message) ? errData.error.message : ('HTTP ' + res.status);
-            if (res.status === 400 && !safeMode) continue;
-            if (res.status === 429) {
-              const isDaily = /per\s*day|free\s*tier|limit:\s*0/i.test(msg);
-              markSkip(mdl, isDaily ? 60 : 5);
-            } else if (res.status === 404) {
-              markSkip(mdl, 720);
+      const keyList = getActiveKeys(mdl).list;
+      let lastKeyErr = '';
+      for (let kPos = 0; kPos < keyList.length; kPos++) {
+        if (extSignal && extSignal.aborted) return { ok: false, err: '' };
+        const ki = keyList[kPos];
+        const apiKey = GKEYS[ki];
+        let switchKey = false;
+        for (const safeMode of [false, true]) {
+          const ctrl = new AbortController();
+          let timedOut = false;
+          const onExtAbort = () => { try { ctrl.abort(); } catch (e) {} };
+          if (extSignal) {
+            if (extSignal.aborted) return { ok: false, err: '' };
+            extSignal.addEventListener('abort', onExtAbort, { once: true });
+          }
+          const tId = setTimeout(() => { timedOut = true; try { ctrl.abort(); } catch (e) {} }, timeoutMs);
+          try {
+            const res = await fetch('https' + '://' + host + '/v1beta/models/' + mdl + ':generateContent?key=' + encodeURIComponent(apiKey), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              signal: ctrl.signal,
+              body: buildBody(mdl, safeMode)
+            });
+            if (!res.ok) {
+              const errData = await res.json().catch(() => ({}));
+              const msg = (errData.error && errData.error.message) ? errData.error.message : ('HTTP ' + res.status);
+              const isInvalidKey = res.status === 403 || /api[\s_-]*key.*invalid|key.*expired/i.test(msg);
+              if (res.status === 400 && !safeMode && !isInvalidKey) continue;
+              if (res.status === 429) {
+                const isDaily = /per\s*day|free\s*tier|limit:\s*0/i.test(msg);
+                markSkipKey(ki, mdl, isDaily ? 60 : 2);
+                lastKeyErr = msg;
+                switchKey = true;
+                break;
+              } else if (isInvalidKey) {
+                markSkipKey(ki, '*', 720);
+                lastKeyErr = msg;
+                switchKey = true;
+                break;
+              } else if (res.status === 404) {
+                markSkip(mdl, 720);
+              }
+              return { ok: false, err: msg };
             }
-            return { ok: false, err: msg };
+            const data = await res.json();
+            if (data && Array.isArray(data.candidates) && data.candidates.length) {
+              setCurKeyIdx(ki);
+              return { ok: true, json: data };
+            }
+            return { ok: false, err: 'Пустой ответ модели' };
+          } catch (e) {
+            if (extSignal && extSignal.aborted) return { ok: false, err: '' };
+            return { ok: false, err: timedOut ? 'Таймаут сети' : ((e && e.message) || 'Нет связи') };
+          } finally {
+            clearTimeout(tId);
+            if (extSignal) extSignal.removeEventListener('abort', onExtAbort);
           }
-          const data = await res.json();
-          if (data && Array.isArray(data.candidates) && data.candidates.length) {
-            return { ok: true, json: data };
-          }
-          return { ok: false, err: 'Пустой ответ модели' };
-        } catch (e) {
-          if (extSignal && extSignal.aborted) return { ok: false, err: '' };
-          return { ok: false, err: timedOut ? 'Таймаут сети' : ((e && e.message) || 'Нет связи') };
-        } finally {
-          clearTimeout(tId);
-          if (extSignal) extSignal.removeEventListener('abort', onExtAbort);
         }
+        if (!switchKey) break;
       }
-      return { ok: false, err: 'Ошибка параметров запроса' };
+      return { ok: false, err: lastKeyErr || 'Ошибка параметров запроса' };
     };
     const raceTwo = (m1, m2, timeoutMs) => new Promise(resolve => {
       const c1 = new AbortController(), c2 = new AbortController();
