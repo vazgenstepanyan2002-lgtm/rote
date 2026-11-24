@@ -81,63 +81,8 @@
   const normSearch = s => normText(s).replace(/[,]/g, '.').replace(/["'«»()_\/]+/g, ' ').replace(/(\d)\s*[×xх*]\s*(\d)/g, '$1*$2').replace(/\s+/g, ' ').trim();
   const normModel = s => normText(s).replace(/[\"'«»().,]/g, ' ').replace(/\s+/g, ' ').trim();
   const fbKey = k => normModel(k).replace(/[.#$\[\]\/]+/g, '_').slice(0, 120);
-  const ocrFold = s => normModel(s)
-    .replace(/ռ/g, 'ր').replace(/թ/g, 'տ').replace(/փ/g, 'պ')
-    .replace(/ք/g, 'կ').replace(/օ/g, 'ո').replace(/է/g, 'ե')
-    .replace(/[ձծ]/g, 'ց').replace(/ղ/g, 'դ');
-  const COLOR_STOP_RX = /(?:^|[\s_\/-]+)(?:դուբ|կրաֆտ|սանոմա|սոնոմա|վենգե|սպիտակ|սեվ|գրաֆիտ|մոխրագույն|շագանակագույն|բեժ|կրեմ|շիմո|լայթ|դարկ|գոլդ|ոսկեգույն|անտրացիտ|կաշմիր|կապուչինո|բետոն|մարմար|փայլուն|մատ|գլյանց|սիլվեր|արծաթագույն|կաղնի|ընկույզ|բալ|дуб|крафт|сонома|венге|белый|бел|черный|графит|серый|беж|крем|шимо|лайт|дарк|голд|антрацит|кашмир|капучино|бетон|мрамор|глянец|мат|орех|ясень)(?=$|[\s_\/-]+)/gi;
-  const stripColors = s => normModel(s).replace(COLOR_STOP_RX, ' ').replace(/\s+/g, ' ').trim();
-
   let CLOUD_MAP = (() => { try { return JSON.parse(localStorage.getItem('BON_OCR_MAP') || '{}') || {}; } catch (e) { return {}; } })();
   let LOCAL_MAP = (() => { try { return JSON.parse(localStorage.getItem('BON_OCR_LOCAL') || '{}') || {}; } catch (e) { return {}; } })();
-  let _mapIdxVer = -1, _mapIdx = null;
-  function getMapIndex(){
-    const ver = Object.keys(CLOUD_MAP).length * 10000 + Object.keys(LOCAL_MAP).length;
-    if (_mapIdx && _mapIdxVer === ver) return _mapIdx;
-    const exact = Object.create(null), noCol = Object.create(null), folded = Object.create(null), entries = [];
-    const addMap = m => {
-      for (const k in m) {
-        const cd = m[k];
-        if (!cd || !BON_BY_CODE[cd]) continue;
-        exact[k] = cd;
-        const nk = fbKey(k);
-        if (nk && !exact[nk]) exact[nk] = cd;
-        const sc = stripColors(k.replace(/_/g, ' '));
-        if (sc && sc.length >= 4 && !noCol[sc]) noCol[sc] = cd;
-        const fc = sc ? ocrFold(sc) : '';
-        if (fc && fc.length >= 4 && !folded[fc]) {
-          folded[fc] = cd;
-          entries.push([fc, cd]);
-        }
-      }
-    };
-    addMap(CLOUD_MAP);
-    addMap(LOCAL_MAP);
-    _mapIdxVer = ver;
-    _mapIdx = { exact, noCol, folded, entries };
-    return _mapIdx;
-  }
-  function lookupCustomMap(clean){
-    const fk = fbKey(clean);
-    if (!fk) return '';
-    const idx = getMapIndex();
-    if (idx.exact[fk]) return idx.exact[fk];
-    const sc = stripColors(clean);
-    if (sc && idx.noCol[sc]) return idx.noCol[sc];
-    const fc = sc ? ocrFold(sc) : '';
-    if (fc && idx.folded[fc]) return idx.folded[fc];
-    if (fc && fc.length >= 6 && idx.entries.length) {
-      let bestCd = '', bestD = 3;
-      for (let i = 0; i < idx.entries.length; i++) {
-        const [ek, cd] = idx.entries[i];
-        if (Math.abs(ek.length - fc.length) > 2) continue;
-        const d = ocrEditDist(fc, ek);
-        if (d < bestD) { bestD = d; bestCd = cd; if (d <= 1) break; }
-      }
-      if (bestCd) return bestCd;
-    }
-    return '';
-  }
   let _cmTries = 0;
   const _cmWait = setInterval(() => {
     if (++_cmTries > 45) { clearInterval(_cmWait); return; }
@@ -146,7 +91,6 @@
     firebase.database().ref('config/ocrMap').on('value', s => {
       const val = (s.val() && typeof s.val() === 'object') ? s.val() : {};
       CLOUD_MAP = val;
-      _mapIdx = null;
       Object.keys(val).forEach(k => { if (LOCAL_MAP[k]) delete LOCAL_MAP[k]; });
       try {
         localStorage.setItem('BON_OCR_MAP', JSON.stringify(CLOUD_MAP));
@@ -158,7 +102,6 @@
   function saveCloudModel(rawName, code, isAdminRole, fromCode){
     const fk = fbKey(rawName);
     if (!fk || !code) return;
-    _mapIdx = null;
     if (isAdminRole) {
       CLOUD_MAP[fk] = code;
       try { localStorage.setItem('BON_OCR_MAP', JSON.stringify(CLOUD_MAP)); } catch (e) {}
@@ -341,27 +284,18 @@
   }
 
   function fuzzyClassify(norm){
-    const folded = ocrFold(norm);
     const words = norm.split(/[\s\-_/]+/).filter(w => w.length >= 2);
     if (!words.length) return '';
-    const fWords = folded.split(/[\s\-_/]+/).filter(w => w.length >= 2);
-    const pairs = [], fPairs = [];
+    const pairs = [];
     for (let i = 0; i < words.length - 1; i++) pairs.push(words[i] + ' ' + words[i + 1]);
-    for (let i = 0; i < fWords.length - 1; i++) fPairs.push(fWords[i] + ' ' + fWords[i + 1]);
     const tokens = words.concat(pairs);
-    const fTokens = fWords.concat(fPairs);
 
     let grp = '', bestT = 9;
     for (const [gName, kws] of FUZZY_TYPES) {
-      for (const kw of kws) {
-        const fkw = ocrFold(kw);
-        if (fkw.length >= 5 && folded.includes(fkw) && 0 < bestT) { bestT = 0; grp = gName; break; }
-        for (let wi = 0; wi < words.length; wi++) {
-          const w = words[wi];
-          if (w.length < 4) continue;
-          const d1 = ocrEditDist(w, kw);
-          const d2 = fWords[wi] ? ocrEditDist(fWords[wi], fkw) : 9;
-          const d = Math.min(d1, d2);
+      for (const w of words) {
+        if (w.length < 4) continue;
+        for (const kw of kws) {
+          const d = ocrEditDist(w, kw);
           if (d <= (kw.length <= 5 ? 1 : 2) && d < bestT) { bestT = d; grp = gName; }
         }
       }
@@ -369,8 +303,8 @@
     if (!grp) return '';
     if (grp.startsWith('other_')) return grp;
     if (grp === 'sof') {
-      if (fTokens.some(t => ocrEditDist(t, ocrFold('բազկաթոռ')) <= 2) || folded.includes(ocrFold('բազկաթոռ'))) return 'sofas_a';
-      if (fTokens.some(t => ocrEditDist(t, ocrFold('բազմոց')) <= 2) || folded.includes(ocrFold('բազմոց'))) return 'sofas_b';
+      if (tokens.some(t => ocrEditDist(t, 'բազկաթոռ') <= 2)) return 'sofas_a';
+      if (tokens.some(t => ocrEditDist(t, 'բազմոց') <= 2)) return 'sofas_b';
       return 'sofas_c';
     }
     if (grp === 'bed') {
@@ -388,18 +322,10 @@
     const models = FUZZY_MODELS[grp] || [];
     let bestCode = '', bestD = 9, bestLen = 0;
     for (const [mdl, cd] of models) {
-      const fmdl = ocrFold(mdl);
-      if (fmdl.length >= 4 && folded.includes(fmdl) && (0 < bestD || (bestD === 0 && mdl.length > bestLen))) {
-        bestD = 0; bestCode = cd; bestLen = mdl.length;
-        continue;
-      }
       const maxD = mdl.length <= 4 ? 1 : 2;
-      for (let ti = 0; ti < tokens.length; ti++) {
-        const t = tokens[ti];
+      for (const t of tokens) {
         if (t.length < 3) continue;
-        const d1 = ocrEditDist(t, mdl);
-        const d2 = fTokens[ti] ? ocrEditDist(fTokens[ti], fmdl) : 9;
-        const d = Math.min(d1, d2);
+        const d = ocrEditDist(t, mdl);
         if (d <= maxD && (d < bestD || (d === bestD && mdl.length > bestLen))) {
           bestD = d; bestCode = cd; bestLen = mdl.length;
         }
@@ -413,7 +339,8 @@
     if (!clean) return { ignore: true };
     const norm = normModel(clean);
     if (RULES[0].rx.test(norm)) return { ignore: true };
-    const mapped = lookupCustomMap(clean);
+    const fk = fbKey(clean);
+    const mapped = CLOUD_MAP[fk] || LOCAL_MAP[fk];
     if (mapped && BON_BY_CODE[mapped]) return { ignore: false, code: mapped };
     for (let i = 1; i < RULES.length; i++) if (RULES[i].rx.test(norm)) return { ignore: false, code: RULES[i].code };
     const fz = fuzzyClassify(norm);
@@ -429,79 +356,19 @@
   };
   const detectZone = s => isYerevanAddress(s) ? 'city' : 'reg';
 
-  function enhanceInvoiceCanvas(cv){
-    try {
-      const w = cv.width, h = cv.height;
-      if (!w || !h) return;
-      const ctx = cv.getContext('2d', { willReadFrequently: true });
-      const img = ctx.getImageData(0, 0, w, h);
-      const d = img.data, len = d.length;
-      const hist = new Uint32Array(256);
-      let total = 0;
-      for (let i = 0; i < len; i += 8) {
-        const y = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8;
-        hist[y]++; total++;
-      }
-      if (!total) return;
-      let lo = 0, hi = 255, acc = 0;
-      const loCut = total * 0.025, hiCut = total * 0.975;
-      for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= loCut) { lo = v; break; } }
-      acc = 0;
-      for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= hiCut) { hi = v; break; } }
-      const span = Math.max(48, hi - lo);
-      const lut = new Uint8Array(256);
-      for (let v = 0; v < 256; v++) {
-        let nv = ((v - lo) * 255) / span;
-        nv = (nv - 128) * 1.12 + 128;
-        lut[v] = nv < 0 ? 0 : (nv > 255 ? 255 : nv | 0);
-      }
-      for (let i = 0; i < len; i += 4) {
-        const gVal = lut[(d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8];
-        d[i] = d[i + 1] = d[i + 2] = gVal;
-      }
-      ctx.putImageData(img, 0, 0);
-    } catch (e) {}
-  }
-
-  function calcSharpness(src, sx, sy, sw, sh){
-    try {
-      const cw = 192, ch = 192;
-      const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
-      const cx = cv.getContext('2d', { willReadFrequently: true });
-      cx.drawImage(src, sx, sy, sw, sh, 0, 0, cw, ch);
-      const d = cx.getImageData(0, 0, cw, ch).data;
-      const gray = new Uint8Array(cw * ch);
-      for (let i = 0, p = 0; i < gray.length; i++, p += 4) {
-        gray[i] = (d[p] * 77 + d[p + 1] * 150 + d[p + 2] * 29) >> 8;
-      }
-      let sum = 0, sumSq = 0, n = 0;
-      for (let y = 1; y < ch - 1; y++) {
-        const row = y * cw;
-        for (let x = 1; x < cw - 1; x++) {
-          const i = row + x;
-          const lap = (gray[i] << 2) - gray[i - 1] - gray[i + 1] - gray[i - cw] - gray[i + cw];
-          sum += lap; sumSq += lap * lap; n++;
-        }
-      }
-      cv.width = cv.height = 0;
-      if (!n) return 100;
-      const mean = sum / n;
-      return (sumSq / n) - mean * mean;
-    } catch (e) { return 100; }
-  }
-
   function encodeOcrCanvas(cv){
+    const q = 0.85;
     try {
-      const wUrl = cv.toDataURL('image/webp', 0.76);
+      const wUrl = cv.toDataURL('image/webp', q);
       if (wUrl && wUrl.indexOf('data:image/webp') === 0) return wUrl.split(',').pop();
     } catch (e) {}
-    return cv.toDataURL('image/jpeg', 0.78).split(',').pop();
+    return cv.toDataURL('image/jpeg', q).split(',').pop();
   }
 
 async function compressImage(file){
     if (file && file._preB64) return file._preB64;
     const isCrop = !!(file && file._isCropped);
-    const maxSide = isCrop ? 1180 : 1280;
+    const maxSide = isCrop ? 1280 : 1600;
     if (window.createImageBitmap) {
       try {
         const bmp0 = await createImageBitmap(file);
@@ -520,7 +387,6 @@ async function compressImage(file){
         else ctx.drawImage(bmp, 0, 0, w, h);
         if (!isCrop && hasFilter) ctx.filter = 'none';
         bmp.close();
-        if (!isCrop && !hasFilter) enhanceInvoiceCanvas(cv);
         const out = encodeOcrCanvas(cv);
         cv.width = cv.height = 0;
         return out;
@@ -535,13 +401,10 @@ async function compressImage(file){
         if (w > maxSide || h > maxSide) { if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; } else { w = Math.round(w * maxSide / h); h = maxSide; } }
         const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
         const ctx = cv.getContext('2d');
-        ctx.imageSmoothingEnabled = true;
-        try { ctx.imageSmoothingQuality = 'high'; } catch (e) {}
         const hasFilter = typeof ctx.filter === 'string';
         if (!isCrop && hasFilter) ctx.filter = 'grayscale(1) contrast(1.18)';
         ctx.drawImage(img, 0, 0, w, h);
         if (!isCrop && hasFilter) ctx.filter = 'none';
-        if (!isCrop && !hasFilter) enhanceInvoiceCanvas(cv);
         const out = encodeOcrCanvas(cv);
         cv.width = cv.height = 0;
         res(out);
@@ -751,8 +614,8 @@ async function askGemini(b64){
       return { doc, addr: String((parsed && parsed.addr) || '').trim(), items };
     };
 
-    const passTimeouts = [7200, 10500];
-    const passWaits = [0, 350];
+    const passTimeouts = [5200, 7500, 10500];
+    const passWaits = [0, 300, 900];
     let j = null, winMdl = '', lastErr = '', lastKind = '';
     const recordErr = (err, kind) => {
       if (!err) return;
@@ -1024,7 +887,7 @@ async function askGemini(b64){
           wake(i);
         }
       };
-      const conc = Math.min(2, total);
+      const conc = 1;
       for (let w = 0; w < conc; w++) runWorker();
     }
     let saved = 0;
@@ -1384,7 +1247,7 @@ async function askGemini(b64){
     const sw = Math.max(20, Math.min(srcW - sx, Math.round((nx2 - nx1) * visW)));
     const sh = Math.max(20, Math.min(srcH - sy, Math.round((ny2 - ny1) * visH)));
 
-    const maxOut = 1180;
+    const maxOut = 1440;
     let outW = sw, outH = sh;
     if (outW > maxOut || outH > maxOut) {
       if (outW > outH) { outH = Math.round(outH * maxOut / outW); outW = maxOut; }
@@ -1397,7 +1260,6 @@ async function askGemini(b64){
     if (hasFilter) cx.filter = 'grayscale(1) contrast(1.18)';
     cx.drawImage(src, sx, sy, sw, sh, 0, 0, outW, outH);
     if (hasFilter) cx.filter = 'none';
-    else enhanceInvoiceCanvas(cv);
     const b64 = encodeOcrCanvas(cv);
     cv.width = cv.height = 0;
     return b64 ? { size: b64.length, _preB64: b64, _isCropped: true } : null;
@@ -1703,8 +1565,8 @@ async function askGemini(b64){
     g("olcSys").onclick = () => { stopCam(); if (fallbackInput) fallbackInput.click(); };
     g("olcShot").onclick = async () => {
       const _sb0 = g('olcShot'); if (_sb0) _sb0.disabled = true;
-      const _fastBurst = async () => {
-        if (!vid || Math.max(vid.videoWidth || 0, vid.videoHeight || 0) < 1280 || !vid.videoHeight) return { b64: '', blurred: false };
+      const _fastShot = () => {
+        if (torchOn || !vid || Math.max(vid.videoWidth || 0, vid.videoHeight || 0) < 1280 || !vid.videoHeight) return '';
         try {
           const vw = vid.videoWidth, vh = vid.videoHeight;
           const vr = vid.getBoundingClientRect();
@@ -1721,55 +1583,32 @@ async function askGemini(b64){
           }
           if (sw < 100 || sh < 100) { sx = 0; sy = 0; sw = vw; sh = vh; }
           let dw = Math.round(sw), dh = Math.round(sh);
-          if (dw > 1180 || dh > 1180) {
-            if (dw > dh) { dh = Math.round(dh * 1180 / dw); dw = 1180; }
-            else { dw = Math.round(dw * 1180 / dh); dh = 1180; }
+          if (dw > 1280 || dh > 1280) {
+            if (dw > dh) { dh = Math.round(dh * 1280 / dw); dw = 1280; }
+            else { dw = Math.round(dw * 1280 / dh); dh = 1280; }
           }
-          let bestCv = null, bestSharp = -1;
-          for (let f = 0; f < 2; f++) {
-            if (f > 0) await sleep(50);
-            const cv = document.createElement('canvas'); cv.width = dw; cv.height = dh;
-            const ctx = cv.getContext('2d');
-            const hasFilter = typeof ctx.filter === 'string';
-            if (hasFilter) ctx.filter = 'grayscale(1) contrast(1.18)';
-            ctx.drawImage(vid, sx, sy, sw, sh, 0, 0, dw, dh);
-            if (hasFilter) ctx.filter = 'none';
-            const shScore = calcSharpness(cv, 0, 0, dw, dh);
-            if (shScore > bestSharp) {
-              if (bestCv) { bestCv.width = bestCv.height = 0; }
-              bestCv = cv; bestSharp = shScore;
-            } else {
-              cv.width = cv.height = 0;
-            }
-          }
-          if (!bestCv) return { b64: '', blurred: false };
-          if (bestSharp < 12) {
-            bestCv.width = bestCv.height = 0;
-            return { b64: '', blurred: true };
-          }
-          const bCtx = bestCv.getContext('2d');
-          if (typeof bCtx.filter !== 'string') enhanceInvoiceCanvas(bestCv);
-          const out = encodeOcrCanvas(bestCv);
-          bestCv.width = bestCv.height = 0;
-          return { b64: out, blurred: false };
-        } catch (e) { return { b64: '', blurred: false }; }
+          const cv = document.createElement('canvas'); cv.width = dw; cv.height = dh;
+          const ctx = cv.getContext('2d');
+          const hasFilter = typeof ctx.filter === 'string';
+          if (hasFilter) ctx.filter = 'grayscale(1) contrast(1.18)';
+          ctx.drawImage(vid, sx, sy, sw, sh, 0, 0, dw, dh);
+          if (hasFilter) ctx.filter = 'none';
+          const out = encodeOcrCanvas(cv);
+          cv.width = cv.height = 0;
+          return out;
+        } catch (e) { return ''; }
       };
-      const _fastRes = await _fastBurst();
-      if (_fastRes.blurred) {
-        if (_sb0) _sb0.disabled = false;
-        window.toast && toast("Фото смазано — держите камеру ровнее", "err");
-        return;
-      }
-      if (_fastRes.b64) {
+      const _fastB64 = _fastShot();
+      if (_fastB64) {
         stopCam();
-        scanBonusFile({ size: _fastRes.b64.length, _preB64: _fastRes.b64, _isCropped: true });
+        scanBonusFile({ size: _fastB64.length, _preB64: _fastB64, _isCropped: true });
         return;
       }
       const shotBtn = g("olcShot");
       if (shotBtn) shotBtn.disabled = true;
       const vw = vid.videoWidth || 1920, vh = vid.videoHeight || 1080;
       const vidPort = vh > vw;
-      if (window.ImageCapture && track && (!vid || Math.max(vid.videoWidth || 0, vid.videoHeight || 0) < 1280)) {
+      if (window.ImageCapture && track && (torchOn || !vid || Math.max(vid.videoWidth || 0, vid.videoHeight || 0) < 1280)) {
         try {
           const ic = new ImageCapture(track);
           let photoOpts = torchOn ? { fillLightMode: "torch" } : {};
