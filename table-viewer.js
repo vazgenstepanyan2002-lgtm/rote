@@ -572,24 +572,30 @@
     return s.toLowerCase().replace(/ու/g, 'u').split('').map(ch => cyr[ch] !== undefined ? cyr[ch] : (arm[ch] !== undefined ? arm[ch] : ch)).join('');
   }
 
-  function isCrewCodeToken(s) {
+  function isKnownCrewCode(s) {
     const t = String(s || '').trim();
     if (!t) return false;
     if (window._crewsSet && window._crewsSet.has(t)) return true;
-    return /^(BB|CC|VV|RR|EE|GG|XX|ZZ|ADMIN)$/.test(t) || /^(?=.*[A-Z])[A-Z0-9]{2,6}$/.test(t);
+    return /^(BB|CC|VV|RR|EE|GG|XX|ZZ|ADMIN)$/.test(t);
+  }
+
+  function isCrewCodeToken(s) {
+    const t = String(s || '').trim();
+    if (!t) return false;
+    return isKnownCrewCode(t) || /^(?=.*[A-Z])[A-Z0-9]{2,6}$/.test(t);
   }
 
   function translitWord(word, lang) {
-    if (!word || isCrewCodeToken(word) || /^\d+$/.test(word)) return word;
+    if (!word || isKnownCrewCode(word) || /^\d+$/.test(word)) return word;
     const base = toLatinBase(word);
     if (KNOWN_NAMES[base] && KNOWN_NAMES[base][lang]) return KNOWN_NAMES[base][lang];
-    const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+    const cap = s => s ? s[0].toUpperCase() + s.slice(1).toLowerCase() : s;
     if (lang === 'en') {
-      if (/^[A-Za-z0-9._-]+$/.test(word)) return word;
+      if (/^[A-Za-z]+$/.test(word)) return cap(word);
       return cap(base);
     }
     if (lang === 'ru') {
-      if (/[А-Яа-яЁё]/.test(word)) return word;
+      if (/[А-Яа-яЁё]/.test(word)) return cap(word);
       let r = base
         .replace(/shch/g, 'щ').replace(/zh/g, 'ж').replace(/kh/g, 'х').replace(/ts/g, 'ц')
         .replace(/ch/g, 'ч').replace(/sh/g, 'ш').replace(/yu/g, 'ю').replace(/ya/g, 'я')
@@ -599,7 +605,7 @@
       return cap(r);
     }
     if (lang === 'hy') {
-      if (/[\u0531-\u0587]/.test(word)) return word;
+      if (/[\u0531-\u0587]/.test(word)) return cap(word);
       let r = base
         .replace(/sh/g, 'շ').replace(/ch/g, 'չ').replace(/zh/g, 'ժ').replace(/kh/g, 'խ')
         .replace(/ts/g, 'ծ').replace(/dz/g, 'ձ').replace(/gh/g, 'ղ').replace(/yu/g, 'յու')
@@ -609,7 +615,7 @@
       if (r.startsWith('ե')) r = 'է' + r.slice(1);
       return cap(r);
     }
-    return word;
+    return cap(word);
   }
 
   function translitPersonName(name, lang) {
@@ -622,17 +628,18 @@
     if (typeof val === 'number' || val == null || val === '') return val;
     const s = String(val);
     // Коды экипажей (BB, CC, ... и любые созданные админом) всегда на латинском
-    if (keepCrewCode || isCrewCodeToken(s)) return s;
+    if (keepCrewCode) return s;
     if (isPersonName) return translitPersonName(s, lang);
-    if (lang === 'ru') return s;
+    if (isCrewCodeToken(s)) return s;
     // «Экипаж BB (имена)» — переводим слово «Экипаж» и имена в скобках, код BB сохраняем
     const mCrew = s.match(/^Экипаж ([A-Z0-9]+)(?:\s*\(([^)]+)\))?(.*)$/);
     if (mCrew) {
-      const pref = lang === 'hy' ? 'Անձնակազմ ' : 'Crew ';
+      const pref = lang === 'hy' ? 'Անձնակազմ ' : (lang === 'en' ? 'Crew ' : 'Экипаж ');
       const names = mCrew[2] ? (' (' + translitPersonName(mCrew[2], lang) + ')') : '';
-      const rest = mCrew[3] ? (window.i18nTranslateText ? window.i18nTranslateText(mCrew[3], lang) : mCrew[3]) : '';
+      const rest = mCrew[3] ? ((lang !== 'ru' && window.i18nTranslateText) ? window.i18nTranslateText(mCrew[3], lang) : mCrew[3]) : '';
       return pref + mCrew[1] + names + rest;
     }
+    if (lang === 'ru') return s;
     if (window.i18nTranslateText) return window.i18nTranslateText(s, lang);
     return s;
   }
