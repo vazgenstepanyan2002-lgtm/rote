@@ -1197,8 +1197,10 @@ async function openAdmDocEditModal(code,dk){
  render();
  requestAnimationFrame(()=>ov.classList.add('show'));
 }
-function findAffectedDocsByRuleMap(ruleMapObj){
- if(isSubAdm()||!ruleMapObj||typeof ruleMapObj!=='object')return[];
+function findAffectedDocsByRuleMap(ruleMapObj,useCodeFallback){
+ if(isSubAdm())return[];
+ const hasMap=ruleMapObj&&typeof ruleMapObj==='object';
+ if(!hasMap&&!useCodeFallback)return[];
  const plan=[];
  getCarsList().forEach(carCode=>{
   const docs=(CARS[carCode]&&CARS[carCode].docs)||{};
@@ -1208,9 +1210,14 @@ function findAffectedDocsByRuleMap(ruleMapObj){
    const z=(x.z===1||x.z===2)?x.z:1;
    const edits=[],newItems=[];
    items.forEach((it,idx)=>{
-    const mapped=it.n?admLookupRuleCode(it.n,ruleMapObj):'';
+    const fbCode=(hasMap&&it.n)?admLookupRuleCode(it.n,ruleMapObj):'';
+    let mapped=fbCode,src=fbCode?'firebase':'';
+    if(!mapped&&useCodeFallback&&it.n&&typeof window.ocrClassifyByCode==='function'){
+     const r=window.ocrClassifyByCode(it.n);
+     if(r&&!r.ignore&&r.code&&admFindCatSub(r.code)){mapped=r.code;src='code'}
+    }
     if(mapped&&mapped!==it.c){
-     edits.push({idx,n:it.n,q:it.q,from:it.c,to:mapped});
+     edits.push({idx,n:it.n,q:it.q,from:it.c,to:mapped,src});
      newItems.push({n:it.n,c:mapped,q:it.q});
     }else newItems.push(it);
    });
@@ -1224,11 +1231,11 @@ function findAffectedDocsByRuleMap(ruleMapObj){
 function findAffectedDocsByRule(ruleKey,newCode){
  if(isSubAdm()||!ruleKey||!newCode||!admFindCatSub(newCode))return[];
  const m={};m[ruleKey]=newCode;
- return findAffectedDocsByRuleMap(m);
+ return findAffectedDocsByRuleMap(m,false);
 }
 function findAffectedDocsByAllRules(){
  if(isSubAdm())return[];
- return findAffectedDocsByRuleMap(OCR_MAP);
+ return findAffectedDocsByRuleMap(OCR_MAP,true);
 }
 async function applyBatchRecalc(plan){
  if(isSubAdm()||!plan||!plan.length)return 0;
@@ -1299,34 +1306,53 @@ async function applyBatchRecalc(plan){
 }
 function openRecalcModal(plan,subtitle){
  if(isSubAdm()||!plan||!plan.length)return;
- const totDiff=plan.reduce((a,x)=>a+x.diffSum,0);
+ const picked=plan.map(()=>true);
  const ov=document.createElement('div');
  ov.className='ov';ov.style.zIndex='100001';
- const listHtml=plan.map(p=>{
+ const listHtml=plan.map((p,i)=>{
   const dCol=p.diffSum>0?'#6ee7b7':(p.diffSum<0?'#fca5a5':'#94a3b8');
   const dTxt=(p.diffSum>0?'+':'')+fm(p.diffSum)+' '+CUR;
-  const lns=p.edits.map(e=>'<div class="arc-ln"><div data-no-i18n="1" style="color:#f8fafc;font-weight:600">'+esc(e.n)+' ×'+e.q+'</div><div><span style="color:#fca5a5">'+esc(OCR_CAT_NAMES[e.from]||e.from)+'</span> → <b style="color:#6ee7b7">'+esc(OCR_CAT_NAMES[e.to]||e.to)+'</b></div></div>').join('');
-  return '<div class="arc-it"><div class="arc-hd"><div><span class="arc-car" data-no-i18n="1">'+esc(p.carCode)+'</span>🧾 № <span data-no-i18n="1">'+esc(p.doc)+'</span></div><b style="color:'+dCol+'">'+dTxt+'</b></div>'+lns+'</div>';
+  const lns=p.edits.map(e=>{
+   const bdg=e.src==='code'?'<span class="arc-src cd">⚙️ <span>Код</span></span>':(e.src==='firebase'?'<span class="arc-src fb">☁️ <span>Словарь</span></span>':'');
+   return '<div class="arc-ln"><div style="color:#f8fafc;font-weight:600"><span data-no-i18n="1">'+esc(e.n)+' ×'+e.q+'</span>'+bdg+'</div><div><span style="color:#fca5a5">'+esc(OCR_CAT_NAMES[e.from]||e.from)+'</span> → <b style="color:#6ee7b7">'+esc(OCR_CAT_NAMES[e.to]||e.to)+'</b></div></div>';
+  }).join('');
+  return '<div class="arc-it" data-arc-card="'+i+'"><div class="arc-hd"><label class="arc-lbl"><input type="checkbox" data-arc-idx="'+i+'" checked><span class="arc-car" data-no-i18n="1">'+esc(p.carCode)+'</span><span>🧾 № <span data-no-i18n="1">'+esc(p.doc)+'</span></span></label><b style="color:'+dCol+'">'+dTxt+'</b></div>'+lns+'</div>';
  }).join('');
- const totCol=totDiff>0?'#6ee7b7':(totDiff<0?'#fca5a5':'#94a3b8');
  ov.innerHTML='<div class="dlg aop-box" style="max-width:460px;height:min(86dvh,620px)">'
-  +'<div class="aop-hd"><div><b>🔄 <span>Пересчёт накладных</span> (<span data-no-i18n="1">'+plan.length+'</span>)</b><small>'+esc(subtitle||'Обновление уже сохранённых накладных текущего месяца')+'</small></div><button type="button" class="sel-x">✕</button></div>'
-  +'<div class="ade-list">'+listHtml+'</div>'
-  +'<div class="ade-sum"><span><span>Накладных</span>: <b data-no-i18n="1">'+plan.length+'</b></span><span><span>Итого разница</span>: <b style="color:'+totCol+'">'+(totDiff>0?'+':'')+fm(totDiff)+' '+CUR+'</b></span></div>'
-  +'<div class="ade-ft"><button type="button" id="arcNo" style="flex:1;height:40px;border-radius:11px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#94a3b8;font-size:13px;font-weight:700;cursor:pointer">Не менять</button><button type="button" id="arcGo" style="flex:1.4;height:40px;border-radius:11px;background:linear-gradient(135deg,#0ea5e9,#0284c7);border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(14,165,233,.35)">🔄 <span>Пересчитать</span> (<span data-no-i18n="1">'+plan.length+'</span>)</button></div></div>';
+  +'<div class="aop-hd"><div><b>🔄 <span>Пересчёт накладных</span> (<span id="arcHdCnt" data-no-i18n="1">'+plan.length+'</span>)</b><small>'+esc(subtitle||'Обновление уже сохранённых накладных текущего месяца')+'</small></div><button type="button" class="sel-x">✕</button></div>'
+  +'<div class="ade-list" id="arcList">'+listHtml+'</div>'
+  +'<div class="ade-sum" id="arcSum"></div>'
+  +'<div class="ade-ft"><button type="button" id="arcNo" style="flex:1;height:40px;border-radius:11px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#94a3b8;font-size:13px;font-weight:700;cursor:pointer">Не менять</button><button type="button" id="arcGo" style="flex:1.4;height:40px;border-radius:11px;background:linear-gradient(135deg,#0ea5e9,#0284c7);border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(14,165,233,.35)">🔄 <span>Пересчитать</span> (<span id="arcBtnCnt" data-no-i18n="1">'+plan.length+'</span>)</button></div></div>';
  document.body.appendChild(ov);
  const close=()=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),180)};
+ const syncSum=()=>{
+  const sel=plan.filter((_,i)=>picked[i]);
+  const totDiff=sel.reduce((a,x)=>a+x.diffSum,0);
+  const totCol=totDiff>0?'#6ee7b7':(totDiff<0?'#fca5a5':'#94a3b8');
+  ov.querySelector('#arcSum').innerHTML='<span><span>Накладных</span>: <b data-no-i18n="1">'+sel.length+' / '+plan.length+'</b></span><span><span>Итого разница</span>: <b style="color:'+totCol+'">'+(totDiff>0?'+':'')+fm(totDiff)+' '+CUR+'</b></span>';
+  const bc=ov.querySelector('#arcBtnCnt');if(bc)bc.textContent=String(sel.length);
+  const btn=ov.querySelector('#arcGo');if(btn)btn.disabled=sel.length===0;
+ };
+ ov.querySelector('#arcList').onchange=e=>{
+  const cb=e.target.closest('[data-arc-idx]');if(!cb)return;
+  const i=+cb.dataset.arcIdx;picked[i]=!!cb.checked;
+  const card=ov.querySelector('[data-arc-card="'+i+'"]');if(card)card.classList.toggle('off',!picked[i]);
+  syncSum();
+ };
  ov.querySelector('.sel-x').onclick=close;
  ov.querySelector('#arcNo').onclick=close;
  ov.onclick=e=>{if(e.target===ov)close()};
  ov.querySelector('#arcGo').onclick=async()=>{
+  const sel=plan.filter((_,i)=>picked[i]);
+  if(!sel.length){toast('Выберите хотя бы одну накладную',true);return}
   const btn=ov.querySelector('#arcGo');btn.disabled=true;
   try{
-   const cnt=await applyBatchRecalc(plan);
+   const cnt=await applyBatchRecalc(sel);
    close();
    toast('Пересчитано накладных: '+cnt);
   }catch(err){btn.disabled=false;toast('Ошибка пересчёта накладных',true)}
  };
+ syncSum();
  requestAnimationFrame(()=>ov.classList.add('show'));
 }
 async function cancelAdmDoc(code,dk,btn){
@@ -2750,7 +2776,7 @@ function openSelectModal(){
    else toast('Нет данных за этот месяц',true);
   }
   else if(a==='ocr-ok'){e.stopPropagation();const uid=b.dataset.uid,k=b.dataset.k,cd=b.dataset.code;if(!uid||!k||!cd)return;try{await db.ref('config/ocrMap/'+k).set(cd);await db.ref('users/'+uid+'/ocrPending/'+k).remove();const who=USERS[uid]?dispName(parseDev(uid,USERS[uid])):uid;logSubAct('ocr','ocr_ok','Одобрена заявка OCR',k+' → '+(OCR_CAT_NAMES[cd]||cd)+' (от '+who+')',{target:k});toast('Правило добавлено для всех');if(!isSubAdm()){const plan=findAffectedDocsByRule(k,cd);if(plan.length)openRecalcModal(plan,'Найдены накладные с этим товаром')}}catch(err){toast('Ошибка сохранения',true)}}
-  else if(a==='ocr-recalc'){e.stopPropagation();if(isSubAdm())return;const plan=findAffectedDocsByAllRules();if(!plan.length)toast('Все накладные соответствуют словарю');else openRecalcModal(plan,'Сверка всех накладных текущего месяца со словарём OCR')}
+  else if(a==='ocr-recalc'){e.stopPropagation();if(isSubAdm())return;const plan=findAffectedDocsByAllRules();if(!plan.length)toast('Все накладные уже актуальны');else openRecalcModal(plan,'Сверка накладных со словарём OCR и правилами кода')}
   else if(a==='ocr-add'){e.stopPropagation();openOcrRuleModal('','',true)}
   else if(a==='ocr-edit'){e.stopPropagation();const k=b.dataset.k;if(k)openOcrRuleModal(k,OCR_MAP[k]||'',false)}
   else if(a==='ocr-del'){e.stopPropagation();const k=b.dataset.k;if(!k)return;if(!(await ask('Удалить правило «'+k+'» из общего словаря?',{title:'Удаление правила',okText:'Удалить',danger:true})))return;try{await db.ref('config/ocrMap/'+k).remove();logSubAct('ocr','ocr_del','Удалено правило OCR',k,{target:k,danger:true});toast('Правило удалено')}catch(err){toast('Ошибка удаления',true)}}

@@ -95,8 +95,8 @@
   const COLOR_STOP_RX = /(?:^|[\s_\/-]+)(?:դուբ|կրաֆտ|սանոմա|սոնոմա|վենգե|սպիտակ|սեվ|սև|գրաֆիտ|մոխրագույն|շագանակագույն|բեժ|կրեմ|կրեմագույն|շիմո|լայթ|դարկ|գոլդ|ոսկեգույն|անտրացիտ|կաշմիր|կապուչինո|բետոն|մարմար|փայլուն|մատ|գլյանց|սիլվեր|արծաթագույն|պողպատե|կաղնի|ընկույզ|օրեխ|յասեն|բալ|վարդագույն|կապույտ|կանաչ|դեղին|կարմիր|բորդո|մետաքս|շոկոլադ|լոֆթ|дуб|крафт|сонома|венге|белый|бел|черный|графит|серый|беж|крем|шимо|лайт|дарк|голд|антрацит|кашмир|капучино|бетон|мрамор|глянец|мат|орех|ясень|шоколад)(?=$|[\s_\/-]+)/gi;
   const stripColors = s => normModel(s).replace(COLOR_STOP_RX, ' ').replace(/\s+/g, ' ').trim();
 
-  let CLOUD_MAP = (() => { try { return JSON.parse(localStorage.getItem('BON_OCR_MAP') || '{}') || {}; } catch (e) { return {}; } })();
-  let LOCAL_MAP = (() => { try { return JSON.parse(localStorage.getItem('BON_OCR_LOCAL') || '{}') || {}; } catch (e) { return {}; } })();
+  let CLOUD_MAP = window.OCR_CLASSIFIER_ONLY ? {} : (() => { try { return JSON.parse(localStorage.getItem('BON_OCR_MAP') || '{}') || {}; } catch (e) { return {}; } })();
+  let LOCAL_MAP = window.OCR_CLASSIFIER_ONLY ? {} : (() => { try { return JSON.parse(localStorage.getItem('BON_OCR_LOCAL') || '{}') || {}; } catch (e) { return {}; } })();
   let _mapIdxVer = -1, _mapIdx = null;
   function getMapIndex(){
     const ver = Object.keys(CLOUD_MAP).length * 10000 + Object.keys(LOCAL_MAP).length;
@@ -146,21 +146,23 @@
     return '';
   }
   let _cmTries = 0;
-  const _cmWait = setInterval(() => {
-    if (++_cmTries > 45) { clearInterval(_cmWait); return; }
-    if (!window.firebase || !firebase.apps || !firebase.apps.length) return;
-    clearInterval(_cmWait);
-    firebase.database().ref('config/ocrMap').on('value', s => {
-      const val = (s.val() && typeof s.val() === 'object') ? s.val() : {};
-      CLOUD_MAP = val;
-      _mapIdx = null;
-      Object.keys(val).forEach(k => { if (LOCAL_MAP[k]) delete LOCAL_MAP[k]; });
-      try {
-        localStorage.setItem('BON_OCR_MAP', JSON.stringify(CLOUD_MAP));
-        localStorage.setItem('BON_OCR_LOCAL', JSON.stringify(LOCAL_MAP));
-      } catch (e) {}
-    }, () => {});
-  }, 800);
+  if (!window.OCR_CLASSIFIER_ONLY) {
+    const _cmWait = setInterval(() => {
+      if (++_cmTries > 45) { clearInterval(_cmWait); return; }
+      if (!window.firebase || !firebase.apps || !firebase.apps.length) return;
+      clearInterval(_cmWait);
+      firebase.database().ref('config/ocrMap').on('value', s => {
+        const val = (s.val() && typeof s.val() === 'object') ? s.val() : {};
+        CLOUD_MAP = val;
+        _mapIdx = null;
+        Object.keys(val).forEach(k => { if (LOCAL_MAP[k]) delete LOCAL_MAP[k]; });
+        try {
+          localStorage.setItem('BON_OCR_MAP', JSON.stringify(CLOUD_MAP));
+          localStorage.setItem('BON_OCR_LOCAL', JSON.stringify(LOCAL_MAP));
+        } catch (e) {}
+      }, () => {});
+    }, 800);
+  }
 
   function saveCloudModel(rawName, code, isAdminRole, fromCode){
     const fk = fbKey(rawName);
@@ -433,6 +435,17 @@
     return bestCode;
   }
 
+  function classifyByCodeRules(rawName){
+    const clean = fixOcrName(String(rawName || '').replace(/\s+/g, ' ').trim());
+    if (!clean) return { ignore: true, code: '' };
+    const norm = normModel(clean);
+    if (RULES[0].rx.test(norm)) return { ignore: true, code: '' };
+    for (let i = 1; i < RULES.length; i++) if (RULES[i].rx.test(norm)) return { ignore: false, code: RULES[i].code };
+    const fz = fuzzyClassify(norm);
+    return { ignore: false, code: fz || '' };
+  }
+  window.ocrClassifyByCode = classifyByCodeRules;
+
   function classifyProduct(rawName){
     const clean = fixOcrName(String(rawName || '').replace(/\s+/g, ' ').trim());
     if (!clean) return { ignore: true };
@@ -444,6 +457,7 @@
     const fz = fuzzyClassify(norm);
     return { ignore: false, code: fz || '' };
   }
+  if (window.OCR_CLASSIFIER_ONLY) return;
 
   const normEv = s => String(s || '').toLowerCase().replace(/և|եւ/g, 'եվ');
   const isRegionAddress = s => /(?:կոտայք|քանաք[ե]?ռավան|աբովյան|հրազդան|չարենցավան|եղվարդ|եզվարդ|բյուրեղավան|նոր հաճ[ը]?ն|առինջ|պտղնի|ձորաղբյուր|ջրվեժ|զովունի|պռոշյան|քասախ|բալահովիտ|մայակովսկի|գառնի|արզնի|գետարգել|նոր գեղի|արամուս|կամարիս|նոր գյուղ|ակունք|գեղաշեն|գեղադիր|ողջաբերդ|ծաղկաձոր|աղվերան|բջնի|արզական|գետամեջ|մրգաշեն|նոր երզնկա|զովք|արարատ|մասիս|արտաշատ|վեդի|նոր խարբերդ|այնթապ|մարմարաշեն|հովտաշատ|դարբնիկ|խաչփառ|ղուկասավան|հայանիստ|դաշտավան|գեղանիստ|արբատ|ազատաշեն|մերձավան|փարաքար|արգավանդ|թաիրով|մուսալեռ|պտղունք|արմավիր|վաղարշապատ|էջմիածին|մեծամոր|արագածոտն|աշտարակ|ապարան|թալին|օշական|կարբի|բյուրական|շիրակ|գյումրի|արթիկ|մարալիկ|լոռի|վանաձոր|ալավերդի|սպիտակ|ստեփանավան|տաշիր|տավուշ|իջեվան|դիլիջան|բերդ|նոյեմբերյան|գեղարքունիք|գավառ|սեվան|մարտունի|վարդենիս|ճամբարակ|վայոց ձոր|եղեգնաձոր|եզեգնաձոր|ջերմուկ|վայք|սյունիք|կապան|գորիս|սիսիան|մեղրի|քաջարան|մարզ|котайк|канакераван|абовян|раздан|чаренцаван|егвард|бюрегаван|нор ачин|ариндж|пхтни|дзорахпюр|джрвеж|зовуни|прошян|касах|гарни|арзни|гетаргел|нор геги|арамус|гегашен|цагхкадзор|цахкадзор|арарат|масис|арташат|веди|айнтап|мердзаван|паракар|аргаванд|таиров|мусалер|армавир|вагаршапат|эчмиадзин|мецамор|арагацотн|аштарак|ширак|гюмри|лори|ванадзор|тавуш|иджеван|дилижан|гегаркуник|гавар|севан|мартуни|вайоц дзор|ехегнадзор|сюник|капан|горис|сисиан|область|марз|kotayk|abovyan|hrazdan|charentsavan|yeghvard|egvard|byureghavan|nor hachn|arinj|ptghni|dzoraghbyur|jrvezh|zovuni|proshyan|kasakh|garni|arzni|ararat|masis|artashat|vedi|merdzavan|parakar|argavand|tairov|armavir|vagharshapat|echmiadzin|ejmiatsin|metsamor|aragatsotn|ashtarak|aparan|talin|shirak|gyumri|artik|lori|vanadzor|alaverdi|spitak|stepanavan|tashir|tavush|ijevan|dilijan|berd|noyemberyan|gegharkunik|gavar|sevan|martuni|vardenis|vayots dzor|yeghegnadzor|jermuk|vayk|syunik|kapan|goris|sisian|meghri|kajaran|\bmarz\b)/i.test(normEv(s));
