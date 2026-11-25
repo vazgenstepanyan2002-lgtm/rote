@@ -737,12 +737,16 @@
       const baseXlsxName = String(filename || 'EuroBaza.xlsx').replace(/\.csv$/i, '.xlsx');
       let excelLang = 'ru';
       try {
-        const savedL = localStorage.getItem('EXCEL_LANG');
-        if (savedL === 'ru' || savedL === 'hy' || savedL === 'en') excelLang = savedL;
-        else if (window.getLang) excelLang = window.getLang();
-      } catch (e) {
-        if (window.getLang) excelLang = window.getLang();
-      }
+        const appL = window.getLang ? window.getLang() : 'ru';
+        if (appL === 'ru' || appL === 'hy' || appL === 'en') excelLang = appL;
+      } catch (e) {}
+
+      const TV_UI = {
+        ru: { rows: 'Строк:', search: '🔍 Поиск...', share: '📤 Поделиться', shareT: 'Поделиться', print: '🖨️ Напечатать', printT: 'Напечатать', dlT: 'Скачать Excel', empty: 'Ничего не найдено' },
+        hy: { rows: 'Տողեր՝', search: '🔍 Որոնում...', share: '📤 Կիսվել', shareT: 'Կիսվել', print: '🖨️ Տպել', printT: 'Տպել', dlT: 'Ներբեռնել Excel', empty: 'Ոչինչ չի գտնվել' },
+        en: { rows: 'Rows:', search: '🔍 Search...', share: '📤 Share', shareT: 'Share', print: '🖨️ Print', printT: 'Print', dlT: 'Download Excel', empty: 'Nothing found' }
+      };
+      const curUi = () => TV_UI[excelLang] || TV_UI.ru;
 
       const buildLocalized = (lang) => {
         const lTitle = trExcelVal(title || 'Ведомость', lang, false, false);
@@ -768,9 +772,10 @@
       m.id = 'tvMdl';
       m.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;padding:12px;touch-action:none;overscroll-behavior:contain;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)';
 
+      const ui0 = curUi();
       const midBtn = isDesktop
-        ? `<button type="button" id="tvPrint" title="Напечатать" style="width:auto!important;margin:0!important;height:34px!important;padding:0 12px!important;border-radius:9px!important;background:linear-gradient(135deg,rgba(168,85,247,.26),rgba(124,58,237,.16))!important;border:1px solid rgba(192,132,252,.5)!important;color:#e9d5ff!important;font-size:12px!important;font-weight:700!important;display:inline-flex!important;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:none!important">🖨️ Напечатать</button>`
-        : `<button type="button" id="tvShare" title="Поделиться" style="width:auto!important;margin:0!important;height:34px!important;padding:0 10px!important;border-radius:9px!important;background:linear-gradient(135deg,rgba(56,189,248,.25),rgba(2,132,199,.15))!important;border:1px solid rgba(56,189,248,.5)!important;color:#7dd3fc!important;font-size:12px!important;font-weight:700!important;display:inline-flex!important;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:none!important">📤 Поделиться</button>`;
+        ? `<button type="button" id="tvPrint" title="${esc(ui0.printT)}" style="width:auto!important;margin:0!important;height:34px!important;padding:0 12px!important;border-radius:9px!important;background:linear-gradient(135deg,rgba(168,85,247,.26),rgba(124,58,237,.16))!important;border:1px solid rgba(192,132,252,.5)!important;color:#e9d5ff!important;font-size:12px!important;font-weight:700!important;display:inline-flex!important;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:none!important">${esc(ui0.print)}</button>`
+        : `<button type="button" id="tvShare" title="${esc(ui0.shareT)}" style="width:auto!important;margin:0!important;height:34px!important;padding:0 10px!important;border-radius:9px!important;background:linear-gradient(135deg,rgba(56,189,248,.25),rgba(2,132,199,.15))!important;border:1px solid rgba(56,189,248,.5)!important;color:#7dd3fc!important;font-size:12px!important;font-weight:700!important;display:inline-flex!important;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:none!important">${esc(ui0.share)}</button>`;
 
       const langSegBtn = (k, lbl) => `<button type="button" data-tvl="${k}" style="width:auto!important;margin:0!important;height:26px!important;padding:0 8px!important;border-radius:7px!important;font-size:11px!important;font-weight:800!important;cursor:pointer;border:1px solid ${excelLang === k ? 'rgba(250,204,21,.55)' : 'transparent'}!important;background:${excelLang === k ? 'rgba(250,204,21,.22)' : 'transparent'}!important;color:${excelLang === k ? '#fde047' : '#94a3b8'}!important;box-shadow:none!important">${lbl}</button>`;
 
@@ -779,30 +784,30 @@
       const renderTfoot = (tot) => tot ? `<tr style="background:#131c2e;position:sticky;bottom:0;z-index:2;border-top:2px solid rgba(250,204,21,.45);font-weight:800;color:#fde047">${tot.map((c, idx) => `<td style="padding:10px 14px;white-space:nowrap;border:1px solid rgba(148,163,184,.22);${isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'text-align:center;' : 'text-align:right;')) : (isNumCol(idx) ? 'text-align:right;' : 'text-align:left;')}">${esc(typeof c === 'number' ? fm(c) : c)}</td>`).join('')}</tr>` : '';
 
       m.innerHTML = `
-        <div class="tv-box" style="max-width:min(94vw,1180px);width:100%;height:min(88dvh,760px);display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:18px;background:#0d131f;border:1px solid rgba(255,255,255,.16);box-shadow:0 18px 45px rgba(0,0,0,.75);animation:cmIn .16s ease-out">
+        <div class="tv-box" data-no-i18n="1" style="max-width:min(94vw,1180px);width:100%;height:min(88dvh,760px);display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:18px;background:#0d131f;border:1px solid rgba(255,255,255,.16);box-shadow:0 18px 45px rgba(0,0,0,.75);animation:cmIn .16s ease-out">
           <div class="tv-hd" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0">
             <div style="min-width:0;flex:1">
-              <div id="tvTitle" data-no-i18n="1" style="font-size:14.5px;font-weight:800;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📊 ${esc(loc.lTitle)}</div>
-              <div style="font-size:11.5px;color:#94a3b8;margin-top:2px">Строк: <b id="tvRowCount">${rows.length}</b></div>
+              <div id="tvTitle" style="font-size:13.5px;font-weight:800;color:#f8fafc;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">📊 ${esc(loc.lTitle)}</div>
+              <div style="font-size:11.5px;color:#94a3b8;margin-top:2px"><span id="tvRowsLbl">${esc(ui0.rows)}</span> <b id="tvRowCount">${rows.length}</b></div>
             </div>
-            <div id="tvLangBar" data-no-i18n="1" style="display:inline-flex;align-items:center;gap:2px;padding:3px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);flex-shrink:0">
+            <div id="tvLangBar" style="display:inline-flex;align-items:center;gap:2px;padding:3px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);flex-shrink:0">
               ${langSegBtn('ru', 'RU')}${langSegBtn('hy', 'HY')}${langSegBtn('en', 'EN')}
             </div>
             <button type="button" id="tvClose" style="width:32px!important;height:32px!important;margin:0!important;padding:0!important;background:transparent!important;border:none!important;color:#94a3b8!important;font-size:18px!important;cursor:pointer;display:flex!important;align-items:center;justify-content:center;border-radius:8px;box-shadow:none!important;flex-shrink:0">✕</button>
           </div>
 
           <div class="tv-bar" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(0,0,0,.15);border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;box-sizing:border-box">
-            <input type="search" id="tvSearch" placeholder="🔍 Поиск..." style="flex:1 1 auto;width:auto;min-width:0;height:34px;margin:0;padding:0 10px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#f8fafc;font-size:12.5px;outline:none;box-sizing:border-box">
+            <input type="search" id="tvSearch" placeholder="${esc(ui0.search)}" style="flex:1 1 auto;width:auto;min-width:0;height:34px;margin:0;padding:0 10px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#f8fafc;font-size:12.5px;outline:none;box-sizing:border-box">
             ${midBtn}
-            <button type="button" id="tvDownload" title="Скачать Excel" style="width:auto!important;margin:0!important;height:34px!important;padding:0 10px!important;border-radius:9px!important;background:rgba(16,185,129,.18)!important;border:1px solid rgba(52,211,153,.45)!important;color:#6ee7b7!important;font-size:12px!important;font-weight:700!important;display:inline-flex!important;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:none!important">
+            <button type="button" id="tvDownload" title="${esc(ui0.dlT)}" style="width:auto!important;margin:0!important;height:34px!important;padding:0 10px!important;border-radius:9px!important;background:rgba(16,185,129,.18)!important;border:1px solid rgba(52,211,153,.45)!important;color:#6ee7b7!important;font-size:12px!important;font-weight:700!important;display:inline-flex!important;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:none!important">
               📥 Excel
             </button>
           </div>
 
-          <div class="tv-scroll" data-no-i18n="1" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0;max-width:100%;min-width:0;touch-action:pan-x pan-y">
+          <div class="tv-scroll" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0;max-width:100%;min-width:0;touch-action:pan-x pan-y">
             <table id="tvTable" style="width:max-content;min-width:100%;border-collapse:collapse;font-size:12px;line-height:1.35;text-align:left">
               <thead id="tvThead">${renderThead(loc.lHeaders)}</thead>
-              <tbody id="tvTbody">${this.renderRowsHtml(loc.lRows, mergeFirstCol, rowTypes, loc.lHeaders.length, mergeCols)}</tbody>
+              <tbody id="tvTbody">${this.renderRowsHtml(loc.lRows, mergeFirstCol, rowTypes, loc.lHeaders.length, mergeCols, ui0.empty)}</tbody>
               <tfoot id="tvTfoot">${renderTfoot(loc.lTotal)}</tfoot>
             </table>
           </div>
@@ -846,9 +851,10 @@
       const countEl = document.getElementById('tvRowCount');
 
       const applySearch = () => {
+        const ui = curUi();
         const q = (searchInp.value || '').trim().toLowerCase();
         if (!q) {
-          tbody.innerHTML = this.renderRowsHtml(loc.lRows, mergeFirstCol, rowTypes, loc.lHeaders.length, mergeCols);
+          tbody.innerHTML = this.renderRowsHtml(loc.lRows, mergeFirstCol, rowTypes, loc.lHeaders.length, mergeCols, ui.empty);
           countEl.textContent = loc.lRows.length;
           return;
         }
@@ -859,7 +865,7 @@
             fTypes.push(rowTypes[idx] || '');
           }
         });
-        tbody.innerHTML = this.renderRowsHtml(filtered, mergeFirstCol, fTypes, loc.lHeaders.length, mergeCols);
+        tbody.innerHTML = this.renderRowsHtml(filtered, mergeFirstCol, fTypes, loc.lHeaders.length, mergeCols, ui.empty);
         countEl.textContent = filtered.length;
       };
 
@@ -872,8 +878,8 @@
           const nl = b.dataset.tvl;
           if (!nl || nl === excelLang) return;
           excelLang = nl;
-          try { localStorage.setItem('EXCEL_LANG', excelLang); } catch (e) {}
           loc = buildLocalized(excelLang);
+          const ui = curUi();
           langBar.querySelectorAll('button[data-tvl]').forEach(x => {
             const on = x.dataset.tvl === excelLang;
             x.style.borderColor = on ? 'rgba(250,204,21,.55)' : 'transparent';
@@ -882,6 +888,15 @@
           });
           const ttl = document.getElementById('tvTitle');
           if (ttl) ttl.textContent = '📊 ' + loc.lTitle;
+          const rLbl = document.getElementById('tvRowsLbl');
+          if (rLbl) rLbl.textContent = ui.rows;
+          if (searchInp) searchInp.placeholder = ui.search;
+          const shB = document.getElementById('tvShare');
+          if (shB) { shB.textContent = ui.share; shB.title = ui.shareT; }
+          const prB = document.getElementById('tvPrint');
+          if (prB) { prB.textContent = ui.print; prB.title = ui.printT; }
+          const dlB = document.getElementById('tvDownload');
+          if (dlB) dlB.title = ui.dlT;
           const th = document.getElementById('tvThead');
           if (th) th.innerHTML = renderThead(loc.lHeaders);
           const tf = document.getElementById('tvTfoot');
@@ -926,9 +941,9 @@
     },
 
     // Отрисовка строк таблицы
-    renderRowsHtml(rows, mergeFirstCol = false, rowTypes = [], colSpan = 10, mergeCols = null) {
+    renderRowsHtml(rows, mergeFirstCol = false, rowTypes = [], colSpan = 10, mergeCols = null, emptyText = 'Ничего не найдено') {
       if (!rows.length) {
-        return `<tr><td colspan="${Math.max(1, colSpan || 10)}" style="padding:28px 12px;text-align:center;color:#64748b">Ничего не найдено</td></tr>`;
+        return `<tr><td colspan="${Math.max(1, colSpan || 10)}" style="padding:28px 12px;text-align:center;color:#64748b">${esc(emptyText)}</td></tr>`;
       }
       const isCatalog = rowTypes && rowTypes.some(Boolean);
       const mColSet = new Set(Array.isArray(mergeCols) && mergeCols.length ? mergeCols : (mergeFirstCol ? [0] : []));
