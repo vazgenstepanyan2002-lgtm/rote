@@ -191,6 +191,7 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
   if(t)admVib(40);
  },true);
  function toast(m,err){if(err)admVib([60,40,60]);const t=g('toast');t.textContent=m;t.className='show'+(err?' err':'');clearTimeout(_tt);_tt=setTimeout(()=>{t.className=''},2600)}
+ window.toast=toast;
  function showErr(m){const e=g('err');e.textContent=m||'';e.hidden=!m}
  function denied(e){
   const d=(e&&e.code==='PERMISSION_DENIED')||/permission_denied/i.test((e&&e.message)||'');
