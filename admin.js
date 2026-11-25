@@ -2955,7 +2955,7 @@ function openSelectModal(){
    stop();
    if(_map)destroyMap();
    USERS={};LABELS={};syncCrewsFromLabels();ACCOUNTS={};ATT={};ATT_ERR=false;SUB_LOG=[];SUB_LOG_ERR=false;SUB_LOG_OPEN=false;_subLoginLogged=false;updSubLogBdg();CARS={};OCR_MAP={};CHAT=[];DMS={};DM_UID=null;CHAT_OPEN=false;_admChatInit=false;_admDmInit=false;SEL='all';
-   document.querySelectorAll('.ov').forEach(o=>{if(typeof o._close==='function')o._close();else if(o.id!=='dlgOv')o.remove()});
+   document.querySelectorAll('.ov').forEach(o=>{if(o.id==='cOv'||o.id==='dlgOv'){o.classList.remove('show');o.hidden=true}else if(typeof o._close==='function')o._close();else o.remove()});
    g('panel').hidden=true;g('login').hidden=false;
   }
  });
