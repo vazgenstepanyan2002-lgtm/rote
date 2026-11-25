@@ -740,7 +740,12 @@
         const l = window.getLang ? window.getLang() : 'ru';
         if (l === 'ru' || l === 'hy' || l === 'en') appLang = l;
       } catch (e) {}
-      let excelLang = appLang;
+      let excelLang = 'hy';
+      try {
+        const savedL = localStorage.getItem('EXCEL_LANG');
+        if (savedL === 'ru' || savedL === 'hy' || savedL === 'en') excelLang = savedL;
+      } catch (e) {}
+      const uiTitle = trExcelVal(title || 'Ведомость', appLang, false, false);
 
       const TV_UI = {
         ru: { rows: 'Строк:', search: '🔍 Поиск...', share: '📤 Поделиться', shareT: 'Поделиться', print: '🖨️ Напечатать', printT: 'Напечатать', dlT: 'Скачать Excel', empty: 'Ничего не найдено' },
@@ -787,7 +792,7 @@
         <div class="tv-box" data-no-i18n="1" style="max-width:min(94vw,1180px);width:100%;height:min(88dvh,760px);display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:18px;background:#0d131f;border:1px solid rgba(255,255,255,.16);box-shadow:0 18px 45px rgba(0,0,0,.75);animation:cmIn .16s ease-out">
           <div class="tv-hd" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0">
             <div style="min-width:0;flex:1">
-              <div id="tvTitle" style="font-size:13.5px;font-weight:800;color:#f8fafc;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">📊 ${esc(loc.lTitle)}</div>
+              <div id="tvTitle" style="font-size:13.5px;font-weight:800;color:#f8fafc;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">📊 ${esc(uiTitle)}</div>
               <div style="font-size:11.5px;color:#94a3b8;margin-top:2px"><span id="tvRowsLbl">${esc(ui.rows)}</span> <b id="tvRowCount">${rows.length}</b></div>
             </div>
             <div id="tvLangBar" style="display:inline-flex;align-items:center;gap:2px;padding:3px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);flex-shrink:0">
@@ -877,6 +882,7 @@
           const nl = b.dataset.tvl;
           if (!nl || nl === excelLang) return;
           excelLang = nl;
+          try { localStorage.setItem('EXCEL_LANG', excelLang); } catch (e) {}
           loc = buildLocalized(excelLang);
           langBar.querySelectorAll('button[data-tvl]').forEach(x => {
             const on = x.dataset.tvl === excelLang;
@@ -884,8 +890,6 @@
             x.style.background = on ? 'rgba(250,204,21,.22)' : 'transparent';
             x.style.color = on ? '#fde047' : '#94a3b8';
           });
-          const ttl = document.getElementById('tvTitle');
-          if (ttl) ttl.textContent = '📊 ' + loc.lTitle;
           const th = document.getElementById('tvThead');
           if (th) th.innerHTML = renderThead(loc.lHeaders);
           const tf = document.getElementById('tvTfoot');
