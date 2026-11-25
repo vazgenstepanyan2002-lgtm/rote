@@ -1151,8 +1151,9 @@ async function openAdmDocEditModal(code,dk){
    const allK=new Set([...Object.keys(oldP),...Object.keys(calc.p)]);
    let hasDelta=false;
    allK.forEach(k=>{const d=(+calc.p[k]||0)-(+oldP[k]||0);if(d!==0){delta[k]=d;hasDelta=true}});
+   let qtyTr=null;
    if(hasDelta){
-    await db.ref('cars/'+code+'/qty').transaction(cur=>{
+    qtyTr=await db.ref('cars/'+code+'/qty').transaction(cur=>{
      const next=(cur&&typeof cur==='object')?Object.assign({},cur):{};
      Object.keys(delta).forEach(k=>{
       const nv=Math.max(0,(+next[k]||0)+delta[k]);
@@ -1165,10 +1166,7 @@ async function openAdmDocEditModal(code,dk){
    if(CARS[code]){
     if(!CARS[code].docs)CARS[code].docs={};
     CARS[code].docs[dk]=nextDoc;
-    if(hasDelta){
-     if(!CARS[code].qty)CARS[code].qty={};
-     Object.keys(delta).forEach(k=>{const nv=Math.max(0,(+CARS[code].qty[k]||0)+delta[k]);if(nv>0)CARS[code].qty[k]=nv;else delete CARS[code].qty[k]});
-    }
+    if(qtyTr&&qtyTr.snapshot)CARS[code].qty=qtyTr.snapshot.val()||{};
    }
    const savedRules=[];
    if(saveToOcr){
@@ -1277,8 +1275,9 @@ async function applyBatchRecalc(plan){
   const dkList=Object.keys(docUpdates);
   if(!dkList.length)continue;
   const hasDelta=Object.keys(carDelta).some(k=>carDelta[k]!==0);
+  let qtyTr=null;
   if(hasDelta){
-   await db.ref('cars/'+carCode+'/qty').transaction(cur=>{
+   qtyTr=await db.ref('cars/'+carCode+'/qty').transaction(cur=>{
     const next=(cur&&typeof cur==='object')?Object.assign({},cur):{};
     Object.keys(carDelta).forEach(k=>{
      if(!carDelta[k])return;
@@ -1292,13 +1291,7 @@ async function applyBatchRecalc(plan){
   if(CARS[carCode]){
    if(!CARS[carCode].docs)CARS[carCode].docs={};
    dkList.forEach(dk=>{CARS[carCode].docs[dk]=docUpdates[dk]});
-   if(hasDelta){
-    if(!CARS[carCode].qty)CARS[carCode].qty={};
-    Object.keys(carDelta).forEach(k=>{
-     const nv=Math.max(0,(+CARS[carCode].qty[k]||0)+carDelta[k]);
-     if(nv>0)CARS[carCode].qty[k]=nv;else delete CARS[carCode].qty[k];
-    });
-   }
+   if(qtyTr&&qtyTr.snapshot)CARS[carCode].qty=qtyTr.snapshot.val()||{};
   }
  }
  const sumOv=g('admSumOv');if(sumOv&&sumOv._refresh)sumOv._refresh();
@@ -1378,7 +1371,7 @@ async function cancelAdmDoc(code,dk,btn){
   if(!tr.committed){toast('Запись уже удалена',true);return}
   const pToSub=removedP||(hp?x.p:null);
   if(pToSub&&Object.keys(pToSub).length){
-   await db.ref('cars/'+code+'/qty').transaction(cur=>{
+   const qtyTr=await db.ref('cars/'+code+'/qty').transaction(cur=>{
     const next=(cur&&typeof cur==='object')?Object.assign({},cur):{};
     Object.keys(pToSub).forEach(k=>{
      const nv=Math.max(0,(+next[k]||0)-(+pToSub[k]||0));
@@ -1386,9 +1379,7 @@ async function cancelAdmDoc(code,dk,btn){
     });
     return next;
    });
-   if(CARS[code]&&CARS[code].qty){
-    Object.keys(pToSub).forEach(k=>{const nv=Math.max(0,(+CARS[code].qty[k]||0)-(+pToSub[k]||0));if(nv>0)CARS[code].qty[k]=nv;else delete CARS[code].qty[k]});
-   }
+   if(CARS[code]&&qtyTr&&qtyTr.snapshot)CARS[code].qty=qtyTr.snapshot.val()||{};
   }
   if(CARS[code]&&CARS[code].docs)delete CARS[code].docs[dk];
   await db.ref('cars/'+code+'/t').set(Date.now());
@@ -1438,16 +1429,17 @@ function openAdmSumModal(code,subKey,openDocs){
   const delBtnHtml=canDel?'<button type="button" class="sum-doc-del" data-doc-del="'+esc(x._k)+'" title="Отменить запись"><span style="font-size:12px">🗑️</span> Отменить</button>':'';
   const btnsHtml=(editBtnHtml||delBtnHtml)?'<div class="sum-doc-btns">'+editBtnHtml+delBtnHtml+'</div>':'';
   const hay=esc(hayParts.join(' ').toLowerCase());
-  return '<div class="sum-it sum-doc-card" data-doc-hay="'+hay+'"><div class="sum-doc-hd"><div class="sum-it-t" style="margin:0">'+hdTitle+(zn?' <span class="sum-doc-z">'+zn+'</span>':'')+rp+edBdg+'</div>'+rSum+'</div>'+itsHtml+'<div class="sum-doc-ft"><span class="sum-f"><span data-no-i18n="1">'+esc(x.by||'Водитель')+'</span>'+(tm?' · '+tm:'')+(qv?' · '+(isMan&&qv>0?'+':'')+fm(qv)+' шт':'')+'</span>'+btnsHtml+'</div></div>';
+  return '<div class="sum-it sum-doc-card" data-doc-hay="'+hay+'"><div class="sum-doc-hd"><div class="sum-it-t" style="margin:0">'+hdTitle+(zn?' <span class="sum-doc-z">'+zn+'</span>':'')+rp+edBdg+'</div>'+rSum+'</div>'+itsHtml+'<div class="sum-doc-ft"><span class="sum-f"><span data-no-i18n="1">'+esc(x.by||'Водитель')+'</span>'+(tm?' · '+tm:'')+(qv?' · <span>'+(isMan&&qv>0?'+':'')+fm(qv)+' шт</span>':'')+'</span>'+btnsHtml+'</div></div>';
  }).join('')+'<div class="mut" data-doc-empty="1" style="display:none;text-align:center;padding:12px">Ничего не найдено</div></div></div>':'';
- const head="<div class=\"sum-dash\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">"+esc(title)+" · "+esc(sub)+"</div><div class=\"sum-val\" id=\"admTotVal\">"+fm(totS)+" <span>"+CUR+"</span></div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b id=\"admTotQty\">"+fm(totQ)+"</b><span>штук</span></div><div class=\"sum-kpi\"><b id=\"admTotCat\">"+rows.length+"</b><span>катег.</span></div></div></div></div>";
+ const headLbl=isCur?'<span>Текущий месяц</span> · <span>не сохранён</span>':('<span>'+esc(title)+'</span> · <span>сохранено</span> <span>'+esc(ago(rec.t))+'</span>');
+ const head="<div class=\"sum-dash\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">"+headLbl+"</div><div class=\"sum-val\" id=\"admTotVal\">"+fm(totS)+" <span>"+CUR+"</span></div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b id=\"admTotQty\">"+fm(totQ)+"</b><span>штук</span></div><div class=\"sum-kpi\"><b id=\"admTotCat\">"+rows.length+"</b><span>катег.</span></div></div></div></div>";
   return head+docsHtml+detail(rows);
  };
- const subHd=c.crew.length?"Экипаж: "+c.crew.join(", "):"Экипаж не назначен";
+ const subHdHtml=c.crew.length?('<span>Экипаж</span>: <span data-no-i18n="1">'+esc(c.crew.join(", "))+'</span>'):'<span>Экипаж не назначен</span>';
  const ov=document.createElement("div");ov.id="admSumOv";ov.className="ov";
  const delH=(!isCur&&!isSubAdm())?"<button type=\"button\" id=\"admSumDel\" class=\"ach-clr\" style=\"margin-right:6px\">🗑️ Удалить</button>":"";
  const expH="<button type=\"button\" id=\"admSumCsv\" class=\"ach-clr\" style=\"background:rgba(16,185,129,.16);border-color:rgba(52,211,153,.4);color:#6ee7b7;margin-right:6px\">📥 Excel</button>";
- ov.innerHTML="<div class=\"dlg ach-box\" style=\"max-width:440px;height:88vh\"><div class=\"ach-hd\"><div class=\"ach-hd-l\"><div class=\"ach-hd-ic\">🚚</div><div><b>Экипаж <span data-no-i18n=\"1\">"+esc(code)+"</span></b><small>"+esc(subHd)+"</small></div></div><div class=\"ach-acts\">"+expH+delH+"<button type=\"button\" id=\"admSumX\" class=\"ach-x\">✕</button></div></div><div id=\"admSumB\" class=\"ach-list\" style=\"background-image:none;padding:12px;display:block\">"+build(openDocs)+"</div></div>";
+ ov.innerHTML="<div class=\"dlg ach-box\" style=\"max-width:440px;height:88vh\"><div class=\"ach-hd\"><div class=\"ach-hd-l\"><div class=\"ach-hd-ic\">🚚</div><div><b>Экипаж <span data-no-i18n=\"1\">"+esc(code)+"</span></b><small>"+subHdHtml+"</small></div></div><div class=\"ach-acts\">"+expH+delH+"<button type=\"button\" id=\"admSumX\" class=\"ach-x\">✕</button></div></div><div id=\"admSumB\" class=\"ach-list\" style=\"background-image:none;padding:12px;display:block\">"+build(openDocs)+"</div></div>";
  document.body.appendChild(ov);
  const close=()=>{ov.classList.remove("show");setTimeout(()=>ov.remove(),180)};
  if(g("admSumCsv"))g("admSumCsv").onclick=()=>{
