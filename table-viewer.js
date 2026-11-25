@@ -397,51 +397,49 @@
 
   // Поделиться через системное меню Android (Telegram, WhatsApp и т.д.)
   async function shareFile(blob, filename, title, allRows) {
-    try {
-      const xlsxFile = new File([blob], filename, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      if (navigator.canShare && navigator.canShare({ files: [xlsxFile] })) {
-        await navigator.share({
-          files: [xlsxFile],
-          title: title || 'EuroBaza',
-          text: title || 'Отчёт EuroBaza'
-        });
-        return 'shared';
-      }
-      // Chrome на Android блокирует .xlsx в Web Share API, но разрешает text/csv
-      if (Array.isArray(allRows) && allRows.length && navigator.canShare) {
-        const csvStr = '\uFEFF' + allRows.map(r => (r || []).map(v => {
-          const s = String(v == null ? '' : v).replace(/"/g, '""');
-          return /[",\n\r;]/.test(s) ? ('"' + s + '"') : s;
-        }).join(';')).join('\r\n');
-        const csvName = String(filename || 'EuroBaza.csv').replace(/\.xlsx$/i, '.csv');
-        const csvFile = new File([csvStr], csvName, { type: 'text/csv' });
-        if (navigator.canShare({ files: [csvFile] })) {
-          await navigator.share({
-            files: [csvFile],
-            title: title || 'EuroBaza',
-            text: title || 'Отчёт EuroBaza'
-          });
-          return 'shared';
+    if (!navigator.share) return 'unsupported';
+    let lastErr = '';
+    const safeTitle = title || 'EuroBaza';
+    const tryShare = async (data) => {
+      try {
+        if (data.files && (!navigator.canShare || !navigator.canShare({ files: data.files }))) {
+          return 'skip';
         }
-      }
-      if (navigator.share) {
-        const preview = Array.isArray(allRows) && allRows.length
-          ? allRows.slice(0, 60).map(r => (r || []).filter(v => v !== '' && v != null).join(' | ')).join('\n')
-          : (title || 'Отчёт EuroBaza');
-        await navigator.share({
-          title: title || 'EuroBaza',
-          text: (title ? title + '\n\n' : '') + preview
-        });
+        await navigator.share(data);
         return 'shared';
+      } catch (e) {
+        if (e && e.name === 'AbortError') return 'aborted';
+        lastErr = (e && (e.name + ': ' + e.message)) || String(e);
+        console.warn('Share attempt failed:', lastErr);
+        return 'fail';
       }
-      return 'unsupported';
-    } catch (e) {
-      if (e && e.name === 'AbortError') {
-        return 'aborted';
-      }
-      console.warn('Share error:', e);
-      return 'error';
+    };
+
+    // 1. Настоящий .xlsx (iOS Safari и браузеры с поддержкой .xlsx)
+    const xlsxFile = new File([blob], filename, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    let r = await tryShare({ files: [xlsxFile], title: safeTitle });
+    if (r === 'shared' || r === 'aborted') return r;
+
+    // 2. Файл .csv (в белом списке Chrome Android)
+    if (Array.isArray(allRows) && allRows.length) {
+      const csvStr = '\uFEFF' + allRows.map(row => (row || []).map(v => {
+        const s = String(v == null ? '' : v).replace(/"/g, '""');
+        return /[",\n\r;]/.test(s) ? ('"' + s + '"') : s;
+      }).join(';')).join('\r\n');
+      const csvName = String(filename || 'EuroBaza.csv').replace(/\.xlsx$/i, '.csv');
+      const csvFile = new File([csvStr], csvName, { type: 'text/csv' });
+      r = await tryShare({ files: [csvFile], title: safeTitle });
+      if (r === 'shared' || r === 'aborted') return r;
     }
+
+    // 3. Системное окно «Поделиться» текстом таблицы (работает всегда на Android/iOS)
+    const preview = Array.isArray(allRows) && allRows.length
+      ? allRows.slice(0, 60).map(row => (row || []).filter(v => v !== '' && v != null).join(' | ')).join('\n')
+      : safeTitle;
+    r = await tryShare({ title: safeTitle, text: safeTitle + '\n\n' + preview });
+    if (r === 'shared' || r === 'aborted') return r;
+
+    return lastErr ? ('error:' + lastErr) : 'unsupported';
   }
 
   // Печать таблицы на принтер (чистый белый лист А4, альбомная для широких таблиц)
@@ -868,9 +866,10 @@
           sharing = true;
           try {
             const res = await shareFile(loc.lBlob, loc.lName, loc.lTitle, loc.lAllRows);
-            if (res === 'unsupported' || res === 'error') {
-              downloadBlob(loc.lBlob, loc.lName);
-              if (window.toast) window.toast('Файл скачан');
+            if (res === 'unsupported') {
+              if (window.toast) window.toast('Системное меню «Поделиться» недоступно в этом браузере', true);
+            } else if (typeof res === 'string' && res.startsWith('error:')) {
+              if (window.toast) window.toast('Не удалось поделиться: ' + res.slice(6), true);
             }
           } finally {
             sharing = false;
