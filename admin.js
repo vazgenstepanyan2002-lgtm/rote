@@ -940,14 +940,394 @@ function aggCarMonths(list){
  return Object.keys(map).map(k=>{const x=map[k];x.cars=Object.keys(x.byCar).map(id=>x.byCar[id]).sort((a,b)=>b.sum-a.sum);return x}).sort((a,b)=>a.m<b.m?1:a.m>b.m?-1:0);
 }
 
+const ADM_COLOR_STOP_RX=/(?:^|[\s_\/-]+)(?:դուբ|կրաֆտ|սանոմա|սոնոմա|վենգե|սպիտակ|սեվ|սև|գրաֆիտ|մոխրագույն|շագանակագույն|բեժ|կրեմ|կրեմագույն|շիմո|լայթ|դարկ|գոլդ|ոսկեգույն|անտրացիտ|կաշմիր|կապուչինո|բետոն|մարմար|փայլուն|մատ|գլյանց|սիլվեր|արծաթագույն|պողպատե|կաղնի|ընկույզ|օրեխ|յասեն|բալ|վարդագույն|կապույտ|կանաչ|դեղին|կարմիր|բորդո|մետաքս|շոկոլադ|լոֆթ|дуб|крафт|сонома|венге|белый|бел|черный|графит|серый|беж|крем|шимо|лайт|дарк|голд|антрацит|кашмир|капучино|бетон|мрамор|глянец|мат|орех|ясень|шоколад)(?=$|[\s_\/-]+)/gi;
+const admNormText=s=>String(s||'').toLowerCase().replace(/և|եւ/g,'եվ').replace(/ё/g,'е').replace(/[–—−]/g,'-').replace(/\s+/g,' ').trim();
+const admNormModel=s=>admNormText(s).replace(/[\"'«»().,]/g,' ').replace(/\s+/g,' ').trim();
+const admFbKey=k=>admNormModel(k).replace(/[.#$\[\]\/]+/g,'_').slice(0,120);
+const admStripColors=s=>admNormModel(s).replace(ADM_COLOR_STOP_RX,' ').replace(/\s+/g,' ').trim();
+const admOcrFold=s=>admNormModel(s).replace(/ռ/g,'ր').replace(/թ/g,'տ').replace(/փ/g,'պ').replace(/ք/g,'կ').replace(/օ/g,'ո').replace(/է/g,'ե').replace(/[ձծ]/g,'ց').replace(/ղ/g,'դ');
+function admNormDocItems(v){
+ const arr=Array.isArray(v)?v:(v&&typeof v==='object'?Object.values(v):[]);
+ return arr.filter(x=>x&&typeof x==='object'&&x.c&&(+x.q||0)>0).map(x=>({n:String(x.n||'').trim().slice(0,120),c:String(x.c),q:Math.max(1,Math.round(+x.q||1))}));
+}
+function admFindCatSub(baseCode){
+ const idx=String(baseCode||'').indexOf('_');if(idx<0)return null;
+ const pk=baseCode.slice(0,idx),sk=baseCode.slice(idx+1);
+ const c=CAR_CATALOG.find(x=>x.pk===pk),s=c&&c.subs.find(x=>x.sk===sk);
+ return (c&&s)?{c,s}:null;
+}
+function admDocItemKey(baseCode,z){
+ const f=admFindCatSub(baseCode);
+ if(!f)return String(baseCode||'');
+ return (!f.s.one&&z===2)?(baseCode+'_2'):baseCode;
+}
+function admCalcDoc(items,z){
+ const p={},clean=[];let sum=0,qty=0;
+ (items||[]).forEach(it=>{
+  const f=admFindCatSub(it.c),q=Math.max(0,Math.round(+it.q||0));
+  if(!f||q<1)return;
+  const k=(!f.s.one&&z===2)?(it.c+'_2'):it.c;
+  const pr=f.s.one?(+f.s.p1||0):(z===2?(+f.s.p2||0):(+f.s.p1||0));
+  p[k]=(p[k]||0)+q;
+  sum+=pr*q;qty+=q;
+  clean.push({n:String(it.n||'').trim().slice(0,120),c:it.c,q});
+ });
+ return{p,sum,qty,items:clean};
+}
+function admLookupRuleCode(itemName,mapObj){
+ const fk=admFbKey(itemName);
+ if(!fk||!mapObj||typeof mapObj!=='object')return'';
+ if(mapObj[fk]&&admFindCatSub(mapObj[fk]))return mapObj[fk];
+ const sc=admStripColors(itemName),fc=sc?admOcrFold(sc):'';
+ let foldHit='';
+ for(const k in mapObj){
+  const cd=mapObj[k];if(!cd||!admFindCatSub(cd))continue;
+  if(admFbKey(k.replace(/_/g,' '))===fk)return cd;
+  if(sc.length>=4){
+   const ksc=admStripColors(k.replace(/_/g,' '));
+   if(ksc.length>=4){
+    if(ksc===sc)return cd;
+    if(!foldHit&&admOcrFold(ksc)===fc)foldHit=cd;
+   }
+  }
+ }
+ return foldHit;
+}
 function admDocKeyInfo(k){
  const is2=String(k||'').endsWith('_2'),base=is2?String(k).slice(0,-2):String(k||'');
- const idx=base.indexOf('_');if(idx<0)return{label:k,price:0};
- const pk=base.slice(0,idx),sk=base.slice(idx+1);
- const c=CAR_CATALOG.find(x=>x.pk===pk),s=c&&c.subs.find(x=>x.sk===sk);
- if(!c||!s)return{label:k,price:0};
- const zn=s.one?'':(is2?' (Район)':' (Город)');
- return{label:nm(c.name)+' · '+nm(s.name)+zn,price:is2?(+s.p2||0):(+s.p1||0)};
+ const f=admFindCatSub(base);
+ if(!f)return{label:k,price:0};
+ const zn=f.s.one?'':(is2?' (Район)':' (Город)');
+ return{label:nm(f.c.name)+' · '+nm(f.s.name)+zn,price:is2?(+f.s.p2||0):(+f.s.p1||0)};
+}
+function admPickCategory(curCode,subtitle,noI18n){
+ return new Promise(resolve=>{
+  const CAT_ICO={'Другое':'📦','Диваны':'🛋️','Ресепшен':'🗄️','Кухни':'🍳','Гостиная':'📺','Спальни':'🛏️','Шкафы':'🚪'};
+  const allItems=Object.keys(OCR_CAT_NAMES).map(cd=>{
+   const parts=OCR_CAT_NAMES[cd].split(' · ');
+   return{cd,cat:parts[0]||'Другое',name:parts[1]||OCR_CAT_NAMES[cd]};
+  });
+  const catsList=Array.from(new Set(allItems.map(x=>x.cat)));
+  const curObj=allItems.find(x=>x.cd===curCode);
+  let selCat=curObj?curObj.cat:'all',q='',done=false;
+  const ov=document.createElement('div');
+  ov.className='ov';ov.style.zIndex='100002';
+  ov.innerHTML='<div class="dlg aop-box" style="max-width:430px;height:min(85dvh,580px)">'
+   +'<div class="aop-hd"><div><b>Выберите категорию</b>'+(subtitle?'<small'+(noI18n?' data-no-i18n="1"':'')+'>'+esc(subtitle)+'</small>':'')+'</div><button type="button" class="sel-x">✕</button></div>'
+   +'<div class="aop-srch"><input id="adpInp" type="search" placeholder="🔍 Быстрый поиск мебели..."></div>'
+   +'<div class="aop-chips" id="adpChips"><button type="button" data-c="all" class="'+(selCat==='all'?'on':'')+'">Все</button>'
+   +catsList.map(c=>'<button type="button" data-c="'+esc(c)+'" class="'+(selCat===c?'on':'')+'">'+(CAT_ICO[c]||'📦')+' '+esc(c)+'</button>').join('')
+   +'</div><div class="aop-list" id="adpList"></div></div>';
+  document.body.appendChild(ov);
+  const finish=val=>{if(done)return;done=true;ov.classList.remove('show');setTimeout(()=>ov.remove(),180);resolve(val)};
+  ov.querySelector('.sel-x').onclick=()=>finish(null);
+  ov.onclick=e=>{if(e.target===ov)finish(null)};
+  const drawItems=()=>{
+   const box=ov.querySelector('#adpList');
+   const qTokens=ocrNorm(q).split(' ').filter(Boolean);
+   const list=allItems.filter(it=>{
+    if(selCat!=='all'&&it.cat!==selCat)return false;
+    if(!qTokens.length)return true;
+    const grp=(it.cd||'').split('_')[0];
+    const hay=ocrNorm(it.name+' '+it.cat+' '+(OCR_HY_KW[grp]||''));
+    return qTokens.every(t=>hay.includes(t));
+   });
+   if(!list.length){box.innerHTML='<div class="mut" style="text-align:center;padding:20px">Ничего не найдено</div>';return}
+   box.innerHTML=list.map(it=>{
+    const on=it.cd===curCode;
+    return '<button type="button" class="aop-it'+(on?' on':'')+'" data-cd="'+it.cd+'"><span>'+(CAT_ICO[it.cat]||'📦')+'</span><span class="aop-tx"><b>'+esc(it.name)+'</b><small>'+esc(it.cat)+'</small></span><span class="sel-chk">'+(on?'✓':'')+'</span></button>';
+   }).join('');
+  };
+  ov.querySelector('#adpChips').onclick=e=>{
+   const b=e.target.closest('button[data-c]');if(!b)return;
+   selCat=b.dataset.c;
+   ov.querySelectorAll('#adpChips button').forEach(x=>x.classList.toggle('on',x===b));
+   drawItems();
+  };
+  ov.querySelector('#adpInp').oninput=e=>{q=e.target.value.trim().toLowerCase();drawItems()};
+  ov.querySelector('#adpList').onclick=e=>{
+   const it=e.target.closest('button[data-cd]');if(!it)return;
+   finish(it.dataset.cd);
+  };
+  drawItems();
+  requestAnimationFrame(()=>ov.classList.add('show'));
+ });
+}
+async function openAdmDocEditModal(code,dk){
+ if(isSubAdm()){toast('Редактирование доступно только главному админу',true);return}
+ const orig=CARS[code]&&CARS[code].docs&&CARS[code].docs[dk];
+ if(!orig){toast('Запись уже удалена',true);return}
+ if(orig.type==='manual'){toast('Ручные правки можно только отменить',true);return}
+ const origIt=admNormDocItems(orig.it),hadItems=origIt.length>0;
+ let curZ=(orig.z===1||orig.z===2)?orig.z:(orig.p&&Object.keys(orig.p).some(k=>k.endsWith('_2'))?2:1);
+ const rows=hadItems
+  ?origIt.map(it=>({n:it.n,c:it.c,q:it.q,origC:it.c}))
+  :Object.keys(orig.p||{}).filter(k=>(+orig.p[k]||0)>0).map(k=>{
+   const base=k.endsWith('_2')?k.slice(0,-2):k;
+   return{n:'',c:base,q:Math.max(1,Math.round(+orig.p[k]||1)),origC:base};
+  });
+ const origSum=+orig.sum||0,origQty=+orig.qty||0;
+ let saveToOcr=true;
+ const ov=document.createElement('div');
+ ov.className='ov';ov.style.zIndex='100000';
+ ov.innerHTML='<div class="dlg aop-box" style="max-width:450px;height:min(90dvh,650px)">'
+  +'<div class="aop-hd"><div><b>✏️ Редактирование накладной</b><small>№ <span data-no-i18n="1">'+esc(orig.doc||'\u2014')+'</span> · <span data-no-i18n="1">'+esc(code)+'</span> · <span data-no-i18n="1">'+esc(orig.by||'Водитель')+'</span></small></div><button type="button" class="sel-x">✕</button></div>'
+  +'<div class="ade-zone"><button type="button" class="ade-zbtn" data-z="1">🏙️ Город</button><button type="button" class="ade-zbtn" data-z="2">🗺️ Район</button></div>'
+  +'<div class="ade-list" id="adeList"></div>'
+  +'<label class="ade-chk" id="adeOcrWrap" hidden><input type="checkbox" id="adeOcrChk" checked><span>Сохранить изменения в словарь OCR для будущих накладных</span></label>'
+  +'<div class="ade-sum" id="adeSum"></div>'
+  +'<div class="ade-ft"><button type="button" id="adeCancel" style="flex:1;height:40px;border-radius:11px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#94a3b8;font-size:13px;font-weight:700;cursor:pointer">Отмена</button><button type="button" id="adeSave" style="flex:1.4;height:40px;border-radius:11px;background:linear-gradient(135deg,#10b981,#059669);border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(16,185,129,.35)">✓ Сохранить</button></div></div>';
+ document.body.appendChild(ov);
+ const close=()=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),180)};
+ ov.querySelector('.sel-x').onclick=close;
+ ov.querySelector('#adeCancel').onclick=close;
+ ov.onclick=e=>{if(e.target===ov)close()};
+ const render=()=>{
+  ov.querySelectorAll('.ade-zbtn').forEach(b=>b.classList.toggle('on',+b.dataset.z===curZ));
+  const box=ov.querySelector('#adeList');
+  const html=rows.map((r,idx)=>{
+   const k=admDocItemKey(r.c,curZ),inf=admDocKeyInfo(k),lineSum=inf.price*r.q;
+   const chg=r.origC&&r.c!==r.origC;
+   const nmEl=r.n?'<div class="ade-rnm" data-no-i18n="1">'+esc(r.n)+'</div>':'<div class="ade-rnm mut">Позиция без названия</div>';
+   return '<div class="ade-row'+(chg?' chg':'')+'">'
+    +'<div class="ade-rtop">'+nmEl+'<button type="button" class="ade-rdel" data-del="'+idx+'" title="Удалить позицию">✕</button></div>'
+    +'<button type="button" class="ade-cat" data-cat="'+idx+'"><span>'+esc(OCR_CAT_NAMES[r.c]||inf.label)+'</span><span>▾</span></button>'
+    +'<div class="ade-rbot"><div class="ade-qty"><button type="button" class="ade-qb" data-dec="'+idx+'">−</button><span class="ade-qv">'+r.q+'</span><button type="button" class="ade-qb" data-inc="'+idx+'">+</button></div><span class="ade-rsum">'+fm(lineSum)+' '+CUR+'</span></div></div>';
+  }).join('');
+  box.innerHTML=html+'<button type="button" class="ade-add" id="adeAdd">+ Добавить позицию</button>';
+  const hasOcrDiff=rows.some(r=>r.n&&r.c&&r.origC&&r.c!==r.origC);
+  const ow=ov.querySelector('#adeOcrWrap');if(ow)ow.hidden=!hasOcrDiff;
+  const calc=admCalcDoc(rows,curZ),diff=calc.sum-origSum;
+  const diffTxt=diff===0?'<span style="color:#94a3b8">без изменений</span>':('<b style="color:'+(diff>0?'#6ee7b7':'#fca5a5')+'">'+(diff>0?'+':'')+fm(diff)+' '+CUR+'</b>');
+  ov.querySelector('#adeSum').innerHTML='<span><span>Было</span>: <b>'+fm(origQty)+' шт · '+fm(origSum)+' '+CUR+'</b></span><span><span>Станет</span>: <b>'+fm(calc.qty)+' шт · '+fm(calc.sum)+' '+CUR+'</b> ('+diffTxt+')</span>';
+ };
+ ov.querySelector('.ade-zone').onclick=e=>{
+  const b=e.target.closest('.ade-zbtn');if(!b)return;
+  curZ=+b.dataset.z===2?2:1;render();
+ };
+ ov.querySelector('#adeOcrChk').onchange=e=>{saveToOcr=!!e.target.checked};
+ ov.querySelector('#adeList').onclick=async e=>{
+  const addB=e.target.closest('#adeAdd');
+  if(addB){
+   const picked=await admPickCategory('','Новая позиция',false);
+   if(picked){rows.push({n:'',c:picked,q:1,origC:''});render()}
+   return;
+  }
+  const catB=e.target.closest('[data-cat]');
+  if(catB){
+   const i=+catB.dataset.cat,r=rows[i];if(!r)return;
+   const picked=await admPickCategory(r.c,r.n||'',true);
+   if(picked){r.c=picked;render()}
+   return;
+  }
+  const incB=e.target.closest('[data-inc]');
+  if(incB){const r=rows[+incB.dataset.inc];if(r){r.q=Math.min(999,r.q+1);render()}return}
+  const decB=e.target.closest('[data-dec]');
+  if(decB){const r=rows[+decB.dataset.dec];if(r&&r.q>1){r.q--;render()}return}
+  const delB=e.target.closest('[data-del]');
+  if(delB){rows.splice(+delB.dataset.del,1);render();return}
+ };
+ ov.querySelector('#adeSave').onclick=async()=>{
+  if(isSubAdm())return;
+  const calc=admCalcDoc(rows,curZ);
+  if(!calc.items.length){toast('Добавьте хотя бы одну позицию или отмените накладную',true);return}
+  const btn=ov.querySelector('#adeSave');btn.disabled=true;
+  try{
+   const docRef=db.ref('cars/'+code+'/docs/'+dk);
+   const pre=(await docRef.once('value')).val();
+   if(!pre||pre.type==='manual'){close();toast('Запись уже удалена',true);return}
+   let prevP=null,nextDoc=null;
+   const tr=await docRef.transaction(fresh=>{
+    if(!fresh||fresh.type==='manual')return;
+    prevP=(fresh.p&&typeof fresh.p==='object')?Object.assign({},fresh.p):{};
+    nextDoc={doc:fresh.doc||'\u2014',by:fresh.by||'Водитель',t:fresh.t||Date.now(),sum:calc.sum,qty:calc.qty,z:curZ,p:calc.p,ed:Date.now()};
+    if(fresh.rep)nextDoc.rep=fresh.rep;
+    if(hadItems||calc.items.some(it=>it.n))nextDoc.it=calc.items;
+    return nextDoc;
+   });
+   if(!tr.committed||!nextDoc){close();toast('Запись уже удалена',true);return}
+   const oldP=prevP||{};
+   const delta={};
+   const allK=new Set([...Object.keys(oldP),...Object.keys(calc.p)]);
+   let hasDelta=false;
+   allK.forEach(k=>{const d=(+calc.p[k]||0)-(+oldP[k]||0);if(d!==0){delta[k]=d;hasDelta=true}});
+   if(hasDelta){
+    await db.ref('cars/'+code+'/qty').transaction(cur=>{
+     const next=(cur&&typeof cur==='object')?Object.assign({},cur):{};
+     Object.keys(delta).forEach(k=>{
+      const nv=Math.max(0,(+next[k]||0)+delta[k]);
+      if(nv>0)next[k]=nv;else delete next[k];
+     });
+     return next;
+    });
+   }
+   await db.ref('cars/'+code+'/t').set(Date.now());
+   if(CARS[code]){
+    if(!CARS[code].docs)CARS[code].docs={};
+    CARS[code].docs[dk]=nextDoc;
+    if(hasDelta){
+     if(!CARS[code].qty)CARS[code].qty={};
+     Object.keys(delta).forEach(k=>{const nv=Math.max(0,(+CARS[code].qty[k]||0)+delta[k]);if(nv>0)CARS[code].qty[k]=nv;else delete CARS[code].qty[k]});
+    }
+   }
+   const savedRules=[];
+   if(saveToOcr){
+    const seenFk=new Set();
+    for(const r of rows){
+     if(r.n&&r.c&&r.origC&&r.c!==r.origC){
+      const fk=admFbKey(r.n);
+      if(fk&&!seenFk.has(fk)){
+       seenFk.add(fk);
+       await db.ref('config/ocrMap/'+fk).set(r.c);
+       savedRules.push({key:fk,code:r.c});
+      }
+     }
+    }
+   }
+   close();
+   const sumOv=g('admSumOv');if(sumOv&&sumOv._refresh)sumOv._refresh();
+   toast(savedRules.length?'Накладная обновлена · словарь OCR обновлён':'Накладная обновлена');
+   if(savedRules.length){
+    const rMap={};savedRules.forEach(x=>{rMap[x.key]=x.code});
+    const plan=findAffectedDocsByRuleMap(rMap);
+    if(plan.length)openRecalcModal(plan,'Найдены другие накладные с этим товаром');
+   }
+  }catch(err){btn.disabled=false;toast('Ошибка сохранения накладной',true)}
+ };
+ render();
+ requestAnimationFrame(()=>ov.classList.add('show'));
+}
+function findAffectedDocsByRuleMap(ruleMapObj){
+ if(isSubAdm()||!ruleMapObj||typeof ruleMapObj!=='object')return[];
+ const plan=[];
+ getCarsList().forEach(carCode=>{
+  const docs=(CARS[carCode]&&CARS[carCode].docs)||{};
+  Object.keys(docs).forEach(dk=>{
+   const x=docs[dk];if(!x||x.type==='manual')return;
+   const items=admNormDocItems(x.it);if(!items.length)return;
+   const z=(x.z===1||x.z===2)?x.z:1;
+   const edits=[],newItems=[];
+   items.forEach((it,idx)=>{
+    const mapped=it.n?admLookupRuleCode(it.n,ruleMapObj):'';
+    if(mapped&&mapped!==it.c){
+     edits.push({idx,n:it.n,q:it.q,from:it.c,to:mapped});
+     newItems.push({n:it.n,c:mapped,q:it.q});
+    }else newItems.push(it);
+   });
+   if(!edits.length)return;
+   const calc=admCalcDoc(newItems,z),oldSum=+x.sum||0;
+   plan.push({carCode,dk,doc:x.doc||'\u2014',by:x.by||'Водитель',t:+x.t||0,z,edits,oldSum,newSum:calc.sum,diffSum:calc.sum-oldSum});
+  });
+ });
+ return plan.sort((a,b)=>b.t-a.t);
+}
+function findAffectedDocsByRule(ruleKey,newCode){
+ if(isSubAdm()||!ruleKey||!newCode||!admFindCatSub(newCode))return[];
+ const m={};m[ruleKey]=newCode;
+ return findAffectedDocsByRuleMap(m);
+}
+function findAffectedDocsByAllRules(){
+ if(isSubAdm())return[];
+ return findAffectedDocsByRuleMap(OCR_MAP);
+}
+async function applyBatchRecalc(plan){
+ if(isSubAdm()||!plan||!plan.length)return 0;
+ const byCar={};
+ plan.forEach(p=>{(byCar[p.carCode]||(byCar[p.carCode]=[])).push(p)});
+ let updatedCount=0;
+ for(const carCode of Object.keys(byCar)){
+  const carDelta={},docUpdates={};
+  for(const item of byCar[carCode]){
+   const docRef=db.ref('cars/'+carCode+'/docs/'+item.dk);
+   const pre=(await docRef.once('value')).val();
+   if(!pre||pre.type==='manual')continue;
+   let prevP=null,nextDoc=null,newP=null;
+   const tr=await docRef.transaction(fresh=>{
+    if(!fresh||fresh.type==='manual')return;
+    const curItems=admNormDocItems(fresh.it);if(!curItems.length)return;
+    const z=(fresh.z===1||fresh.z===2)?fresh.z:1;
+    let changed=false;
+    const nextItems=curItems.map(it=>{
+     const hit=item.edits.find(e=>e.n===it.n&&e.from===it.c);
+     if(hit){changed=true;return{n:it.n,c:hit.to,q:it.q}}
+     return it;
+    });
+    if(!changed)return;
+    const calc=admCalcDoc(nextItems,z);
+    prevP=(fresh.p&&typeof fresh.p==='object')?Object.assign({},fresh.p):{};
+    newP=calc.p;
+    nextDoc={doc:fresh.doc||'\u2014',by:fresh.by||'Водитель',t:fresh.t||Date.now(),sum:calc.sum,qty:calc.qty,z,p:calc.p,it:calc.items,ed:Date.now()};
+    if(fresh.rep)nextDoc.rep=fresh.rep;
+    return nextDoc;
+   });
+   if(!tr.committed||!nextDoc)continue;
+   const oldP=prevP||{};
+   const allK=new Set([...Object.keys(oldP),...Object.keys(newP||{})]);
+   allK.forEach(k=>{const d=(+(newP&&newP[k])||0)-(+oldP[k]||0);if(d!==0)carDelta[k]=(carDelta[k]||0)+d});
+   docUpdates[item.dk]=nextDoc;
+   updatedCount++;
+  }
+  const dkList=Object.keys(docUpdates);
+  if(!dkList.length)continue;
+  const hasDelta=Object.keys(carDelta).some(k=>carDelta[k]!==0);
+  if(hasDelta){
+   await db.ref('cars/'+carCode+'/qty').transaction(cur=>{
+    const next=(cur&&typeof cur==='object')?Object.assign({},cur):{};
+    Object.keys(carDelta).forEach(k=>{
+     if(!carDelta[k])return;
+     const nv=Math.max(0,(+next[k]||0)+carDelta[k]);
+     if(nv>0)next[k]=nv;else delete next[k];
+    });
+    return next;
+   });
+  }
+  await db.ref('cars/'+carCode+'/t').set(Date.now());
+  if(CARS[carCode]){
+   if(!CARS[carCode].docs)CARS[carCode].docs={};
+   dkList.forEach(dk=>{CARS[carCode].docs[dk]=docUpdates[dk]});
+   if(hasDelta){
+    if(!CARS[carCode].qty)CARS[carCode].qty={};
+    Object.keys(carDelta).forEach(k=>{
+     const nv=Math.max(0,(+CARS[carCode].qty[k]||0)+carDelta[k]);
+     if(nv>0)CARS[carCode].qty[k]=nv;else delete CARS[carCode].qty[k];
+    });
+   }
+  }
+ }
+ const sumOv=g('admSumOv');if(sumOv&&sumOv._refresh)sumOv._refresh();
+ return updatedCount;
+}
+function openRecalcModal(plan,subtitle){
+ if(isSubAdm()||!plan||!plan.length)return;
+ const totDiff=plan.reduce((a,x)=>a+x.diffSum,0);
+ const ov=document.createElement('div');
+ ov.className='ov';ov.style.zIndex='100001';
+ const listHtml=plan.map(p=>{
+  const dCol=p.diffSum>0?'#6ee7b7':(p.diffSum<0?'#fca5a5':'#94a3b8');
+  const dTxt=(p.diffSum>0?'+':'')+fm(p.diffSum)+' '+CUR;
+  const lns=p.edits.map(e=>'<div class="arc-ln"><div data-no-i18n="1" style="color:#f8fafc;font-weight:600">'+esc(e.n)+' ×'+e.q+'</div><div><span style="color:#fca5a5">'+esc(OCR_CAT_NAMES[e.from]||e.from)+'</span> → <b style="color:#6ee7b7">'+esc(OCR_CAT_NAMES[e.to]||e.to)+'</b></div></div>').join('');
+  return '<div class="arc-it"><div class="arc-hd"><div><span class="arc-car" data-no-i18n="1">'+esc(p.carCode)+'</span>🧾 № <span data-no-i18n="1">'+esc(p.doc)+'</span></div><b style="color:'+dCol+'">'+dTxt+'</b></div>'+lns+'</div>';
+ }).join('');
+ const totCol=totDiff>0?'#6ee7b7':(totDiff<0?'#fca5a5':'#94a3b8');
+ ov.innerHTML='<div class="dlg aop-box" style="max-width:460px;height:min(86dvh,620px)">'
+  +'<div class="aop-hd"><div><b>🔄 <span>Пересчёт накладных</span> (<span data-no-i18n="1">'+plan.length+'</span>)</b><small>'+esc(subtitle||'Обновление уже сохранённых накладных текущего месяца')+'</small></div><button type="button" class="sel-x">✕</button></div>'
+  +'<div class="ade-list">'+listHtml+'</div>'
+  +'<div class="ade-sum"><span><span>Накладных</span>: <b data-no-i18n="1">'+plan.length+'</b></span><span><span>Итого разница</span>: <b style="color:'+totCol+'">'+(totDiff>0?'+':'')+fm(totDiff)+' '+CUR+'</b></span></div>'
+  +'<div class="ade-ft"><button type="button" id="arcNo" style="flex:1;height:40px;border-radius:11px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#94a3b8;font-size:13px;font-weight:700;cursor:pointer">Не менять</button><button type="button" id="arcGo" style="flex:1.4;height:40px;border-radius:11px;background:linear-gradient(135deg,#0ea5e9,#0284c7);border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(14,165,233,.35)">🔄 <span>Пересчитать</span> (<span data-no-i18n="1">'+plan.length+'</span>)</button></div></div>';
+ document.body.appendChild(ov);
+ const close=()=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),180)};
+ ov.querySelector('.sel-x').onclick=close;
+ ov.querySelector('#arcNo').onclick=close;
+ ov.onclick=e=>{if(e.target===ov)close()};
+ ov.querySelector('#arcGo').onclick=async()=>{
+  const btn=ov.querySelector('#arcGo');btn.disabled=true;
+  try{
+   const cnt=await applyBatchRecalc(plan);
+   close();
+   toast('Пересчитано накладных: '+cnt);
+  }catch(err){btn.disabled=false;toast('Ошибка пересчёта накладных',true)}
+ };
+ requestAnimationFrame(()=>ov.classList.add('show'));
 }
 async function cancelAdmDoc(code,dk,btn){
  if(isSubAdm()){toast('Удаление доступно только главному админу',true);return}
@@ -960,10 +1340,30 @@ async function cancelAdmDoc(code,dk,btn){
  if(!(await ask(m,{title:isMan?'Отмена изменения':'Отмена накладной',okText:'Отменить',danger:true})))return;
  if(btn)btn.disabled=true;
  try{
-  if(hp){const qr=db.ref('cars/'+code+'/qty'),cur=(await qr.once('value')).val()||{},pt={};
-   Object.keys(x.p).forEach(k=>{const nv=Math.max(0,(+cur[k]||0)-(+x.p[k]||0));pt[k]=nv>0?nv:null;if(CARS[code]&&CARS[code].qty){if(nv>0)CARS[code].qty[k]=nv;else delete CARS[code].qty[k]}});
-   await qr.update(pt)}
-  await db.ref('cars/'+code+'/docs/'+dk).remove();
+  const docRef=db.ref('cars/'+code+'/docs/'+dk);
+  const pre=(await docRef.once('value')).val();
+  if(!pre){toast('Запись уже удалена',true);return}
+  let removedP=null;
+  const tr=await docRef.transaction(cur=>{
+   if(!cur)return;
+   removedP=(cur.p&&typeof cur.p==='object')?Object.assign({},cur.p):null;
+   return null;
+  });
+  if(!tr.committed){toast('Запись уже удалена',true);return}
+  const pToSub=removedP||(hp?x.p:null);
+  if(pToSub&&Object.keys(pToSub).length){
+   await db.ref('cars/'+code+'/qty').transaction(cur=>{
+    const next=(cur&&typeof cur==='object')?Object.assign({},cur):{};
+    Object.keys(pToSub).forEach(k=>{
+     const nv=Math.max(0,(+next[k]||0)-(+pToSub[k]||0));
+     if(nv>0)next[k]=nv;else delete next[k];
+    });
+    return next;
+   });
+   if(CARS[code]&&CARS[code].qty){
+    Object.keys(pToSub).forEach(k=>{const nv=Math.max(0,(+CARS[code].qty[k]||0)-(+pToSub[k]||0));if(nv>0)CARS[code].qty[k]=nv;else delete CARS[code].qty[k]});
+   }
+  }
   if(CARS[code]&&CARS[code].docs)delete CARS[code].docs[dk];
   await db.ref('cars/'+code+'/t').set(Date.now());
   const ov=g('admSumOv');if(ov&&ov._refresh)ov._refresh();else openAdmSumModal(code,'cur',true);toast(isMan?'Изменение отменено':'Накладная отменена');
@@ -973,28 +1373,47 @@ function openAdmSumModal(code,subKey,openDocs){
  if(!getCarsList().includes(code))return;const old=g("admSumOv");if(old)old.remove();
  const c=parseCar(code),isCur=subKey==="cur",rec=isCur?null:c.hist[subKey];if(!isCur&&!rec)return;
  const title=isCur?"Текущий месяц":monthName(rec.m||subKey),sub=isCur?"не сохранён":("сохранено "+ago(rec.t));
+ let docQ="";
  const build=(op)=>{
   const c=parseCar(code);
    const rows=isCur?c.rows:(rec.rows||[]),totS=isCur?c.sum:(+rec.sum||0),totQ=isCur?c.qty:(+rec.qty||0);
  const dObj=(CARS[code]&&CARS[code].docs)||{},dList=isCur?Object.keys(dObj).map(k=>dObj[k]?Object.assign({_k:k},dObj[k]):null).filter(Boolean).sort((a,b)=>(+b.t||0)-(+a.t||0)):[];
  const dTotS=dList.reduce((a,x)=>a+(+x.sum||0),0),dTotQ=dList.reduce((a,x)=>a+(+x.qty||0),0);
  const canDel=!isSubAdm();
- const docsHtml=(isCur&&dList.length)?'<div class="sum-cat'+(op?' open':'')+'"><div class="sum-cat-h" data-atog="1"><div class="sum-cat-l"><span class="sum-chv">'+(op?'▾':'\u25b8')+'</span><div><div class="sum-cat-n">📜 История изменений</div><div class="sum-cat-s">Записей: '+dList.length+(dTotQ?' · '+fm(dTotQ)+' шт':'')+'</div></div></div><div class="sum-cat-r">'+(dTotS?fm(dTotS)+' '+CUR:dList.length+' шт')+'</div></div><div class="sum-cat-b">'+dList.map(x=>{
+ const docsHtml=(isCur&&dList.length)?'<div class="sum-cat'+(op?' open':'')+'" data-docs-cat="1"><div class="sum-cat-h" data-atog="1"><div class="sum-cat-l"><span class="sum-chv">'+(op?'▾':'\u25b8')+'</span><div><div class="sum-cat-n">📜 История изменений</div><div class="sum-cat-s">Записей: '+dList.length+(dTotQ?' · '+fm(dTotQ)+' шт':'')+'</div></div></div><div class="sum-cat-r">'+(dTotS?fm(dTotS)+' '+CUR:dList.length+' шт')+'</div></div><div class="sum-cat-b">'
+  +(dList.length>2?'<input class="sum-srch" data-docsrch="1" type="search" value="'+esc(docQ)+'" placeholder="🔍 Поиск по номеру, водителю или товару..." style="margin:6px 0 8px!important">':'')
+  +dList.map(x=>{
   const isMan=x.type==='manual';
   const dd=x.t?new Date(x.t):null,tm=dd?(dd.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' '+String(dd.getHours()).padStart(2,'0')+':'+String(dd.getMinutes()).padStart(2,'0')):'';
   const zn=!isMan?(x.z===1?'Город':(x.z===2?'Район':'')):'';
   const rp=(!isMan&&x.rep>1)?' <span class="sum-doc-rep">\u{1f501} Повтор'+(x.rep>2?' \u00d7'+x.rep:'')+'</span>':'';
+  const edBdg=(!isMan&&x.ed)?' <span class="sum-doc-ed">✏️ <span>Испр.</span></span>':'';
   const qv=+x.qty||0,sv=+x.sum||0;
   const rSum=(sv||qv)?'<span class="sum-v" style="'+(sv<0?'color:#fca5a5':'')+'">'+(isMan&&sv>0?'+':'')+fm(sv)+' '+CUR+'</span>':'';
-  const hdTitle=isMan?'✏️ Вручную':('🧾 № '+esc(x.doc||'\u2014'));
-  const itsHtml=(x.p&&typeof x.p==='object'&&Object.keys(x.p).length)?'<div class="sum-doc-its">'+Object.keys(x.p).map(k=>{
-   const dn=+x.p[k]||0,inf=admDocKeyInfo(k),dv=dn*inf.price;
-   const col=dn<0?'#fca5a5':'#6ee7b7';
-   return '<div class="sum-doc-it"><span>'+esc(inf.label)+'</span><b style="color:'+col+'">'+(dn>0?'+':'')+fm(dn)+' шт'+(dv?' ('+fm(dv)+' '+CUR+')':'')+'</b></div>';
-  }).join('')+'</div>':'';
+  const hdTitle=isMan?'✏️ Вручную':('🧾 № <span data-no-i18n="1">'+esc(x.doc||'\u2014')+'</span>');
+  const rawIt=!isMan?admNormDocItems(x.it):[];
+  let itsHtml='',hayParts=[x.doc||'',x.by||''];
+  if(rawIt.length){
+   itsHtml='<div class="sum-doc-its">'+rawIt.map(it=>{
+    const k=admDocItemKey(it.c,x.z),inf=admDocKeyInfo(k),dv=it.q*inf.price;
+    hayParts.push(it.n,inf.label);
+    return '<div class="sum-doc-it"><div class="sum-doc-it-l">'+(it.n?'<div class="sum-doc-it-nm" data-no-i18n="1">'+esc(it.n)+'</div>':'')+'<div class="sum-doc-it-ct">'+esc(inf.label)+'</div></div><b style="color:#6ee7b7">+'+fm(it.q)+' шт'+(dv?' ('+fm(dv)+' '+CUR+')':'')+'</b></div>';
+   }).join('')+'</div>';
+  }else if(x.p&&typeof x.p==='object'&&Object.keys(x.p).length){
+   itsHtml='<div class="sum-doc-its">'+Object.keys(x.p).map(k=>{
+    const dn=+x.p[k]||0,inf=admDocKeyInfo(k),dv=dn*inf.price;
+    const col=dn<0?'#fca5a5':'#6ee7b7';
+    hayParts.push(inf.label);
+    return '<div class="sum-doc-it"><span>'+esc(inf.label)+'</span><b style="color:'+col+'">'+(dn>0?'+':'')+fm(dn)+' шт'+(dv?' ('+fm(dv)+' '+CUR+')':'')+'</b></div>';
+   }).join('')+'</div>';
+  }
+  const canEdit=canDel&&!isMan&&(rawIt.length>0||(x.p&&Object.keys(x.p).length>0));
+  const editBtnHtml=canEdit?'<button type="button" class="sum-doc-edit" data-doc-edit="'+esc(x._k)+'" title="Изменить накладную"><span style="font-size:12px">✏️</span> Изменить</button>':'';
   const delBtnHtml=canDel?'<button type="button" class="sum-doc-del" data-doc-del="'+esc(x._k)+'" title="Отменить запись"><span style="font-size:12px">🗑️</span> Отменить</button>':'';
-  return '<div class="sum-it"><div class="sum-doc-hd"><div class="sum-it-t" style="margin:0">'+hdTitle+(zn?' <span class="sum-doc-z">'+zn+'</span>':'')+rp+'</div>'+rSum+'</div>'+itsHtml+'<div class="sum-doc-ft"><span class="sum-f">'+esc(x.by||'Водитель')+(tm?' · '+tm:'')+(qv?' · '+(isMan&&qv>0?'+':'')+fm(qv)+' шт':'')+'</span>'+delBtnHtml+'</div></div>';
- }).join('')+'</div></div>':'';
+  const btnsHtml=(editBtnHtml||delBtnHtml)?'<div class="sum-doc-btns">'+editBtnHtml+delBtnHtml+'</div>':'';
+  const hay=esc(hayParts.join(' ').toLowerCase());
+  return '<div class="sum-it sum-doc-card" data-doc-hay="'+hay+'"><div class="sum-doc-hd"><div class="sum-it-t" style="margin:0">'+hdTitle+(zn?' <span class="sum-doc-z">'+zn+'</span>':'')+rp+edBdg+'</div>'+rSum+'</div>'+itsHtml+'<div class="sum-doc-ft"><span class="sum-f"><span data-no-i18n="1">'+esc(x.by||'Водитель')+'</span>'+(tm?' · '+tm:'')+(qv?' · '+(isMan&&qv>0?'+':'')+fm(qv)+' шт':'')+'</span>'+btnsHtml+'</div></div>';
+ }).join('')+'<div class="mut" data-doc-empty="1" style="display:none;text-align:center;padding:12px">Ничего не найдено</div></div></div>':'';
  const head="<div class=\"sum-dash\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">"+esc(title)+" · "+esc(sub)+"</div><div class=\"sum-val\" id=\"admTotVal\">"+fm(totS)+" <span>"+CUR+"</span></div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b id=\"admTotQty\">"+fm(totQ)+"</b><span>штук</span></div><div class=\"sum-kpi\"><b id=\"admTotCat\">"+rows.length+"</b><span>катег.</span></div></div></div></div>";
   return head+docsHtml+detail(rows);
  };
@@ -1002,7 +1421,7 @@ function openAdmSumModal(code,subKey,openDocs){
  const ov=document.createElement("div");ov.id="admSumOv";ov.className="ov";
  const delH=(!isCur&&!isSubAdm())?"<button type=\"button\" id=\"admSumDel\" class=\"ach-clr\" style=\"margin-right:6px\">🗑️ Удалить</button>":"";
  const expH="<button type=\"button\" id=\"admSumCsv\" class=\"ach-clr\" style=\"background:rgba(16,185,129,.16);border-color:rgba(52,211,153,.4);color:#6ee7b7;margin-right:6px\">📥 Excel</button>";
- ov.innerHTML="<div class=\"dlg ach-box\" style=\"max-width:440px;height:88vh\"><div class=\"ach-hd\"><div class=\"ach-hd-l\"><div class=\"ach-hd-ic\">🚚</div><div><b>Экипаж "+esc(code)+"</b><small>"+esc(subHd)+"</small></div></div><div class=\"ach-acts\">"+expH+delH+"<button type=\"button\" id=\"admSumX\" class=\"ach-x\">✕</button></div></div><div id=\"admSumB\" class=\"ach-list\" style=\"background-image:none;padding:12px;display:block\">"+build(openDocs)+"</div></div>";
+ ov.innerHTML="<div class=\"dlg ach-box\" style=\"max-width:440px;height:88vh\"><div class=\"ach-hd\"><div class=\"ach-hd-l\"><div class=\"ach-hd-ic\">🚚</div><div><b>Экипаж <span data-no-i18n=\"1\">"+esc(code)+"</span></b><small>"+esc(subHd)+"</small></div></div><div class=\"ach-acts\">"+expH+delH+"<button type=\"button\" id=\"admSumX\" class=\"ach-x\">✕</button></div></div><div id=\"admSumB\" class=\"ach-list\" style=\"background-image:none;padding:12px;display:block\">"+build(openDocs)+"</div></div>";
  document.body.appendChild(ov);
  const close=()=>{ov.classList.remove("show");setTimeout(()=>ov.remove(),180)};
  if(g("admSumCsv"))g("admSumCsv").onclick=()=>{
@@ -1012,6 +1431,17 @@ function openAdmSumModal(code,subKey,openDocs){
  if(g("admSumDel"))g("admSumDel").onclick=async()=>{if(!await ask("Удалить сохранённый итог за «"+title+"» у экипажа "+code+"?",{title:"Удаление итога",okText:"Удалить",danger:true}))return;try{await db.ref("cars/"+code+"/hist/"+subKey).remove();close();toast("Итог удалён")}catch(e){toast("Ошибка удаления",true)}};
  g("admSumX").onclick=close;ov.onclick=e=>{if(e.target===ov)close()};
  const root=g("admSumB");let flt="all",q="";
+ const applyDocFilter=()=>{
+  const ql=docQ.trim().toLowerCase();
+  let vis=0;
+  root.querySelectorAll(".sum-doc-card").forEach(el=>{
+   const ok=!ql||(el.dataset.docHay||"").includes(ql);
+   el.style.display=ok?"":"none";
+   if(ok)vis++;
+  });
+  const emp=root.querySelector("[data-doc-empty]");
+  if(emp)emp.style.display=(ql&&vis===0)?"":"none";
+ };
  const apply=()=>{
   let gS=0,gQ=0,gC=0;
   const catStats=[];
@@ -1047,12 +1477,14 @@ function openAdmSumModal(code,subKey,openDocs){
   if(qEl)qEl.textContent=fm(gQ);
   if(cEl)cEl.textContent=fm(gC);
  };
- root.addEventListener("click",e=>{const dl=e.target.closest("[data-doc-del]");if(dl){cancelAdmDoc(code,dl.dataset.docDel,dl);return}const fb=e.target.closest("[data-aseg] button");if(fb){flt=fb.dataset.f;root.querySelectorAll("[data-aseg] button").forEach(b=>b.classList.toggle("on",b===fb));apply();return}const tg=e.target.closest("[data-atog]");if(tg){const card=tg.closest(".sum-cat");if(card){card.classList.toggle("open");const ch=card.querySelector(".sum-chv");if(ch)ch.textContent=card.classList.contains("open")?"▾":"▸"}}});
- root.addEventListener("input",e=>{if(e.target&&e.target.matches("[data-asrch]")){q=e.target.value.trim().toLowerCase();apply()}});
+ root.addEventListener("click",e=>{const ed=e.target.closest("[data-doc-edit]");if(ed){openAdmDocEditModal(code,ed.dataset.docEdit);return}const dl=e.target.closest("[data-doc-del]");if(dl){cancelAdmDoc(code,dl.dataset.docDel,dl);return}const fb=e.target.closest("[data-aseg] button");if(fb){flt=fb.dataset.f;root.querySelectorAll("[data-aseg] button").forEach(b=>b.classList.toggle("on",b===fb));apply();return}const tg=e.target.closest("[data-atog]");if(tg){const card=tg.closest(".sum-cat");if(card){card.classList.toggle("open");const ch=card.querySelector(".sum-chv");if(ch)ch.textContent=card.classList.contains("open")?"▾":"▸"}}});
+ root.addEventListener("input",e=>{if(e.target&&e.target.matches("[data-docsrch]")){docQ=e.target.value;applyDocFilter();return}if(e.target&&e.target.matches("[data-asrch]")){q=e.target.value.trim().toLowerCase();apply()}});
  ov._refresh=()=>{const st=root.scrollTop;root.innerHTML=build(true);
   if(flt!=="all")root.querySelectorAll("[data-aseg] button").forEach(b=>b.classList.toggle("on",b.dataset.f===flt));
   const si=root.querySelector("[data-asrch]");if(si&&q)si.value=q;
-  if(flt!=="all"||q)apply();root.scrollTop=st};
+  if(flt!=="all"||q)apply();
+  if(docQ)applyDocFilter();
+  root.scrollTop=st};
  if(openDocs)ov.classList.add("show");else requestAnimationFrame(()=>ov.classList.add("show"));
 }
 function drawTotals(){
@@ -1115,7 +1547,8 @@ function drawTotals(){
  function drawOcr(){
   const pendList=getOcrPending();
   const allKeys=Object.keys(OCR_MAP).filter(k=>OCR_MAP[k]&&OCR_CAT_NAMES[OCR_MAP[k]]).sort();
-  let h='<div class="sum-dash"><div class="sum-top"><div><div class="sum-lbl">Общий словарь накладных</div><div class="sum-val">'+allKeys.length+' <span>правил</span></div></div><button type="button" data-act="ocr-add" style="height:40px;padding:0 14px;border-radius:12px;background:rgba(16,185,129,.22);border:1px solid rgba(52,211,153,.45);color:#6ee7b7;font-size:13.5px;font-weight:700;white-space:nowrap">➕ Добавить</button></div></div>';
+  const recalcBtn=!isSubAdm()?'<button type="button" data-act="ocr-recalc" style="height:40px;padding:0 12px;border-radius:12px;background:rgba(56,189,248,.16);border:1px solid rgba(56,189,248,.42);color:#7dd3fc;font-size:13px;font-weight:700;white-space:nowrap">🔄 Пересчитать</button>':'';
+  let h='<div class="sum-dash"><div class="sum-top" style="flex-wrap:wrap;gap:8px"><div><div class="sum-lbl">Общий словарь накладных</div><div class="sum-val">'+allKeys.length+' <span>правил</span></div></div><div style="display:flex;gap:6px;flex-wrap:wrap">'+recalcBtn+'<button type="button" data-act="ocr-add" style="height:40px;padding:0 14px;border-radius:12px;background:rgba(16,185,129,.22);border:1px solid rgba(52,211,153,.45);color:#6ee7b7;font-size:13.5px;font-weight:700;white-space:nowrap">➕ Добавить</button></div></div></div>';
   if(pendList.length){
    h+='<div class="sec" style="color:#fde047">🧾 Ожидают подтверждения ('+pendList.length+')</div>';
    h+=pendList.map(({uid,k,p})=>{
@@ -1852,7 +2285,7 @@ function openOcrRuleModal(ruleKey, curCode, isNew = false){
 
   g('aopSaveBtn').onclick = async () => {
    const finalKey = isNew ? (g('aopRuleKeyInp') ? g('aopRuleKeyInp').value : '') : ruleKey;
-   const cleanKey = String(finalKey || '').toLowerCase().replace(/[\"'«»().,]/g,' ').replace(/\s+/g,' ').trim().replace(/[.#$\[\]\/]+/g,'_').slice(0,120);
+   const cleanKey = isNew ? admFbKey(finalKey) : String(ruleKey || '');
    if (!cleanKey) { toast('Введите название товара из накладной', true); return; }
    if (!selectedCd) { toast('Выберите категорию мебели из списка', true); return; }
    close();
@@ -1861,6 +2294,10 @@ function openOcrRuleModal(ruleKey, curCode, isNew = false){
     logSubAct('ocr', isNew ? 'ocr_add' : 'ocr_edit', isNew ? 'Добавлено правило OCR' : 'Изменено правило OCR', cleanKey + ' → ' + (OCR_CAT_NAMES[selectedCd] || selectedCd), { target: cleanKey });
     toast('Правило успешно сохранено');
     if (typeof drawOcr === 'function') drawOcr();
+    if (!isSubAdm()) {
+     const plan = findAffectedDocsByRule(cleanKey, selectedCd);
+     if (plan.length) openRecalcModal(plan, 'Найдены накладные с этим товаром');
+    }
    } catch (err) {
     toast('Ошибка сохранения: ' + err.message, true);
    }
@@ -2312,7 +2749,8 @@ function openSelectModal(){
    if(mObj)exportCrewMonthCsv(monthName(mObj.m),mObj.cars,mObj.qty,mObj.sum);
    else toast('Нет данных за этот месяц',true);
   }
-  else if(a==='ocr-ok'){e.stopPropagation();const uid=b.dataset.uid,k=b.dataset.k,cd=b.dataset.code;if(!uid||!k||!cd)return;try{await db.ref('config/ocrMap/'+k).set(cd);await db.ref('users/'+uid+'/ocrPending/'+k).remove();const who=USERS[uid]?dispName(parseDev(uid,USERS[uid])):uid;logSubAct('ocr','ocr_ok','Одобрена заявка OCR',k+' → '+(OCR_CAT_NAMES[cd]||cd)+' (от '+who+')',{target:k});toast('Правило добавлено для всех')}catch(err){toast('Ошибка сохранения',true)}}
+  else if(a==='ocr-ok'){e.stopPropagation();const uid=b.dataset.uid,k=b.dataset.k,cd=b.dataset.code;if(!uid||!k||!cd)return;try{await db.ref('config/ocrMap/'+k).set(cd);await db.ref('users/'+uid+'/ocrPending/'+k).remove();const who=USERS[uid]?dispName(parseDev(uid,USERS[uid])):uid;logSubAct('ocr','ocr_ok','Одобрена заявка OCR',k+' → '+(OCR_CAT_NAMES[cd]||cd)+' (от '+who+')',{target:k});toast('Правило добавлено для всех');if(!isSubAdm()){const plan=findAffectedDocsByRule(k,cd);if(plan.length)openRecalcModal(plan,'Найдены накладные с этим товаром')}}catch(err){toast('Ошибка сохранения',true)}}
+  else if(a==='ocr-recalc'){e.stopPropagation();if(isSubAdm())return;const plan=findAffectedDocsByAllRules();if(!plan.length)toast('Все накладные соответствуют словарю');else openRecalcModal(plan,'Сверка всех накладных текущего месяца со словарём OCR')}
   else if(a==='ocr-add'){e.stopPropagation();openOcrRuleModal('','',true)}
   else if(a==='ocr-edit'){e.stopPropagation();const k=b.dataset.k;if(k)openOcrRuleModal(k,OCR_MAP[k]||'',false)}
   else if(a==='ocr-del'){e.stopPropagation();const k=b.dataset.k;if(!k)return;if(!(await ask('Удалить правило «'+k+'» из общего словаря?',{title:'Удаление правила',okText:'Удалить',danger:true})))return;try{await db.ref('config/ocrMap/'+k).remove();logSubAct('ocr','ocr_del','Удалено правило OCR',k,{target:k,danger:true});toast('Правило удалено')}catch(err){toast('Ошибка удаления',true)}}

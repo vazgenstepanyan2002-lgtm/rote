@@ -984,12 +984,13 @@ async function askGemini(b64){
             if (!ok) { close(); return; }
           }
         }
-        const qRef = db.ref('cars/' + code + '/qty'), docP = {};
+        const qRef = db.ref('cars/' + code + '/qty'), docP = {}, docItems = [];
         let s = 0, q = 0;
         valid.forEach(r => {
           const info = BON_BY_CODE[r.code], k = info.one ? r.code : (isCity ? r.code : r.code + '_2');
           docP[k] = (docP[k] || 0) + r.qty;
           s += (info.one ? info.p1 : (isCity ? info.p1 : info.p2)) * r.qty; q += r.qty;
+          docItems.push({ n: String(r.name || '').trim().slice(0, 120), c: r.code, q: r.qty });
         });
         await qRef.transaction(cur => {
           const next = (cur && typeof cur === 'object') ? Object.assign({}, cur) : {};
@@ -1001,7 +1002,7 @@ async function askGemini(b64){
           const meName = (() => { try { return localStorage.getItem('USER_NAME') || (code === 'ADMIN' ? 'Администратор' : 'Водитель'); } catch (e) { return code === 'ADMIN' ? 'Администратор' : 'Водитель'; } })();
           const baseKey = docKey || ('doc_' + Date.now().toString(36));
           const sk = (!allDocs[baseKey] && docKey) ? baseKey : (baseKey + '__' + Date.now().toString(36));
-          const rec = { doc: cleanDoc || '—', by: meName, t: Date.now(), sum: s, qty: q, z: isCity ? 1 : 2, p: docP };
+          const rec = { doc: cleanDoc || '—', by: meName, t: Date.now(), sum: s, qty: q, z: isCity ? 1 : 2, p: docP, it: docItems };
           if (sameDocs.length) rec.rep = sameDocs.length + 1;
           await db.ref('cars/' + code + '/docs/' + sk).set(rec);
         }

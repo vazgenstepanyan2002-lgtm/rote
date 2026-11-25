@@ -640,6 +640,13 @@
    const allList=Object.keys(val).map(k=>val[k]).filter(Boolean).sort((a,b)=>(+b.t||0)-(+a.t||0)),box=g('bdList');if(!box)return;
    if(!allList.length){box.innerHTML='<div class="pt-empty">Изменений пока нет.</div>';return}
 
+   const normDocIt=v=>Array.isArray(v)?v.filter(Boolean):(v&&typeof v==='object'?Object.values(v).filter(Boolean):[]);
+   const bonItemKey=(cd,z)=>{
+    const idx=String(cd||'').indexOf('_');if(idx<0)return String(cd||'');
+    const pk=cd.slice(0,idx),sk=cd.slice(idx+1);
+    const c=PRE.find(y=>y.pk===pk),s=c&&c.subs.find(y=>y.sk===sk);
+    return (s&&!s.one&&z===2)?cd+'_2':cd;
+   };
    const renderDocs=list=>{
     if(!list.length){box.innerHTML='<div class="pt-empty">Ничего не найдено</div>';return}
     let totS=0,totQ=0;list.forEach(x=>{totS+=(+x.sum||0);totQ+=(+x.qty||0)});
@@ -649,17 +656,28 @@
      const d=x.t?new Date(x.t):null,tm=d?d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'';
      const zn=!isMan?(x.z===1?'Город':(x.z===2?'Район':'')):'';
      const rp=(!isMan&&x.rep>1)?'<span class="bd-rep">\u{1f501} <span>Повтор</span>'+(x.rep>2?' \u00d7'+x.rep:'')+'</span>':'';
+     const edBdg=(!isMan&&x.ed)?'<span class="bd-rep" style="background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.42);color:#7dd3fc">✏️ <span>Испр.</span></span>':'';
      const qv=+x.qty||0,sv=+x.sum||0;
      const signS=sv>0?'+':'',signQ=qv>0?'+':'';
      const sumCol=sv<0?'#fca5a5':'#fde047';
      const right=(qv||sv)?'<div class="bd-r"><b style="color:'+sumCol+'">'+(isMan?signS:'')+fm(sv)+' '+CUR+'</b><small>'+(isMan?signQ:'')+fm(qv)+' шт</small></div>':'';
      const titleHtml=isMan?'<span>Вручную</span>':'<span>№ <span data-no-i18n="1">'+esc(x.doc||'—')+'</span></span>';
-     const itemsHtml=(x.p&&typeof x.p==='object'&&Object.keys(x.p).length)?'<div style="margin-top:7px;padding-top:6px;border-top:1px dashed rgba(255,255,255,.08);display:flex;flex-direction:column;gap:3px">'+Object.keys(x.p).map(k=>{
-      const dn=+x.p[k]||0,pr=bonKeyPrice(k),dv=dn*pr;
-      const col=dn<0?'#fca5a5':'#6ee7b7';
-      return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:#cbd5e1"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(bonKeyLabel(k))+'</span><b style="white-space:nowrap;color:'+col+'">'+(dn>0?'+':'')+fm(dn)+' шт'+(dv?' · '+fm(dv)+' '+CUR:'')+'</b></div>';
-     }).join('')+'</div>':'';
-     return '<div class="bd-card"><div class="bd-top"><div class="bd-l"><span class="bd-ic">'+(isMan?'✏️':'🧾')+'</span><div><div class="bd-num">'+titleHtml+(zn?'<span class="bd-z">'+zn+'</span>':'')+rp+'</div><div class="bd-meta"><span data-no-i18n="1">'+esc(x.by||'Водитель')+'</span>'+(tm?' · '+tm:'')+'</div></div></div>'+right+'</div>'+itemsHtml+'</div>';
+     const rawIt=!isMan?normDocIt(x.it):[];
+     let itemsHtml='';
+     if(rawIt.length){
+      itemsHtml='<div style="margin-top:7px;padding-top:6px;border-top:1px dashed rgba(255,255,255,.08);display:flex;flex-direction:column;gap:5px">'+rawIt.map(it=>{
+       const k=bonItemKey(it.c,x.z),dn=+it.q||0,pr=bonKeyPrice(k),dv=dn*pr;
+       const nmHtml=it.n?'<div data-no-i18n="1" style="color:#f1f5f9;font-weight:600;line-height:1.25;word-break:break-word">'+esc(it.n)+'</div>':'';
+       return '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;font-size:11.5px;color:#cbd5e1"><div style="min-width:0;flex:1">'+nmHtml+'<div style="font-size:10.5px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(bonKeyLabel(k))+'</div></div><b style="white-space:nowrap;color:#6ee7b7;flex-shrink:0">+'+fm(dn)+' шт'+(dv?' · '+fm(dv)+' '+CUR:'')+'</b></div>';
+      }).join('')+'</div>';
+     }else if(x.p&&typeof x.p==='object'&&Object.keys(x.p).length){
+      itemsHtml='<div style="margin-top:7px;padding-top:6px;border-top:1px dashed rgba(255,255,255,.08);display:flex;flex-direction:column;gap:3px">'+Object.keys(x.p).map(k=>{
+       const dn=+x.p[k]||0,pr=bonKeyPrice(k),dv=dn*pr;
+       const col=dn<0?'#fca5a5':'#6ee7b7';
+       return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:#cbd5e1"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(bonKeyLabel(k))+'</span><b style="white-space:nowrap;color:'+col+'">'+(dn>0?'+':'')+fm(dn)+' шт'+(dv?' · '+fm(dv)+' '+CUR:'')+'</b></div>';
+      }).join('')+'</div>';
+     }
+     return '<div class="bd-card"><div class="bd-top"><div class="bd-l"><span class="bd-ic">'+(isMan?'✏️':'🧾')+'</span><div><div class="bd-num">'+titleHtml+(zn?'<span class="bd-z">'+zn+'</span>':'')+rp+edBdg+'</div><div class="bd-meta"><span data-no-i18n="1">'+esc(x.by||'Водитель')+'</span>'+(tm?' · '+tm:'')+'</div></div></div>'+right+'</div>'+itemsHtml+'</div>';
     }).join('');
    };
    renderDocs(allList);
@@ -673,7 +691,8 @@
       const docNum=String(x.doc||'').toLowerCase();
       const who=String(x.by||'').toLowerCase();
       const pText=x.p&&typeof x.p==='object'?Object.keys(x.p).map(k=>k+' '+bonKeyLabel(k)).join(' ').toLowerCase():'';
-      return docNum.includes(q)||who.includes(q)||pText.includes(q);
+      const itText=normDocIt(x.it).map(it=>String(it.n||'')).join(' ').toLowerCase();
+      return docNum.includes(q)||who.includes(q)||pText.includes(q)||itText.includes(q);
      }));
     };
    }
