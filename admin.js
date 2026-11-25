@@ -4,6 +4,8 @@
  const g=id=>document.getElementById(id);
  const esc=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
  const CUR='֏',TTL=75000;
+ const admLoc=()=>{const l=window.getLang?window.getLang():'ru';return l==='hy'?'hy-AM':l==='en'?'en-GB':'ru-RU'};
+ const trAdm=s=>(window.i18nTranslateText?window.i18nTranslateText(s):s);
  const fm=n=>(Math.round((+n||0)*100)/100).toLocaleString('ru-RU',{maximumFractionDigits:2});
  const money=n=>fm(n)+' '+CUR;
  const MN=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
@@ -265,7 +267,7 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
  const accByUid=uid=>Object.keys(ACCOUNTS).map(k=>Object.assign({key:k},ACCOUNTS[k])).find(a=>a&&a.uid===uid)||null;
  const profName=d=>d.u.uname||(accByUid(d.id)&&accByUid(d.id).name)||"";
  const dispName=d=>{const lb=LABELS[d.id],pr=profName(d);return lb&&pr&&lb!==pr?lb+" ("+pr+")":(lb||pr||devName(d.u.ua))};
- const dispHtml=d=>{const lb=LABELS[d.id],pr=profName(d);return lb&&pr&&lb!==pr?'<span data-no-i18n="1">'+esc(lb)+'</span> <span style="font-size:12px;font-weight:500;color:#94a3b8">(в профиле: <span data-no-i18n="1">'+esc(pr)+'</span>)</span>':'<span data-no-i18n="1">'+esc(lb||pr||devName(d.u.ua))+'</span>'};
+ const dispHtml=d=>{const lb=LABELS[d.id],pr=profName(d);return lb&&pr&&lb!==pr?'<span data-no-i18n="1">'+esc(lb)+'</span> <span style="font-size:12px;font-weight:500;color:#94a3b8">(<span>в профиле:</span> <span data-no-i18n="1">'+esc(pr)+'</span>)</span>':'<span data-no-i18n="1">'+esc(lb||pr||devName(d.u.ua))+'</span>'};
  const devs=()=>{const now=Date.now();return Object.keys(USERS).map(k=>parseDev(k,USERS[k])).sort((a,b)=>{const al=now-(a.u.t||0)<TTL?1:0,bl=now-(b.u.t||0)<TTL?1:0;return bl-al||(b.u.t||0)-(a.u.t||0)})};
  function aggMonths(list){
   const map={};
@@ -289,8 +291,11 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
  }
  function downloadCsv(filename,rows){
   if(!rows||!rows.length){toast('Нет данных для выгрузки',true);return}
+  const lng=window.getLang?window.getLang():'ru';
   const csvContent='\uFEFF'+rows.map(r=>r.map(v=>{
-   const s=String(v===null||v===undefined?'':v).replace(/"/g,'""');
+   let raw=v===null||v===undefined?'':String(v);
+   if(lng!=='ru'&&raw&&typeof v==='string'&&window.i18nTranslateText)raw=window.i18nTranslateText(raw,lng);
+   const s=raw.replace(/"/g,'""');
    return /[",\n\r;]/.test(s)?('"'+s+'"'):s;
   }).join(';')).join('\r\n');
   const blob=new Blob([csvContent],{type:'text/csv;charset=utf-8;'});
@@ -399,9 +404,10 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
  }
  function copyReport(title,items,totQty,totSum){
   if(!items||!items.length){toast('Нет данных для копирования',true);return}
-  const lines=['📋 Ведомость EuroBaza — '+title,''];
-  items.forEach(it=>lines.push('• '+it.name+': '+fm(it.qty)+' шт — '+money(it.sum)));
-  lines.push('','Итого: '+fm(totQty)+' шт — '+money(totSum));
+  const unitS=trAdm('шт');
+  const lines=[trAdm('📋 Ведомость EuroBaza')+' — '+trAdm(title),''];
+  items.forEach(it=>lines.push('• '+it.name+': '+fm(it.qty)+' '+unitS+' — '+money(it.sum)));
+  lines.push('',trAdm('Итого')+': '+fm(totQty)+' '+unitS+' — '+money(totSum));
   const txt=lines.join('\n');
   if(navigator.clipboard&&navigator.clipboard.writeText){
    navigator.clipboard.writeText(txt).then(()=>toast('Ведомость скопирована')).catch(()=>toast('Не удалось скопировать',true));
@@ -471,8 +477,8 @@ function destroyMap(){_mapTok++;if(_mapRO){try{_mapRO.disconnect()}catch(e){}_ma
    const live=now-(d.u.t||0)<TTL;if(MAP_ONLY_ONLINE&&!live)return;
    seen[d.id]=true;
    const title=dispName(d),spd=typeof d.u.spd==="number"&&d.u.spd>2?" · "+d.u.spd+" км/ч":"";
-   const popHtml='<div class="pop-t">'+esc(title)+'</div><div class="pop-s">'+(live?"🟢 В сети":"⚪ Был(а) "+ago(d.u.gt||d.u.t))+esc(spd)+'</div>';
-   const htmlPin='<div class="drv-b'+(live?"":" off")+'"><i></i><span>'+esc(title)+'</span></div>';
+   const popHtml='<div class="pop-t" data-no-i18n="1">'+esc(title)+'</div><div class="pop-s">'+(live?"🟢 В сети":"⚪ Был(а) "+ago(d.u.gt||d.u.t))+esc(spd)+'</div>';
+   const htmlPin='<div class="drv-b'+(live?"":" off")+'"><i></i><span data-no-i18n="1">'+esc(title)+'</span></div>';
    if(_markers[d.id]){
     _markers[d.id].setLngLat([d.u.lon,d.u.lat]);
     const el=_markers[d.id].getElement();if(el)el.innerHTML=htmlPin;
@@ -555,7 +561,7 @@ function destroyMap(){_mapTok++;if(_mapRO){try{_mapRO.disconnect()}catch(e){}_ma
    const mel=document.createElement('div');
    mel.className='subm-mk '+(item.exact?(inK?'eve':'day'):'bad');
    mel.textContent=inK?'🌙':'☀️';
-   const popHtml='<div class="pop-t">'+esc(item.name)+'</div><div class="pop-s">'+(inK?'🌙 Только вечером (после 21:00)':'☀️ Можно ставить днём')+'</div>';
+   const popHtml='<div class="pop-t" data-no-i18n="1">'+esc(item.name)+'</div><div class="pop-s">'+(inK?'🌙 Только вечером (после 21:00)':'☀️ Можно ставить днём')+'</div>';
    _subMk=new maplibregl.Marker({element:mel,anchor:'center'}).setLngLat([item.lon,item.lat]).setPopup(new maplibregl.Popup({offset:18}).setHTML(popHtml)).addTo(_map);
 
    const baseLL=[BASE_PT.lon,BASE_PT.lat],ptLL=[item.lon,item.lat];
@@ -838,7 +844,7 @@ function destroyMap(){_mapTok++;if(_mapRO){try{_mapRO.disconnect()}catch(e){}_ma
   try{syncMapMarkers()}catch(e){}
   let ch='<div class="sec">'+(MAP_ONLY_ONLINE?'Сейчас на линии (':'На карте (')+withGeo.length+')</div>';
   if(!withGeo.length)ch+='<div class="box mut">'+(MAP_ONLY_ONLINE?'Сейчас нет водителей в сети с активной геолокацией.':'Пока ни одно устройство не передало координаты.')+'</div>';
-  else ch+=withGeo.map(d=>{const live=now-(d.u.t||0)<TTL,spd=typeof d.u.spd==="number"&&d.u.spd>2?" · "+d.u.spd+" км/ч":"";return'<div class="row" data-act="focus" data-id="'+esc(d.id)+'"><span class="dot'+(live?" on":"")+'"></span><div class="rm"><div class="rt">'+esc(dispName(d))+'</div><div class="rs">'+(live?"сейчас на линии":"обновлено "+ago(d.u.gt||d.u.t))+esc(spd)+'</div></div></div>'}).join("");
+  else ch+=withGeo.map(d=>{const live=now-(d.u.t||0)<TTL,spd=typeof d.u.spd==="number"&&d.u.spd>2?" · "+d.u.spd+" км/ч":"";return'<div class="row" data-act="focus" data-id="'+esc(d.id)+'"><span class="dot'+(live?" on":"")+'"></span><div class="rm"><div class="rt" data-no-i18n="1">'+esc(dispName(d))+'</div><div class="rs">'+(live?"сейчас на линии":"обновлено "+ago(d.u.gt||d.u.t))+esc(spd)+'</div></div></div>'}).join("");
   if(g("mapCards"))g("mapCards").innerHTML=ch;
  }
  // ===== Вкладки =====
@@ -859,7 +865,7 @@ function destroyMap(){_mapTok++;if(_mapRO){try{_mapRO.disconnect()}catch(e){}_ma
     btnBadge = '<span class="onl-badge' + (noCrewOnCount ? ' on' : '') + '">' + (noCrewOnCount ? '🟢 ' : '') + noCrewCount + '</span>';
   } else if(ONL_CAR !== 'all'){
     const cc = crewCount(ONL_CAR), co = crewOnCount(ONL_CAR);
-    btnLabel = '🚚 ' + ONL_CAR;
+    btnLabel = '🚚 <span data-no-i18n="1">' + esc(ONL_CAR) + '</span>';
     btnBadge = '<span class="onl-badge' + (co ? ' on' : '') + '">' + (co ? '🟢 ' : '') + cc + '</span>';
   }
 
@@ -1071,7 +1077,7 @@ async function openAdmDocEditModal(code,dk){
  const ov=document.createElement('div');
  ov.className='ov';ov.style.zIndex='100000';
  ov.innerHTML='<div class="dlg aop-box" style="max-width:450px;height:min(90dvh,650px)">'
-  +'<div class="aop-hd"><div><b>✏️ Редактирование накладной</b><small>№ <span data-no-i18n="1">'+esc(orig.doc||'\u2014')+'</span> · <span data-no-i18n="1">'+esc(code)+'</span> · <span data-no-i18n="1">'+esc(orig.by||'Водитель')+'</span></small></div><button type="button" class="sel-x">✕</button></div>'
+  +'<div class="aop-hd"><div><b>✏️ Редактирование накладной</b><small>№ <span data-no-i18n="1">'+esc(orig.doc||'\u2014')+'</span> · <span data-no-i18n="1">'+esc(code)+'</span> · '+(orig.by?'<span data-no-i18n="1">'+esc(orig.by)+'</span>':'<span>Водитель</span>')+'</small></div><button type="button" class="sel-x">✕</button></div>'
   +'<div class="ade-zone"><button type="button" class="ade-zbtn" data-z="1">🏙️ Город</button><button type="button" class="ade-zbtn" data-z="2">🗺️ Район</button></div>'
   +'<div class="ade-list" id="adeList"></div>'
   +'<label class="ade-chk" id="adeOcrWrap" hidden><input type="checkbox" id="adeOcrChk" checked><span>Сохранить изменения в словарь OCR для будущих накладных</span></label>'
@@ -1401,7 +1407,7 @@ function openAdmSumModal(code,subKey,openDocs){
   +(dList.length>2?'<input class="sum-srch" data-docsrch="1" type="search" value="'+esc(docQ)+'" placeholder="🔍 Поиск по номеру, водителю или товару..." style="margin:6px 0 8px!important">':'')
   +dList.map(x=>{
   const isMan=x.type==='manual';
-  const dd=x.t?new Date(x.t):null,tm=dd?(dd.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' '+String(dd.getHours()).padStart(2,'0')+':'+String(dd.getMinutes()).padStart(2,'0')):'';
+  const dd=x.t?new Date(x.t):null,tm=dd?(dd.toLocaleDateString(admLoc(),{day:'2-digit',month:'2-digit'})+' '+String(dd.getHours()).padStart(2,'0')+':'+String(dd.getMinutes()).padStart(2,'0')):'';
   const zn=!isMan?(x.z===1?'Город':(x.z===2?'Район':'')):'';
   const rp=(!isMan&&x.rep>1)?' <span class="sum-doc-rep">\u{1f501} Повтор'+(x.rep>2?' \u00d7'+x.rep:'')+'</span>':'';
   const edBdg=(!isMan&&x.ed)?' <span class="sum-doc-ed">✏️ <span>Испр.</span></span>':'';
@@ -1429,7 +1435,7 @@ function openAdmSumModal(code,subKey,openDocs){
   const delBtnHtml=canDel?'<button type="button" class="sum-doc-del" data-doc-del="'+esc(x._k)+'" title="Отменить запись"><span style="font-size:12px">🗑️</span> Отменить</button>':'';
   const btnsHtml=(editBtnHtml||delBtnHtml)?'<div class="sum-doc-btns">'+editBtnHtml+delBtnHtml+'</div>':'';
   const hay=esc(hayParts.join(' ').toLowerCase());
-  return '<div class="sum-it sum-doc-card" data-doc-hay="'+hay+'"><div class="sum-doc-hd"><div class="sum-it-t" style="margin:0">'+hdTitle+(zn?' <span class="sum-doc-z">'+zn+'</span>':'')+rp+edBdg+'</div>'+rSum+'</div>'+itsHtml+'<div class="sum-doc-ft"><span class="sum-f"><span data-no-i18n="1">'+esc(x.by||'Водитель')+'</span>'+(tm?' · '+tm:'')+(qv?' · <span>'+(isMan&&qv>0?'+':'')+fm(qv)+' шт</span>':'')+'</span>'+btnsHtml+'</div></div>';
+  return '<div class="sum-it sum-doc-card" data-doc-hay="'+hay+'"><div class="sum-doc-hd"><div class="sum-it-t" style="margin:0">'+hdTitle+(zn?' <span class="sum-doc-z">'+zn+'</span>':'')+rp+edBdg+'</div>'+rSum+'</div>'+itsHtml+'<div class="sum-doc-ft"><span class="sum-f">'+(x.by?'<span data-no-i18n="1">'+esc(x.by)+'</span>':'<span>Водитель</span>')+(tm?' · <span data-no-i18n="1">'+tm+'</span>':'')+(qv?' · <span>'+(isMan&&qv>0?'+':'')+fm(qv)+' шт</span>':'')+'</span>'+btnsHtml+'</div></div>';
  }).join('')+'<div class="mut" data-doc-empty="1" style="display:none;text-align:center;padding:12px">Ничего не найдено</div></div></div>':'';
  const headLbl=isCur?'<span>Текущий месяц</span> · <span>не сохранён</span>':('<span>'+esc(title)+'</span> · <span>сохранено</span> <span>'+esc(ago(rec.t))+'</span>');
  const head="<div class=\"sum-dash\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">"+headLbl+"</div><div class=\"sum-val\" id=\"admTotVal\">"+fm(totS)+" <span>"+CUR+"</span></div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b id=\"admTotQty\">"+fm(totQ)+"</b><span>штук</span></div><div class=\"sum-kpi\"><b id=\"admTotCat\">"+rows.length+"</b><span>катег.</span></div></div></div></div>";
@@ -1509,22 +1515,22 @@ function drawTotals(){
  const CL=allCars(),carList=getCarsList();if(SEL!=="all"&&!carList.includes(SEL))SEL="all";
  const curSelLabel=SEL==="all"?"Все экипажи":(SEL==="ADMIN"?"Админ":"Экипаж "+SEL);
  let h="<button type=\"button\" class=\"sel-btn\" data-act=\"opensel\"><span class=\"sel-btn-l\"><span class=\"sel-ic\">🚚</span><span class=\"sel-btn-t\">"+esc(curSelLabel)+"</span></span><svg class=\"sel-chev\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m6 9 6 6 6-6\"/></svg></button>";
- const badge=cd=>cd==="ADMIN"?"<span style=\"min-width:36px;height:34px;padding:0 6px;border-radius:11px;background:linear-gradient(135deg,rgba(167,139,250,.24),rgba(124,58,237,.12));border:1px solid rgba(167,139,250,.5);color:#c4b5fd;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0\">🛡️</span>":"<span style=\"min-width:36px;height:34px;padding:0 6px;border-radius:11px;background:rgba(16,185,129,.16);border:1px solid rgba(52,211,153,.35);color:#6ee7b7;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0\">"+esc(cd)+"</span>";
+ const badge=cd=>cd==="ADMIN"?"<span style=\"min-width:36px;height:34px;padding:0 6px;border-radius:11px;background:linear-gradient(135deg,rgba(167,139,250,.24),rgba(124,58,237,.12));border:1px solid rgba(167,139,250,.5);color:#c4b5fd;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0\">🛡️</span>":"<span data-no-i18n=\"1\" style=\"min-width:36px;height:34px;padding:0 6px;border-radius:11px;background:rgba(16,185,129,.16);border:1px solid rgba(52,211,153,.35);color:#6ee7b7;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0\">"+esc(cd)+"</span>";
  if(SEL==="all"){
   const curList=CL.filter(c=>c.qty>0||c.sum>0||c.crew.length>0).sort((a,b)=>b.sum-a.sum);
   const sum=curList.reduce((a,x)=>a+x.sum,0),qty=curList.reduce((a,x)=>a+x.qty,0);
   h+="<div class=\"sum-dash\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">Текущий месяц · по экипажам</div><div class=\"sum-val\">"+fm(sum)+" <span>"+CUR+"</span></div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b>"+fm(qty)+"</b><span>штук</span></div><div class=\"sum-kpi\"><b>"+curList.length+"</b><span>экипажей</span></div></div></div>"+(curList.length?"<button type=\"button\" class=\"cp-btn\" style=\"margin-top:12px;background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.4);color:#7dd3fc\" data-act=\"csvcur\">📥 Скачать Excel по экипажам</button>":"")+"</div>";
-  if(curList.length){h+="<div class=\"sec\">Экипажи в текущем месяце ("+curList.length+")</div>"+curList.map(x=>{const dc=Object.keys((CARS[x.code]&&CARS[x.code].docs)||{}).length;return"<div class=\"st-row\" data-act=\"open-car-sum\" data-id=\""+esc(x.code)+"\" data-sub=\"cur\"><div style=\"display:flex;align-items:center;gap:10px;min-width:0\">"+badge(x.code)+"<div style=\"min-width:0\"><div class=\"st-nm\">Экипаж "+esc(x.code)+"</div><div class=\"st-qt\">"+fm(x.qty)+" шт"+(dc?" · 📜 "+dc:"")+(x.crew.length?" · "+esc(x.crew.join(", ")):"")+"</div></div></div><div class=\"rv\" style=\"font-size:13.5px\">"+money(x.sum)+" ›</div></div>"}).join("")}
+  if(curList.length){h+="<div class=\"sec\">Экипажи в текущем месяце ("+curList.length+")</div>"+curList.map(x=>{const dc=Object.keys((CARS[x.code]&&CARS[x.code].docs)||{}).length;return"<div class=\"st-row\" data-act=\"open-car-sum\" data-id=\""+esc(x.code)+"\" data-sub=\"cur\"><div style=\"display:flex;align-items:center;gap:10px;min-width:0\">"+badge(x.code)+"<div style=\"min-width:0\"><div class=\"st-nm\"><span>Экипаж</span> <span data-no-i18n=\"1\">"+esc(x.code)+"</span></div><div class=\"st-qt\"><span>"+fm(x.qty)+" шт</span>"+(dc?" · 📜 "+dc:"")+(x.crew.length?" · <span data-no-i18n=\"1\">"+esc(x.crew.join(", "))+"</span>":"")+"</div></div></div><div class=\"rv\" style=\"font-size:13.5px\">"+money(x.sum)+" ›</div></div>"}).join("")}
   const ms=aggCarMonths(CL);h+="<div class=\"sec\">Архив сохранённых месяцев ("+ms.length+")</div>";
   if(!ms.length)h+="<div class=\"mut box\">Сохранённых итогов по экипажам пока нет.</div>";
-  h+=ms.map(x=>{const key="all|"+x.m,op=!!OPEN[key];return"<div class=\"mr col\" data-act=\"month\" data-key=\""+esc(key)+"\"><div class=\"mrt\"><div class=\"rm\"><div class=\"rt\">📅 "+esc(monthName(x.m))+"</div><div class=\"rs\">"+fm(x.qty)+" шт · машин: "+x.cars.length+"</div></div><div class=\"rv\">"+money(x.sum)+"</div><span class=\"ar\">"+(op?"▾":"▸")+"</span></div>"+(op?"<div class=\"dt\" onclick=\"event.stopPropagation()\">"+x.cars.map(cv=>"<div class=\"st-row\" data-act=\"open-car-month\" data-id=\""+esc(cv.code)+"\" data-m=\""+esc(x.m)+"\"><div style=\"display:flex;align-items:center;gap:10px;min-width:0\">"+badge(cv.code)+"<div style=\"min-width:0\"><div class=\"st-nm\">Экипаж "+esc(cv.code)+"</div><div class=\"st-qt\">"+fm(cv.qty)+" шт"+(cv.crew&&cv.crew.length?" · "+esc(cv.crew.join(", ")):"")+"</div></div></div><div class=\"rv\" style=\"font-size:13.5px\">"+money(cv.sum)+" ›</div></div>").join("")+"<button type=\"button\" class=\"cp-btn\" style=\"background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.4);color:#7dd3fc\" data-act=\"csvmonth\" data-m=\""+esc(x.m)+"\">📥 Скачать Excel за "+esc(monthName(x.m))+"</button></div>":"")+"</div>"}).join("");
+  h+=ms.map(x=>{const key="all|"+x.m,op=!!OPEN[key];return"<div class=\"mr col\" data-act=\"month\" data-key=\""+esc(key)+"\"><div class=\"mrt\"><div class=\"rm\"><div class=\"rt\">📅 "+esc(monthName(x.m))+"</div><div class=\"rs\"><span>"+fm(x.qty)+" шт</span> · <span>машин: "+x.cars.length+"</span></div></div><div class=\"rv\">"+money(x.sum)+"</div><span class=\"ar\">"+(op?"▾":"▸")+"</span></div>"+(op?"<div class=\"dt\" onclick=\"event.stopPropagation()\">"+x.cars.map(cv=>"<div class=\"st-row\" data-act=\"open-car-month\" data-id=\""+esc(cv.code)+"\" data-m=\""+esc(x.m)+"\"><div style=\"display:flex;align-items:center;gap:10px;min-width:0\">"+badge(cv.code)+"<div style=\"min-width:0\"><div class=\"st-nm\"><span>Экипаж</span> <span data-no-i18n=\"1\">"+esc(cv.code)+"</span></div><div class=\"st-qt\"><span>"+fm(cv.qty)+" шт</span>"+(cv.crew&&cv.crew.length?" · <span data-no-i18n=\"1\">"+esc(cv.crew.join(", "))+"</span>":"")+"</div></div></div><div class=\"rv\" style=\"font-size:13.5px\">"+money(cv.sum)+" ›</div></div>").join("")+"<button type=\"button\" class=\"cp-btn\" style=\"background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.4);color:#7dd3fc\" data-act=\"csvmonth\" data-m=\""+esc(x.m)+"\">📥 Скачать Excel за "+esc(monthName(x.m))+"</button></div>":"")+"</div>"}).join("");
  }else{
   const c=parseCar(SEL);
   const curDocsCount=Object.keys((CARS[SEL]&&CARS[SEL].docs)||{}).length;
-  h+="<div class=\"sum-dash sum-dash-btn\" data-act=\"subopen\" data-sub=\"cur\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">Текущий месяц · открыть ›</div><div class=\"sum-val\">"+fm(c.sum)+" <span>"+CUR+"</span></div><div style=\"font-size:12px;color:#8b9bb4;margin-top:4px\">"+(c.crew.length?"Экипаж: "+esc(c.crew.join(", ")):"Экипаж не назначен")+"</div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b>"+fm(c.qty)+"</b><span>штук</span></div>"+(curDocsCount?"<div class=\"sum-kpi\"><b style=\"color:#fde047\">"+curDocsCount+"</b><span>записей</span></div>":"")+"</div></div>"+(c.qty>0||c.sum>0||curDocsCount>0?"<button type=\"button\" class=\"cp-btn\" style=\"margin-top:12px;background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.4);color:#7dd3fc\" data-act=\"csv-single-cur\" data-car=\""+esc(SEL)+"\">📊 Открыть таблицу / Excel</button>":"")+"</div><div class=\"sec\">Сохранённые итоги</div>";
+  h+="<div class=\"sum-dash sum-dash-btn\" data-act=\"subopen\" data-sub=\"cur\"><div class=\"sum-top\"><div><div class=\"sum-lbl\">Текущий месяц · открыть ›</div><div class=\"sum-val\">"+fm(c.sum)+" <span>"+CUR+"</span></div><div style=\"font-size:12px;color:#8b9bb4;margin-top:4px\">"+(c.crew.length?"<span>Экипаж</span>: <span data-no-i18n=\"1\">"+esc(c.crew.join(", "))+"</span>":"<span>Экипаж не назначен</span>")+"</div></div><div class=\"sum-kpis\"><div class=\"sum-kpi\"><b>"+fm(c.qty)+"</b><span>штук</span></div>"+(curDocsCount?"<div class=\"sum-kpi\"><b style=\"color:#fde047\">"+curDocsCount+"</b><span>записей</span></div>":"")+"</div></div>"+(c.qty>0||c.sum>0||curDocsCount>0?"<button type=\"button\" class=\"cp-btn\" style=\"margin-top:12px;background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.4);color:#7dd3fc\" data-act=\"csv-single-cur\" data-car=\""+esc(SEL)+"\">📊 Открыть таблицу / Excel</button>":"")+"</div><div class=\"sec\">Сохранённые итоги</div>";
   const ks=Object.keys(c.hist).filter(k=>c.hist[k]).sort((a,b)=>{const x=c.hist[a],y=c.hist[b];return(y.m||"")<(x.m||"")?-1:(y.m||"")>(x.m||"")?1:(y.t||0)-(x.t||0)});
   if(!ks.length)h+="<div class=\"mut box\">У экипажа "+esc(SEL)+" нет сохранённых итогов.</div>";
-  h+=ks.map(k=>{const x=c.hist[k];const dBtn=!isSubAdm()?"<button type=\"button\" class=\"xb\" data-act=\"del-car-hist\" data-car=\""+esc(SEL)+"\" data-hk=\""+esc(k)+"\" aria-label=\"Удалить\">✕</button>":"";return"<div class=\"mr\" style=\"cursor:pointer\" data-act=\"subopen\" data-sub=\""+esc(k)+"\"><div class=\"rm\"><div class=\"rt\">"+esc(monthName(x.m))+"</div><div class=\"rs\">"+fm(x.qty)+" шт · сохранено "+esc(ago(x.t))+"</div></div><div class=\"rv\">"+money(x.sum)+"</div>"+dBtn+"<span class=\"ar\">›</span></div>"}).join("");
+  h+=ks.map(k=>{const x=c.hist[k];const dBtn=!isSubAdm()?"<button type=\"button\" class=\"xb\" data-act=\"del-car-hist\" data-car=\""+esc(SEL)+"\" data-hk=\""+esc(k)+"\" aria-label=\"Удалить\">✕</button>":"";return"<div class=\"mr\" style=\"cursor:pointer\" data-act=\"subopen\" data-sub=\""+esc(k)+"\"><div class=\"rm\"><div class=\"rt\">"+esc(monthName(x.m))+"</div><div class=\"rs\"><span>"+fm(x.qty)+" шт</span> · <span>сохранено</span> <span>"+esc(ago(x.t))+"</span></div></div><div class=\"rv\">"+money(x.sum)+"</div>"+dBtn+"<span class=\"ar\">›</span></div>"}).join("");
  }
  g("view").innerHTML=h;
 }
@@ -1539,8 +1545,8 @@ function drawTotals(){
    return '<div class="mr"><div class="rm"><div class="rt">'+esc(verFmt(v))+'</div><div class="rs">'+(old?'не последняя версия':'актуальная')+'</div></div><div class="rv'+(old?' warn':'')+'">'+by[v]+' устр.</div></div>';
   }).join('');
   h+='<div class="sec">Принудительное обновление</div>'
-   +'<div class="box">Отправляет всем устройствам команду перезагрузить приложение с сервера. Устройство обновится, когда приложение открыто и в нём не заполняется форма.<br><br>'
-   +'Последняя команда: <b>'+(FU?esc(new Date(FU).toLocaleString('ru-RU'))+' ('+esc(ago(FU))+')':'ещё не отправлялась')+'</b></div>'
+   +'<div class="box"><span>Отправляет всем устройствам команду перезагрузить приложение с сервера. Устройство обновится, когда приложение открыто и в нём не заполняется форма.</span><br><br>'
+   +'<span>Последняя команда:</span> '+(FU?'<b data-no-i18n="1">'+esc(new Date(FU).toLocaleString(admLoc()))+'</b> (<b>'+esc(ago(FU))+'</b>)':'<b>ещё не отправлялась</b>')+'</div>'
    +'<button class="btn" data-act="force">🔄 Обновить у всех</button>';
   g('view').innerHTML=h;
  }
@@ -1571,9 +1577,10 @@ function drawTotals(){
    h+='<div class="sec" style="color:#fde047">🧾 Ожидают подтверждения ('+pendList.length+')</div>';
    h+=pendList.map(({uid,k,p})=>{
     const prevCd=p.from||OCR_MAP[k]||'';
+    const byHtml=p.by?'<span data-no-i18n="1">'+esc(p.by)+'</span>':'<span>Водитель</span>';
     const diffHtml=prevCd
-     ?'<div class="rs" style="margin-top:4px;line-height:1.45">Было: <span style="color:#fca5a5">'+esc(OCR_CAT_NAMES[prevCd]||prevCd)+'</span><br>Стало: <b style="color:#6ee7b7">'+esc(OCR_CAT_NAMES[p.code]||p.code)+'</b> · от <span data-no-i18n="1">'+esc(p.by||'Водитель')+'</span></div>'
-     :'<div class="rs" style="margin-top:4px;line-height:1.45"><span style="display:inline-block;padding:1px 7px;border-radius:6px;background:rgba(56,189,248,.16);border:1px solid rgba(56,189,248,.38);color:#7dd3fc;font-size:11px;font-weight:700;margin-right:5px">🆕 Новый товар</span>Добавить в: <b style="color:#6ee7b7">'+esc(OCR_CAT_NAMES[p.code]||p.code)+'</b> · от <span data-no-i18n="1">'+esc(p.by||'Водитель')+'</span></div>';
+     ?'<div class="rs" style="margin-top:4px;line-height:1.45"><span>Было:</span> <span style="color:#fca5a5">'+esc(OCR_CAT_NAMES[prevCd]||prevCd)+'</span><br><span>Стало:</span> <b style="color:#6ee7b7">'+esc(OCR_CAT_NAMES[p.code]||p.code)+'</b> · <span>от</span> '+byHtml+'</div>'
+     :'<div class="rs" style="margin-top:4px;line-height:1.45"><span style="display:inline-block;padding:1px 7px;border-radius:6px;background:rgba(56,189,248,.16);border:1px solid rgba(56,189,248,.38);color:#7dd3fc;font-size:11px;font-weight:700;margin-right:5px">🆕 Новый товар</span><span>Добавить в:</span> <b style="color:#6ee7b7">'+esc(OCR_CAT_NAMES[p.code]||p.code)+'</b> · <span>от</span> '+byHtml+'</div>';
     return '<div class="mr col" style="cursor:default;border-color:rgba(250,204,21,.4);background:linear-gradient(180deg,rgba(36,30,14,.92) 0%,rgba(16,18,28,.96) 100%)">'
      +'<div class="rm"><div class="rt" style="font-size:14px">📄 <span data-no-i18n="1">'+esc(p.raw||k)+'</span></div>'+diffHtml+'</div>'
      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
@@ -1750,8 +1757,8 @@ function drawTotals(){
    gr.members.forEach(m=>{
     const wm=mData[m.pid]||{};
     const nmCell=m.isApp
-     ?'<div class="att-nm-app"><span>'+esc(m.name)+'</span><i>📱</i></div>'
-     :'<button type="button" class="att-nm-btn" data-act="att-worker" data-w="'+esc(m.wid)+'"><span>'+esc(m.name)+'</span><i>✎</i></button>';
+     ?'<div class="att-nm-app"><span data-no-i18n="1">'+esc(m.name)+'</span><i>📱</i></div>'
+     :'<button type="button" class="att-nm-btn" data-act="att-worker" data-w="'+esc(m.wid)+'"><span data-no-i18n="1">'+esc(m.name)+'</span><i>✎</i></button>';
     let row='<tr><td class="att-nm-col">'+nmCell+'</td>';
     for(let d=1;d<=daysInMonth;d++){
      const wd=new Date(yr,mo,d).getDay(),isOff=wd===offWd,isTd=d===todayDay,on=!!wm[d];
@@ -1803,7 +1810,7 @@ function drawTotals(){
    +'</div>';
 
   if(ATT_ERR){
-   h+='<div class="box" style="border-color:rgba(239,68,68,.45);color:#fca5a5">Нет доступа к разделу <b>attendance</b> в Firebase. Добавьте правило <code>attendance</code> в консоли Firebase (см. <code>Правила FireBase.md</code>).</div>';
+   h+='<div class="box" style="border-color:rgba(239,68,68,.45);color:#fca5a5"><span>Нет доступа к разделу Firebase.</span> <code data-no-i18n="1">attendance</code> — <span>Добавьте правило в консоли Firebase</span> (<code data-no-i18n="1">Правила FireBase.md</code>).</div>';
    g('view').innerHTML=h;
    return;
   }
@@ -1816,7 +1823,7 @@ function drawTotals(){
   thead+='<th class="att-tot-col">Итог</th></tr>';
 
   h+='<div id="attWrap" class="att-wrap" data-ym="'+esc(ATT_YM)+'" data-sk="'+esc(structKey)+'"><table class="att-tbl"><thead>'+thead+'</thead><tbody id="attBody">'+tbody+'</tbody><tfoot id="attFoot">'+tfoot+'</tfoot></table></div>';
-  h+='<div class="mut hint">📱 — приложение · <b style="color:#fbbf24">В</b> — выходной · <b style="color:#fca5a5">✕</b> — не вышел на смену · <b style="color:#6ee7b7">✓</b> — вышел в выходной · Нажмите на день у экипажа, чтобы сменить выходной.</div>';
+  h+='<div class="mut hint"><span>📱 — приложение</span> · <b style="color:#fbbf24">В</b> <span>— выходной</span> · <b style="color:#fca5a5">✕</b> <span>— не вышел на смену</span> · <b style="color:#6ee7b7">✓</b> <span>— вышел в выходной</span> · <span>Нажмите на день у экипажа, чтобы сменить выходной.</span></div>';
   g('view').innerHTML=h;
 
   const wrap=g('attWrap');
@@ -1943,9 +1950,9 @@ function drawTotals(){
   const items=appUsers.map(u=>{
    const same=wCar&&u.car===wCar;
    const sub=u.car?('Экипаж '+u.car+(same?' · этот же экипаж':'')):'Без экипажа';
-   return '<div class="sel-it'+(same?' on':'')+'" data-uid="'+esc(u.uid)+'"><div class="sel-it-l"><span class="sel-ic">📱</span><div><div class="sel-it-nm">'+esc(u.name)+'</div><div class="sel-it-sb">'+esc(sub)+'</div></div></div></div>';
+   return '<div class="sel-it'+(same?' on':'')+'" data-uid="'+esc(u.uid)+'"><div class="sel-it-l"><span class="sel-ic">📱</span><div><div class="sel-it-nm" data-no-i18n="1">'+esc(u.name)+'</div><div class="sel-it-sb">'+esc(sub)+'</div></div></div></div>';
   }).join('');
-  ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>🔗 Привязать «'+esc(w.name)+'»</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'+items+'</div></div>';
+  ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>🔗 <span>Привязать</span> «<span data-no-i18n="1">'+esc(w.name)+'</span>»</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'+items+'</div></div>';
   document.body.appendChild(ov);
   const close=()=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),180)};
   ov.querySelector('.sel-x').onclick=close;
@@ -1970,10 +1977,10 @@ function drawTotals(){
   if(!w)return;
   const curCar=String(w.car||'').toUpperCase();
   const ov=document.createElement('div');ov.className='ov';
-  ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>👷 '+esc(w.name)+'</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'
+  ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>👷 <span data-no-i18n="1">'+esc(w.name)+'</span></b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'
    +'<div class="sel-it" data-op="link" style="border-color:rgba(56,189,248,.35)"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.4);color:#7dd3fc">🔗</span><div><div class="sel-it-nm" style="color:#7dd3fc">Привязать к аккаунту</div><div class="sel-it-sb">Перенести статистику на пользователя приложения</div></div></div></div>'
    +'<div class="sel-it" data-op="ren"><div class="sel-it-l"><span class="sel-ic">✏️</span><div><div class="sel-it-nm">Переименовать</div><div class="sel-it-sb">Изменить имя сотрудника</div></div></div></div>'
-   +'<div class="sel-it" data-op="car"><div class="sel-it-l"><span class="sel-ic">🚚</span><div><div class="sel-it-nm">Сменить экипаж</div><div class="sel-it-sb">Сейчас: '+(curCar?'Экипаж '+esc(curCar):'Без экипажа')+'</div></div></div></div>'
+   +'<div class="sel-it" data-op="car"><div class="sel-it-l"><span class="sel-ic">🚚</span><div><div class="sel-it-nm">Сменить экипаж</div><div class="sel-it-sb"><span>Сейчас:</span> '+(curCar?'<span>Экипаж</span> <span data-no-i18n="1">'+esc(curCar)+'</span>':'<span>Без экипажа</span>')+'</div></div></div></div>'
    +'<div class="sel-it" data-op="del" style="border-color:rgba(239,68,68,.3)"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.38);color:#f87171">🗑️</span><div><div class="sel-it-nm" style="color:#fca5a5">Удалить рабочего</div><div class="sel-it-sb">Убрать сотрудника из таблицы</div></div></div></div>'
    +'</div></div>';
   document.body.appendChild(ov);
@@ -2096,11 +2103,12 @@ function drawTotals(){
   const dim=new Date(yr,mo+1,0).getDate();
   const mData=(ATT&&ATT.months&&ATT.months[ATT_YM])||{};
   let totA=0,totW=0;
-  const lines=['📅 Табель — '+monthName(ATT_YM)];
+  const lines=['📅 '+trAdm('Табель')+' — '+trAdm(monthName(ATT_YM))];
+  const offTag=trAdm('в вых.');
   groups.forEach(gr=>{
    if(!gr.members.length)return;
    const offWd=getCrewOff(gr.code);
-   lines.push('',(gr.code?'🚚 Экипаж '+gr.code:'🚫 Без экипажа')+':');
+   lines.push('',(gr.code?'🚚 '+trAdm('Экипаж')+' '+gr.code:'🚫 '+trAdm('Без экипажа'))+':');
    gr.members.forEach(m=>{
     const wm=mData[m.pid]||{},absDays=[],workDays=[];
     for(let d=1;d<=dim;d++){
@@ -2110,11 +2118,11 @@ function drawTotals(){
     }
     totA+=absDays.length;totW+=workDays.length;
     let line='• '+m.name+': ✕ '+absDays.length+(absDays.length?' ('+absDays.join(', ')+')':'');
-    if(workDays.length)line+=' · ✓ в вых. '+workDays.length+' ('+workDays.join(', ')+')';
+    if(workDays.length)line+=' · ✓ '+offTag+' '+workDays.length+' ('+workDays.join(', ')+')';
     lines.push(line);
    });
   });
-  lines.push('','Всего пропусков (✕): '+totA+(totW?' · Выходов в выходной (✓): '+totW:''));
+  lines.push('',trAdm('Всего пропусков (✕):')+' '+totA+(totW?' · '+trAdm('Выходов в выходной (✓):')+' '+totW:''));
   const txt=lines.join('\n');
   if(navigator.clipboard&&navigator.clipboard.writeText){
    navigator.clipboard.writeText(txt).then(()=>toast('Отчёт скопирован')).catch(()=>toast('Не удалось скопировать',true));
@@ -2253,7 +2261,7 @@ function openOcrRuleModal(ruleKey, curCode, isNew = false){
   ov.style.zIndex = '99999';
 
   ov.innerHTML = '<div class="dlg aop-box" style="max-width:440px;height:min(88dvh,620px)">'
-   + '<div class="aop-hd"><div><b>' + (isNew ? '➕ Новое правило OCR' : '✏️ Настройка правила') + '</b><small>' + (isNew ? 'Сопоставление товара из накладной с каталогом' : esc(ruleKey)) + '</small></div><button type="button" class="sel-x">✕</button></div>'
+   + '<div class="aop-hd"><div><b>' + (isNew ? '➕ Новое правило OCR' : '✏️ Настройка правила') + '</b>' + (isNew ? '<small>Сопоставление товара из накладной с каталогом</small>' : '<small data-no-i18n="1">' + esc(ruleKey) + '</small>') + '</div><button type="button" class="sel-x">✕</button></div>'
    + (isNew ? '<div style="padding:10px 14px 6px;flex-shrink:0"><label style="display:block;font-size:11.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Текст из накладной (как написано в чеке):</label><input id="aopRuleKeyInp" type="text" value="' + esc(ruleKey || '') + '" placeholder="Например: Ննջասենյակ կ. Մոնա Լիզա" style="width:100%;height:38px;padding:0 12px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#f8fafc;font-size:13px;outline:none;box-sizing:border-box"></div>' : '')
    + '<div style="padding:4px 14px 0;flex-shrink:0"><label style="display:block;font-size:11.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Выберите категорию и модель для начисления бонуса:</label></div>'
    + '<div class="aop-srch"><input id="aopInp" type="search" placeholder="🔍 Быстрый поиск мебели..."></div>'
@@ -2343,7 +2351,7 @@ function openOnlCrewModal(){
     const badge = '<span class="onl-badge' + (on ? ' on' : '') + '">' + (on ? '🟢 ' + on + ' / ' : '') + total + '</span>';
     const crewNames = devs().filter(x => String(x.u.car||'').toUpperCase() === c).map(x => dispName(x)).join(', ');
     items += '<div class="sel-it' + (ONL_CAR === c ? ' on' : '') + '" data-c="' + c + '">'
-           + '<div class="sel-it-l"><span class="sel-ic">🚚</span><div><div class="sel-it-nm">Экипаж ' + c + '</div><div class="sel-it-sb">' + (crewNames ? esc(crewNames) : 'Нет назначенных водителей') + '</div></div></div>'
+           + '<div class="sel-it-l"><span class="sel-ic">🚚</span><div><div class="sel-it-nm"><span>Экипаж</span> <span data-no-i18n="1">' + c + '</span></div><div class="sel-it-sb">' + (crewNames ? '<span data-no-i18n="1">' + esc(crewNames) + '</span>' : 'Нет назначенных водителей') + '</div></div></div>'
            + '<div class="sel-it-r">' + badge + '</div></div>';
   });
 
@@ -2380,7 +2388,7 @@ function openCarModal(uid){
   if(!isSubAdm()){
    items+='<div class="sel-it'+(curCar==="ADMIN"?' on':'')+'" data-c="ADMIN"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(167,139,250,.15);border-color:rgba(167,139,250,.4);color:#c4b5fd">🛡️</span><div><div class="sel-it-nm" data-no-i18n="1">Admin</div><div class="sel-it-sb">Открыть бонусы (скрыто из списков)</div></div></div><div class="sel-it-r"><span class="sel-chk">✓</span></div></div>';
   }
-  ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>🚚 Экипаж: '+esc(dispName(d))+'</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'+items+'</div></div>';
+  ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>🚚 <span>Экипаж</span>: <span data-no-i18n="1">'+esc(dispName(d))+'</span></b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'+items+'</div></div>';
   document.body.appendChild(ov);
   const close=()=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),180)};
   ov.querySelector('.sel-x').onclick=close;
@@ -2413,7 +2421,7 @@ function openCarModal(uid){
      const det = drvNm + ': ' + (curCar || 'Без экипажа') + ' → ' + (nc || 'Без экипажа') + (moved ? ' · бонусы перенесены' : '') + (attMoved ? ' · табель перенесён' : '');
      logSubAct('crew', 'set_car', nc ? 'Назначен экипаж водителю' : 'Снят экипаж у водителя', det, { car: nc || curCar, target: drvNm });
     }
-    toast(nc === "ADMIN" ? "Включён режим Админ" : (nc ? ('Назначен экипаж ' + nc + (moved ? ' · бонусы перенесены' : '') + (attMoved ? ' · табель перенесён' : '')) : 'Экипаж снята'));
+    toast(nc === "ADMIN" ? "Включён режим Админ" : (nc ? ('Назначен экипаж ' + nc + (moved ? ' · бонусы перенесены' : '') + (attMoved ? ' · табель перенесён' : '')) : 'Экипаж снят'));
    }catch(err){toast('Ошибка сохранения',true)}
   };
   requestAnimationFrame(()=>ov.classList.add('show'));
@@ -2924,8 +2932,8 @@ function openSelectModal(){
      _admDmNotif[uid]=+lm.t||Date.now();
      try{localStorage.setItem('ADM_DM_NOTIF',JSON.stringify(_admDmNotif))}catch(e){}
      if(DM_UID!==uid||document.hidden){
-      const who=USERS[uid]?dispName(parseDev(uid,USERS[uid])):(lm.name||'Водитель');
-      admNotify(who+' (лично)',String(lm.txt||'').slice(0,140),{tag:'eurobaza-dm-'+uid,action:'OPEN_DM',uid:uid});
+      const who=USERS[uid]?dispName(parseDev(uid,USERS[uid])):(lm.name||trAdm('Водитель'));
+      admNotify(who+' ('+trAdm('лично')+')',String(lm.txt||'').slice(0,140),{tag:'eurobaza-dm-'+uid,action:'OPEN_DM',uid:uid});
      }
     }
    }else if(relevant.length){
@@ -2970,7 +2978,7 @@ function openSelectModal(){
    const car=!m.adm?String((m.uid&&USERS[m.uid]&&USERS[m.uid].car)||m.car||'').toUpperCase():'';
    const drvName=(m.uid&&USERS[m.uid])?dispName(parseDev(m.uid,USERS[m.uid])):(m.name||'Водитель');
    const isAdmCrew=!m.adm&&car==='ADMIN';
-   const admCrewWho=/^(admin|админ|администратор)$/i.test(drvName.trim())?'👑 Администратор':('👑 Админ · <span data-no-i18n="1">'+esc(drvName)+'</span>');
+   const admCrewWho=/^(admin|админ|администратор)$/i.test(drvName.trim())?'👑 Администратор':('👑 <span>Админ</span> · <span data-no-i18n="1">'+esc(drvName)+'</span>');
    const who=m.adm?(isDeliv?'👩‍💼 Доставка':'👑 Администратор'):(isAdmCrew?admCrewWho:(crewBadgeHtml(car)+'<span data-no-i18n="1">'+esc(drvName)+'</span>'));
    return '<div class="ach-m'+(m.adm?(isDeliv?' dlv':' adm'):(isAdmCrew?' adm':''))+'"><div class="ach-mt"><span>'+who+'</span>'+(isSubAdm()?'':'<button type="button" class="ach-del" data-ck="'+esc(m.k)+'" aria-label="Удалить">✕</button>')+'</div><div class="ach-bd"><span class="ach-tx" data-no-i18n="1">'+esc(m.txt||'')+'</span><span class="ach-tm">'+tm+'</span></div></div>';
   }).join('');
@@ -3230,7 +3238,7 @@ function openSelectModal(){
     +'<div class="slog-st"><b data-no-i18n="1">'+SUB_LOG.length+'</b><small>Всего записей</small></div>';
   }
   if(subEl){
-   subEl.innerHTML='<span data-no-i18n="1">Доставка · '+esc(SUB_EMAIL)+'</span>';
+   subEl.innerHTML='<span>Доставка</span> · <span data-no-i18n="1">'+esc(SUB_EMAIL)+'</span>';
   }
   const cats=[
    {k:'all',ic:'✨',n:'Все'},
@@ -3248,7 +3256,7 @@ function openSelectModal(){
   }
   if(SUB_LOG_ERR){
    const ruleSnippet='"subadminLog": {\n  ".read": "auth != null && auth.token.email == \'vazgenstepanyan2002@gmail.com\'",\n  ".write": "auth != null && auth.token.email == \'vazgenstepanyan2002@gmail.com\'",\n  "$id": {\n    ".write": "auth != null && auth.token.email == \'diannakirakosyan@gmail.com\' && !data.exists() && newData.exists()",\n    ".validate": "newData.hasChildren([\'cat\', \'act\', \'t\']) && newData.child(\'t\').isNumber()"\n  }\n}';
-   box.innerHTML='<div class="slog-rule"><b>⚠️ Требуется правило в Firebase Realtime Database</b><div style="margin-top:4px">Добавьте узел <code>subadminLog</code> в консоли Firebase (Rules), чтобы сохранять и читать журнал действий субадмина:</div><pre data-no-i18n="1">'+esc(ruleSnippet)+'</pre><button type="button" id="slogCopyRule">📋 Скопировать правило</button></div>';
+   box.innerHTML='<div class="slog-rule"><b>⚠️ Требуется правило в Firebase Realtime Database</b><div style="margin-top:4px"><span>Добавьте узел</span> <code data-no-i18n="1">subadminLog</code> <span>в консоли Firebase (Rules), чтобы сохранять и читать журнал действий субадмина:</span></div><pre data-no-i18n="1">'+esc(ruleSnippet)+'</pre><button type="button" id="slogCopyRule">📋 Скопировать правило</button></div>';
    const cp=g('slogCopyRule');
    if(cp)cp.onclick=()=>{
     const done=()=>toast('Правило скопировано в буфер');
@@ -3285,6 +3293,37 @@ function openSelectModal(){
    if(!gMap[dk]){gMap[dk]={label:dk,items:[]};groups.push(gMap[dk])}
    gMap[dk].items.push(x);
   });
+  const fmtSubLogDet=x=>{
+   const raw=String(x&&x.detail||'');
+   if(!raw)return '';
+   if(x.cat==='chat'||x.act==='ocr_del'||x.act==='login'||x.act==='logout')return '<div class="slog-det" data-no-i18n="1">'+esc(raw)+'</div>';
+   if(x.act==='force_upd'||x.act==='pw_change'||x.act==='att_off')return '<div class="slog-det">'+esc(raw)+'</div>';
+   if(x.act==='att_add'||x.act==='att_del'||x.act==='att_mark'||x.act==='att_unmark'){
+    const ps=raw.split(' · ');
+    return '<div class="slog-det"><span data-no-i18n="1">'+esc(ps[0])+'</span>'+(ps.length>1?' · '+ps.slice(1).map(p=>'<span>'+esc(p)+'</span>').join(' · '):'')+'</div>';
+   }
+   if(x.act==='att_link'||x.act==='att_ren'){
+    const ps=raw.split(' · ');
+    return '<div class="slog-det"><span data-no-i18n="1">'+esc(ps[0])+'</span>'+(ps.length>1?' · '+ps.slice(1).map(p=>'<span>'+esc(p)+'</span>').join(' · '):'')+'</div>';
+   }
+   if(x.act==='att_car'||x.act==='set_car'){
+    const ci=raw.indexOf(': ');
+    if(ci>0){
+     const who=raw.slice(0,ci),rest=raw.slice(ci+2).split(' · ');
+     const arr=rest[0].split(' → ');
+     const aHtml=arr.length===2?('<span>'+esc(arr[0])+'</span> → <span>'+esc(arr[1])+'</span>'):'<span>'+esc(rest[0])+'</span>';
+     return '<div class="slog-det"><span data-no-i18n="1">'+esc(who)+'</span>: '+aHtml+(rest.length>1?' · '+rest.slice(1).map(p=>'<span>'+esc(p)+'</span>').join(' · '):'')+'</div>';
+    }
+   }
+   if(x.act==='ocr_add'||x.act==='ocr_edit'||x.act==='ocr_ok'||x.act==='ocr_no'){
+    const mFrom=raw.match(/^(.*)\s+\(от\s+(.+)\)$/);
+    const body=mFrom?mFrom[1]:raw,byWho=mFrom?mFrom[2]:'';
+    const ai=body.indexOf(' → ');
+    const mainHtml=ai>0?('<span data-no-i18n="1">'+esc(body.slice(0,ai))+'</span> → <span>'+esc(body.slice(ai+3))+'</span>'):'<span data-no-i18n="1">'+esc(body)+'</span>';
+    return '<div class="slog-det">'+mainHtml+(byWho?' (<span>от</span> <span data-no-i18n="1">'+esc(byWho)+'</span>)':'')+'</div>';
+   }
+   return '<div class="slog-det" data-no-i18n="1">'+esc(raw)+'</div>';
+  };
   let html='';
   groups.forEach(gr=>{
    html+='<div class="slog-day"><span>'+esc(gr.label)+'</span><b data-no-i18n="1">'+gr.items.length+'</b></div>';
@@ -3301,7 +3340,7 @@ function openSelectModal(){
      +'<div class="slog-ic">'+ic+'</div>'
      +'<div class="slog-body">'
      +'<div class="slog-top"><div class="slog-ttl">'+esc(x.title||'Действие')+'</div><div class="slog-meta">'+(isNew?'<span class="slog-new">НОВОЕ</span>':'')+'<span class="slog-tm" data-no-i18n="1">'+tm+'</span></div></div>'
-     +(x.detail?'<div class="slog-det" data-no-i18n="1">'+esc(x.detail)+'</div>':'')
+     +fmtSubLogDet(x)
      +'<div class="slog-tags">'+tags+'</div>'
      +'</div></div>';
    });
@@ -3376,7 +3415,7 @@ function openSelectModal(){
   }
   items+='<div class="sel-it" data-op="lang"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(16,185,129,.16);border-color:rgba(52,211,153,.4);color:#6ee7b7">🌐</span><div><div class="sel-it-nm">Язык интерфейса</div><div class="sel-it-sb">'+lName+'</div></div></div></div>'
    +'<div class="sel-it" data-op="diag"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(56,189,248,.14);border-color:rgba(56,189,248,.38);color:#7dd3fc">🩺</span><div><div class="sel-it-nm">Диагностика и API</div><div class="sel-it-sb">Статус сервисов, кэша и ошибок</div></div></div></div>'
-   +'<div class="sel-it" data-op="pw"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(250,204,21,.14);border-color:rgba(250,204,21,.38);color:#fde047">🔑</span><div><div class="sel-it-nm">Сменить пароль</div><div class="sel-it-sb">'+(u&&u.email?esc(u.email):'Безопасность аккаунта')+'</div></div></div></div>'
+   +'<div class="sel-it" data-op="pw"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(250,204,21,.14);border-color:rgba(250,204,21,.38);color:#fde047">🔑</span><div><div class="sel-it-nm">Сменить пароль</div><div class="sel-it-sb">'+(u&&u.email?'<span data-no-i18n="1">'+esc(u.email)+'</span>':'Безопасность аккаунта')+'</div></div></div></div>'
    +'<div class="sel-it" data-op="out" style="border-color:rgba(239,68,68,.3)"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.38);color:#f87171">🚪</span><div><div class="sel-it-nm" style="color:#fca5a5">Выйти из админки</div><div class="sel-it-sb">Завершить текущую сессию</div></div></div></div>';
   ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>⚙️ Меню управления</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'+items+'</div></div>';
   document.body.appendChild(ov);
@@ -3408,7 +3447,7 @@ function openSelectModal(){
   if(u){
    let profNick='';try{profNick=(localStorage.getItem('USER_NAME')||'').trim()}catch(e){}
    if(g('admNick'))g('admNick').textContent=profNick||'Admin';
-   g('login').hidden=true;g('panel').hidden=false;g('who').textContent=(isSubAdm()?'Доставка · ':'')+(u.email||'');
+   g('login').hidden=true;g('panel').hidden=false;g('who').innerHTML=(isSubAdm()?'<span>Доставка</span> · ':'')+'<span data-no-i18n="1">'+esc(u.email||'')+'</span>';
    start();draw();
    if(isSubAdm()&&!_subLoginLogged){
     _subLoginLogged=true;
@@ -3530,10 +3569,10 @@ function openSelectModal(){
       if ('caches' in window) { const ks = await caches.keys(); if (ks.length) cacheList = ks.join(', '); }
       const grid = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">' + checks.map(c => {
         const bg = c.ok ? 'rgba(16,185,129,.10)' : 'rgba(239,68,68,.14)', bd = c.ok ? 'rgba(52,211,153,.28)' : 'rgba(248,113,113,.36)', dot = c.ok ? '#10b981' : '#ef4444', stCol = c.ok ? '#6ee7b7' : '#fca5a5';
-        return '<div style="padding:8px 9px;border-radius:12px;background:' + bg + ';border:1px solid ' + bd + ';display:flex;flex-direction:column;gap:2px"><div style="display:flex;align-items:center;gap:5px"><i style="width:7px;height:7px;border-radius:50%;background:' + dot + ';box-shadow:0 0 7px ' + dot + ';flex-shrink:0"></i><span style="font-size:11.5px;font-weight:700;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escD(c.name) + '</span></div><div title="' + escD(c.keyInfo) + '" style="font-size:10px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escD(c.keyInfo) + '</div><div style="font-size:10.5px;font-weight:600;color:' + stCol + '">' + escD(c.detail) + '</div></div>';
+        return '<div style="padding:8px 9px;border-radius:12px;background:' + bg + ';border:1px solid ' + bd + ';display:flex;flex-direction:column;gap:2px"><div style="display:flex;align-items:center;gap:5px"><i style="width:7px;height:7px;border-radius:50%;background:' + dot + ';box-shadow:0 0 7px ' + dot + ';flex-shrink:0"></i><span style="font-size:11.5px;font-weight:700;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escD(c.name) + '</span></div><div' + (c.keyInfo === 'не найден' ? '' : ' data-no-i18n="1"') + ' title="' + escD(c.keyInfo) + '" style="font-size:10px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escD(c.keyInfo) + '</div><div style="font-size:10.5px;font-weight:600;color:' + stCol + '">' + escD(c.detail) + '</div></div>';
       }).join('') + '</div>';
-      const errBar = ERR_LOG.length ? '<div style="padding:7px 10px;border-radius:12px;background:rgba(239,68,68,.12);border:1px solid rgba(248,113,113,.3);font-size:10.5px;color:#fca5a5"><b>Ошибки (' + ERR_LOG.length + '):</b> ' + escD(ERR_LOG[0] && ERR_LOG[0].msg) + '</div>' : '<div style="padding:7px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);display:flex;justify-content:space-between;font-size:11px;color:#94a3b8"><span>Журнал ошибок JS</span><span style="color:#6ee7b7;font-weight:600">0 ошибок</span></div>';
-      box.innerHTML = grid + '<div style="padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);display:flex;flex-direction:column;gap:3px;font-size:11px"><div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">Версия на сервере</span><code style="color:#fde047;font-weight:700">' + escD(srvVer) + '</code></div><div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">Service Worker</span><span style="color:#e2e8f0;font-weight:600">' + escD(swInfo) + '</span></div><div style="display:flex;justify-content:space-between;gap:8px"><span style="color:#94a3b8;flex-shrink:0">Cache</span><code style="color:#7dd3fc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escD(cacheList) + '</code></div></div>' + errBar;
+      const errBar = ERR_LOG.length ? '<div style="padding:7px 10px;border-radius:12px;background:rgba(239,68,68,.12);border:1px solid rgba(248,113,113,.3);font-size:10.5px;color:#fca5a5"><b>Ошибки (' + ERR_LOG.length + '):</b> <span data-no-i18n="1">' + escD(ERR_LOG[0] && ERR_LOG[0].msg) + '</span></div>' : '<div style="padding:7px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);display:flex;justify-content:space-between;font-size:11px;color:#94a3b8"><span>Журнал ошибок JS</span><span style="color:#6ee7b7;font-weight:600">0 ошибок</span></div>';
+      box.innerHTML = grid + '<div style="padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);display:flex;flex-direction:column;gap:3px;font-size:11px"><div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">Версия на сервере</span><code data-no-i18n="1" style="color:#fde047;font-weight:700">' + escD(srvVer) + '</code></div><div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">Service Worker</span><span style="color:#e2e8f0;font-weight:600">' + escD(swInfo) + '</span></div><div style="display:flex;justify-content:space-between;gap:8px"><span style="color:#94a3b8;flex-shrink:0">Cache</span><code' + (cacheList === 'пусто' ? '' : ' data-no-i18n="1"') + ' style="color:#7dd3fc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escD(cacheList) + '</code></div></div>' + errBar;
     };
     ov.querySelector('#dgRe').onclick = run;
     run();
