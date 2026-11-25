@@ -396,14 +396,41 @@
   }
 
   // Поделиться через системное меню Android (Telegram, WhatsApp и т.д.)
-  async function shareFile(blob, filename, title) {
+  async function shareFile(blob, filename, title, allRows) {
     try {
-      const file = new File([blob], filename, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      const xlsxFile = new File([blob], filename, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      if (navigator.canShare && navigator.canShare({ files: [xlsxFile] })) {
         await navigator.share({
-          files: [file],
+          files: [xlsxFile],
           title: title || 'EuroBaza',
           text: title || 'Отчёт EuroBaza'
+        });
+        return 'shared';
+      }
+      // Chrome на Android блокирует .xlsx в Web Share API, но разрешает text/csv
+      if (Array.isArray(allRows) && allRows.length && navigator.canShare) {
+        const csvStr = '\uFEFF' + allRows.map(r => (r || []).map(v => {
+          const s = String(v == null ? '' : v).replace(/"/g, '""');
+          return /[",\n\r;]/.test(s) ? ('"' + s + '"') : s;
+        }).join(';')).join('\r\n');
+        const csvName = String(filename || 'EuroBaza.csv').replace(/\.xlsx$/i, '.csv');
+        const csvFile = new File([csvStr], csvName, { type: 'text/csv' });
+        if (navigator.canShare({ files: [csvFile] })) {
+          await navigator.share({
+            files: [csvFile],
+            title: title || 'EuroBaza',
+            text: title || 'Отчёт EuroBaza'
+          });
+          return 'shared';
+        }
+      }
+      if (navigator.share) {
+        const preview = Array.isArray(allRows) && allRows.length
+          ? allRows.slice(0, 60).map(r => (r || []).filter(v => v !== '' && v != null).join(' | ')).join('\n')
+          : (title || 'Отчёт EuroBaza');
+        await navigator.share({
+          title: title || 'EuroBaza',
+          text: (title ? title + '\n\n' : '') + preview
         });
         return 'shared';
       }
@@ -688,7 +715,7 @@
         const allRows = [lHeaders, ...lRows, ...(lTotal ? [lTotal] : [])];
         const lBlob = createXlsxBlob(allRows, !!lTotal, !!mergeFirstCol, rowTypes, mergeCols);
         const lName = lang === 'ru' ? baseXlsxName : baseXlsxName.replace(/\.xlsx$/i, '_' + lang.toUpperCase() + '.xlsx');
-        return { lTitle, lHeaders, lRows, lTotal, lBlob, lName };
+        return { lTitle, lHeaders, lRows, lTotal, lAllRows: allRows, lBlob, lName };
       };
 
       let loc = buildLocalized(excelLang);
@@ -711,8 +738,8 @@
       const langSegBtn = (k, lbl) => `<button type="button" data-tvl="${k}" style="width:auto!important;margin:0!important;height:26px!important;padding:0 8px!important;border-radius:7px!important;font-size:11px!important;font-weight:800!important;cursor:pointer;border:1px solid ${excelLang === k ? 'rgba(250,204,21,.55)' : 'transparent'}!important;background:${excelLang === k ? 'rgba(250,204,21,.22)' : 'transparent'}!important;color:${excelLang === k ? '#fde047' : '#94a3b8'}!important;box-shadow:none!important">${lbl}</button>`;
 
       const isNumCol = idx => idx > 0 && rows.some(r => r && typeof r[idx] === 'number');
-      const renderThead = (hdrs) => `<tr style="background:#131c2e;position:sticky;top:0;z-index:2;box-shadow:0 1px 0 rgba(148,163,184,.28)">${hdrs.map((h, idx) => `<th style="padding:10px 14px;font-weight:700;color:#94a3b8;border:1px solid rgba(148,163,184,.22);white-space:nowrap;${isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'text-align:center;' : 'text-align:right;')) : (mergeFirstCol && idx === 0 ? 'text-align:center;' : ((idx > 1 || isNumCol(idx)) ? 'text-align:right;' : ''))}">${esc(h)}</th>`).join('')}</tr>`;
-      const renderTfoot = (tot) => tot ? `<tr style="background:#131c2e;position:sticky;bottom:0;z-index:2;border-top:2px solid rgba(250,204,21,.45);font-weight:800;color:#fde047">${tot.map((c, idx) => `<td style="padding:10px 14px;white-space:nowrap;border:1px solid rgba(148,163,184,.22);${isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'text-align:center;' : 'text-align:right;')) : ((idx > 1 || isNumCol(idx)) ? 'text-align:right;' : '')}">${esc(typeof c === 'number' ? fm(c) : c)}</td>`).join('')}</tr>` : '';
+      const renderThead = (hdrs) => `<tr style="background:#131c2e;position:sticky;top:0;z-index:2;box-shadow:0 1px 0 rgba(148,163,184,.28)">${hdrs.map((h, idx) => `<th style="padding:10px 14px;font-weight:700;color:#94a3b8;border:1px solid rgba(148,163,184,.22);white-space:nowrap;${isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'text-align:center;' : 'text-align:right;')) : (mergeFirstCol && idx === 0 ? 'text-align:center;' : (isNumCol(idx) ? 'text-align:right;' : 'text-align:left;'))}">${esc(h)}</th>`).join('')}</tr>`;
+      const renderTfoot = (tot) => tot ? `<tr style="background:#131c2e;position:sticky;bottom:0;z-index:2;border-top:2px solid rgba(250,204,21,.45);font-weight:800;color:#fde047">${tot.map((c, idx) => `<td style="padding:10px 14px;white-space:nowrap;border:1px solid rgba(148,163,184,.22);${isCatalog ? (idx === 1 ? '' : (idx === 2 ? 'text-align:center;' : 'text-align:right;')) : (isNumCol(idx) ? 'text-align:right;' : 'text-align:left;')}">${esc(typeof c === 'number' ? fm(c) : c)}</td>`).join('')}</tr>` : '';
 
       m.innerHTML = `
         <div class="tv-box" style="max-width:min(94vw,1180px);width:100%;height:min(88dvh,760px);display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:18px;background:#0d131f;border:1px solid rgba(255,255,255,.16);box-shadow:0 18px 45px rgba(0,0,0,.75);animation:cmIn .16s ease-out">
@@ -840,7 +867,7 @@
           if (sharing) return;
           sharing = true;
           try {
-            const res = await shareFile(loc.lBlob, loc.lName, loc.lTitle);
+            const res = await shareFile(loc.lBlob, loc.lName, loc.lTitle, loc.lAllRows);
             if (res === 'unsupported' || res === 'error') {
               downloadBlob(loc.lBlob, loc.lName);
               if (window.toast) window.toast('Файл скачан');
@@ -920,8 +947,8 @@
                     : (idx === 0 ? 'color:#64748b;' : 'color:#94a3b8;'));
                 return `<td style="padding:7px 12px;white-space:nowrap;border:1px solid rgba(148,163,184,.2);${al}${col}">${esc(txt)}</td>`;
               }
-              const isNum = typeof c === 'number' || (!isNaN(+c) && idx > 1);
-              return `<td style="padding:9px 14px;white-space:nowrap;color:#cbd5e1;border:1px solid rgba(148,163,184,.2);${(idx > 1 || typeof c === 'number') ? 'text-align:right;' : ''}${idx === r.length - 1 ? 'font-weight:800;color:#fde047;' : (typeof c === 'number' ? 'font-weight:700;color:#f8fafc;' : '')}">${esc(isNum && typeof c === 'number' ? fm(c) : c)}</td>`;
+              const isNum = typeof c === 'number';
+              return `<td style="padding:9px 14px;white-space:nowrap;color:#cbd5e1;border:1px solid rgba(148,163,184,.2);${isNum ? 'text-align:right;' : 'text-align:left;'}${isNum && idx === r.length - 1 ? 'font-weight:800;color:#fde047;' : (isNum ? 'font-weight:700;color:#f8fafc;' : '')}">${esc(isNum ? fm(c) : c)}</td>`;
             }).join('')}
           </tr>
         `;
