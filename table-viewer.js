@@ -219,7 +219,7 @@
     const colsXml = colCount > 0 ? '<cols>' + widths.map((w, i) => {
       const cw = w <= 3.6
         ? Math.max(4.4, +(w + 2.2).toFixed(1))
-        : Math.max(6.0, Math.min(120, +(w + 3.2).toFixed(1)));
+        : Math.max(6.0, Math.min(255, +(w + 3.2).toFixed(1)));
       return `<col min="${i + 1}" max="${i + 1}" width="${cw}" bestFit="1" customWidth="1"/>`;
     }).join('') + '</cols>' : '';
 

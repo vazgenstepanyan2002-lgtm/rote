@@ -2744,16 +2744,22 @@ function openSelectModal(){
   requestAnimationFrame(()=>ov.classList.add('show'));
  }
  function exportSubLogCsv(list){
-  const rows=[['Дата','Время','Категория','Действие','Подробности','Экипаж']];
+  const src=list||SUB_LOG;
+  if(!src.length){toast('Нет данных для выгрузки',true);return}
+  const headers=['Дата','Время','Категория','Действие','Подробности','Экипаж'];
   const catNames={att:'Табель',crew:'Экипажи',chat:'Чаты',ocr:'Словарь',sys:'Система'};
-  (list||SUB_LOG).forEach(x=>{
+  const rows=src.map(x=>{
    const d=x.t?new Date(+x.t):null;
    const dt=d?(String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear()):'';
    const tm=d?(String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')):'';
-   rows.push([dt,tm,catNames[x.cat]||x.cat||'',x.title||'',x.detail||'',x.car||'']);
+   return [dt,tm,catNames[x.cat]||x.cat||'',x.title||'',x.detail||'',x.car||''];
   });
-  const now=new Date(),fn='Лог_субадмина_'+now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0')+'.csv';
-  downloadCsv(fn,rows);
+  const now=new Date(),fn='EuroBaza_Лог_субадмина_'+now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0')+'.csv';
+  if(window.TableViewer){
+   TableViewer.open({title:'Лог субадмина',filename:fn,headers:headers,rows:rows});
+   return;
+  }
+  downloadCsv(fn,[headers,...rows]);
  }
  function renderSubLog(){
   const box=g('slogList'),statsEl=g('slogStats'),chipsEl=g('slogChips'),subEl=g('slogSub');
