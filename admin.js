@@ -2855,8 +2855,8 @@ function openSelectModal(){
    +'<div class="slog-hd">'
    +'<div class="slog-hd-l"><div class="slog-hd-ic">📋</div><div class="slog-hd-t"><b>Лог субадмина</b><small id="slogSub"></small></div></div>'
    +'<div class="slog-acts">'
-   +'<button type="button" id="slogCsv" class="slog-btn csv" title="Выгрузить в Excel">📥 Excel</button>'
-   +'<button type="button" id="slogClr" class="slog-btn clr" title="Очистить журнал">Очистить</button>'
+   +'<button type="button" id="slogCsv" class="slog-btn csv" title="Выгрузить в Excel" aria-label="Выгрузить в Excel">📥</button>'
+   +'<button type="button" id="slogClr" class="slog-btn clr" title="Очистить журнал" aria-label="Очистить журнал">🗑️</button>'
    +'<button type="button" id="slogX" class="ach-x" aria-label="Закрыть">✕</button>'
    +'</div></div>'
    +'<div id="slogStats" class="slog-stats"></div>'
@@ -2932,7 +2932,7 @@ function openSelectModal(){
    else if(op==='pw'){openChangePw()}
    else if(op==='out'){
     if(await ask('Выйти из панели администратора?',{title:'Выход',okText:'Выйти',danger:true})){
-     if(isSubAdm())await Promise.race([logSubAct('sys','logout','Выход из админ-панели',devName(navigator.userAgent)),new Promise(r=>setTimeout(r,600))]);
+     if(isSubAdm())await Promise.race([logSubAct('sys','logout','Выход из админ-панели',devInfo(navigator.userAgent)),new Promise(r=>setTimeout(r,600))]);
      auth.signOut();
     }
    }
@@ -2949,7 +2949,7 @@ function openSelectModal(){
    start();draw();
    if(isSubAdm()&&!_subLoginLogged){
     _subLoginLogged=true;
-    logSubAct('sys','login','Вход в админ-панель',devName(navigator.userAgent));
+    logSubAct('sys','login','Вход в админ-панель',devInfo(navigator.userAgent));
    }
   }else{
    stop();
