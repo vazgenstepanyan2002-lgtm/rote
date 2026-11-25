@@ -735,18 +735,19 @@
       const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) && !(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
       const isCatalog = rowTypes && rowTypes.length > 0;
       const baseXlsxName = String(filename || 'EuroBaza.xlsx').replace(/\.csv$/i, '.xlsx');
-      let excelLang = 'ru';
+      let appLang = 'ru';
       try {
-        const appL = window.getLang ? window.getLang() : 'ru';
-        if (appL === 'ru' || appL === 'hy' || appL === 'en') excelLang = appL;
+        const l = window.getLang ? window.getLang() : 'ru';
+        if (l === 'ru' || l === 'hy' || l === 'en') appLang = l;
       } catch (e) {}
+      let excelLang = appLang;
 
       const TV_UI = {
         ru: { rows: 'Строк:', search: '🔍 Поиск...', share: '📤 Поделиться', shareT: 'Поделиться', print: '🖨️ Напечатать', printT: 'Напечатать', dlT: 'Скачать Excel', empty: 'Ничего не найдено' },
         hy: { rows: 'Տողեր՝', search: '🔍 Որոնում...', share: '📤 Կիսվել', shareT: 'Կիսվել', print: '🖨️ Տպել', printT: 'Տպել', dlT: 'Ներբեռնել Excel', empty: 'Ոչինչ չի գտնվել' },
         en: { rows: 'Rows:', search: '🔍 Search...', share: '📤 Share', shareT: 'Share', print: '🖨️ Print', printT: 'Print', dlT: 'Download Excel', empty: 'Nothing found' }
       };
-      const curUi = () => TV_UI[excelLang] || TV_UI.ru;
+      const ui = TV_UI[appLang] || TV_UI.ru;
 
       const buildLocalized = (lang) => {
         const lTitle = trExcelVal(title || 'Ведомость', lang, false, false);
@@ -772,10 +773,9 @@
       m.id = 'tvMdl';
       m.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;padding:12px;touch-action:none;overscroll-behavior:contain;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)';
 
-      const ui0 = curUi();
       const midBtn = isDesktop
-        ? `<button type="button" id="tvPrint" title="${esc(ui0.printT)}" style="width:auto!important;margin:0!important;height:34px!important;padding:0 12px!important;border-radius:9px!important;background:linear-gradient(135deg,rgba(168,85,247,.26),rgba(124,58,237,.16))!important;border:1px solid rgba(192,132,252,.5)!important;color:#e9d5ff!important;font-size:12px!important;font-weight:700!important;display:inline-flex!important;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:none!important">${esc(ui0.print)}</button>`
-        : `<button type="button" id="tvShare" title="${esc(ui0.shareT)}" style="width:auto!important;margin:0!important;height:34px!important;padding:0 10px!important;border-radius:9px!important;background:linear-gradient(135deg,rgba(56,189,248,.25),rgba(2,132,199,.15))!important;border:1px solid rgba(56,189,248,.5)!important;color:#7dd3fc!important;font-size:12px!important;font-weight:700!important;display:inline-flex!important;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:none!important">${esc(ui0.share)}</button>`;
+        ? `<button type="button" id="tvPrint" title="${esc(ui.printT)}" style="width:auto!important;margin:0!important;height:34px!important;padding:0 12px!important;border-radius:9px!important;background:linear-gradient(135deg,rgba(168,85,247,.26),rgba(124,58,237,.16))!important;border:1px solid rgba(192,132,252,.5)!important;color:#e9d5ff!important;font-size:12px!important;font-weight:700!important;display:inline-flex!important;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:none!important">${esc(ui.print)}</button>`
+        : `<button type="button" id="tvShare" title="${esc(ui.shareT)}" style="width:auto!important;margin:0!important;height:34px!important;padding:0 10px!important;border-radius:9px!important;background:linear-gradient(135deg,rgba(56,189,248,.25),rgba(2,132,199,.15))!important;border:1px solid rgba(56,189,248,.5)!important;color:#7dd3fc!important;font-size:12px!important;font-weight:700!important;display:inline-flex!important;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:none!important">${esc(ui.share)}</button>`;
 
       const langSegBtn = (k, lbl) => `<button type="button" data-tvl="${k}" style="width:auto!important;margin:0!important;height:26px!important;padding:0 8px!important;border-radius:7px!important;font-size:11px!important;font-weight:800!important;cursor:pointer;border:1px solid ${excelLang === k ? 'rgba(250,204,21,.55)' : 'transparent'}!important;background:${excelLang === k ? 'rgba(250,204,21,.22)' : 'transparent'}!important;color:${excelLang === k ? '#fde047' : '#94a3b8'}!important;box-shadow:none!important">${lbl}</button>`;
 
@@ -788,7 +788,7 @@
           <div class="tv-hd" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0">
             <div style="min-width:0;flex:1">
               <div id="tvTitle" style="font-size:13.5px;font-weight:800;color:#f8fafc;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">📊 ${esc(loc.lTitle)}</div>
-              <div style="font-size:11.5px;color:#94a3b8;margin-top:2px"><span id="tvRowsLbl">${esc(ui0.rows)}</span> <b id="tvRowCount">${rows.length}</b></div>
+              <div style="font-size:11.5px;color:#94a3b8;margin-top:2px"><span id="tvRowsLbl">${esc(ui.rows)}</span> <b id="tvRowCount">${rows.length}</b></div>
             </div>
             <div id="tvLangBar" style="display:inline-flex;align-items:center;gap:2px;padding:3px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);flex-shrink:0">
               ${langSegBtn('ru', 'RU')}${langSegBtn('hy', 'HY')}${langSegBtn('en', 'EN')}
@@ -797,9 +797,9 @@
           </div>
 
           <div class="tv-bar" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(0,0,0,.15);border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;box-sizing:border-box">
-            <input type="search" id="tvSearch" placeholder="${esc(ui0.search)}" style="flex:1 1 auto;width:auto;min-width:0;height:34px;margin:0;padding:0 10px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#f8fafc;font-size:12.5px;outline:none;box-sizing:border-box">
+            <input type="search" id="tvSearch" placeholder="${esc(ui.search)}" style="flex:1 1 auto;width:auto;min-width:0;height:34px;margin:0;padding:0 10px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#f8fafc;font-size:12.5px;outline:none;box-sizing:border-box">
             ${midBtn}
-            <button type="button" id="tvDownload" title="${esc(ui0.dlT)}" style="width:auto!important;margin:0!important;height:34px!important;padding:0 10px!important;border-radius:9px!important;background:rgba(16,185,129,.18)!important;border:1px solid rgba(52,211,153,.45)!important;color:#6ee7b7!important;font-size:12px!important;font-weight:700!important;display:inline-flex!important;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:none!important">
+            <button type="button" id="tvDownload" title="${esc(ui.dlT)}" style="width:auto!important;margin:0!important;height:34px!important;padding:0 10px!important;border-radius:9px!important;background:rgba(16,185,129,.18)!important;border:1px solid rgba(52,211,153,.45)!important;color:#6ee7b7!important;font-size:12px!important;font-weight:700!important;display:inline-flex!important;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:none!important">
               📥 Excel
             </button>
           </div>
@@ -807,7 +807,7 @@
           <div class="tv-scroll" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0;max-width:100%;min-width:0;touch-action:pan-x pan-y">
             <table id="tvTable" style="width:max-content;min-width:100%;border-collapse:collapse;font-size:12px;line-height:1.35;text-align:left">
               <thead id="tvThead">${renderThead(loc.lHeaders)}</thead>
-              <tbody id="tvTbody">${this.renderRowsHtml(loc.lRows, mergeFirstCol, rowTypes, loc.lHeaders.length, mergeCols, ui0.empty)}</tbody>
+              <tbody id="tvTbody">${this.renderRowsHtml(loc.lRows, mergeFirstCol, rowTypes, loc.lHeaders.length, mergeCols, ui.empty)}</tbody>
               <tfoot id="tvTfoot">${renderTfoot(loc.lTotal)}</tfoot>
             </table>
           </div>
@@ -851,7 +851,6 @@
       const countEl = document.getElementById('tvRowCount');
 
       const applySearch = () => {
-        const ui = curUi();
         const q = (searchInp.value || '').trim().toLowerCase();
         if (!q) {
           tbody.innerHTML = this.renderRowsHtml(loc.lRows, mergeFirstCol, rowTypes, loc.lHeaders.length, mergeCols, ui.empty);
@@ -869,7 +868,7 @@
         countEl.textContent = filtered.length;
       };
 
-      // Переключатель языка Excel-файла (RU / HY / EN)
+      // Переключатель языка Excel-файла и предпросмотра таблицы (RU / HY / EN)
       const langBar = document.getElementById('tvLangBar');
       if (langBar) {
         langBar.onclick = e => {
@@ -879,7 +878,6 @@
           if (!nl || nl === excelLang) return;
           excelLang = nl;
           loc = buildLocalized(excelLang);
-          const ui = curUi();
           langBar.querySelectorAll('button[data-tvl]').forEach(x => {
             const on = x.dataset.tvl === excelLang;
             x.style.borderColor = on ? 'rgba(250,204,21,.55)' : 'transparent';
@@ -888,15 +886,6 @@
           });
           const ttl = document.getElementById('tvTitle');
           if (ttl) ttl.textContent = '📊 ' + loc.lTitle;
-          const rLbl = document.getElementById('tvRowsLbl');
-          if (rLbl) rLbl.textContent = ui.rows;
-          if (searchInp) searchInp.placeholder = ui.search;
-          const shB = document.getElementById('tvShare');
-          if (shB) { shB.textContent = ui.share; shB.title = ui.shareT; }
-          const prB = document.getElementById('tvPrint');
-          if (prB) { prB.textContent = ui.print; prB.title = ui.printT; }
-          const dlB = document.getElementById('tvDownload');
-          if (dlB) dlB.title = ui.dlT;
           const th = document.getElementById('tvThead');
           if (th) th.innerHTML = renderThead(loc.lHeaders);
           const tf = document.getElementById('tvTfoot');
