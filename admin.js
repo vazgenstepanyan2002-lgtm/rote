@@ -1572,7 +1572,7 @@ function drawTotals(){
   return list;
  }
  function pruneStaleOcrPending(){
-  if(!ME)return;
+  if(!auth||!auth.currentUser)return;
   Object.keys(USERS).forEach(uid=>{
    const op=USERS[uid]&&USERS[uid].ocrPending;
    if(!op||typeof op!=='object')return;
