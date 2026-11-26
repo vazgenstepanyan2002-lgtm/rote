@@ -1550,15 +1550,41 @@ function drawTotals(){
    +'<button class="btn" data-act="force">🔄 Обновить у всех</button>';
   g('view').innerHTML=h;
  }
+ const _ocrPrunedPend=new Set();
+ function isStaleOcrPending(k,p){
+  if(!p||!p.code||!OCR_CAT_NAMES[p.code])return true;
+  if(p.from&&p.from===p.code)return true;
+  if(OCR_MAP[k]&&OCR_MAP[k]===p.code)return true;
+  return false;
+ }
  function getOcrPending(){
   const list=[];
   Object.keys(USERS).forEach(uid=>{
    const op=USERS[uid]&&USERS[uid].ocrPending;
    if(op&&typeof op==='object'){
-    Object.keys(op).forEach(k=>{if(op[k]&&op[k].code)list.push({uid,k,p:op[k]})});
+    Object.keys(op).forEach(k=>{
+     const p=op[k];
+     if(!p||!p.code||isStaleOcrPending(k,p))return;
+     list.push({uid,k,p});
+    });
    }
   });
   return list;
+ }
+ function pruneStaleOcrPending(){
+  if(!ME)return;
+  Object.keys(USERS).forEach(uid=>{
+   const op=USERS[uid]&&USERS[uid].ocrPending;
+   if(!op||typeof op!=='object')return;
+   Object.keys(op).forEach(k=>{
+    const p=op[k];
+    if(!p||!isStaleOcrPending(k,p))return;
+    const pk=uid+'/'+k;
+    if(_ocrPrunedPend.has(pk))return;
+    _ocrPrunedPend.add(pk);
+    db.ref('users/'+uid+'/ocrPending/'+k).remove().catch(()=>{_ocrPrunedPend.delete(pk)});
+   });
+  });
  }
  function updOcrTabBdg(){
   const b=g('ocrTabBdg');if(!b)return;
@@ -1566,9 +1592,10 @@ function drawTotals(){
   b.textContent=n>99?'99+':String(n);
   b.hidden=n===0;
  }
- const ocrNorm=s=>String(s||'').toLowerCase().replace(/և/g,'եվ').replace(/ё/g,'е').replace(/[–—−]/g,'-').replace(/[,]/g,'.').replace(/[_\/]+/g,' ').replace(/\s+/g,' ').trim();
- const OCR_HY_KW={other:'այլ աթոռ դարակաշար սեղան լվացարան կոմոդ մահճակալ մոդուլ ներքնակ պահոց դուռ պուֆ տումբա',sofas:'բազմոց բազկաթոռ հավաքածու',recep:'ընդունարան ռեսեպշեն նախասրահ',kitchen:'խոհանոց',living:'հյուրասրահ հյուրասենյակ',bedroom:'ննջասենյակ ննջարան',wardrobe:'պահարան'};
+ const ocrNorm=s=>String(s||'').toLowerCase().replace(/և|եւ/g,'եվ').replace(/ё/g,'е').replace(/[–—−]/g,'-').replace(/[,]/g,'.').replace(/[_\/]+/g,' ').replace(/\s+/g,' ').trim();
+ const OCR_HY_KW={other:'այլ աթոռ դարակաշար սեղան լվացարան կոմոդ մահճակալ մոդուլ ներքնակ պահոց դուռ պուֆ տումբա ջահ արդուկ',sofas:'բազմոց բազկաթոռ հավաքածու',recep:'ընդունարան ռեսեպշեն նախասրահ',kitchen:'խոհանոց',living:'հյուրասրահ հյուրասենյակ տակդիր',bedroom:'ննջասենյակ ննջարան',wardrobe:'պահարան'};
  function drawOcr(){
+  pruneStaleOcrPending();
   const pendList=getOcrPending();
   const allKeys=Object.keys(OCR_MAP).filter(k=>OCR_MAP[k]&&OCR_CAT_NAMES[OCR_MAP[k]]).sort();
   const recalcBtn=!isSubAdm()?'<button type="button" data-act="ocr-recalc" style="height:40px;padding:0 12px;border-radius:12px;background:rgba(56,189,248,.16);border:1px solid rgba(56,189,248,.42);color:#7dd3fc;font-size:13px;font-weight:700;white-space:nowrap">🔄 Пересчитать</button>':'';
@@ -1576,7 +1603,7 @@ function drawTotals(){
   if(pendList.length){
    h+='<div class="sec" style="color:#fde047">🧾 Ожидают подтверждения ('+pendList.length+')</div>';
    h+=pendList.map(({uid,k,p})=>{
-    const prevCd=p.from||OCR_MAP[k]||'';
+    const prevCd=(p.from&&p.from!==p.code)?p.from:((OCR_MAP[k]&&OCR_MAP[k]!==p.code)?OCR_MAP[k]:'');
     const byHtml=p.by?'<span data-no-i18n="1">'+esc(p.by)+'</span>':'<span>Водитель</span>';
     const diffHtml=prevCd
      ?'<div class="rs" style="margin-top:4px;line-height:1.45"><span>Было:</span> <span style="color:#fca5a5">'+esc(OCR_CAT_NAMES[prevCd]||prevCd)+'</span><br><span>Стало:</span> <b style="color:#6ee7b7">'+esc(OCR_CAT_NAMES[p.code]||p.code)+'</b> · <span>от</span> '+byHtml+'</div>'
@@ -1588,8 +1615,8 @@ function drawTotals(){
      +'<button type="button" data-act="ocr-no" data-uid="'+esc(uid)+'" data-k="'+esc(k)+'" style="height:36px;border-radius:10px;background:rgba(239,68,68,.16);border:1px solid rgba(239,68,68,.38);color:#fca5a5;font-size:13px;font-weight:700">✕ Отклонить</button>'
      +'</div></div>';
    }).join('');
-   h+='<div class="sec">Все правила ('+allKeys.length+')</div>';
   }
+  h+='<div class="sec">Все правила ('+allKeys.length+')</div>';
   h+='<input id="ocrSrchInp" class="sum-srch" type="search" value="'+esc(OCR_Q)+'" placeholder="Поиск по названию или категории..." style="margin-bottom:10px!important"><div id="ocrRulesList"></div>';
   const curInp=g('ocrSrchInp'),wasFocused=curInp&&document.activeElement===curInp;
   const renderList=()=>{
@@ -2311,7 +2338,8 @@ function openOcrRuleModal(ruleKey, curCode, isNew = false){
 
   g('aopSaveBtn').onclick = async () => {
    const finalKey = isNew ? (g('aopRuleKeyInp') ? g('aopRuleKeyInp').value : '') : ruleKey;
-   const cleanKey = isNew ? admFbKey(finalKey) : String(ruleKey || '');
+   const fixedKey = (isNew && typeof window.ocrFixName === 'function') ? window.ocrFixName(finalKey) : finalKey;
+   const cleanKey = isNew ? admFbKey(fixedKey) : String(ruleKey || '');
    if (!cleanKey) { toast('Введите название товара из накладной', true); return; }
    if (!selectedCd) { toast('Выберите категорию мебели из списка', true); return; }
    close();
@@ -2775,7 +2803,7 @@ function openSelectModal(){
    if(mObj)exportCrewMonthCsv(monthName(mObj.m),mObj.cars,mObj.qty,mObj.sum);
    else toast('Нет данных за этот месяц',true);
   }
-  else if(a==='ocr-ok'){e.stopPropagation();const uid=b.dataset.uid,k=b.dataset.k,cd=b.dataset.code;if(!uid||!k||!cd)return;try{await db.ref('config/ocrMap/'+k).set(cd);await db.ref('users/'+uid+'/ocrPending/'+k).remove();const who=USERS[uid]?dispName(parseDev(uid,USERS[uid])):uid;logSubAct('ocr','ocr_ok','Одобрена заявка OCR',k+' → '+(OCR_CAT_NAMES[cd]||cd)+' (от '+who+')',{target:k});toast('Правило добавлено для всех');if(!isSubAdm()){const plan=findAffectedDocsByRule(k,cd);if(plan.length)openRecalcModal(plan,'Найдены накладные с этим товаром')}}catch(err){toast('Ошибка сохранения',true)}}
+  else if(a==='ocr-ok'){e.stopPropagation();const uid=b.dataset.uid,k=b.dataset.k,cd=b.dataset.code;if(!uid||!k||!cd)return;try{const rawP=USERS[uid]&&USERS[uid].ocrPending&&USERS[uid].ocrPending[k];const fixedRaw=rawP&&rawP.raw&&typeof window.ocrFixName==='function'?window.ocrFixName(rawP.raw):(typeof window.ocrFixName==='function'?window.ocrFixName(k):k);const mapK=admFbKey(fixedRaw)||k;await db.ref('config/ocrMap/'+mapK).set(cd);const pendDels=[];Object.keys(USERS).forEach(u=>{const op=USERS[u]&&USERS[u].ocrPending;if(!op)return;if(op[k])pendDels.push(db.ref('users/'+u+'/ocrPending/'+k).remove());if(mapK!==k&&op[mapK])pendDels.push(db.ref('users/'+u+'/ocrPending/'+mapK).remove());});if(!pendDels.length)pendDels.push(db.ref('users/'+uid+'/ocrPending/'+k).remove());await Promise.all(pendDels);const who=USERS[uid]?dispName(parseDev(uid,USERS[uid])):uid;logSubAct('ocr','ocr_ok','Одобрена заявка OCR',mapK+' → '+(OCR_CAT_NAMES[cd]||cd)+' (от '+who+')',{target:mapK});toast('Правило добавлено для всех');if(!isSubAdm()){const plan=findAffectedDocsByRule(mapK,cd);if(plan.length)openRecalcModal(plan,'Найдены накладные с этим товаром')}}catch(err){toast('Ошибка сохранения',true)}}
   else if(a==='ocr-recalc'){e.stopPropagation();if(isSubAdm())return;const plan=findAffectedDocsByAllRules();if(!plan.length)toast('Все накладные уже актуальны');else openRecalcModal(plan,'Сверка накладных со словарём OCR и правилами кода')}
   else if(a==='ocr-add'){e.stopPropagation();openOcrRuleModal('','',true)}
   else if(a==='ocr-edit'){e.stopPropagation();const k=b.dataset.k;if(k)openOcrRuleModal(k,OCR_MAP[k]||'',false)}
