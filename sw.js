@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eurobaza-v20261127134810';
+const CACHE_NAME = 'eurobaza-v20261127140024';
 const SW_VER = CACHE_NAME.replace(/^eurobaza-v/, '');
 const ASSETS = [
   './',
@@ -20,7 +20,13 @@ const ASSETS = [
   'i18n.js',
   'online.js',
   'auth.js',
-  'admin.js',
+  'admin-core.js',
+  'admin-map.js',
+  'admin-bonuses.js',
+  'admin-ocr.js',
+  'admin-att.js',
+  'admin-comms.js',
+  'admin-main.js',
   'manifest.json',
   'auto-translations.json',
   'bg.webp',

@@ -59,5 +59,19 @@ if (fs.existsSync("style.css")) {
   else fail("CSS: style.css", `Не совпадают скобки: { = ${open}, } = ${close}`);
 }
 
+// 5. Запуск автотестов (node:test)
+if (fs.existsSync("tests")) {
+  const testFiles = fs.readdirSync("tests").filter(x => x.endsWith(".test.js")).sort();
+  if (testFiles.length) {
+    try {
+      const cmd = `node --test ${testFiles.map(f => `"tests/${f}"`).join(" ")}`;
+      execSync(cmd, { stdio: "pipe" });
+      ok(`Автотесты (${testFiles.length} файлов): ${testFiles.join(", ")}`);
+    } catch (e) {
+      fail("Автотесты (node --test)", (e.stdout ? e.stdout.toString().trim() + "\n" : "") + (e.stderr ? e.stderr.toString().trim() : e.message));
+    }
+  }
+}
+
 console.log(errors ? `\n❌ Найдено ошибок: ${errors}` : "\n✅ Весь проект проверен: ошибок нет!");
 process.exit(errors ? 1 : 0);
