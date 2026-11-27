@@ -5,3 +5,9 @@ EuroBaza Каталоги/
 
 .agents/
 EuroBaza СубАгенты/
+
+# Локальные файлы (только на телефоне, не пушить на публичный GitHub)
+GEMINI.md
+update-context.js
+bump-version.js
+package.json
