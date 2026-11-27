@@ -195,28 +195,52 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
  function toast(m,err){if(err)admVib([60,40,60]);const t=g('toast');t.textContent=m;t.className='show'+(err?' err':'');clearTimeout(_tt);_tt=setTimeout(()=>{t.className=''},2600)}
  window.toast=toast;
  function showErr(m){const e=g('err');e.textContent=m||'';e.hidden=!m}
- function denied(e){
+ function denied(e,path){
   const d=(e&&e.code==='PERMISSION_DENIED')||/permission_denied/i.test((e&&e.message)||'');
-  showErr(d?'Нет доступа к данным. Проверьте, что правила базы опубликованы и в них указан ваш email.':'Ошибка базы: '+((e&&e.message)||e));
+  const pfx=path?(' ['+path+']'):'';
+  if(window._admPushErr)window._admPushErr(d?'FB_DENIED':'FB_ERR',(path?path+': ':'')+((e&&e.message)||e));
+  showErr(d?('Нет доступа к данным'+pfx+'. Проверьте, что правила базы опубликованы и в них указан ваш email.'):('Ошибка базы'+pfx+': '+((e&&e.message)||e)));
  }
  function listen(path,cb){
   const r=db.ref(path);
-  const fn=r.on('value',s=>cb(s.val()),denied);
+  const fn=r.on('value',s=>cb(s.val()),e=>denied(e,path));
   offs.push(()=>r.off('value',fn));
  }
- function stop(){offs.forEach(f=>{try{f()}catch(e){}});offs=[];clearInterval(tick);tick=null}
+ let _drawT=null,_lastSlPrune=0,_lastChatPrune=0,_lastUsersCrewSig='';
+ function scheduleDraw(delay){
+  if(_drawT)return;
+  _drawT=setTimeout(()=>{_drawT=null;draw()},delay||120);
+ }
+ function calcUsersCrewSig(uObj){
+  return Object.keys(uObj||{}).sort().map(id=>{const u=uObj[id]||{};return id+':'+(u.car||'')+':'+(u.uname||'')+':'+(u.blocked?1:0)}).join('|');
+ }
+ function stop(){offs.forEach(f=>{try{f()}catch(e){}});offs=[];clearInterval(tick);tick=null;clearTimeout(_drawT);_drawT=null}
  function start(){
   stop();
-  listen('users',v=>{USERS=v||{};showErr('');draw();refreshCrewsMgr()});
-  listen('cars',v=>{CARS=v||{};draw();refreshCrewsMgr()});
-  listen('labels',v=>{LABELS=v||{};syncCrewsFromLabels();draw();refreshCrewsMgr()});
-  listen('accounts',v=>{ACCOUNTS=v||{};draw()});
+  _lastUsersCrewSig='';
+  listen('users',v=>{
+   USERS=v||{};showErr('');
+   const cSig=calcUsersCrewSig(USERS);
+   const crewChanged=cSig!==_lastUsersCrewSig;
+   _lastUsersCrewSig=cSig;
+   updOcrTabBdg();
+   if(TAB==='online')scheduleDraw(250);
+   else if(TAB==='map'){if(!isSubAdm())scheduleDraw(350)}
+   else if(TAB==='ocr'){scheduleDraw(200)}
+   else if(TAB==='att'){if(crewChanged)scheduleDraw(200)}
+   else if(TAB==='totals'){if(crewChanged)scheduleDraw(200)}
+   else if(TAB==='ver'){scheduleDraw(400)}
+   if(crewChanged)refreshCrewsMgr();
+  });
+  listen('cars',v=>{CARS=v||{};scheduleDraw(120);refreshCrewsMgr()});
+  listen('labels',v=>{LABELS=v||{};syncCrewsFromLabels();scheduleDraw(120);refreshCrewsMgr()});
+  listen('accounts',v=>{ACCOUNTS=v||{};scheduleDraw(120)});
   listen('dm',onDmSnap);
-  listen('config/forceUpdate',v=>{FU=+v||0;draw()});
-  listen('config/ocrMap',v=>{OCR_MAP=v||{};if(TAB==='ocr')drawOcr()});
+  listen('config/forceUpdate',v=>{FU=+v||0;if(TAB==='ver')scheduleDraw(120)});
+  listen('config/ocrMap',v=>{OCR_MAP=v||{};updOcrTabBdg();if(TAB==='ocr')scheduleDraw(120)});
   {
    const attRef=db.ref('attendance');
-   const attFn=attRef.on('value',s=>{ATT=s.val()||{};ATT_ERR=false;if(TAB==='att')drawAtt();refreshCrewsMgr()},()=>{ATT_ERR=true;if(TAB==='att')drawAtt()});
+   const attFn=attRef.on('value',s=>{ATT=s.val()||{};ATT_ERR=false;if(TAB==='att')scheduleDraw(120);refreshCrewsMgr()},e=>{ATT_ERR=true;if(window._admPushErr)window._admPushErr('FB_DENIED','attendance: '+((e&&e.message)||e));if(TAB==='att')scheduleDraw(120)});
    offs.push(()=>attRef.off('value',attFn));
   }
   if(!isSubAdm()){
@@ -226,8 +250,12 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
     const obj=s.val()||{};
     const all=Object.keys(obj).map(k=>Object.assign({k:k},obj[k])).sort((a,b)=>(+b.t||0)-(+a.t||0));
     if(all.length>300){
-     all.slice(300).forEach(x=>db.ref('subadminLog/'+x.k).remove().catch(()=>{}));
      SUB_LOG=all.slice(0,300);
+     if(Date.now()-_lastSlPrune>10000){
+      _lastSlPrune=Date.now();
+      const del={};all.slice(300).forEach(x=>{del[x.k]=null});
+      db.ref('subadminLog').update(del).catch(()=>{});
+     }
     }else{
      SUB_LOG=all;
     }
@@ -237,9 +265,10 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
     }else{
      updSubLogBdg();
     }
-   },()=>{
+   },e=>{
     SUB_LOG_ERR=true;
     SUB_LOG=[];
+    if(window._admPushErr)window._admPushErr('FB_DENIED','subadminLog: '+((e&&e.message)||e));
     updSubLogBdg();
     if(SUB_LOG_OPEN)renderSubLog();
    });
@@ -247,9 +276,35 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
   }else{
    SUB_LOG=[];SUB_LOG_ERR=false;updSubLogBdg();
   }
-  listen('chat',v=>{const obj=v||{};const all=Object.keys(obj).map(k=>Object.assign({k:k},obj[k])).sort((a,b)=>(+a.t||0)-(+b.t||0));const list=all.length>50?(all.slice(0,all.length-50).forEach(x=>db.ref('chat/'+x.k).remove().catch(()=>{})),all.slice(-50)):all;if(_admChatInit){const fresh=list.filter(m=>(+m.t||0)>_admLastNotifT&&!m.adm);if(fresh.length){const lm=fresh[fresh.length-1];_admLastNotifT=+lm.t||Date.now();localStorage.setItem('ADM_CHAT_NOTIF_T',String(_admLastNotifT));if(!CHAT_OPEN||document.hidden)admNotify((lm.name||'Водитель'),String(lm.txt||'').slice(0,140))}}else if(list.length){const mx=Math.max.apply(null,list.map(m=>+m.t||0));if(mx>_admLastNotifT){_admLastNotifT=mx;localStorage.setItem('ADM_CHAT_NOTIF_T',String(_admLastNotifT))}}_admChatInit=true;CHAT=list;if(CHAT_OPEN&&!document.hidden){markAdmChatSeen();renderAdmChat()}else updAdmChatBdg()});
+  listen('chat',v=>{
+   const obj=v||{};
+   const all=Object.keys(obj).map(k=>Object.assign({k:k},obj[k])).sort((a,b)=>(+a.t||0)-(+b.t||0));
+   let list=all;
+   if(all.length>50){
+    list=all.slice(-50);
+    if(!isSubAdm()&&Date.now()-_lastChatPrune>10000){
+     _lastChatPrune=Date.now();
+     const del={};all.slice(0,all.length-50).forEach(x=>{del[x.k]=null});
+     db.ref('chat').update(del).catch(()=>{});
+    }
+   }
+   if(_admChatInit){
+    const fresh=list.filter(m=>(+m.t||0)>_admLastNotifT&&!m.adm);
+    if(fresh.length){
+     const lm=fresh[fresh.length-1];
+     _admLastNotifT=+lm.t||Date.now();
+     localStorage.setItem('ADM_CHAT_NOTIF_T',String(_admLastNotifT));
+     if(!CHAT_OPEN||document.hidden)admNotify((lm.name||'Водитель'),String(lm.txt||'').slice(0,140));
+    }
+   }else if(list.length){
+    const mx=Math.max.apply(null,list.map(m=>+m.t||0));
+    if(mx>_admLastNotifT){_admLastNotifT=mx;localStorage.setItem('ADM_CHAT_NOTIF_T',String(_admLastNotifT))}
+   }
+   _admChatInit=true;CHAT=list;
+   if(CHAT_OPEN&&!document.hidden){markAdmChatSeen();renderAdmChat()}else updAdmChatBdg();
+  });
   loadPub();
-  tick=setInterval(draw,15000);
+  tick=setInterval(()=>{if(document.hidden)return;if(TAB==='online'||TAB==='ver'||(TAB==='map'&&!isSubAdm()))draw()},15000);
  }
  async function loadPub(){
   try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});PUB=(await r.json()).v||''}catch(e){PUB=null}
@@ -1572,18 +1627,23 @@ function drawTotals(){
   return list;
  }
  function pruneStaleOcrPending(){
-  if(!auth||!auth.currentUser)return;
+  if(!auth||!auth.currentUser||isSubAdm())return;
   Object.keys(USERS).forEach(uid=>{
    const op=USERS[uid]&&USERS[uid].ocrPending;
    if(!op||typeof op!=='object')return;
+   const patch={},added=[];
    Object.keys(op).forEach(k=>{
     const p=op[k];
     if(!p||!isStaleOcrPending(k,p))return;
     const pk=uid+'/'+k;
     if(_ocrPrunedPend.has(pk))return;
     _ocrPrunedPend.add(pk);
-    db.ref('users/'+uid+'/ocrPending/'+k).remove().catch(()=>{_ocrPrunedPend.delete(pk)});
+    patch[k]=null;
+    added.push(pk);
    });
+   if(added.length){
+    db.ref('users/'+uid+'/ocrPending').update(patch).catch(()=>{added.forEach(pk=>_ocrPrunedPend.delete(pk))});
+   }
   });
  }
  function updOcrTabBdg(){
@@ -3505,6 +3565,7 @@ function openSelectModal(){
     ERR_LOG.unshift({ t: new Date().toLocaleTimeString('ru-RU'), type: t, msg: String(m || '').slice(0, 220) });
     if (ERR_LOG.length > 20) ERR_LOG.pop();
   };
+  window._admPushErr = pushErr;
   window.addEventListener('error', e => pushErr('JS', (e.message || 'Resource error') + (e.filename ? ' (' + e.filename.split('/').pop() + ':' + e.lineno + ')' : '')));
   window.addEventListener('unhandledrejection', e => pushErr('Promise', e.reason && (e.reason.message || e.reason)));
 

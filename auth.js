@@ -480,45 +480,61 @@
     const myUid = ls("ADM_UID") || "";
     if (_dmBound || !myUid || !window.firebase || !firebase.apps || !firebase.apps.length) return;
     _dmBound = true;
-    firebase.database().ref("dm/" + myUid).on("value", snap => {
-      const val = snap.val() || {};
-      const parseList = data => {
-        if (!data || typeof data !== "object") return [];
-        return Object.keys(data)
-          .filter(k => k !== "adm" && k !== "dlv" && data[k] && typeof data[k] === "object" && ("txt" in data[k] || "t" in data[k]))
-          .map(k => Object.assign({ k: k }, data[k]))
-          .sort((a, b) => (+a.t || 0) - (+b.t || 0)).slice(-50);
-      };
-      let nextAdm = [], nextDlv = [];
-      if (val.dlv && typeof val.dlv === "object") {
-        nextDlv = parseList(val.dlv);
-        nextAdm = (val.adm && typeof val.adm === "object") ? parseList(val.adm) : parseList(val);
-      } else if (val.adm && typeof val.adm === "object") {
-        nextAdm = parseList(val.adm);
-      } else {
-        nextAdm = parseList(val);
-      }
-      const combined = [...nextAdm, ...nextDlv];
-      if (_dmInit) {
-        const fresh = combined.filter(m => (+m.t || 0) > _dmLastNotifT && !!m.adm);
+    const parseList = data => {
+      if (!data || typeof data !== "object") return [];
+      return Object.keys(data)
+        .filter(k => k !== "adm" && k !== "dlv" && data[k] && typeof data[k] === "object" && ("txt" in data[k] || "t" in data[k]))
+        .map(k => Object.assign({ k: k }, data[k]))
+        .sort((a, b) => (+a.t || 0) - (+b.t || 0)).slice(-50);
+    };
+    let _dmAdmInit = false, _dmDlvInit = false, _legacyChecked = false;
+    let _lastAdmNotifT = +(ls("DM_NOTIF_ADM_T") || _dmLastNotifT || 0);
+    let _lastDlvNotifT = +(ls("DM_NOTIF_DLV_T") || _dmLastNotifT || 0);
+    const handleCh = (ch, list) => {
+      const isDlv = ch === "dlv";
+      const inited = isDlv ? _dmDlvInit : _dmAdmInit;
+      const lastT = isDlv ? _lastDlvNotifT : _lastAdmNotifT;
+      if (inited) {
+        const fresh = list.filter(m => (+m.t || 0) > lastT && !!m.adm);
         if (fresh.length) {
           const lastMsg = fresh[fresh.length - 1];
-          _dmLastNotifT = +lastMsg.t || Date.now();
-          lsSet("DM_NOTIF_T", String(_dmLastNotifT));
+          const nt = +lastMsg.t || Date.now();
+          if (isDlv) { _lastDlvNotifT = nt; lsSet("DM_NOTIF_DLV_T", String(nt)); }
+          else { _lastAdmNotifT = nt; lsSet("DM_NOTIF_ADM_T", String(nt)); }
+          if (nt > _dmLastNotifT) { _dmLastNotifT = nt; lsSet("DM_NOTIF_T", String(nt)); }
           if (!_dmOpen || document.hidden) {
-            const isDlv = lastMsg.role === "delivery" || lastMsg.name === "Доставка";
-            alertNewDm(isDlv);
-            pushSysNotify(isDlv ? "👩‍💼 Отдел доставки" : "👑 Админ (лично)", String(lastMsg.txt || "").slice(0, 140), { tag: "eurobaza-dm", action: "OPEN_DM" });
+            const msgDlv = isDlv || lastMsg.role === "delivery" || lastMsg.name === "Доставка";
+            alertNewDm(msgDlv);
+            pushSysNotify(msgDlv ? "👩‍💼 Отдел доставки" : "👑 Админ (лично)", String(lastMsg.txt || "").slice(0, 140), { tag: "eurobaza-dm", action: "OPEN_DM" });
           }
         }
-      } else if (combined.length) {
-        const mx = Math.max.apply(null, combined.map(m => +m.t || 0));
+      } else if (list.length) {
+        const mx = Math.max.apply(null, list.map(m => +m.t || 0));
+        if (isDlv && mx > _lastDlvNotifT) { _lastDlvNotifT = mx; lsSet("DM_NOTIF_DLV_T", String(mx)); }
+        if (!isDlv && mx > _lastAdmNotifT) { _lastAdmNotifT = mx; lsSet("DM_NOTIF_ADM_T", String(mx)); }
         if (mx > _dmLastNotifT){ _dmLastNotifT = mx; lsSet("DM_NOTIF_T", String(_dmLastNotifT)); }
       }
-      _dmInit = true;
-      _dmList = nextAdm;
-      _dmDlvList = nextDlv;
+      if (isDlv) { _dmDlvInit = true; _dmDlvList = list; }
+      else { _dmAdmInit = true; _dmList = list; }
+      _dmInit = _dmAdmInit || _dmDlvInit;
       if (_dmOpen && !document.hidden){ markDmSeen(_dmActiveCh); renderDmRows(); } else updBadges();
+    };
+
+    const db = firebase.database();
+    db.ref("dm/" + myUid + "/adm").limitToLast(50).on("value", snap => {
+      const list = parseList(snap.val() || {});
+      if (!list.length && !_legacyChecked) {
+        _legacyChecked = true;
+        db.ref("dm/" + myUid).limitToLast(50).once("value").then(lsnap => {
+          const leg = parseList(lsnap.val() || {});
+          handleCh("adm", leg);
+        }).catch(() => handleCh("adm", []));
+        return;
+      }
+      handleCh("adm", list);
+    }, () => {});
+    db.ref("dm/" + myUid + "/dlv").limitToLast(50).on("value", snap => {
+      handleCh("dlv", parseList(snap.val() || {}));
     }, () => {});
   }
   function openUserSettings(){

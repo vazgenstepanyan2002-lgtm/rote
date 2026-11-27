@@ -6,14 +6,6 @@
     databaseURL: "https://eurobaza-c5aa5-default-rtdb.europe-west1.firebasedatabase.app"
   };
 
-  function uid(){
-    let u = null;
-    try { u = localStorage.getItem('ONLINE_UID'); } catch(e){}
-    if (!u){ u = 'u' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); try { localStorage.setItem('ONLINE_UID', u); } catch(e){} }
-    return u;
-  }
-  const MY_ID = uid();
-
   function loadSDK(){
     return new Promise((res, rej) => {
       if (window.firebase && window.firebase.database) return res();
@@ -54,7 +46,8 @@
   }
 
   let db = null, ref = null, hbTimer = null, renderTimer = null;
-  const TTL = 60 * 1000, HB = 20 * 1000;
+  let bgOffTimer = null, bgGoOffTimer = null, isBgOffline = false;
+  const TTL = 60 * 1000, HB = 20 * 1000, BG_OFFLINE_MS = 45 * 1000;
   let last = {};
 
   function syncConnStatus(connected){
@@ -89,7 +82,7 @@
     window.addEventListener('offline', () => syncConnStatus(false));
 
     const beat = () => {
-      if (document.hidden) return;
+      if (document.hidden || isBgOffline) return;
       let u = "", aid = ""; try { u = localStorage.getItem("USER_NAME") || ""; aid = localStorage.getItem("ADM_UID") || ""; } catch(e){}
       if (!u || !aid) return;
       ref.child(aid).set({ t: Date.now() }).catch(()=>{});
@@ -99,7 +92,39 @@
     hbTimer = setInterval(beat, HB);
     renderTimer = setInterval(render, 5000);
 
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) beat(); });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        try { if (window._flushBonusPending) window._flushBonusPending(); } catch(e){}
+        clearTimeout(bgOffTimer);
+        clearTimeout(bgGoOffTimer);
+        bgOffTimer = setTimeout(() => {
+          if (!document.hidden || !db) return;
+          const finishOff = () => {
+            clearTimeout(bgGoOffTimer); bgGoOffTimer = null;
+            if (!document.hidden || !db || isBgOffline) return;
+            isBgOffline = true;
+            try { db.goOffline(); } catch(e){}
+          };
+          bgGoOffTimer = setTimeout(finishOff, 1200);
+          try {
+            const aid = localStorage.getItem('ADM_UID');
+            if (ref && aid) {
+              ref.child(aid).set({ t: 0 }).catch(() => {}).finally(finishOff);
+              return;
+            }
+          } catch(e){}
+          finishOff();
+        }, BG_OFFLINE_MS);
+      } else {
+        clearTimeout(bgOffTimer); bgOffTimer = null;
+        clearTimeout(bgGoOffTimer); bgGoOffTimer = null;
+        if (isBgOffline && db) {
+          isBgOffline = false;
+          try { db.goOnline(); } catch(e){}
+        }
+        beat();
+      }
+    });
   }
 
   function render(){
@@ -112,7 +137,10 @@
     setCount(n);
   }
 
-  window.addEventListener('pagehide', () => { try { const aid = localStorage.getItem('ADM_UID'); if (ref && aid) ref.child(aid).set({ t: 0 }).catch(() => {}); } catch(e){} });
+  window.addEventListener('pagehide', () => {
+    try { if (window._flushBonusPending) window._flushBonusPending(); } catch(e){}
+    try { const aid = localStorage.getItem('ADM_UID'); if (ref && aid) ref.child(aid).set({ t: 0 }).catch(() => {}); } catch(e){}
+  });
 
   let _sdkStarted = false;
   function tryBootOnline(){

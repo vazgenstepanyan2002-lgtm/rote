@@ -102,14 +102,25 @@
  const ICO={other:'📦',sofas:'🛋️',recep:'🗄️',kitchen:'🍳',living:'📺',bedroom:'🛏️',wardrobe:'🚪'};
  let B=[];
  try{const v=window.StorageService?window.StorageService.getJSON('BON',[]):JSON.parse(localStorage.getItem('BON')||'[]');if(Array.isArray(v))B=v.filter(c=>c&&Array.isArray(c.subs))}catch(e){}
- const save=(pk,sk,k,val)=>{
- if (!CAR_CODE || !window.firebase || !firebase.apps || !firebase.apps.length) return;
- if (pk && sk) {
-  const key = pk + "_" + sk + (k === "2" ? "_2" : "");
-  firebase.database().ref("cars/" + CAR_CODE + "/qty/" + key).set(val > 0 ? val : null).catch(()=>{});
-  firebase.database().ref("cars/" + CAR_CODE + "/t").set(Date.now()).catch(()=>{});
+ let _qtyBuf={},_qtyTimer=null;
+ function flushQty(){
+  clearTimeout(_qtyTimer);_qtyTimer=null;
+  const keys=Object.keys(_qtyBuf);
+  if(!keys.length||!CAR_CODE||!window.firebase||!firebase.apps||!firebase.apps.length){_qtyBuf={};return}
+  const updObj={t:Date.now()};
+  keys.forEach(k=>{updObj['qty/'+k]=_qtyBuf[k]});
+  _qtyBuf={};
+  firebase.database().ref('cars/'+CAR_CODE).update(updObj).catch(()=>{});
  }
-};
+ const save=(pk,sk,k,val)=>{
+  if (!CAR_CODE || !window.firebase || !firebase.apps || !firebase.apps.length) return;
+  if (pk && sk) {
+   const key = pk + "_" + sk + (k === "2" ? "_2" : "");
+   _qtyBuf[key] = val > 0 ? val : null;
+   clearTimeout(_qtyTimer);
+   _qtyTimer = setTimeout(flushQty, 400);
+  }
+ };
  let CAR_CODE = "";
  try { CAR_CODE = window.StorageService ? window.StorageService.get("USER_CAR", "") : (localStorage.getItem("USER_CAR") || ""); } catch(e){}
  let _carRef = null, _carFn = null, _histRef = null, _histFn = null, _carHist = {};
@@ -130,6 +141,7 @@
  function bindCarPool(code){
   code = String(code || "").trim().toUpperCase();
   if (code === CAR_CODE && _carRef) { updCarBadge(); return; }
+  flushQty();
   flushManualLog();
   if (_carRef && _carFn) { try { _carRef.off("value", _carFn); } catch(e){} }
   if (_histRef && _histFn) { try { _histRef.off("value", _histFn); } catch(e){} }
@@ -148,8 +160,8 @@
    const qmap = snap.val() || {};
    B.forEach(c => c.subs.forEach(s => {
     const k1 = c.pk + "_" + s.sk, k2 = k1 + "_2";
-    s.qty = num(qmap[k1]);
-    s.qty2 = s.one ? 0 : num(qmap[k2]);
+    if (!Object.prototype.hasOwnProperty.call(_qtyBuf, k1)) s.qty = num(qmap[k1]);
+    if (!Object.prototype.hasOwnProperty.call(_qtyBuf, k2)) s.qty2 = s.one ? 0 : num(qmap[k2]);
    }));
    if (g("bnMdl") && g("bnMdl").classList.contains("open")) {
     B.forEach((c, ci) => c.subs.forEach((s, si) => {
@@ -303,7 +315,9 @@
   const rec={type:'manual',doc:'Вручную',t:Date.now(),by:by,uid:uid,qty:totQ,sum:Math.round(totS),p:p};
   firebase.database().ref('cars/'+CAR_CODE+'/docs').push(rec).catch(()=>{});
  }
- window.addEventListener('pagehide',flushManualLog);
+ function flushBonusPending(){flushQty();flushManualLog();}
+ window._flushBonusPending=flushBonusPending;
+ window.addEventListener('pagehide',flushBonusPending);
 
  function onInput(e){
   const t=e.target,c=B[+t.dataset.c],s=c&&c.subs[+t.dataset.s];
@@ -340,6 +354,7 @@
   let rs=0,rq=0;B.forEach(c=>c.subs.forEach(s=>{const q1=num(s.qty),q2=num(s.qty2);rs+=q1*num(s.price)+q2*num(s.price2);rq+=q1+q2}));
   const msg=rq>0?(CAR_CODE==='ADMIN'?'Обнулить '+fm(rq)+' шт на сумму '+fm(rs)+' '+CUR+'?':'Обнулить '+fm(rq)+' шт ('+fm(rs)+' '+CUR+') у экипажа '+CAR_CODE+' и очистить журнал накладных?'):'Количества по нулям. Очистить журнал накладных?';
   if(!await askC(msg,'Обнулить','🔄'))return;
+  clearTimeout(_qtyTimer);_qtyTimer=null;_qtyBuf={};
   clearTimeout(_manTimer);_manTimer=null;_manBuf={};
   B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));
   if(window.firebase&&firebase.apps&&firebase.apps.length){firebase.database().ref('cars/'+CAR_CODE+'/qty').remove().catch(()=>{});firebase.database().ref('cars/'+CAR_CODE+'/docs').remove().catch(()=>{});}
@@ -526,6 +541,7 @@
   const mk=await pickMonth();if(!mk)return;
   const ok=await askC('Сохранить итоги за выбранный месяц и обнулить количества?','Сохранить','💾');
   if(!ok)return;
+  clearTimeout(_qtyTimer);_qtyTimer=null;_qtyBuf={};
   clearTimeout(_manTimer);_manTimer=null;_manBuf={};
   const rows=sumRows();
   if(!rows.length){tst('Пока ничего не выбрано','err');return}
@@ -631,12 +647,13 @@
  }
  async function openDocsLog(){
   if(!CAR_CODE){showNoCrewAlert();return}
+  flushQty();
   flushManualLog();
   let m=g('bnDocsMdl');if(m)m.remove();m=document.createElement('div');m.id='bnDocsMdl';m.className='cm open';
   m.innerHTML='<div class="cm-b ob-pk-box" style="max-width:420px;height:min(82dvh,580px);display:flex;flex-direction:column;padding:0;overflow:hidden"><div class="ob-pk-hd" style="padding:14px 16px;flex-shrink:0"><div><b>📜 История изменений</b><small><span>Экипаж</span> <span data-no-i18n="1">'+esc(CAR_CODE)+'</span></small></div><button type="button" class="pt-x" id="bdX">✕</button></div><div style="padding:8px 12px;background:rgba(0,0,0,.18);border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0"><input id="bdSearch" type="search" placeholder="🔍 Поиск по имени, накладной или товару..." style="width:100%;height:36px;padding:0 12px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#f8fafc;font-size:12.5px;outline:none;box-sizing:border-box"></div><div class="ob-pk-list" id="bdList" style="flex:1;overflow:auto;padding:12px"><div class="pt-empty">Загрузка...</div></div></div>';
   document.body.appendChild(m);const cl=()=>m.remove();g('bdX').onclick=cl;m.onclick=ev=>{if(ev.target===m)cl()};
   try{
-   const val=(await firebase.database().ref('cars/'+CAR_CODE+'/docs').once('value')).val()||{};
+   const val=(await firebase.database().ref('cars/'+CAR_CODE+'/docs').limitToLast(150).once('value')).val()||{};
    const allList=Object.keys(val).map(k=>val[k]).filter(Boolean).sort((a,b)=>(+b.t||0)-(+a.t||0)),box=g('bdList');if(!box)return;
    if(!allList.length){box.innerHTML='<div class="pt-empty">Изменений пока нет.</div>';return}
 
@@ -733,6 +750,7 @@
   if(!noPush){try{history.pushState({bn:1},'')}catch(e){}}
  }
  function closeBon(src){
+  flushQty();
   flushManualLog();
   const m=g('bnMdl');if(!m||!m.classList.contains('open'))return;
   const ov=g('bnSm');if(ov)ov.classList.remove('open');m.classList.remove('open');lock(false);
