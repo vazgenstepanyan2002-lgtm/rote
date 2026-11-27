@@ -234,7 +234,11 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
   });
   listen('cars',v=>{CARS=v||{};scheduleDraw(120);refreshCrewsMgr()});
   listen('labels',v=>{LABELS=v||{};syncCrewsFromLabels();scheduleDraw(120);refreshCrewsMgr()});
-  listen('accounts',v=>{ACCOUNTS=v||{};scheduleDraw(120)});
+  if(!isSubAdm()){
+   listen('accounts',v=>{ACCOUNTS=v||{};scheduleDraw(120)});
+  }else{
+   ACCOUNTS={};
+  }
   listen('dm',onDmSnap);
   listen('config/forceUpdate',v=>{FU=+v||0;if(TAB==='ver')scheduleDraw(120)});
   listen('config/ocrMap',v=>{OCR_MAP=v||{};updOcrTabBdg();if(TAB==='ocr')scheduleDraw(120)});
@@ -3532,7 +3536,7 @@ function openSelectModal(){
  if(g('admMenuBtn'))g('admMenuBtn').onclick=openAdmMenu;
  if(g('admChatBtn'))g('admChatBtn').onclick=openAdmChat;
  auth.onAuthStateChanged(u=>{
-  if(u){
+  if(u&&!u.isAnonymous&&u.email){
    let profNick='';try{profNick=(localStorage.getItem('USER_NAME')||'').trim()}catch(e){}
    if(g('admNick'))g('admNick').textContent=profNick||'Admin';
    g('login').hidden=true;g('panel').hidden=false;g('who').innerHTML=(isSubAdm()?'<span>Доставка</span> · ':'')+'<span data-no-i18n="1">'+esc(u.email||'')+'</span>';

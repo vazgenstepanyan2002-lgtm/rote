@@ -84,7 +84,17 @@
       const pin = pn.value.trim();
       if (rawName.length < 2){ err.textContent = "Введите имя (минимум 2 буквы)"; nm.focus(); return; }
       if (!/^\d{4}$/.test(pin)){ err.textContent = "Введите ровно 4 цифры кода"; pn.focus(); return; }
-      if (!window.firebase || !firebase.apps || !firebase.apps.length){
+      if (!window._fbAuthDone && window._retryFbBoot) window._retryFbBoot();
+      if ((!window.firebase || !firebase.apps || !firebase.apps.length || !window._fbAuthDone) && window._fbAuthReady){
+        btn.disabled = true;
+        btn.textContent = "Подключение...";
+        try {
+          await Promise.race([window._fbAuthReady, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 8000))]);
+        } catch(e){}
+        btn.disabled = false;
+        btn.innerHTML = '<span>Продолжить</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>';
+      }
+      if (!window.firebase || !firebase.apps || !firebase.apps.length || !window._fbAuthDone){
         err.textContent = "Нет связи с сервером. Проверьте интернет";
         return;
       }
@@ -318,7 +328,9 @@
       inp.oninput = () => { try { sessionStorage.setItem("DRAFT_CHAT", inp.value); } catch(e){} };
       const sendMsg = async () => {
         const txt = inp.value.trim(); if (!txt) return;
-        if (!window.firebase || !firebase.apps || !firebase.apps.length){ window.toast && toast("Нет соединения с сервером", "err"); return; }
+        if (!window._fbAuthDone && window._retryFbBoot) window._retryFbBoot();
+        if (!window._fbAuthDone && window._fbAuthReady) { try { await Promise.race([window._fbAuthReady, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 5000))]); } catch(e){} }
+        if (!window.firebase || !firebase.apps || !firebase.apps.length || !window._fbAuthDone){ window.toast && toast("Нет соединения с сервером", "err"); return; }
         inp.value = ""; snd.disabled = true;
         try { sessionStorage.removeItem("DRAFT_CHAT"); } catch(e){}
         try {
@@ -605,7 +617,10 @@
       const key = ls("USER_KEY"), oldV = p1.value.trim(), newV = p2.value.trim();
       if (!key) return;
       if (!/^\d{4}$/.test(oldV) || !/^\d{4}$/.test(newV)) { window.toast && toast("Введите 4 цифры старого и нового ПИН-кода", "err"); return; }
-      if (!window.firebase || !firebase.apps || !firebase.apps.length) { window.toast && toast("Нет соединения с сервером", "err"); return; }
+      if (!window._fbAuthDone && window._fbAuthReady) {
+        try { await Promise.race([window._fbAuthReady, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 6000))]); } catch(e){}
+      }
+      if (!window.firebase || !firebase.apps || !firebase.apps.length || !window._fbAuthDone) { window.toast && toast("Нет соединения с сервером", "err"); return; }
       try {
         const ref = firebase.database().ref("accounts/" + key + "/pin");
         const snap = await ref.once("value");
@@ -830,7 +845,12 @@ let _blkBound = false, _blkRefs = [];
       }
     });
     window.addEventListener("pageshow", () => { if (!ls("USER_NAME")) lockBack(); });
-    let tries = 0; const w = setInterval(() => { if (++tries > 60) clearInterval(w); else if (window.firebase && firebase.apps && firebase.apps.length){ clearInterval(w); bindChat(); bindDm(); bindBlockWatch(); } }, 500);
+    const startBinds = () => { bindChat(); bindDm(); bindBlockWatch(); };
+    if (window._fbAuthReady) {
+      window._fbAuthReady.then(() => { if (window.firebase && firebase.apps && firebase.apps.length) startBinds(); });
+    } else {
+      let tries = 0; const w = setInterval(() => { if (++tries > 60) clearInterval(w); else if (window.firebase && firebase.apps && firebase.apps.length && window._fbAuthDone){ clearInterval(w); startBinds(); } }, 500);
+    }
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })();

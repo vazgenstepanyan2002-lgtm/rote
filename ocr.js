@@ -145,12 +145,9 @@
     }
     return '';
   }
-  let _cmTries = 0;
   if (!window.OCR_CLASSIFIER_ONLY) {
-    const _cmWait = setInterval(() => {
-      if (++_cmTries > 45) { clearInterval(_cmWait); return; }
+    const startOcrMapWatch = () => {
       if (!window.firebase || !firebase.apps || !firebase.apps.length) return;
-      clearInterval(_cmWait);
       firebase.database().ref('config/ocrMap').on('value', s => {
         const val = (s.val() && typeof s.val() === 'object') ? s.val() : {};
         CLOUD_MAP = val;
@@ -161,7 +158,18 @@
           localStorage.setItem('BON_OCR_LOCAL', JSON.stringify(LOCAL_MAP));
         } catch (e) {}
       }, () => {});
-    }, 800);
+    };
+    if (window._fbAuthReady) {
+      window._fbAuthReady.then(startOcrMapWatch);
+    } else {
+      let _cmTries = 0;
+      const _cmWait = setInterval(() => {
+        if (++_cmTries > 45) { clearInterval(_cmWait); return; }
+        if (!window.firebase || !firebase.apps || !firebase.apps.length || !window._fbAuthDone) return;
+        clearInterval(_cmWait);
+        startOcrMapWatch();
+      }, 800);
+    }
   }
 
   function saveCloudModel(rawName, code, isAdminRole, fromCode){
@@ -178,18 +186,31 @@
       LOCAL_MAP[fk] = code;
       try { localStorage.setItem('BON_OCR_LOCAL', JSON.stringify(LOCAL_MAP)); } catch (e) {}
     }
-    if (!window.firebase || !firebase.apps || !firebase.apps.length) return false;
-    const db = firebase.database();
-    if (isAdminRole) {
-      db.ref('config/ocrMap/' + fk).set(code).catch(() => {});
-      return true;
-    } else {
-      const uid = (() => { try { return localStorage.getItem('ADM_UID') || ''; } catch (e) { return ''; } })();
-      const who = (() => { try { return localStorage.getItem('USER_NAME') || 'Водитель'; } catch (e) { return 'Водитель'; } })();
-      if (!uid) return false;
-      db.ref('users/' + uid + '/ocrPending/' + fk).set({ raw: cleanRaw, code, from: fromCode || '', by: who, uid, t: Date.now() }).catch(() => {});
+    const writeNow = () => {
+      if (!window.firebase || !firebase.apps || !firebase.apps.length || !window._fbAuthDone) return;
+      const db = firebase.database();
+      if (isAdminRole) {
+        db.ref('config/ocrMap/' + fk).set(code).catch(() => {});
+      } else {
+        const uid = (() => { try { return localStorage.getItem('ADM_UID') || ''; } catch (e) { return ''; } })();
+        const who = (() => { try { return localStorage.getItem('USER_NAME') || 'Водитель'; } catch (e) { return 'Водитель'; } })();
+        if (!uid) return;
+        db.ref('users/' + uid + '/ocrPending/' + fk).set({ raw: cleanRaw, code, from: fromCode || '', by: who, uid, t: Date.now() }).catch(() => {});
+      }
+    };
+    if (!isAdminRole) {
+      const uidCheck = (() => { try { return localStorage.getItem('ADM_UID') || ''; } catch (e) { return ''; } })();
+      if (!uidCheck) return false;
+    }
+    if (window.firebase && firebase.apps && firebase.apps.length && window._fbAuthDone) {
+      writeNow();
       return true;
     }
+    if (window._fbAuthReady) {
+      window._fbAuthReady.then(writeNow);
+      return true;
+    }
+    return false;
   }
 
   const RULES = [
@@ -1017,7 +1038,13 @@ async function askGemini(b64){
       const valid = rows.filter(r => r.code && BON_BY_CODE[r.code] && r.qty > 0);
       if (!valid.length) { window.toast && toast('Выберите категорию хотя бы для одной позиции', 'err'); return; }
       const code = (() => { try { return (localStorage.getItem('USER_CAR') || '').trim().toUpperCase(); } catch (e) { return ''; } })();
-      if (!code || !window.firebase || !firebase.apps.length) { window.toast && toast('Нет связи или не назначен экипаж', 'err'); return; }
+      if (!window._fbAuthDone && window._retryFbBoot) window._retryFbBoot();
+      if (!window._fbAuthDone && window._fbAuthReady) {
+        g('obSaveBtn').disabled = true;
+        try { await Promise.race([window._fbAuthReady, new Promise((_, rej) => setTimeout(() => rej(new Error('auth')), 6000))]); } catch (e) {}
+        g('obSaveBtn').disabled = false;
+      }
+      if (!code || !window.firebase || !firebase.apps.length || !window._fbAuthDone) { window.toast && toast('Нет связи или не назначен экипаж', 'err'); return; }
       g('obSaveBtn').disabled = true;
       try {
         const db = firebase.database();

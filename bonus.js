@@ -102,18 +102,23 @@
  const ICO={other:'📦',sofas:'🛋️',recep:'🗄️',kitchen:'🍳',living:'📺',bedroom:'🛏️',wardrobe:'🚪'};
  let B=[];
  try{const v=window.StorageService?window.StorageService.getJSON('BON',[]):JSON.parse(localStorage.getItem('BON')||'[]');if(Array.isArray(v))B=v.filter(c=>c&&Array.isArray(c.subs))}catch(e){}
- let _qtyBuf={},_qtyTimer=null;
+ const fbReady=()=>!!(window.firebase&&firebase.apps&&firebase.apps.length&&window._fbAuthDone);
+ let _qtyBuf={},_qtyTimer=null,_qtyWaitAuth=false;
  function flushQty(){
   clearTimeout(_qtyTimer);_qtyTimer=null;
   const keys=Object.keys(_qtyBuf);
-  if(!keys.length||!CAR_CODE||!window.firebase||!firebase.apps||!firebase.apps.length){_qtyBuf={};return}
+  if(!keys.length||!CAR_CODE){_qtyBuf={};return}
+  if(!fbReady()){
+   if(!_qtyWaitAuth&&window._fbAuthReady){_qtyWaitAuth=true;window._fbAuthReady.then(()=>{_qtyWaitAuth=false;if(Object.keys(_qtyBuf).length)flushQty()})}
+   return;
+  }
   const updObj={t:Date.now()};
   keys.forEach(k=>{updObj['qty/'+k]=_qtyBuf[k]});
   _qtyBuf={};
   firebase.database().ref('cars/'+CAR_CODE).update(updObj).catch(()=>{});
  }
  const save=(pk,sk,k,val)=>{
-  if (!CAR_CODE || !window.firebase || !firebase.apps || !firebase.apps.length) return;
+  if (!CAR_CODE) return;
   if (pk && sk) {
    const key = pk + "_" + sk + (k === "2" ? "_2" : "");
    _qtyBuf[key] = val > 0 ? val : null;
@@ -149,9 +154,12 @@
   CAR_CODE = code;
   try { if (code) localStorage.setItem("USER_CAR", code); else localStorage.removeItem("USER_CAR"); } catch(e){}
   updCarBadge();
-  if (!code || !window.firebase || !firebase.apps || !firebase.apps.length) {
+  if (!code || !window.firebase || !firebase.apps || !firebase.apps.length || !window._fbAuthDone) {
    B.forEach(c => c.subs.forEach(s => { s.qty = 0; s.qty2 = 0; }));
    if (g("bnMdl") && g("bnMdl").classList.contains("open")) render();
+   if (code && !window._fbAuthDone && window._fbAuthReady) {
+    window._fbAuthReady.then(() => { if (CAR_CODE === code && !_carRef) bindCarPool(code); });
+   }
    return;
   }
   const db = firebase.database();
@@ -293,9 +301,9 @@
   };
  }
 
- let _manBuf={},_manTimer=null;
+ let _manBuf={},_manTimer=null,_manWaitAuth=false;
  function queueManualLog(pk,sk,k,delta,price){
-  if(!delta||!CAR_CODE||!window.firebase||!firebase.apps||!firebase.apps.length)return;
+  if(!delta||!CAR_CODE)return;
   const key=pk+'_'+sk+(k==='2'?'_2':'');
   if(!_manBuf[key])_manBuf[key]={d:0,p:num(price)};
   _manBuf[key].d=r3(_manBuf[key].d+delta);
@@ -306,7 +314,11 @@
  function flushManualLog(){
   clearTimeout(_manTimer);_manTimer=null;
   const keys=Object.keys(_manBuf).filter(k=>_manBuf[k]&&_manBuf[k].d!==0);
-  if(!keys.length||!CAR_CODE||!window.firebase||!firebase.apps||!firebase.apps.length){_manBuf={};return}
+  if(!keys.length||!CAR_CODE){_manBuf={};return}
+  if(!fbReady()){
+   if(!_manWaitAuth&&window._fbAuthReady){_manWaitAuth=true;window._fbAuthReady.then(()=>{_manWaitAuth=false;if(Object.keys(_manBuf).length)flushManualLog()})}
+   return;
+  }
   const p={};let totQ=0,totS=0;
   keys.forEach(k=>{const d=_manBuf[k].d;p[k]=d;totQ=r3(totQ+d);totS+=d*_manBuf[k].p});
   _manBuf={};
@@ -357,7 +369,7 @@
   clearTimeout(_qtyTimer);_qtyTimer=null;_qtyBuf={};
   clearTimeout(_manTimer);_manTimer=null;_manBuf={};
   B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));
-  if(window.firebase&&firebase.apps&&firebase.apps.length){firebase.database().ref('cars/'+CAR_CODE+'/qty').remove().catch(()=>{});firebase.database().ref('cars/'+CAR_CODE+'/docs').remove().catch(()=>{});}
+  if(fbReady()){firebase.database().ref('cars/'+CAR_CODE+'/qty').remove().catch(()=>{});firebase.database().ref('cars/'+CAR_CODE+'/docs').remove().catch(()=>{});}
   render();tst('Количества обнулены');
  }
 
@@ -384,8 +396,8 @@
  const cqOf=c=>window.BonusEngine?window.BonusEngine.categoryQuantity(c):c.items.reduce((a,it)=>a+it.parts.reduce((b,z)=>b+z.n,0),0);
  const MK=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
  const HIST=()=>_carHist||{};
- const saveHistRec=(id,rec)=>{if(CAR_CODE&&window.firebase&&firebase.apps&&firebase.apps.length)firebase.database().ref('cars/'+CAR_CODE+'/hist/'+id).set(rec).catch(()=>{})};
- const delHistRec=id=>{if(CAR_CODE&&window.firebase&&firebase.apps&&firebase.apps.length)firebase.database().ref('cars/'+CAR_CODE+'/hist/'+id).remove().catch(()=>{})};
+ const saveHistRec=(id,rec)=>{if(CAR_CODE&&fbReady())firebase.database().ref('cars/'+CAR_CODE+'/hist/'+id).set(rec).catch(()=>{})};
+ const delHistRec=id=>{if(CAR_CODE&&fbReady())firebase.database().ref('cars/'+CAR_CODE+'/hist/'+id).remove().catch(()=>{})};
  const qtyOf=rows=>window.BonusEngine?window.BonusEngine.totalQuantity(rows):rows.reduce((a,c)=>a+cqOf(c),0);
  const sumOf=rows=>window.BonusEngine?window.BonusEngine.totalSum(rows):rows.reduce((a,c)=>a+c.sum,0);
  // ===== Названия месяцев на текущем языке =====
@@ -550,7 +562,7 @@
   h[id]=rec;
   saveHistRec(id,rec);
   B.forEach(c=>c.subs.forEach(s=>{s.qty=0;s.qty2=0}));
-  if(CAR_CODE&&window.firebase&&firebase.apps&&firebase.apps.length){firebase.database().ref('cars/'+CAR_CODE+'/qty').remove().catch(()=>{});firebase.database().ref('cars/'+CAR_CODE+'/docs').remove().catch(()=>{});}render();histView();
+  if(CAR_CODE&&fbReady()){firebase.database().ref('cars/'+CAR_CODE+'/qty').remove().catch(()=>{});firebase.database().ref('cars/'+CAR_CODE+'/docs').remove().catch(()=>{});}render();histView();
   tst('Итоги сохранены');
  }
  function openSum(){
@@ -653,6 +665,8 @@
   m.innerHTML='<div class="cm-b ob-pk-box" style="max-width:420px;height:min(82dvh,580px);display:flex;flex-direction:column;padding:0;overflow:hidden"><div class="ob-pk-hd" style="padding:14px 16px;flex-shrink:0"><div><b>📜 История изменений</b><small><span>Экипаж</span> <span data-no-i18n="1">'+esc(CAR_CODE)+'</span></small></div><button type="button" class="pt-x" id="bdX">✕</button></div><div style="padding:8px 12px;background:rgba(0,0,0,.18);border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0"><input id="bdSearch" type="search" placeholder="🔍 Поиск по имени, накладной или товару..." style="width:100%;height:36px;padding:0 12px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#f8fafc;font-size:12.5px;outline:none;box-sizing:border-box"></div><div class="ob-pk-list" id="bdList" style="flex:1;overflow:auto;padding:12px"><div class="pt-empty">Загрузка...</div></div></div>';
   document.body.appendChild(m);const cl=()=>m.remove();g('bdX').onclick=cl;m.onclick=ev=>{if(ev.target===m)cl()};
   try{
+   if(!fbReady()&&window._fbAuthReady){await Promise.race([window._fbAuthReady,new Promise((_,rej)=>setTimeout(()=>rej(new Error('auth')),6000))])}
+   if(!fbReady())throw new Error('offline');
    const val=(await firebase.database().ref('cars/'+CAR_CODE+'/docs').limitToLast(150).once('value')).val()||{};
    const allList=Object.keys(val).map(k=>val[k]).filter(Boolean).sort((a,b)=>(+b.t||0)-(+a.t||0)),box=g('bdList');if(!box)return;
    if(!allList.length){box.innerHTML='<div class="pt-empty">Изменений пока нет.</div>';return}
@@ -743,7 +757,7 @@
    showNoCrewAlert();
    return;
   }
-  if(!_carRef&&window.firebase&&firebase.apps&&firebase.apps.length)bindCarPool(CAR_CODE);
+  if(!_carRef&&window.firebase&&firebase.apps&&firebase.apps.length&&window._fbAuthDone)bindCarPool(CAR_CODE);
   const m=ensure();updCarBadge();render();
   m.classList.add('open');lock(true);
   try{sessionStorage.setItem('BON_WAS_OPEN','1')}catch(e){}

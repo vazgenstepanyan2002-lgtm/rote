@@ -3,23 +3,61 @@
   const g = id => document.getElementById(id);
   const FIREBASE_CONFIG = {
     apiKey: "AIzaSyCR8uHLrEMGDd-sbMidapnuaRdFK3fNdng",
-    databaseURL: "https://eurobaza-c5aa5-default-rtdb.europe-west1.firebasedatabase.app"
+    authDomain: "eurobaza-c5aa5.firebaseapp.com",
+    databaseURL: "https://eurobaza-c5aa5-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "eurobaza-c5aa5"
   };
 
-  function loadSDK(){
+  let _authReadyRes = null;
+  window._fbAuthDone = false;
+  window._fbAuthReady = new Promise(r => { _authReadyRes = r; });
+
+  function loadScript(src){
     return new Promise((res, rej) => {
-      if (window.firebase && window.firebase.database) return res();
-      const s1 = document.createElement('script');
-      s1.src = 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js';
-      s1.onload = () => {
-        const s2 = document.createElement('script');
-        s2.src = 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js';
-        s2.onload = () => res();
-        s2.onerror = () => rej(new Error('db sdk'));
-        document.head.appendChild(s2);
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = () => res();
+      s.onerror = () => rej(new Error(src));
+      document.head.appendChild(s);
+    });
+  }
+
+  function loadSDK(){
+    if (window.firebase && window.firebase.database && window.firebase.auth) return Promise.resolve();
+    const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
+    const pApp = window.firebase ? Promise.resolve() : loadScript(base + 'firebase-app-compat.js');
+    return pApp.then(() => Promise.all([
+      window.firebase && window.firebase.auth ? Promise.resolve() : loadScript(base + 'firebase-auth-compat.js'),
+      window.firebase && window.firebase.database ? Promise.resolve() : loadScript(base + 'firebase-database-compat.js')
+    ]));
+  }
+
+  function ensureClientAuth(){
+    try { firebase.initializeApp(FIREBASE_CONFIG); } catch(e){}
+    const auth = firebase.auth();
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const done = u => {
+        if (settled) return;
+        settled = true;
+        window._fbAuthDone = true;
+        if (_authReadyRes) { _authReadyRes(u); _authReadyRes = null; }
+        resolve(u);
       };
-      s1.onerror = () => rej(new Error('app sdk'));
-      document.head.appendChild(s1);
+      const unsub = auth.onAuthStateChanged(u => {
+        if (u) {
+          try { unsub(); } catch(e){}
+          done(u);
+        } else {
+          auth.signInAnonymously().then(cred => {
+            try { unsub(); } catch(e){}
+            done(cred && cred.user ? cred.user : auth.currentUser);
+          }).catch(err => {
+            try { unsub(); } catch(e){}
+            reject(err);
+          });
+        }
+      });
     });
   }
 
@@ -142,18 +180,32 @@
     try { const aid = localStorage.getItem('ADM_UID'); if (ref && aid) ref.child(aid).set({ t: 0 }).catch(() => {}); } catch(e){}
   });
 
-  let _sdkStarted = false;
+  let _sdkStarted = false, _sdkBooting = false, _sdkRetryTimer = null, _sdkRetryDelay = 4000;
   function tryBootOnline(){
-    if (_sdkStarted) return;
+    if (_sdkStarted || _sdkBooting) return;
+    clearTimeout(_sdkRetryTimer); _sdkRetryTimer = null;
+    _sdkBooting = true;
     ensureBadge();
-    loadSDK().then(() => { _sdkStarted = true; start(); }).catch(() => {
+    loadSDK().then(() => ensureClientAuth()).then(() => {
+      _sdkBooting = false;
+      _sdkStarted = true;
+      _sdkRetryDelay = 4000;
+      start();
+    }).catch(() => {
+      _sdkBooting = false;
       ensureBadge();
       syncConnStatus(false);
+      if (navigator.onLine) {
+        _sdkRetryTimer = setTimeout(tryBootOnline, _sdkRetryDelay);
+        _sdkRetryDelay = Math.min(_sdkRetryDelay * 2, 30000);
+      }
     });
   }
+  window._retryFbBoot = tryBootOnline;
   function boot(){
     tryBootOnline();
-    window.addEventListener('online', () => { if (!_sdkStarted) tryBootOnline(); });
+    window.addEventListener('online', () => { if (!_sdkStarted) { _sdkRetryDelay = 4000; tryBootOnline(); } });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && !_sdkStarted) tryBootOnline(); });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
@@ -325,14 +377,20 @@
     setInterval(tryFU, 10000);
   }
 
-  let tries = 0;
-  const wait = setInterval(() => {
-    tries++;
-    if (window.firebase && firebase.apps && firebase.apps.length && firebase.database){
-      clearInterval(wait);
-      init();
-    } else if (tries > 60) clearInterval(wait);
-  }, 500);
+  if (window._fbAuthReady) {
+    window._fbAuthReady.then(() => {
+      if (window.firebase && firebase.apps && firebase.apps.length && firebase.database) init();
+    });
+  } else {
+    let tries = 0;
+    const wait = setInterval(() => {
+      tries++;
+      if (window.firebase && firebase.apps && firebase.apps.length && firebase.database && window._fbAuthDone){
+        clearInterval(wait);
+        init();
+      } else if (tries > 60) clearInterval(wait);
+    }, 500);
+  }
 })();
 
 // ADMIN-GEO: передача только текущего местоположения для карты админа
@@ -358,7 +416,7 @@
     if (now - lastGeo < 25000) return;
     if (!(await canLocate())) return;
     const aid = ls("ADM_UID");
-    if (!aid || !window.firebase || !firebase.apps || !firebase.apps.length) return;
+    if (!aid || !window.firebase || !firebase.apps || !firebase.apps.length || !window._fbAuthDone) return;
 
     if (window.GeoService) {
       window.GeoService.getPosition({ timeout: 10000, maximumAge: 15000 }).then(g => {
