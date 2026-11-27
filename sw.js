@@ -1,4 +1,5 @@
-const CACHE_NAME = 'eurobaza-v20261126161329';
+const CACHE_NAME = 'eurobaza-v20261127125325';
+const SW_VER = CACHE_NAME.replace(/^eurobaza-v/, '');
 const ASSETS = [
   './',
   'index.html',
@@ -19,11 +20,9 @@ const ASSETS = [
   'online.js',
   'auth.js',
   'admin.js',
-  'leaflet.min.css',
-  'leaflet.min.js',
   'manifest.json',
   'auto-translations.json',
-  'bg.jpg',
+  'bg.webp',
   'icon-192.png',
   'icon-512.png'
 ];
@@ -50,6 +49,27 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
   if (url.pathname.endsWith('version.json')) return;
+
+  const isImg = /\.(webp|png|jpe?g|svg|ico)$/i.test(url.pathname);
+  const reqVer = url.searchParams.get('v');
+  const isVersionedAsset = reqVer === SW_VER && /\.(js|css)$/i.test(url.pathname);
+
+  if (isImg || isVersionedAsset) {
+    e.respondWith(
+      caches.open(CACHE_NAME).then(cache =>
+        cache.match(req, { ignoreSearch: true }).then(cached => {
+          if (cached) return cached;
+          return fetch(req).then(res => {
+            if (res && res.status === 200) {
+              cache.put(req, res.clone()).catch(() => {});
+            }
+            return res;
+          });
+        })
+      ).catch(() => caches.match(req, { ignoreSearch: true }))
+    );
+    return;
+  }
 
   e.respondWith(
     fetch(req).then(res => {

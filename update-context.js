@@ -55,7 +55,7 @@ fs.writeFileSync(ctxPath, head + tail.trim() + '\n\n' + codeSec.trim() + '\n', '
 
 const skelPath = aiDir + '/EuroBaza_SKELETON.md';
 
-const SK_SKIP = new Set(['leaflet.min.js', 'leaflet.min.css']);
+const SK_SKIP = new Set([]);
 const SK_KW = new Set(['if', 'for', 'while', 'switch', 'catch', 'with', 'return', 'typeof', 'else', 'new']);
 
 function skelJs(code) {
