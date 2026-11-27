@@ -9,8 +9,10 @@
  const fm=n=>(Math.round((+n||0)*100)/100).toLocaleString('ru-RU',{maximumFractionDigits:2});
  const money=n=>fm(n)+' '+CUR;
  const MN=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
- const RU={'Այլ':'Другое','Աթոռ, դարակաշար':'Стулья, стеллажи','Աթոռ սեղաններ':'Стулья, столы','Լվացարան':'Раковина','Կոմոդներ':'Комоды','Մահճակալ':'Кровать','Մոդուլներ':'Модули','Ներքնակներ':'Матрасы','Պահոցներ':'Системы хранения','դուռ':'Дверь','Պուֆիկներ':'Пуфы','Տումբաներ':'Тумбы','Բազմոցներ':'Диваны','Բազկաթոռ':'Кресло','Բազմոց':'Диван','Հավաքածու':'Комплект','Ընդունարան':'Ресепшен','Խոհանոցներ':'Кухни','Հյուրասրահ':'Гостиная','Ննջասենյակներ':'Спальни','Պահարաններ':'Шкафы','Մինչև 1,6':'До 1,6','1,6 ից ավել':'Более 1,6','1,6 մ':'1,6 м','2-3 մ':'2–3 м','մինչև 1,7':'До 1,7','1,7 ից ավել':'Более 1,7','Էքսկլ.':'Эксклюзив','2 դուռ':'2 двери','3 դուռ':'3 двери','3 դուռ առանց կոմոդ':'3 двери без комода','3 դուռ կոմոդով':'3 двери с комодом','4 դուռ':'4 двери','5 դուռ':'5 дверей','6 դուռ':'6 дверей'};
- const nm=v=>RU[v]||v;
+ const EB_CAT=window.EB_CATALOG||{};
+ const RU=EB_CAT.RU||{};
+ const nm=EB_CAT.nm||(v=>RU[v]||v);
+ const CAT_ICO_MAP=EB_CAT.CAT_ICO||{};
  const monthName=k=>{const p=String(k||'').split('-');return p.length<2?String(k||'—'):(MN[+p[1]-1]||p[1])+' '+p[0]};
  const verFmt=v=>/^\d{14}$/.test(v||'')?v.slice(6,8)+'.'+v.slice(4,6)+'.'+v.slice(0,4)+' '+v.slice(8,10)+':'+v.slice(10,12):(v||'нет данных');
  function ago(ms){
@@ -156,7 +158,7 @@ const getCarsList=()=>isSubAdm()?CARS_LIST:[...CARS_LIST,'ADMIN'];
    return db.ref('subadminLog').push(rec).catch(()=>{});
   }catch(e){return Promise.resolve()}
  }
- const OCR_CAT_NAMES={'other_a':'Другое · Стулья, стеллажи','other_b':'Другое · Стулья, столы','other_c':'Другое · Раковина','other_d':'Другое · Комоды','other_e':'Другое · Кровать','other_f':'Другое · Модули','other_g':'Другое · Матрасы','other_h':'Другое · Системы хранения','other_i':'Другое · Дверь','other_j':'Другое · Пуфы','other_k':'Другое · Тумбы','sofas_a':'Диваны · Кресло','sofas_b':'Диваны · Диван','sofas_c':'Диваны · Комплект','recep_a':'Ресепшен · До 1,6 м','recep_b':'Ресепшен · Более 1,6 м','kitchen_a':'Кухни · 1,6 м','kitchen_b':'Кухни · 2–3 м','living_a':'Гостиная · До 1,7 м','living_b':'Гостиная · Более 1,7 м','living_c':'Гостиная · Эксклюзив','bedroom_a':'Спальни · 2 двери','bedroom_b':'Спальни · 3 двери без комода','bedroom_c':'Спальни · 3 двери с комодом','bedroom_d':'Спальни · 4 двери','bedroom_e':'Спальни · 5 дверей','bedroom_f':'Спальни · 6 дверей','bedroom_g':'Спальни · 0,9*2','wardrobe_a':'Шкафы · 2 двери','wardrobe_b':'Шкафы · 3 двери','wardrobe_c':'Шкафы · 4 двери','wardrobe_d':'Шкафы · 5 дверей','wardrobe_e':'Шкафы · 6 дверей'};
+ const OCR_CAT_NAMES=EB_CAT.OCR_CAT_NAMES||{};
  const SUB_EMAIL='diannakirakosyan@gmail.com';
  const isSubAdm=()=>((auth.currentUser&&auth.currentUser.email)||'').toLowerCase()===SUB_EMAIL;
  const admRawName=()=>isSubAdm()?'Доставка':'Админ';
@@ -984,15 +986,7 @@ function destroyMap(){_mapTok++;if(_mapRO){try{_mapRO.disconnect()}catch(e){}_ma
  }
  
 
-const CAR_CATALOG=[
- {pk:"other",name:"Այլ",subs:[{sk:"a",name:"Աթոռ, դարակաշար",one:1,p1:50},{sk:"b",name:"Աթոռ սեղաններ",one:1,p1:100},{sk:"c",name:"Լվացարան",p1:300,p2:390},{sk:"d",name:"Կոմոդներ",p1:500,p2:650},{sk:"e",name:"Մահճակալ",p1:500,p2:650},{sk:"f",name:"Մոդուլներ",p1:250,p2:325},{sk:"g",name:"Ներքնակներ",p1:250,p2:325},{sk:"h",name:"Պահոցներ",p1:500,p2:650},{sk:"i",name:"դուռ",one:1,p1:500},{sk:"j",name:"Պուֆիկներ",p1:50,p2:65},{sk:"k",name:"Տումբաներ",p1:50,p2:65}]},
- {pk:"sofas",name:"Բազմոցներ",subs:[{sk:"a",name:"Բազկաթոռ",p1:500,p2:650},{sk:"b",name:"Բազմոց",p1:1000,p2:1300},{sk:"c",name:"Հավաքածու",p1:1500,p2:1950}]},
- {pk:"recep",name:"Ընդունարան",subs:[{sk:"a",name:"Մինչև 1,6",p1:700,p2:910},{sk:"b",name:"1,6 ից ավել",p1:1200,p2:1560}]},
- {pk:"kitchen",name:"Խոհանոցներ",subs:[{sk:"a",name:"1,6 մ",p1:1000,p2:1300},{sk:"b",name:"2-3 մ",p1:2500,p2:3250}]},
- {pk:"living",name:"Հյուրասրահ",subs:[{sk:"a",name:"մինչև 1,7",p1:1000,p2:1300},{sk:"b",name:"1,7 ից ավել",p1:2000,p2:2600},{sk:"c",name:"Էքսկլ.",p1:3000,p2:3900}]},
- {pk:"bedroom",name:"Ննջասենյակներ",subs:[{sk:"a",name:"2 դուռ",p1:1050,p2:1365},{sk:"b",name:"3 դուռ առանց կոմոդ",p1:1550,p2:2015},{sk:"c",name:"3 դուռ կոմոդով",p1:2050,p2:2665},{sk:"d",name:"4 դուռ",p1:2600,p2:3380},{sk:"e",name:"5 դուռ",p1:3100,p2:4030},{sk:"f",name:"6 դուռ",p1:3600,p2:4680},{sk:"g",name:"0,9*2",p1:3100,p2:4030}]},
- {pk:"wardrobe",name:"Պահարաններ",subs:[{sk:"a",name:"2 դուռ",p1:500,p2:650},{sk:"b",name:"3 դուռ",p1:1000,p2:1300},{sk:"c",name:"4 դուռ",p1:1500,p2:1950},{sk:"d",name:"5 դուռ",p1:2000,p2:2600},{sk:"e",name:"6 դուռ",p1:2500,p2:3250}]}
-];
+const CAR_CATALOG=EB_CAT.CAR_CATALOG||[];
 function parseCar(code){
  const raw=(CARS&&CARS[code])||{},qmap=raw.qty||{},hist=raw.hist||{};let sum=0,qty=0;const rows=[];
  CAR_CATALOG.forEach(c=>{const items=[];let cs=0;c.subs.forEach(x=>{const k1=c.pk+"_"+x.sk,k2=k1+"_2",q1=+qmap[k1]||0,q2=x.one?0:(+qmap[k2]||0),parts=[];if(q1>0)parts.push({l:x.one?"":"Город",n:q1,p:x.p1,v:q1*x.p1});if(q2>0)parts.push({l:"Район",n:q2,p:x.p2,v:q2*x.p2});if(parts.length){items.push({name:x.name,parts});parts.forEach(z=>{cs+=z.v;qty+=z.n})}});if(items.length){rows.push({name:c.name,sum:cs,items});sum+=cs}});
@@ -1067,7 +1061,7 @@ function admDocKeyInfo(k){
 }
 function admPickCategory(curCode,subtitle,noI18n){
  return new Promise(resolve=>{
-  const CAT_ICO={'Другое':'📦','Диваны':'🛋️','Ресепшен':'🗄️','Кухни':'🍳','Гостиная':'📺','Спальни':'🛏️','Шкафы':'🚪'};
+  const CAT_ICO=CAT_ICO_MAP;
   const allItems=Object.keys(OCR_CAT_NAMES).map(cd=>{
    const parts=OCR_CAT_NAMES[cd].split(' · ');
    return{cd,cat:parts[0]||'Другое',name:parts[1]||OCR_CAT_NAMES[cd]};
@@ -1657,7 +1651,7 @@ function drawTotals(){
   b.hidden=n===0;
  }
  const ocrNorm=s=>String(s||'').toLowerCase().replace(/և|եւ/g,'եվ').replace(/ё/g,'е').replace(/[–—−]/g,'-').replace(/[,]/g,'.').replace(/[_\/]+/g,' ').replace(/\s+/g,' ').trim();
- const OCR_HY_KW={other:'այլ աթոռ դարակաշար սեղան լվացարան կոմոդ մահճակալ մոդուլ ներքնակ պահոց դուռ պուֆ տումբա ջահ արդուկ',sofas:'բազմոց բազկաթոռ հավաքածու',recep:'ընդունարան ռեսեպշեն նախասրահ',kitchen:'խոհանոց',living:'հյուրասրահ հյուրասենյակ տակդիր',bedroom:'ննջասենյակ ննջարան',wardrobe:'պահարան'};
+ const OCR_HY_KW=EB_CAT.OCR_HY_KW||{};
  function drawOcr(){
   pruneStaleOcrPending();
   const pendList=getOcrPending();
@@ -2338,7 +2332,7 @@ function drawTotals(){
  }
 
 function openOcrRuleModal(ruleKey, curCode, isNew = false){
-  const CAT_ICO = { 'Другое': '📦', 'Диваны': '🛋️', 'Ресепшен': '🗄️', 'Кухни': '🍳', 'Гостиная': '📺', 'Спальни': '🛏️', 'Шкафы': '🚪' };
+  const CAT_ICO = CAT_ICO_MAP;
   const allItems = Object.keys(OCR_CAT_NAMES).map(cd => {
    const parts = OCR_CAT_NAMES[cd].split(' · ');
    return { cd, cat: parts[0] || 'Другое', name: parts[1] || OCR_CAT_NAMES[cd] };

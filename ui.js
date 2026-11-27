@@ -136,17 +136,30 @@ document.addEventListener('click',e=>{
 })();
 // DOCK-AUTO-HIDE: автоматическое скрытие нижнего док-бара при открытии Бонусов, Точек или модалок
 (function(){
-  function syncDock(){
-    const hasModal = Array.from(document.querySelectorAll(".ov, .mdl, [role='dialog']")).some(el => {
-      if (el.hidden) return false;
+  let rafId = 0;
+  function syncDockNow(){
+    rafId = 0;
+    const els = document.querySelectorAll(".ov, .mdl, [role='dialog']");
+    let hasModal = false;
+    for (let i = 0; i < els.length; i++) {
+      const el = els[i];
+      if (el.hidden) continue;
+      if (el.classList.contains("open") || el.classList.contains("show")) { hasModal = true; break; }
       const st = getComputedStyle(el);
-      return st.display !== "none" && st.visibility !== "hidden" && parseFloat(st.opacity || "1") > 0.05;
-    });
+      if (st.display !== "none" && st.visibility !== "hidden" && parseFloat(st.opacity || "1") > 0.05) {
+        hasModal = true;
+        break;
+      }
+    }
     document.body.classList.toggle("dock-hide", hasModal);
   }
-  const mo = new MutationObserver(syncDock);
+  function scheduleSyncDock(){
+    if (rafId) return;
+    rafId = requestAnimationFrame(syncDockNow);
+  }
+  const mo = new MutationObserver(scheduleSyncDock);
   if (document.body) {
     mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "style", "hidden"] });
-    syncDock();
+    syncDockNow();
   }
 })();

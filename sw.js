@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eurobaza-v20261127133949';
+const CACHE_NAME = 'eurobaza-v20261127134810';
 const SW_VER = CACHE_NAME.replace(/^eurobaza-v/, '');
 const ASSETS = [
   './',
@@ -9,6 +9,7 @@ const ASSETS = [
   'geo.js',
   'zones.js',
   'bonus-engine.js',
+  'catalog.js',
   'table-viewer.js',
   'app.js',
   'yandex.js',

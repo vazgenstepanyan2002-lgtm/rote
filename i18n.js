@@ -1086,15 +1086,53 @@
   const w=document.createTreeWalker(root,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_TEXT,FLT);
   let n;while((n=w.nextNode())){if(n.nodeType===3)doText(n);else attrs(n)}
  }
+ const _moText=new Set(),_moAttr=new Set(),_moAdd=new Set();
+ let _moSched=false;
+ function flushMo(){
+  _moSched=false;
+  if(L==='ru'){_moText.clear();_moAttr.clear();_moAdd.clear();return}
+  if(_moAdd.size){
+   const rootsSet=new Set(_moAdd);
+   _moAdd.clear();
+   for(const node of rootsSet){
+    if(!node||!node.isConnected)continue;
+    let p=node.parentNode,covered=false;
+    while(p){if(rootsSet.has(p)){covered=true;break}p=p.parentNode}
+    if(!covered)walk(node);
+   }
+  }
+  if(_moAttr.size){
+   const els=Array.from(_moAttr);
+   _moAttr.clear();
+   for(const el of els){
+    if(el&&el.isConnected&&!isIgnored(el))attrs(el);
+   }
+  }
+  if(_moText.size){
+   const nodes=Array.from(_moText);
+   _moText.clear();
+   for(const n of nodes){
+    if(n&&n.isConnected&&!isIgnored(n))doText(n);
+   }
+  }
+ }
  new MutationObserver(ms=>{
   if(L==='ru')return;
   for(const m of ms){
-   if(m.type==='characterData'){if(!isIgnored(m.target))doText(m.target)}
+   if(m.type==='characterData'){if(m.target&&!isIgnored(m.target))_moText.add(m.target)}
    else if(m.type==='attributes'){
     const el=m.target;
-    if(el&&el.nodeType===1&&el.tagName!=='SCRIPT'&&el.tagName!=='STYLE'&&!isIgnored(el)&&AT.includes(m.attributeName))attrs(el);
+    if(el&&el.nodeType===1&&el.tagName!=='SCRIPT'&&el.tagName!=='STYLE'&&AT.includes(m.attributeName))_moAttr.add(el);
    }
-   else m.addedNodes.forEach(walk);
+   else{
+    for(const n of m.addedNodes){
+     if(n&&(n.nodeType===1||n.nodeType===3))_moAdd.add(n);
+    }
+   }
+  }
+  if(!_moSched&&(_moAdd.size||_moAttr.size||_moText.size)){
+   _moSched=true;
+   queueMicrotask(flushMo);
   }
  }).observe(document.documentElement,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:AT});
 

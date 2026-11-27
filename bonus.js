@@ -8,98 +8,12 @@
  const tst=(t,k)=>{window.toast&&toast(t,k)};
  function lock(on){document.documentElement.classList.toggle('lock',on);document.body.classList.toggle('lock',on)}
 
- // Фиксированный список: названия и цены менять нельзя, добавлять и удалять нельзя
- const S=(sk,name,price,price2)=>({sk:sk,name:name,price:price,price2:price2});
- const PRE=[
-  {pk:'other',name:'Այլ',subs:[
-   {sk:'a',name:'Աթոռ, դարակաշար',one:1,price:50},
-   {sk:'b',name:'Աթոռ սեղաններ',one:1,price:100},
-   S('c','Լվացարան',300,390),
-   S('d','Կոմոդներ',500,650),
-   S('e','Մահճակալ',500,650),
-   S('f','Մոդուլներ',250,325),
-   S('g','Ներքնակներ',250,325),
-   S('h','Պահոցներ',500,650),
-   {sk:'i',name:'դուռ',one:1,price:500},
-   S('j','Պուֆիկներ',50,65),
-   S('k','Տումբաներ',50,65)]},
-  {pk:'sofas',name:'Բազմոցներ',subs:[
-   S('a','Բազկաթոռ',500,650),
-   S('b','Բազմոց',1000,1300),
-   S('c','Հավաքածու',1500,1950)]},
-  {pk:'recep',name:'Ընդունարան',subs:[
-   S('a','Մինչև 1,6',700,910),
-   S('b','1,6 ից ավել',1200,1560)]},
-  {pk:'kitchen',name:'Խոհանոցներ',subs:[
-   S('a','1,6 մ',1000,1300),
-   S('b','2-3 մ',2500,3250)]},
-  {pk:'living',name:'Հյուրասրահ',subs:[
-   S('a','մինչև 1,7',1000,1300),
-   S('b','1,7 ից ավել',2000,2600),
-   S('c','Էքսկլ.',3000,3900)]},
-  {pk:'bedroom',name:'Ննջասենյակներ',subs:[
-   S('a','2 դուռ',1050,1365),
-   S('b','3 դուռ առանց կոմոդ',1550,2015),
-   S('c','3 դուռ կոմոդով',2050,2665),
-   S('d','4 դուռ',2600,3380),
-   S('e','5 դուռ',3100,4030),
-   S('f','6 դուռ',3600,4680),
-   S('g','0,9*2',3100,4030)]},
-  {pk:'wardrobe',name:'Պահարաններ',subs:[
-   S('a','2 դուռ',500,650),
-   S('b','3 դուռ',1000,1300),
-   S('c','4 դուռ',1500,1950),
-   S('d','5 դուռ',2000,2600),
-   S('e','6 դուռ',2500,3250)]}
- ];
-
-
- // FURNITURE_NAMES_I18N
- const FURNITURE_NAMES_I18N = {
-  'Այլ':['Другое','Other'],
-  'Աթոռ, դարակաշար':['Стулья, стеллажи','Chairs, shelving'],
-  'Աթոռ սեղաններ':['Стулья, столы','Chairs, tables'],
-  'Լվացարան':['Раковина','Sink'],
-  'Կոմոդներ':['Комоды','Dressers'],
-  'Մահճակալ':['Кровать','Bed'],
-  'Մոդուլներ':['Модули','Modules'],
-  'Ներքնակներ':['Матрасы','Mattresses'],
-  'Պահոցներ':['Системы хранения','Storage units'],
-  'դուռ':['Дверь','Door'],
-  'Պուֆիկներ':['Пуфы','Poufs'],
-  'Տումբաներ':['Тумбы','Cabinets'],
-  'Բազմոցներ':['Диваны','Sofas'],
-  'Բազկաթոռ':['Кресло','Armchair'],
-  'Բազմոց':['Диван','Sofa'],
-  'Հավաքածու':['Комплект','Set'],
-  'Ընդունարան':['Ресепшен','Reception desk'],
-  'Խոհանոցներ':['Кухни','Kitchens'],
-  'Հյուրասրահ':['Гостиная','Living room'],
-  'Ննջասենյակներ':['Спальни','Bedrooms'],
-  'Պահարաններ':['Шкафы','Wardrobes'],
-  'Մինչև 1,6':['До 1,6','Up to 1.6'],
-  '1,6 ից ավել':['Более 1,6','Over 1.6'],
-  '1,6 մ':['1,6 м','1.6 m'],
-  '2-3 մ':['2–3 м','2–3 m'],
-  'մինչև 1,7':['До 1,7','Up to 1.7'],
-  '1,7 ից ավել':['Более 1,7','Over 1.7'],
-  'Էքսկլ.':['Эксклюзив','Exclusive'],
-  '2 դուռ':['2 двери','2 doors'],
-  '3 դուռ':['3 двери','3 doors'],
-  '3 դուռ առանց կոմոդ':['3 двери без комода','3 doors without dresser'],
-  '3 դուռ կոմոդով':['3 двери с комодом','3 doors with dresser'],
-  '4 դուռ':['4 двери','4 doors'],
-  '5 դուռ':['5 дверей','5 doors'],
-  '6 դուռ':['6 дверей','6 doors']
- };
- function furnitureName(value) {
-  const pair = FURNITURE_NAMES_I18N[value];
-  if (!pair) return value;
-  const lang = window.getLang ? window.getLang() : 'ru';
-  return lang === 'hy' ? value : pair[lang === 'en' ? 1 : 0];
- }
-
- const ICO={other:'📦',sofas:'🛋️',recep:'🗄️',kitchen:'🍳',living:'📺',bedroom:'🛏️',wardrobe:'🚪'};
+ // Фиксированный список: берётся из единого справочника catalog.js (window.EB_CATALOG)
+ const CAT = window.EB_CATALOG || {};
+ const PRE = CAT.PRE || [];
+ const FURNITURE_NAMES_I18N = CAT.FURNITURE_NAMES_I18N || {};
+ const furnitureName = CAT.furnitureName || (v => v);
+ const ICO = CAT.ICO || {};
  let B=[];
  try{const v=window.StorageService?window.StorageService.getJSON('BON',[]):JSON.parse(localStorage.getItem('BON')||'[]');if(Array.isArray(v))B=v.filter(c=>c&&Array.isArray(c.subs))}catch(e){}
  const fbReady=()=>!!(window.firebase&&firebase.apps&&firebase.apps.length&&window._fbAuthDone);

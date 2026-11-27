@@ -13,77 +13,10 @@
   const CUR = '֏';
   const fm = n => (Math.round((+n || 0) * 100) / 100).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
 
-  const BON_ITEMS = [
-    { code: 'other_a', cat: 'Другое', name: 'Стулья, стеллажи', one: 1, p1: 50, p2: 50 },
-    { code: 'other_b', cat: 'Другое', name: 'Стулья, столы', one: 1, p1: 100, p2: 100 },
-    { code: 'other_c', cat: 'Другое', name: 'Раковина', p1: 300, p2: 390 },
-    { code: 'other_d', cat: 'Другое', name: 'Комоды', p1: 500, p2: 650 },
-    { code: 'other_e', cat: 'Другое', name: 'Кровать', p1: 500, p2: 650 },
-    { code: 'other_f', cat: 'Другое', name: 'Модули', p1: 250, p2: 325 },
-    { code: 'other_g', cat: 'Другое', name: 'Матрасы', p1: 250, p2: 325 },
-    { code: 'other_h', cat: 'Другое', name: 'Системы хранения', p1: 500, p2: 650 },
-    { code: 'other_i', cat: 'Другое', name: 'Дверь', one: 1, p1: 500, p2: 500 },
-    { code: 'other_j', cat: 'Другое', name: 'Пуфы', p1: 50, p2: 65 },
-    { code: 'other_k', cat: 'Другое', name: 'Тумбы', p1: 50, p2: 65 },
-    { code: 'sofas_a', cat: 'Диваны', name: 'Кресло', p1: 500, p2: 650 },
-    { code: 'sofas_b', cat: 'Диваны', name: 'Диван', p1: 1000, p2: 1300 },
-    { code: 'sofas_c', cat: 'Диваны', name: 'Комплект мягкой мебели', p1: 1500, p2: 1950 },
-    { code: 'recep_a', cat: 'Ресепшен', name: 'Прихожая / ресепшен до 1,6 м', p1: 700, p2: 910 },
-    { code: 'recep_b', cat: 'Ресепшен', name: 'Прихожая / ресепшен более 1,6 м', p1: 1200, p2: 1560 },
-    { code: 'kitchen_a', cat: 'Кухни', name: 'Кухня 1,6 м', p1: 1000, p2: 1300 },
-    { code: 'kitchen_b', cat: 'Кухни', name: 'Кухня 2–3 м', p1: 2500, p2: 3250 },
-    { code: 'living_a', cat: 'Гостиная', name: 'Гостиная до 1,7 м', p1: 1000, p2: 1300 },
-    { code: 'living_b', cat: 'Гостиная', name: 'Гостиная более 1,7 м', p1: 2000, p2: 2600 },
-    { code: 'living_c', cat: 'Гостиная', name: 'Гостиная Эксклюзив', p1: 3000, p2: 3900 },
-    { code: 'bedroom_a', cat: 'Спальни', name: 'Спальня 2 двери', p1: 1050, p2: 1365 },
-    { code: 'bedroom_b', cat: 'Спальни', name: 'Спальня 3 двери без комода', p1: 1550, p2: 2015 },
-    { code: 'bedroom_c', cat: 'Спальни', name: 'Спальня 3 двери с комодом', p1: 2050, p2: 2665 },
-    { code: 'bedroom_d', cat: 'Спальни', name: 'Спальня 4 двери', p1: 2600, p2: 3380 },
-    { code: 'bedroom_e', cat: 'Спальни', name: 'Спальня 5 дверей', p1: 3100, p2: 4030 },
-    { code: 'bedroom_f', cat: 'Спальни', name: 'Спальня 6 дверей', p1: 3600, p2: 4680 },
-    { code: 'bedroom_g', cat: 'Спальни', name: 'Спальня 0,9*2', p1: 3100, p2: 4030 },
-    { code: 'wardrobe_a', cat: 'Шкафы', name: 'Шкаф 2 двери', p1: 500, p2: 650 },
-    { code: 'wardrobe_b', cat: 'Шкафы', name: 'Шкаф 3 двери', p1: 1000, p2: 1300 },
-    { code: 'wardrobe_c', cat: 'Шкафы', name: 'Шкаф 4 двери', p1: 1500, p2: 1950 },
-    { code: 'wardrobe_d', cat: 'Шкафы', name: 'Шкаф 5 дверей', p1: 2000, p2: 2600 },
-    { code: 'wardrobe_e', cat: 'Шкафы', name: 'Шкаф 6 дверей', p1: 2500, p2: 3250 }
-  ];
-  const BON_BY_CODE = Object.fromEntries(BON_ITEMS.map(x => [x.code, x]));
-  const HY_PICK_KW = {
-    other_a: 'աթոռ դարակաշար աստիճան полка стеллаж стул',
-    other_b: 'աթոռ սեղան գրասեղան стол стул',
-    other_c: 'լվացարան раковина мойка',
-    other_d: 'կոմոդ կոմոդներ զարդասեղան արդուկ комод трюмо гладильная',
-    other_e: 'մահճակալ кровать',
-    other_f: 'մոդուլ մոդուլներ ջահ модуль люстра',
-    other_g: 'ներքնակ ներքնակներ матрас',
-    other_h: 'պահոց պահոցներ короб ящик хранения',
-    other_i: 'դուռ դռներ дверь',
-    other_j: 'պուֆ պուֆիկ պուֆիկներ пуф',
-    other_k: 'տումբա տումբաներ тумба',
-    sofas_a: 'բազկաթոռ кресло диваны',
-    sofas_b: 'բազմոց диван',
-    sofas_c: 'փափուկ կահույք հավաքածու комплект мягкой мебели диваны',
-    recep_a: 'ընդունարան ռեսեպշեն նախասրահ прихожая ресепшен эконом мини до 1.6',
-    recep_b: 'ընդունարան ռեսեպշեն նախասրահ прихожая ресепшен более 1.6',
-    kitchen_a: 'խոհանոց խոհանոցներ кухня 1.6',
-    kitchen_b: 'խոհանոց խոհանոցներ кухня 2 3 люкс',
-    living_a: 'հյուրասրահ հյուրասենյակ տակդիր гостиная до 1.7 мини',
-    living_b: 'հյուրասրահ հյուրասենյակ гостиная более 1.7',
-    living_c: 'հյուրասրահ հյուրասենյակ էքսկլյուզիվ гостиная эксклюзив',
-    bedroom_a: 'ննջասենյակ ննջարան 2 դուռ դռնանի спальня двери',
-    bedroom_b: 'ննջասենյակ ննջարան 3 դուռ առանց կոմոդ спальня без комода',
-    bedroom_c: 'ննջասենյակ ննջարան 3 դուռ կոմոդով րիո էկո спальня с комодом',
-    bedroom_d: 'ննջասենյակ ննջարան 4 դուռ նիցցա ալսու մոնա լիզա спальня',
-    bedroom_e: 'ննջասենյակ ննջարան 5 դուռ спальня',
-    bedroom_f: 'ննջասենյակ ննջարան 6 դուռ պրեստիժ спальня',
-    bedroom_g: 'ննջասենյակ սենյակ 0.9*2 0,9*2 կասկադ ռիտա տոսկանա спальня',
-    wardrobe_a: 'պահարան 2 դուռ դռնանի шкаф двери',
-    wardrobe_b: 'պահարան 3 դուռ դռնանի ատլանտա 1600 1800 160 180 ստանդարտ шкаф двери',
-    wardrobe_c: 'պահարան 4 դուռ դռնանի шкаф двери',
-    wardrobe_d: 'պահարան 5 դուռ դռնանի шкаф двери',
-    wardrobe_e: 'պահարան 6 դուռ դռնանի шкаф двери'
-  };
+  const EB_CAT = window.EB_CATALOG || {};
+  const BON_ITEMS = EB_CAT.BON_ITEMS || [];
+  const BON_BY_CODE = EB_CAT.BON_BY_CODE || Object.fromEntries(BON_ITEMS.map(x => [x.code, x]));
+  const HY_PICK_KW = EB_CAT.HY_PICK_KW || {};
   const normText = s => String(s || '').toLowerCase().replace(/և|եւ/g, 'եվ').replace(/ё/g, 'е').replace(/[–—−]/g, '-').replace(/\s+/g, ' ').trim();
   const normSearch = s => normText(s).replace(/[,]/g, '.').replace(/["'«»()_\/]+/g, ' ').replace(/(\d)\s*[×xх*]\s*(\d)/g, '$1*$2').replace(/\s+/g, ' ').trim();
   const normModel = s => normText(s).replace(/[\"'«»().,]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -937,7 +870,7 @@ async function askGemini(b64){
       return { name: x.name, qty: q, code: c, origCode: orig, edited: !!x.edited && !!c && c !== orig };
     });
     saveOcrDraft(rows, isCity, cleanDoc);
-    const CAT_ICO = { 'Другое': '📦', 'Диваны': '🛋️', 'Ресепшен': '🗄️', 'Кухни': '🍳', 'Гостиная': '📺', 'Спальни': '🛏️', 'Шкафы': '🚪' };
+    const CAT_ICO = EB_CAT.CAT_ICO || {};
     const catsList = Array.from(new Set(BON_ITEMS.map(x => x.cat)));
     const openCatPicker = rowIdx => {
       const r = rows[rowIdx]; if (!r) return;
