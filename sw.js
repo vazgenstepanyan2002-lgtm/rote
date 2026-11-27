@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eurobaza-v20261127132237';
+const CACHE_NAME = 'eurobaza-v20261127133949';
 const SW_VER = CACHE_NAME.replace(/^eurobaza-v/, '');
 const ASSETS = [
   './',
@@ -30,7 +30,11 @@ const ASSETS = [
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => Promise.all(ASSETS.map(u => cache.add(u).catch(() => {}))))
+      .then(cache => Promise.all(ASSETS.map(u =>
+        fetch(new Request(u, { cache: 'no-cache' }))
+          .then(res => (res && res.status === 200) ? cache.put(u, res) : null)
+          .catch(() => {})
+      )))
       .then(() => self.skipWaiting())
   );
 });
@@ -71,8 +75,9 @@ self.addEventListener('fetch', e => {
     return;
   }
 
+  const isHtml = req.mode === 'navigate' || url.pathname === '/' || url.pathname.endsWith('.html');
   e.respondWith(
-    fetch(req).then(res => {
+    (isHtml ? fetch(req.url, { cache: 'no-cache' }) : fetch(req)).then(res => {
       if (res && res.status === 200) {
         const copy = res.clone();
         caches.open(CACHE_NAME).then(c => c.put(req, copy)).catch(() => {});
