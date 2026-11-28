@@ -657,15 +657,18 @@ function drawTotals(){
  }
 
 
- function openTariffsModal(){
-  if(isSubAdm())return;
-  const old=g("admTariffsOv");if(old){if(typeof old._close==="function")old._close();else old.remove()}
-  const cats=EB_CAT.CATEGORIES||[];
-  const defs=EB_CAT.DEFAULT_TARIFFS||{};
-  const furnNm=EB_CAT.furnitureName||nm;
-  const icoMap=EB_CAT.ICO||{};
-  const draft={};
-  const savedSnap={};
+ const _tarState={draft:null,savedSnap:null,q:"",onlyMod:false,openCats:{}};
+ const _tarParsePrice=v=>{
+  const str=String(v==null?"":v).trim();
+  if(!/^\d+$/.test(str))return null;
+  const n=parseInt(str,10);
+  return Number.isFinite(n)&&n>=0&&n<=1000000?n:null;
+ };
+ const _tarIsDiffFromDef=d=>d.p1!==d.defP1||(!d.one&&d.p2!==d.defP2);
+ function _tarEnsureDraft(){
+  if(_tarState.draft&&_tarState.savedSnap)return;
+  const cats=EB_CAT.CATEGORIES||[],defs=EB_CAT.DEFAULT_TARIFFS||{};
+  const draft={},savedSnap={};
   cats.forEach(c=>{
    c.subs.forEach(s=>{
     const code=c.pk+"_"+s.sk;
@@ -675,52 +678,56 @@ function drawTotals(){
     savedSnap[code]={p1:cur.p1,p2:def.one?cur.p1:cur.p2};
    });
   });
+  _tarState.draft=draft;_tarState.savedSnap=savedSnap;
+ }
+ function _tarDirtyCodes(){
+  if(!_tarState.draft||!_tarState.savedSnap)return[];
+  return Object.keys(_tarState.draft).filter(cd=>{
+   const d=_tarState.draft[cd],sv=_tarState.savedSnap[cd];
+   const p1=_tarParsePrice(d.raw1),p2=d.one?p1:_tarParsePrice(d.raw2);
+   if(p1===null||p2===null)return true;
+   return p1!==sv.p1||(!d.one&&p2!==sv.p2);
+  });
+ }
+ function hasUnsavedTariffs(){return _tarDirtyCodes().length>0}
+ function resetTariffsDraft(){_tarState.draft=null;_tarState.savedSnap=null}
 
-  const ov=document.createElement("div");ov.id="admTariffsOv";ov.className="ov";
-  ov.innerHTML="<div class=\"dlg ach-box tar-box\">"
-   +"<div class=\"ach-hd\"><div class=\"ach-hd-l\"><div class=\"ach-hd-ic\" style=\"background:rgba(250,204,21,.16);border-color:rgba(250,204,21,.4);color:#fde047\">💰</div><div><b>Тарифы бонусов</b><small id=\"tarSub\"></small></div></div><div class=\"ach-acts\"><button type=\"button\" id=\"tarX\" class=\"ach-x\">✕</button></div></div>"
+ function drawTariffs(){
+  if(isSubAdm()){S.TAB="online";if(Adm.drawOnline)Adm.drawOnline();return}
+  _tarEnsureDraft();
+  const cats=EB_CAT.CATEGORIES||[];
+  const furnNm=EB_CAT.furnitureName||nm;
+  const icoMap=EB_CAT.ICO||{};
+  const draft=_tarState.draft,savedSnap=_tarState.savedSnap;
+
+  g("view").innerHTML="<div class=\"in-panel tar-view\">"
+   +"<div class=\"ach-hd\"><div class=\"ach-hd-l\"><div class=\"ach-hd-ic\" style=\"background:rgba(250,204,21,.16);border-color:rgba(250,204,21,.4);color:#fde047\">💰</div><div><b>Тарифы бонусов</b><small id=\"tarSub\"></small></div></div></div>"
    +"<div class=\"tar-ctrl\">"
-   +"<div class=\"tar-srch\"><span class=\"tar-srch-ic\">🔍</span><input id=\"tarQ\" type=\"search\" placeholder=\"Поиск...\"><button type=\"button\" id=\"tarQClr\" class=\"tar-srch-clr\" hidden>✕</button></div>"
+   +"<div class=\"tar-srch\"><span class=\"tar-srch-ic\">🔍</span><input id=\"tarQ\" type=\"search\" placeholder=\"Поиск...\" value=\""+esc(_tarState.q)+"\"><button type=\"button\" id=\"tarQClr\" class=\"tar-srch-clr\""+(_tarState.q?"":" hidden")+">✕</button></div>"
    +"<button type=\"button\" id=\"tarOnlyBtn\" class=\"tar-flt-btn\">Только изменённые</button>"
    +"</div>"
-   +"<div id=\"tarList\" class=\"ach-list tar-list\"></div>"
-   +"<div class=\"tar-foot\">"
+   +"<div id=\"tarList\" class=\"tar-list in-view\"></div>"
+   +"<div class=\"tar-foot in-view\">"
    +"<div class=\"tar-note\">Применяется сразу для текущих расчётов и новых накладных. Сохранённые архивы не меняются.</div>"
    +"<div class=\"tar-foot-acts\">"
    +"<button type=\"button\" id=\"tarResetAll\" class=\"tar-rst-btn\">↺ Сбросить всё</button>"
    +"<button type=\"button\" id=\"tarSaveBtn\" class=\"tar-save-btn\">Сохранить тарифы</button>"
    +"</div></div></div>";
-  document.body.appendChild(ov);
 
-  let q="",onlyMod=false,closed=false;
-  const openCats={};
-  const parsePrice=v=>{
-   const str=String(v==null?"":v).trim();
-   if(!/^\d+$/.test(str))return null;
-   const n=parseInt(str,10);
-   return Number.isFinite(n)&&n>=0&&n<=1000000?n:null;
-  };
-  const isDiffFromDef=d=>d.p1!==d.defP1||(!d.one&&d.p2!==d.defP2);
-  const getDirtyCodes=()=>Object.keys(draft).filter(cd=>{
-   const d=draft[cd],sv=savedSnap[cd];
-   const p1=parsePrice(d.raw1),p2=d.one?p1:parsePrice(d.raw2);
-   if(p1===null||p2===null)return true;
-   return p1!==sv.p1||(!d.one&&p2!==sv.p2);
-  });
   const getInvalidCodes=()=>Object.keys(draft).filter(cd=>{
    const d=draft[cd];
-   return parsePrice(d.raw1)===null||(!d.one&&parsePrice(d.raw2)===null);
+   return _tarParsePrice(d.raw1)===null||(!d.one&&_tarParsePrice(d.raw2)===null);
   });
 
   const updHeader=()=>{
-   const customCnt=Object.keys(draft).filter(cd=>isDiffFromDef(draft[cd])).length;
-   const dirtyCnt=getDirtyCodes().length;
+   const customCnt=Object.keys(draft).filter(cd=>_tarIsDiffFromDef(draft[cd])).length;
+   const dirtyCnt=_tarDirtyCodes().length;
    const invCnt=getInvalidCodes().length;
    const sub=g("tarSub");
    if(sub)sub.textContent=customCnt?("Изменено от базовых: "+customCnt+" из "+Object.keys(draft).length):"Все позиции по базовому тарифу";
    const ob=g("tarOnlyBtn");
    if(ob){
-    ob.classList.toggle("on",onlyMod);
+    ob.classList.toggle("on",_tarState.onlyMod);
     ob.textContent=customCnt?("Изменённые ("+customCnt+")"):"Только изменённые";
    }
    const sb=g("tarSaveBtn");
@@ -734,8 +741,7 @@ function drawTotals(){
 
   const renderList=()=>{
    const box=g("tarList");if(!box)return;
-   const st=box.scrollTop;
-   const ql=q.trim().toLowerCase();
+   const ql=_tarState.q.trim().toLowerCase();
    let html="",shown=0;
    cats.forEach(c=>{
     const cLabel=furnNm(c.hy);
@@ -745,8 +751,8 @@ function drawTotals(){
     c.subs.forEach(s=>{
      const code=c.pk+"_"+s.sk,d=draft[code];
      const sLabel=furnNm(s.hy);
-     const mod=isDiffFromDef(d);
-     if(onlyMod&&!mod)return;
+     const mod=_tarIsDiffFromDef(d);
+     if(_tarState.onlyMod&&!mod)return;
      const sMatch=cMatch||sLabel.toLowerCase().includes(ql)||s.ru.toLowerCase().includes(ql)||s.hy.toLowerCase().includes(ql)||s.en.toLowerCase().includes(ql)||(s.ocrRu||"").toLowerCase().includes(ql);
      if(!sMatch)return;
      shown++;
@@ -754,12 +760,12 @@ function drawTotals(){
      matchedSubs.push({s,code,d,sLabel,mod});
     });
     if(!matchedSubs.length)return;
-    const isOpen=!!(ql||onlyMod||openCats[c.pk]);
+    const isOpen=!!(ql||_tarState.onlyMod||_tarState.openCats[c.pk]);
     let bodyHtml="";
     if(isOpen){
      bodyHtml="<div class=\"tar-cat-body\">"+matchedSubs.map(({code,d,sLabel,mod})=>{
-      const bad1=parsePrice(d.raw1)===null;
-      const bad2=!d.one&&parsePrice(d.raw2)===null;
+      const bad1=_tarParsePrice(d.raw1)===null;
+      const bad2=!d.one&&_tarParsePrice(d.raw2)===null;
       const defHint=mod?("<div class=\"tar-def\">База: <span data-no-i18n=\"1\">"+fm(d.defP1)+(d.one?"":(" / "+fm(d.defP2)))+" "+CUR+"</span></div>"):"";
       const rstBtn=mod?("<button type=\"button\" class=\"tar-row-rst\" data-rst=\""+esc(code)+"\" title=\"Вернуть базовый тариф\">↺</button>"):"";
       const inp2=d.one
@@ -780,79 +786,66 @@ function drawTotals(){
      +"</button>"+bodyHtml+"</div>";
    });
    if(!shown){
-    box.innerHTML="<div class=\"mut\" style=\"text-align:center;padding:28px 12px\">"+(onlyMod?"Изменённых тарифов нет":"Ничего не найдено")+"</div>";
+    box.innerHTML="<div class=\"mut\" style=\"text-align:center;padding:28px 12px\">"+(_tarState.onlyMod?"Изменённых тарифов нет":"Ничего не найдено")+"</div>";
    }else{
     box.innerHTML=html;
    }
-   box.scrollTop=st;
    updHeader();
   };
-
-  const forceClose=()=>{if(closed)return;closed=true;ov.classList.remove("show");document.removeEventListener("keydown",onK);setTimeout(()=>ov.remove(),180)};
-  const tryClose=async()=>{
-   if(closed)return;
-   if(getDirtyCodes().length){
-    const ok=await ask("Есть несохранённые изменения тарифов. Закрыть без сохранения?",{title:"Несохранённые правки",okText:"Закрыть",danger:true});
-    if(!ok)return;
-   }
-   forceClose();
-  };
-  ov._close=forceClose;
-  const onK=e=>{if(e.key==="Escape"&&(!g("cOv")||g("cOv").hidden)){e.preventDefault();tryClose()}};
-  g("tarX").onclick=tryClose;
-  ov.onclick=e=>{if(e.target===ov)tryClose()};
 
   const qInp=g("tarQ"),qClr=g("tarQClr");
-  qInp.oninput=e=>{q=e.target.value||"";qClr.hidden=!q;renderList()};
-  qClr.onclick=()=>{q="";qInp.value="";qClr.hidden=true;renderList();qInp.focus()};
-  g("tarOnlyBtn").onclick=()=>{onlyMod=!onlyMod;renderList()};
+  if(qInp)qInp.oninput=e=>{_tarState.q=e.target.value||"";if(qClr)qClr.hidden=!_tarState.q;renderList()};
+  if(qClr)qClr.onclick=()=>{_tarState.q="";if(qInp)qInp.value="";qClr.hidden=true;renderList();if(qInp)qInp.focus()};
+  const onlyB=g("tarOnlyBtn");
+  if(onlyB)onlyB.onclick=()=>{_tarState.onlyMod=!_tarState.onlyMod;renderList()};
 
-  g("tarList").addEventListener("input",e=>{
-   const inp=e.target.closest(".tar-inp");if(!inp)return;
-   const cd=inp.dataset.cd,z=inp.dataset.z,d=draft[cd];if(!d)return;
-   const val=inp.value;
-   if(z==="1")d.raw1=val;else d.raw2=val;
-   const p1=parsePrice(d.raw1),p2=d.one?p1:parsePrice(d.raw2);
-   if(p1!==null)d.p1=p1;
-   if(p2!==null)d.p2=p2;
-   inp.classList.toggle("bad",(z==="1"?p1:p2)===null);
-   const row=inp.closest(".tar-row");
-   if(row){
-    const mod=isDiffFromDef(d);
-    row.classList.toggle("mod",mod);
-   }
-   updHeader();
-  });
+  const listEl=g("tarList");
+  if(listEl){
+   listEl.addEventListener("input",e=>{
+    const inp=e.target.closest(".tar-inp");if(!inp)return;
+    const cd=inp.dataset.cd,z=inp.dataset.z,d=draft[cd];if(!d)return;
+    const val=inp.value;
+    if(z==="1")d.raw1=val;else d.raw2=val;
+    const p1=_tarParsePrice(d.raw1),p2=d.one?p1:_tarParsePrice(d.raw2);
+    if(p1!==null)d.p1=p1;
+    if(p2!==null)d.p2=p2;
+    inp.classList.toggle("bad",(z==="1"?p1:p2)===null);
+    const row=inp.closest(".tar-row");
+    if(row)row.classList.toggle("mod",_tarIsDiffFromDef(d));
+    updHeader();
+   });
+   listEl.addEventListener("click",e=>{
+    const catBtn=e.target.closest("[data-tar-cat]");
+    if(catBtn){
+     const pk=catBtn.dataset.tarCat;
+     if(pk&&!_tarState.q.trim()&&!_tarState.onlyMod){_tarState.openCats[pk]=!_tarState.openCats[pk];renderList()}
+     return;
+    }
+    const rb=e.target.closest("[data-rst]");if(!rb)return;
+    const cd=rb.dataset.rst,d=draft[cd];if(!d)return;
+    d.p1=d.defP1;d.p2=d.defP2;d.raw1=String(d.defP1);d.raw2=String(d.defP2);
+    renderList();
+   });
+  }
 
-  g("tarList").addEventListener("click",e=>{
-   const catBtn=e.target.closest("[data-tar-cat]");
-   if(catBtn){
-    const pk=catBtn.dataset.tarCat;
-    if(pk&&!q.trim()&&!onlyMod){openCats[pk]=!openCats[pk];renderList()}
-    return;
-   }
-   const rb=e.target.closest("[data-rst]");if(!rb)return;
-   const cd=rb.dataset.rst,d=draft[cd];if(!d)return;
-   d.p1=d.defP1;d.p2=d.defP2;d.raw1=String(d.defP1);d.raw2=String(d.defP2);
-   renderList();
-  });
-
-  g("tarResetAll").onclick=async()=>{
+  const rstAllB=g("tarResetAll");
+  if(rstAllB)rstAllB.onclick=async()=>{
    const ok=await ask("Сбросить все тарифы в редакторе к заводским значениям? После этого нажмите «Сохранить», чтобы применить для всех.",{title:"Сброс тарифов",okText:"Сбросить",danger:true});
    if(!ok)return;
    Object.keys(draft).forEach(cd=>{const d=draft[cd];d.p1=d.defP1;d.p2=d.defP2;d.raw1=String(d.defP1);d.raw2=String(d.defP2)});
    renderList();
   };
 
-  g("tarSaveBtn").onclick=async()=>{
+  const saveB=g("tarSaveBtn");
+  if(saveB)saveB.onclick=async()=>{
    const inv=getInvalidCodes();
    if(inv.length){toast("Введите корректные целые цены (от 0 до 1 000 000)",true);return}
-   const dirty=getDirtyCodes();
+   const dirty=_tarDirtyCodes();
    if(!dirty.length){toast("Изменений нет");return}
    const rawOut={};
    Object.keys(draft).forEach(cd=>{
     const d=draft[cd];
-    const p1=parsePrice(d.raw1),p2=d.one?p1:parsePrice(d.raw2);
+    const p1=_tarParsePrice(d.raw1),p2=d.one?p1:_tarParsePrice(d.raw2);
     if(d.one){if(p1!==d.defP1)rawOut[cd]={p1:p1}}
     else{if(p1!==d.defP1||p2!==d.defP2)rawOut[cd]={p1:p1,p2:p2}}
    });
@@ -865,30 +858,36 @@ function drawTotals(){
    if(dirty.length>5)previewLines.push("... и ещё "+(dirty.length-5));
    const ok=await ask("Сохранить новые тарифы ("+dirty.length+" поз.) для всех устройств?\n\n"+previewLines.join("\n"),{title:"Сохранение тарифов",okText:"Сохранить",danger:false});
    if(!ok)return;
-   const sb=g("tarSaveBtn");if(sb){sb.disabled=true;sb.textContent="Сохранение..."}
+   saveB.disabled=true;saveB.textContent="Сохранение...";
    try{
     if(Object.keys(cleanPayload).length)await db.ref("config/tariffs").set(cleanPayload);
     else await db.ref("config/tariffs").remove();
     S.TARIFFS=cleanPayload;
     if(typeof EB_CAT.applyTariffs==="function")EB_CAT.applyTariffs(cleanPayload);
+    Object.keys(draft).forEach(cd=>{const d=draft[cd];savedSnap[cd]={p1:d.p1,p2:d.p2}});
     toast("Тарифы обновлены для всех устройств");
-    forceClose();
-    if(S.TAB==="online"||S.TAB==="totals")Adm.scheduleDraw(60);
+    renderList();
+    const b=g("tarTabBdg");
+    if(b){const n=typeof EB_CAT.getCustomTariffsCount==="function"?EB_CAT.getCustomTariffsCount():0;b.hidden=!n;b.textContent=n>99?"99+":String(n)}
    }catch(err){
     toast("Ошибка сохранения тарифов (проверьте правила Firebase)",true);
     updHeader();
    }
   };
 
-  document.addEventListener("keydown",onK);
   renderList();
-  requestAnimationFrame(()=>ov.classList.add("show"));
+ }
+
+ function openTariffsModal(){
+  if(isSubAdm())return;
+  S.TAB="tariffs";
+  if(Adm.draw)Adm.draw();
  }
 
  Object.assign(Adm, {
   CAR_CATALOG, parseCar, allCars, aggCarMonths, admFbKey,
   findAffectedDocsByRule, findAffectedDocsByAllRules,
-  openRecalcModal, openAdmSumModal, openTariffsModal, drawTotals, migrateDevToCar
+  openRecalcModal, openAdmSumModal, openTariffsModal, drawTariffs, hasUnsavedTariffs, resetTariffsDraft, drawTotals, migrateDevToCar
  });
 })(window.Adm);
 

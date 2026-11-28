@@ -535,56 +535,55 @@
   });
   box.innerHTML=html;
  }
- function openSubLogModal(){
-  if(isSubAdm())return;
-  const old=g('subLogOv');if(old){if(typeof old._close==='function')old._close();else old.remove()}
-  S.SUB_LOG_PREV_SEEN=subLogSeen();
-  S.SUB_LOG_CAT='all';S.SUB_LOG_Q='';S.SUB_LOG_OPEN=true;
-  const ov=document.createElement('div');ov.id='subLogOv';ov.className='ov';
-  ov.innerHTML='<div class="dlg slog-box">'
+ function drawSubLog(){
+  if(isSubAdm()){S.TAB='online';if(Adm.drawOnline)Adm.drawOnline();return}
+  if(!S.SUB_LOG_OPEN){
+   S.SUB_LOG_PREV_SEEN=subLogSeen();
+   S.SUB_LOG_CAT='all';S.SUB_LOG_Q='';
+   S.SUB_LOG_OPEN=true;
+  }
+  g('view').innerHTML='<div class="in-panel purp slog-view">'
    +'<div class="slog-hd">'
    +'<div class="slog-hd-l"><div class="slog-hd-ic">📋</div><div class="slog-hd-t"><b>Лог субадмина</b><small id="slogSub"></small></div></div>'
    +'<div class="slog-acts">'
    +'<button type="button" id="slogCsv" class="slog-btn csv" title="Выгрузить в Excel" aria-label="Выгрузить в Excel">📥</button>'
    +'<button type="button" id="slogClr" class="slog-btn clr" title="Очистить журнал" aria-label="Очистить журнал">🗑️</button>'
-   +'<button type="button" id="slogX" class="ach-x" aria-label="Закрыть">✕</button>'
    +'</div></div>'
    +'<div id="slogStats" class="slog-stats"></div>'
    +'<div class="slog-ctrl">'
-   +'<div class="slog-srch"><span class="slog-srch-ic">🔍</span><input id="slogInp" type="search" placeholder="Поиск по имени, экипажу, тексту..."><button type="button" id="slogClrQ" class="slog-srch-clr" hidden>✕</button></div>'
+   +'<div class="slog-srch"><span class="slog-srch-ic">🔍</span><input id="slogInp" type="search" placeholder="Поиск по имени, экипажу, тексту..." value="'+esc(S.SUB_LOG_Q)+'"><button type="button" id="slogClrQ" class="slog-srch-clr"'+(S.SUB_LOG_Q?'':' hidden')+'>✕</button></div>'
    +'<div id="slogChips" class="slog-chips"></div>'
    +'</div>'
-   +'<div id="slogList" class="slog-list"></div>'
+   +'<div id="slogList" class="slog-list in-view"></div>'
    +'</div>';
-  document.body.appendChild(ov);
-  let closed=false;
-  const close=()=>{if(closed)return;closed=true;S.SUB_LOG_OPEN=false;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
-  ov._close=close;
-  const onK=e=>{if(e.key==='Escape'&&(!g('cOv')||g('cOv').hidden)){e.preventDefault();close()}};
-  g('slogX').onclick=close;
-  ov.onclick=e=>{if(e.target===ov)close()};
   const inp=g('slogInp'),clrQ=g('slogClrQ');
-  inp.oninput=e=>{S.SUB_LOG_Q=e.target.value||'';clrQ.hidden=!S.SUB_LOG_Q;renderSubLog()};
-  clrQ.onclick=()=>{inp.value='';S.SUB_LOG_Q='';clrQ.hidden=true;renderSubLog();inp.focus()};
-  g('slogChips').onclick=e=>{
+  if(inp)inp.oninput=e=>{S.SUB_LOG_Q=e.target.value||'';if(clrQ)clrQ.hidden=!S.SUB_LOG_Q;renderSubLog()};
+  if(clrQ)clrQ.onclick=()=>{if(inp)inp.value='';S.SUB_LOG_Q='';clrQ.hidden=true;renderSubLog();if(inp)inp.focus()};
+  const chips=g('slogChips');
+  if(chips)chips.onclick=e=>{
    const b=e.target.closest('.slog-chip');if(!b)return;
    S.SUB_LOG_CAT=b.dataset.cat||'all';
    renderSubLog();
   };
-  g('slogCsv').onclick=()=>{
+  const csvB=g('slogCsv');
+  if(csvB)csvB.onclick=()=>{
    const q=(S.SUB_LOG_Q||'').trim().toLowerCase();
    const filt=S.SUB_LOG.filter(x=>(S.SUB_LOG_CAT==='all'||x.cat===S.SUB_LOG_CAT)&&(!q||((x.title||'')+' '+(x.detail||'')+' '+(x.car||'')+' '+(x.target||'')).toLowerCase().includes(q)));
    exportSubLogCsv(filt);
   };
-  g('slogClr').onclick=async()=>{
+  const clrB=g('slogClr');
+  if(clrB)clrB.onclick=async()=>{
    if(!S.SUB_LOG.length){toast('Журнал уже пуст');return}
    if(!(await ask('Очистить весь журнал действий субадмина ('+S.SUB_LOG.length+' зап.)? Это действие необратимо.',{title:'Очистка журнала',okText:'Очистить',danger:true})))return;
    try{await db.ref('subadminLog').remove();toast('Журнал очищен')}catch(err){toast('Ошибка очистки',true)}
   };
-  document.addEventListener('keydown',onK);
   renderSubLog();
   markSubLogSeen();
-  requestAnimationFrame(()=>ov.classList.add('show'));
+ }
+ function openSubLogModal(){
+  if(isSubAdm())return;
+  S.TAB='sublog';
+  if(Adm.draw)Adm.draw();
  }
  function openAdmMenu(){
   const u=auth.currentUser;
@@ -619,7 +618,7 @@
  Object.assign(Adm, {
   admNotify, dmUnread, markAdmDmSeen, updAdmDmTabBadges, onDmSnap,
   updAdmChatBdg, markAdmChatSeen, renderAdmChat, openAdmChat, openAdmDm,
-  renderSubLog, openSubLogModal, openAdmMenu
+  renderSubLog, drawSubLog, openSubLogModal, openAdmMenu
  });
 })(window.Adm);
 
@@ -655,28 +654,28 @@
     }
   }
 
-  async function openDiag() {
-    const oldDg = document.getElementById('dgOv');
-    if (oldDg) { if (typeof oldDg._close === 'function') oldDg._close(); else oldDg.remove(); }
-    const ov = document.createElement('div');
-    ov.id = 'dgOv';
-    ov.className = 'ov show';
-    ov.style.cssText = 'position:fixed;inset:0;overflow:hidden;touch-action:none;display:flex;align-items:center;justify-content:center;padding:12px;z-index:9999';
-    ov.innerHTML = '<div class="dlg" style="position:relative;overflow:hidden;max-width:440px;width:100%;padding:14px;border-radius:24px;background:linear-gradient(180deg,rgba(19,28,43,.98) 0%,rgba(10,15,25,.99) 100%);border:1px solid rgba(255,255,255,.14);box-shadow:0 24px 60px rgba(0,0,0,.85)"><div style="position:absolute;top:0;left:24px;right:24px;height:1px;background:linear-gradient(90deg,transparent,rgba(52,211,153,.7),rgba(250,204,21,.5),transparent)"></div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="display:flex;align-items:center;gap:9px"><span style="width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,rgba(16,185,129,.22),rgba(14,165,233,.18));border:1px solid rgba(52,211,153,.38);color:#6ee7b7;display:flex;align-items:center;justify-content:center">🩺</span><div><div style="font-size:15px;font-weight:800;color:#f8fafc;line-height:1.15">Диагностика и API</div><div style="font-size:10.5px;color:#94a3b8">Статус сервисов и кэша</div></div></div><button id="dgClose" style="width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#94a3b8;font-size:14px;cursor:pointer">✕</button></div><div id="dgBody" style="display:flex;flex-direction:column;gap:8px"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px"><button id="dgRe" style="height:40px;border-radius:12px;font-size:12.5px;font-weight:700;cursor:pointer;background:rgba(16,185,129,.16);border:1px solid rgba(52,211,153,.38);color:#6ee7b7">↻ Проверить</button><button id="dgClrCache" style="height:40px;border-radius:12px;font-size:12.5px;font-weight:700;cursor:pointer;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.36);color:#fca5a5">✕ Сбросить кэш</button></div></div>';
-    document.body.style.overflow = 'hidden';
-    document.body.appendChild(ov);
-    const close = () => { document.body.style.overflow = ''; ov.remove(); };
-    ov._close = close;
-    ov.querySelector('#dgClose').onclick = close;
-    ov.onclick = ev => { if (ev.target === ov) close(); };
-    ov.querySelector('#dgClrCache').onclick = async () => {
+  let _dgRunTok = 0;
+
+  async function drawDiag() {
+    const view = document.getElementById('view');
+    if (!view) return;
+    const myTok = ++_dgRunTok;
+    view.innerHTML = '<div class="in-panel dg-panel">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="display:flex;align-items:center;gap:10px"><span style="width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,rgba(16,185,129,.22),rgba(14,165,233,.18));border:1px solid rgba(52,211,153,.38);color:#6ee7b7;display:flex;align-items:center;justify-content:center;font-size:17px">🩺</span><div><div style="font-size:15.5px;font-weight:800;color:#f8fafc;line-height:1.15">Диагностика и API</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">Статус сервисов и кэша</div></div></div></div>'
+      + '<div id="dgBody" style="display:flex;flex-direction:column;gap:8px"></div>'
+      + '<div class="dg-acts"><button type="button" id="dgRe" style="height:42px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(16,185,129,.16);border:1px solid rgba(52,211,153,.38);color:#6ee7b7">↻ Проверить</button><button type="button" id="dgClrCache" style="height:42px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.36);color:#fca5a5">✕ Сбросить кэш</button></div>'
+      + '</div>';
+    const clrBtn = document.getElementById('dgClrCache');
+    if (clrBtn) clrBtn.onclick = async () => {
       if ('caches' in window) { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); }
       if ('serviceWorker' in navigator) { const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.unregister())); }
       location.reload(true);
     };
     const run = async () => {
-      const box = ov.querySelector('#dgBody');
-      box.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:12px">Проверка сервисов...</div>';
+      const box = document.getElementById('dgBody');
+      if (!box) return;
+      const runTok = ++_dgRunTok;
+      box.innerHTML = '<div style="padding:22px;text-align:center;color:#94a3b8;font-size:12.5px">Проверка сервисов...</div>';
       const yKey = typeof YKEY !== 'undefined' ? YKEY : '';
       const sKey = typeof SUG_KEY !== 'undefined' ? SUG_KEY : '';
       const fbOpts = (window.firebase && firebase.apps && firebase.apps.length) ? firebase.app().options : {};
@@ -718,20 +717,34 @@
           return { ok: r.ok, detail: r.ok ? proto + ' · OK' : 'HTTP ' + r.status };
         })
       ]);
+      if (runTok !== _dgRunTok || !document.getElementById('dgBody')) return;
       let swInfo = 'Нет', cacheList = 'пусто';
       if ('serviceWorker' in navigator) { const reg = await navigator.serviceWorker.getRegistration(); swInfo = reg && reg.active ? reg.active.state : 'не активен'; }
       if ('caches' in window) { const ks = await caches.keys(); if (ks.length) cacheList = ks.join(', '); }
-      const grid = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">' + checks.map(c => {
+      if (runTok !== _dgRunTok) return;
+      const curBox = document.getElementById('dgBody');
+      if (!curBox) return;
+      const grid = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">' + checks.map(c => {
         const bg = c.ok ? 'rgba(16,185,129,.10)' : 'rgba(239,68,68,.14)', bd = c.ok ? 'rgba(52,211,153,.28)' : 'rgba(248,113,113,.36)', dot = c.ok ? '#10b981' : '#ef4444', stCol = c.ok ? '#6ee7b7' : '#fca5a5';
-        return '<div style="padding:8px 9px;border-radius:12px;background:' + bg + ';border:1px solid ' + bd + ';display:flex;flex-direction:column;gap:2px"><div style="display:flex;align-items:center;gap:5px"><i style="width:7px;height:7px;border-radius:50%;background:' + dot + ';box-shadow:0 0 7px ' + dot + ';flex-shrink:0"></i><span style="font-size:11.5px;font-weight:700;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escD(c.name) + '</span></div><div' + (c.keyInfo === 'не найден' ? '' : ' data-no-i18n="1"') + ' title="' + escD(c.keyInfo) + '" style="font-size:10px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escD(c.keyInfo) + '</div><div style="font-size:10.5px;font-weight:600;color:' + stCol + '">' + escD(c.detail) + '</div></div>';
+        return '<div style="padding:9px 10px;border-radius:12px;background:' + bg + ';border:1px solid ' + bd + ';display:flex;flex-direction:column;gap:2px"><div style="display:flex;align-items:center;gap:5px"><i style="width:7px;height:7px;border-radius:50%;background:' + dot + ';box-shadow:0 0 7px ' + dot + ';flex-shrink:0"></i><span style="font-size:12px;font-weight:700;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escD(c.name) + '</span></div><div' + (c.keyInfo === 'не найден' ? '' : ' data-no-i18n="1"') + ' title="' + escD(c.keyInfo) + '" style="font-size:10.5px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escD(c.keyInfo) + '</div><div style="font-size:11px;font-weight:600;color:' + stCol + '">' + escD(c.detail) + '</div></div>';
       }).join('') + '</div>';
-      const errBar = ERR_LOG.length ? '<div style="padding:7px 10px;border-radius:12px;background:rgba(239,68,68,.12);border:1px solid rgba(248,113,113,.3);font-size:10.5px;color:#fca5a5"><b>Ошибки (' + ERR_LOG.length + '):</b> <span data-no-i18n="1">' + escD(ERR_LOG[0] && ERR_LOG[0].msg) + '</span></div>' : '<div style="padding:7px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);display:flex;justify-content:space-between;font-size:11px;color:#94a3b8"><span>Журнал ошибок JS</span><span style="color:#6ee7b7;font-weight:600">0 ошибок</span></div>';
-      box.innerHTML = grid + '<div style="padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);display:flex;flex-direction:column;gap:3px;font-size:11px"><div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">Версия на сервере</span><code data-no-i18n="1" style="color:#fde047;font-weight:700">' + escD(srvVer) + '</code></div><div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">Service Worker</span><span style="color:#e2e8f0;font-weight:600">' + escD(swInfo) + '</span></div><div style="display:flex;justify-content:space-between;gap:8px"><span style="color:#94a3b8;flex-shrink:0">Cache</span><code' + (cacheList === 'пусто' ? '' : ' data-no-i18n="1"') + ' style="color:#7dd3fc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escD(cacheList) + '</code></div></div>' + errBar;
+      const errBar = ERR_LOG.length ? '<div style="padding:8px 10px;border-radius:12px;background:rgba(239,68,68,.12);border:1px solid rgba(248,113,113,.3);font-size:11px;color:#fca5a5"><b>Ошибки (' + ERR_LOG.length + '):</b> <span data-no-i18n="1">' + escD(ERR_LOG[0] && ERR_LOG[0].msg) + '</span></div>' : '<div style="padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);display:flex;justify-content:space-between;font-size:11.5px;color:#94a3b8"><span>Журнал ошибок JS</span><span style="color:#6ee7b7;font-weight:600">0 ошибок</span></div>';
+      curBox.innerHTML = grid + '<div style="padding:9px 11px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);display:flex;flex-direction:column;gap:4px;font-size:11.5px"><div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">Версия на сервере</span><code data-no-i18n="1" style="color:#fde047;font-weight:700">' + escD(srvVer) + '</code></div><div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">Service Worker</span><span style="color:#e2e8f0;font-weight:600">' + escD(swInfo) + '</span></div><div style="display:flex;justify-content:space-between;gap:8px"><span style="color:#94a3b8;flex-shrink:0">Cache</span><code' + (cacheList === 'пусто' ? '' : ' data-no-i18n="1"') + ' style="color:#7dd3fc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escD(cacheList) + '</code></div></div>' + errBar;
     };
-    ov.querySelector('#dgRe').onclick = run;
-    run();
+    const reBtn = document.getElementById('dgRe');
+    if (reBtn) reBtn.onclick = run;
+    if (myTok === _dgRunTok) run();
   }
 
+  function openDiag() {
+    if (window.Adm && window.Adm.S) {
+      window.Adm.S.TAB = 'diag';
+      if (typeof window.Adm.draw === 'function') { window.Adm.draw(); return; }
+    }
+    drawDiag();
+  }
+
+  if (window.Adm) window.Adm.drawDiag = drawDiag;
   window._openAdmDiag = openDiag;
   document.addEventListener('click', e => {
     if (e.target && e.target.closest('#diagBtn')) openDiag();

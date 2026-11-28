@@ -141,15 +141,15 @@ test('admin-*.js: все 7 модулей загружаются без ошиб
     // map
     'destroyMap', 'fitAllDrivers', 'syncMapMarkers', 'drawSubMap', 'drawMap',
     // bonuses
-    'parseCar', 'allCars', 'aggCarMonths', 'admFbKey', 'findAffectedDocsByRule', 'findAffectedDocsByAllRules', 'openRecalcModal', 'openAdmSumModal', 'openTariffsModal', 'drawTotals', 'migrateDevToCar',
+    'parseCar', 'allCars', 'aggCarMonths', 'admFbKey', 'findAffectedDocsByRule', 'findAffectedDocsByAllRules', 'openRecalcModal', 'openAdmSumModal', 'openTariffsModal', 'drawTariffs', 'hasUnsavedTariffs', 'resetTariffsDraft', 'drawTotals', 'migrateDevToCar',
     // ocr
     'pruneStaleOcrPending', 'updOcrTabBdg', 'drawOcr', 'openOcrRuleModal', 'ocrNorm',
     // att
     'attCurYm', 'attShiftYm', 'drawAtt', 'attAddWorker', 'attToggle', 'attMergeManualToApp', 'openAttWorkerModal', 'openCrewOffModal', 'attExportCsv', 'attCopyReport',
     // comms
-    'admNotify', 'dmUnread', 'markAdmDmSeen', 'updAdmDmTabBadges', 'onDmSnap', 'updAdmChatBdg', 'markAdmChatSeen', 'renderAdmChat', 'openAdmChat', 'openAdmDm', 'renderSubLog', 'openSubLogModal', 'openAdmMenu',
+    'admNotify', 'dmUnread', 'markAdmDmSeen', 'updAdmDmTabBadges', 'onDmSnap', 'updAdmChatBdg', 'markAdmChatSeen', 'renderAdmChat', 'openAdmChat', 'openAdmDm', 'renderSubLog', 'drawSubLog', 'openSubLogModal', 'drawDiag', 'openAdmMenu',
     // main
-    'draw', 'scheduleDraw', 'drawOnline', 'drawVer', 'refreshCrewsMgr', 'openCrewsManagerModal', 'loadPub'
+    'draw', 'scheduleDraw', 'drawOnline', 'drawVer', 'drawCrews', 'refreshCrewsMgr', 'openCrewsManagerModal', 'loadPub'
   ];
   for (const fn of expectedFns) {
     assert.equal(typeof Adm[fn], 'function', `Adm.${fn} должна быть функцией`);
@@ -171,6 +171,10 @@ test('admin-*.js: рендер основных вкладок (online, totals, 
   Adm.drawOcr();
   Adm.drawAtt();
   Adm.drawVer();
+  Adm.drawCrews();
+  Adm.drawTariffs();
+  Adm.drawSubLog();
+  Adm.drawDiag();
   Adm.onDmSnap({});
   assert.ok(env.els.view.innerHTML.length > 0);
 });

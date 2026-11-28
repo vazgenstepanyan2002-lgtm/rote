@@ -62,6 +62,10 @@
    if(window.EB_CATALOG&&typeof window.EB_CATALOG.applyTariffs==='function')window.EB_CATALOG.applyTariffs(S.TARIFFS);
    updTarTabBdg();
    if(S.TAB==='online'||S.TAB==='totals')scheduleDraw(120);
+   else if(S.TAB==='tariffs'&&typeof Adm.hasUnsavedTariffs==='function'&&!Adm.hasUnsavedTariffs()){
+    if(typeof Adm.resetTariffsDraft==='function')Adm.resetTariffsDraft();
+    scheduleDraw(120);
+   }
    const sumOv=g('admSumOv');
    if(sumOv&&sumOv.classList.contains('show')&&typeof sumOv._refresh==='function')sumOv._refresh();
   });
@@ -266,6 +270,8 @@
   updSubLogBdg();
   updTarTabBdg();
   const sub=isSubAdm();
+  if(sub&&(S.TAB==='crews'||S.TAB==='tariffs'||S.TAB==='sublog'))S.TAB='online';
+  if(S.TAB!=='sublog')S.SUB_LOG_OPEN=false;
   const tabsEl=document.querySelector('.tabs');
   if(tabsEl){
    tabsEl.classList.toggle('sub-tabs',sub);
@@ -275,19 +281,19 @@
   const attTab=document.querySelector('.tabs button[data-tab="att"]');
   const ocrTab=document.querySelector('.tabs button[data-tab="ocr"]');
   const verTab=document.querySelector('.tabs button[data-tab="ver"]');
-  const crewsOp=document.querySelector('.tabs button[data-op="crews"]');
-  const tariffsOp=document.querySelector('.tabs button[data-op="tariffs"]');
-  const sublogOp=document.querySelector('.tabs button[data-op="sublog"]');
-  const diagOp=document.querySelector('.tabs button[data-op="diag"]');
+  const crewsTab=document.querySelector('.tabs button[data-tab="crews"]');
+  const tariffsTab=document.querySelector('.tabs button[data-tab="tariffs"]');
+  const sublogTab=document.querySelector('.tabs button[data-tab="sublog"]');
+  const diagTab=document.querySelector('.tabs button[data-tab="diag"]');
   const admAttBtn=g('admAttBtn');
   if(mapTab)mapTab.hidden=false;
   if(attTab)attTab.hidden=false;
   if(verTab)verTab.hidden=false;
   if(ocrTab)ocrTab.hidden=false;
-  if(crewsOp)crewsOp.hidden=sub;
-  if(tariffsOp)tariffsOp.hidden=sub;
-  if(sublogOp)sublogOp.hidden=sub;
-  if(diagOp)diagOp.hidden=false;
+  if(crewsTab)crewsTab.hidden=sub;
+  if(tariffsTab)tariffsTab.hidden=sub;
+  if(sublogTab)sublogTab.hidden=sub;
+  if(diagTab)diagTab.hidden=false;
   if(admAttBtn){admAttBtn.hidden=true;}
   if(sub&&S.SEL==='ADMIN')S.SEL='all';
   document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',!!b.dataset.tab&&b.dataset.tab===S.TAB));
@@ -299,6 +305,10 @@
   else if(S.TAB==='att')Adm.drawAtt();
   else if(S.TAB==='totals')Adm.drawTotals();
   else if(S.TAB==='ocr')Adm.drawOcr();
+  else if(S.TAB==='crews')drawCrews();
+  else if(S.TAB==='tariffs')Adm.drawTariffs();
+  else if(S.TAB==='sublog')Adm.drawSubLog();
+  else if(S.TAB==='diag')Adm.drawDiag();
   else drawVer();
   if(!keepAttScroll)window.scrollTo(0,st);
  }
@@ -420,72 +430,66 @@ function openSelectModal(){
   ov.onclick=e=>{if(e.target===ov){close();return}const it=e.target.closest('.sel-it');if(it){S.SEL=it.dataset.val;close();draw()}};
   requestAnimationFrame(()=>ov.classList.add('show'));
  }
- function refreshCrewsMgr(){
-  const ov=g('crewsMgrOv');
-  if(ov&&typeof ov._render==='function')ov._render();
- }
- function openCrewsManagerModal(){
-  if(isSubAdm())return;
-  const old=g('crewsMgrOv');if(old){if(typeof old._close==='function')old._close();else old.remove()}
-  const ov=document.createElement('div');ov.id='crewsMgrOv';ov.className='ov';
-  ov.innerHTML='<div class="dlg cmg-dlg"><div class="sel-hd"><b id="cmgTitle">🚚 Управление экипажами</b><button type="button" class="sel-x">✕</button></div><button type="button" class="cmg-add-btn" id="cmgAddBtn">➕ Добавить новый экипаж</button><div class="cmg-list" id="cmgList"></div></div>';
-  document.body.appendChild(ov);
-  let closed=false;
-  const close=()=>{if(closed)return;closed=true;ov.classList.remove('show');document.removeEventListener('keydown',onK);setTimeout(()=>ov.remove(),180)};
-  ov._close=close;
-  const onK=e=>{if(e.key==='Escape'&&!g('crewEditOv')&&(!g('cOv')||g('cOv').hidden)){e.preventDefault();e.stopImmediatePropagation();close()}};
-  document.addEventListener('keydown',onK);
+ function renderCrewsListInto(listEl, tEl){
+  if(!listEl)return;
+  if(tEl)tEl.innerHTML='<span>🚚 Управление экипажами</span> <span style="font-size:12.5px;color:#94a3b8;font-weight:700" data-no-i18n="1">('+S.CARS_LIST.length+')</span>';
+  if(!S.CARS_LIST.length){
+   listEl.innerHTML='<div class="mut box" style="text-align:center;margin:8px 0">Экипажей пока нет. Нажмите «Добавить новый экипаж».</div>';
+   return;
+  }
   const offRank=wd=>(wd>=1&&wd<=6)?wd:(wd===0?7:8);
-  const render=()=>{
-   const listEl=ov.querySelector('#cmgList'),tEl=ov.querySelector('#cmgTitle');
-   if(!listEl)return;
-   if(tEl)tEl.innerHTML='<span>🚚 Управление экипажами</span> <span style="font-size:12.5px;color:#94a3b8;font-weight:700">('+S.CARS_LIST.length+')</span>';
-   if(!S.CARS_LIST.length){
-    listEl.innerHTML='<div class="mut box" style="text-align:center;margin:8px 0">Экипажей пока нет. Нажмите «Добавить новый экипаж».</div>';
-    return;
-   }
-   const ordered=S.CARS_LIST.map((cd,idx)=>({cd,idx})).sort((a,b)=>(offRank(getCrewOff(a.cd))-offRank(getCrewOff(b.cd)))||(a.idx-b.idx));
-   const wObj=(S.ATT&&S.ATT.workers)||{};
-   listEl.innerHTML=ordered.map(({cd})=>{
-    const offLbl=getCrewOffLbl(cd);
-    const note=(S.CREWS_META[cd]&&S.CREWS_META[cd].note)||'';
-    const appDrvs=devs().filter(d=>{
-     if(String(d.u.car||'').toUpperCase()!==cd)return false;
-     const acc=accByUid(d.id);
-     return !((acc&&acc.blocked)||d.u.blocked);
-    }).map(d=>S.LABELS[d.id]||profName(d)||devName(d.u.ua));
-    const manDrvs=Object.keys(wObj).map(k=>wObj[k]).filter(w=>w&&w.name&&String(w.car||'').toUpperCase()===cd).map(w=>String(w.name).trim());
-    const allMems=[...appDrvs,...manDrvs];
-    const carInfo=Adm.parseCar(cd);
-    const histCnt=Object.keys(carInfo.hist||{}).filter(k=>carInfo.hist[k]).length;
-    const metaParts=[];
-    if(carInfo.sum>0||carInfo.qty>0)metaParts.push('<span>💰 '+money(carInfo.sum)+'</span> · <span>'+fm(carInfo.qty)+' шт</span>');
-    if(histCnt>0)metaParts.push('<span>📦 Архив: '+histCnt+'</span>');
-    return '<div class="cmg-card">'
-     +'<div class="cmg-card-l"><span class="cmg-code" data-no-i18n="1">'+esc(cd)+'</span>'
-     +'<div class="cmg-info"><div class="cmg-top"><span class="cmg-nm"><span>Экипаж</span> <span data-no-i18n="1">'+esc(cd)+'</span></span><span class="cmg-off">'+(offLbl?offLbl:'Без вых.')+'</span></div>'
-     +(note?'<div class="cmg-note" data-no-i18n="1">🚐 '+esc(note)+'</div>':'')
-     +'<div class="cmg-sub">'+(allMems.length?'<span data-no-i18n="1">'+esc(allMems.join(', '))+'</span>':'Свободен')+'</div>'
-     +(metaParts.length?'<div class="cmg-meta">'+metaParts.join(' · ')+'</div>':'')
-     +'</div></div>'
-     +'<div class="cmg-acts">'
-     +'<button type="button" class="cmg-act ed" data-cmg="edit" data-code="'+esc(cd)+'" aria-label="Настроить">✏️</button>'
-     +'<button type="button" class="cmg-act dl" data-cmg="del" data-code="'+esc(cd)+'" aria-label="Удалить">🗑️</button>'
-     +'</div></div>';
-   }).join('');
-  };
-  ov._render=render;
-  render();
-  ov.querySelector('.sel-x').onclick=close;
-  ov.querySelector('#cmgAddBtn').onclick=()=>openCrewEditModal(null);
-  ov.onclick=e=>{
-   if(e.target===ov){close();return}
+  const ordered=S.CARS_LIST.map((cd,idx)=>({cd,idx})).sort((a,b)=>(offRank(getCrewOff(a.cd))-offRank(getCrewOff(b.cd)))||(a.idx-b.idx));
+  const wObj=(S.ATT&&S.ATT.workers)||{};
+  listEl.innerHTML=ordered.map(({cd})=>{
+   const offLbl=getCrewOffLbl(cd);
+   const note=(S.CREWS_META[cd]&&S.CREWS_META[cd].note)||'';
+   const appDrvs=devs().filter(d=>{
+    if(String(d.u.car||'').toUpperCase()!==cd)return false;
+    const acc=accByUid(d.id);
+    return !((acc&&acc.blocked)||d.u.blocked);
+   }).map(d=>S.LABELS[d.id]||profName(d)||devName(d.u.ua));
+   const manDrvs=Object.keys(wObj).map(k=>wObj[k]).filter(w=>w&&w.name&&String(w.car||'').toUpperCase()===cd).map(w=>String(w.name).trim());
+   const allMems=[...appDrvs,...manDrvs];
+   const carInfo=Adm.parseCar(cd);
+   const histCnt=Object.keys(carInfo.hist||{}).filter(k=>carInfo.hist[k]).length;
+   const metaParts=[];
+   if(carInfo.sum>0||carInfo.qty>0)metaParts.push('<span>💰 '+money(carInfo.sum)+'</span> · <span>'+fm(carInfo.qty)+' шт</span>');
+   if(histCnt>0)metaParts.push('<span>📦 Архив: '+histCnt+'</span>');
+   return '<div class="cmg-card">'
+    +'<div class="cmg-card-l"><span class="cmg-code" data-no-i18n="1">'+esc(cd)+'</span>'
+    +'<div class="cmg-info"><div class="cmg-top"><span class="cmg-nm"><span>Экипаж</span> <span data-no-i18n="1">'+esc(cd)+'</span></span><span class="cmg-off">'+(offLbl?offLbl:'Без вых.')+'</span></div>'
+    +(note?'<div class="cmg-note" data-no-i18n="1">🚐 '+esc(note)+'</div>':'')
+    +'<div class="cmg-sub">'+(allMems.length?'<span data-no-i18n="1">'+esc(allMems.join(', '))+'</span>':'Свободен')+'</div>'
+    +(metaParts.length?'<div class="cmg-meta">'+metaParts.join(' · ')+'</div>':'')
+    +'</div></div>'
+    +'<div class="cmg-acts">'
+    +'<button type="button" class="cmg-act ed" data-cmg="edit" data-code="'+esc(cd)+'" aria-label="Настроить">✏️</button>'
+    +'<button type="button" class="cmg-act dl" data-cmg="del" data-code="'+esc(cd)+'" aria-label="Удалить">🗑️</button>'
+    +'</div></div>';
+  }).join('');
+ }
+ function refreshCrewsMgr(){
+  if(S.TAB==='crews'&&!isSubAdm()){
+   renderCrewsListInto(g('cmgList'),g('cmgTitle'));
+  }
+ }
+ function drawCrews(){
+  if(isSubAdm()){S.TAB='online';drawOnline();return}
+  g('view').innerHTML='<div class="in-panel" style="padding:14px"><div class="sel-hd" style="margin-bottom:12px"><b id="cmgTitle">🚚 Управление экипажами</b></div><button type="button" class="cmg-add-btn" id="cmgAddBtn">➕ Добавить новый экипаж</button><div class="cmg-list in-view" id="cmgList"></div></div>';
+  renderCrewsListInto(g('cmgList'),g('cmgTitle'));
+  const ab=g('cmgAddBtn');if(ab)ab.onclick=()=>openCrewEditModal(null);
+  const lb=g('cmgList');
+  if(lb)lb.onclick=e=>{
    const btn=e.target.closest('[data-cmg]');if(!btn)return;
    const act=btn.dataset.cmg,code=btn.dataset.code;
    if(act==='edit')openCrewEditModal(code);
    else if(act==='del')deleteCrew(code);
   };
-  requestAnimationFrame(()=>ov.classList.add('show'));
+ }
+ function openCrewsManagerModal(){
+  if(isSubAdm())return;
+  S.TAB='crews';
+  draw();
  }
  function openCrewEditModal(editCode){
   if(isSubAdm())return;
@@ -776,15 +780,16 @@ function openSelectModal(){
   else if(a==='att-copy'){Adm.attCopyReport()}
  });
  document.querySelectorAll('.tabs button').forEach(b=>b.onclick=async ()=>{
-  const op=b.dataset.op;
-  if(op){
-   if(op==='crews'&&!isSubAdm())Adm.openCrewsManagerModal();
-   else if(op==='tariffs'&&!isSubAdm())Adm.openTariffsModal();
-   else if(op==='sublog'&&!isSubAdm())Adm.openSubLogModal();
-   else if(op==='diag'&&typeof window._openAdmDiag==='function')window._openAdmDiag();
-   return;
+  const nextTab=b.dataset.tab;
+  if(!nextTab||nextTab===S.TAB)return;
+  if(isSubAdm()&&(nextTab==='crews'||nextTab==='tariffs'||nextTab==='sublog'))return;
+  if(S.TAB==='tariffs'&&typeof Adm.hasUnsavedTariffs==='function'&&Adm.hasUnsavedTariffs()){
+   const ok=await ask('Есть несохранённые изменения тарифов. Перейти без сохранения?',{title:'Несохранённые правки',okText:'Перейти',danger:true});
+   if(!ok)return;
+   if(typeof Adm.resetTariffsDraft==='function')Adm.resetTariffsDraft();
   }
-  if(b.dataset.tab){S.TAB=b.dataset.tab;draw()}
+  S.TAB=nextTab;
+  draw();
  });
 
  // ===== Вход и выход =====
@@ -822,7 +827,7 @@ function openSelectModal(){
   }else{
    stop();
    if(S._map)Adm.destroyMap();
-   S.USERS={};S.LABELS={};syncCrewsFromLabels();S.ACCOUNTS={};S.ATT={};S.ATT_ERR=false;S.SUB_LOG=[];S.SUB_LOG_ERR=false;S.SUB_LOG_OPEN=false;S._subLoginLogged=false;updSubLogBdg();S.CARS={};S.OCR_MAP={};S.TARIFFS={};S.MY_ROLE=null;S.CHAT=[];S.DMS={};S.DM_UID=null;S.CHAT_OPEN=false;S._admChatInit=false;S._admDmInit=false;S.SEL='all';
+   S.USERS={};S.LABELS={};syncCrewsFromLabels();S.ACCOUNTS={};S.ATT={};S.ATT_ERR=false;S.SUB_LOG=[];S.SUB_LOG_ERR=false;S.SUB_LOG_OPEN=false;S._subLoginLogged=false;updSubLogBdg();S.CARS={};S.OCR_MAP={};S.TARIFFS={};S.MY_ROLE=null;if(typeof Adm.resetTariffsDraft==='function')Adm.resetTariffsDraft();S.TAB='online';S.CHAT=[];S.DMS={};S.DM_UID=null;S.CHAT_OPEN=false;S._admChatInit=false;S._admDmInit=false;S.SEL='all';
    document.querySelectorAll('.ov').forEach(o=>{if(o.id==='cOv'||o.id==='dlgOv'){o.classList.remove('show');o.hidden=true}else if(typeof o._close==='function')o._close();else o.remove()});
    g('panel').hidden=true;g('login').hidden=false;
   }
@@ -835,7 +840,7 @@ function openSelectModal(){
  });
 
  Object.assign(Adm, {
-  draw, scheduleDraw, drawOnline, drawVer, refreshCrewsMgr, openCrewsManagerModal, loadPub
+  draw, scheduleDraw, drawOnline, drawVer, drawCrews, refreshCrewsMgr, openCrewsManagerModal, loadPub
  });
 })(window.Adm);
 
