@@ -458,10 +458,17 @@
    return hay.includes(q);
   });
   if(!filt.length){
-   box.innerHTML='<div class="slog-empty"><div class="eic">'+(S.SUB_LOG.length?'🔍':'📋')+'</div><div>'+(S.SUB_LOG.length?'По выбранному фильтру записей нет':'Действий субадмина пока не зафиксировано')+'</div></div>';
+   box.innerHTML='<div class="empty-box">'+(S.SUB_LOG.length?'По выбранному фильтру записей нет':'Действий субадмина пока не зафиксировано')+'</div>';
    return;
   }
-  const catIc={att:'📅',crew:'🚚',chat:'💬',ocr:'📖',sys:'⚙️'};
+  const catIc={
+   att:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg>',
+   crew:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17h4V5H2v12h3"/><path d="M14 9h4l4 4v4h-3"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>',
+   chat:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+   ocr:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>',
+   sys:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+   del:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'
+  };
   const catLbl={att:'Табель',crew:'Экипажи',chat:'Чаты',ocr:'Словарь',sys:'Система'};
   const yestStart=tdStart-864e5;
   const monRu=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
@@ -516,17 +523,16 @@
     const d=x.t?new Date(+x.t):null;
     const tm=d?(String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')):'—';
     const isNew=(+x.t||0)>S.SUB_LOG_PREV_SEEN;
-    const safeCat=Object.prototype.hasOwnProperty.call(catIc,x.cat)?x.cat:'sys';
+    const safeCat=Object.prototype.hasOwnProperty.call(catLbl,x.cat)?x.cat:'sys';
     const cls='slog-it c-'+(x.danger?'del':safeCat)+(isNew?' is-new':'');
-    const ic=x.danger?'🗑️':catIc[safeCat];
-    const tags='<span class="slog-tag">'+catLbl[safeCat]+'</span>'
-     +(x.car?'<span class="slog-tag car"><span>🚚</span> <span data-no-i18n="1">'+esc(x.car)+'</span></span>':'');
+    const ic=x.danger?catIc.del:catIc[safeCat];
+    const tags=(x.car?'<span class="slog-tag car" data-no-i18n="1">'+esc(x.car)+'</span>':'')+'<span class="slog-tag">'+catLbl[safeCat]+'</span>';
+    const detHtml=fmtSubLogDet(x);
     html+='<div class="'+cls+'">'
      +'<div class="slog-ic">'+ic+'</div>'
      +'<div class="slog-body">'
      +'<div class="slog-top"><div class="slog-ttl">'+esc(x.title||'Действие')+'</div><div class="slog-meta">'+(isNew?'<span class="slog-new">НОВОЕ</span>':'')+'<span class="slog-tm" data-no-i18n="1">'+tm+'</span></div></div>'
-     +fmtSubLogDet(x)
-     +'<div class="slog-tags">'+tags+'</div>'
+     +'<div class="slog-bot">'+(detHtml||'<div class="slog-det"></div>')+'<div class="slog-tags">'+tags+'</div></div>'
      +'</div></div>';
    });
   });
