@@ -193,19 +193,22 @@
   let h='<div class="tiles">'
    +'<div class="tile"><b id="attStatCnt">'+allMembers.length+'</b><span>сотрудников</span></div>'
    +'<div class="tile"><b id="attStatTot" style="color:#f87171">'+totalAbs+'</b><span>пропусков</span></div>'
-   +'<div class="tile"><b id="attStatTd">'+(isCurMonth?todayAbs:'—')+'</b><span>'+(isCurMonth?'не вышли сегодня':'не тек. месяц')+'</span></div>'
+   +'<div class="tile"><b id="attStatTd">'+(isCurMonth?todayAbs:'—')+'</b><span>'+(isCurMonth?'сегодня':'не тек. месяц')+'</span></div>'
    +'</div>';
 
   h+='<div class="att-bar">'
    +'<button type="button" class="att-nav" data-act="att-prev" aria-label="Предыдущий месяц">◀</button>'
-   +'<div class="att-m-title"><span>📅 '+esc(monthName(S.ATT_YM))+'</span>'+(isCurMonth?'':'<button type="button" class="att-today-btn" data-act="att-today">Сегодня</button>')+'</div>'
+   +'<div class="att-m-title"><span>'+esc(monthName(S.ATT_YM))+'</span>'+(isCurMonth?'':'<button type="button" class="att-today-btn" data-act="att-today">Сегодня</button>')+'</div>'
    +'<button type="button" class="att-nav" data-act="att-next" aria-label="Следующий месяц">▶</button>'
    +'</div>';
 
+  const icPlus='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+  const icRep='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>';
+  const icTbl='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
   h+='<div class="att-acts">'
-   +'<button type="button" class="att-act-btn add" data-act="att-add">➕ Рабочий</button>'
-   +'<button type="button" class="att-act-btn sec-b" data-act="att-copy">📋 Отчёт</button>'
-   +'<button type="button" class="att-act-btn sec-b" data-act="att-csv">📊 Excel</button>'
+   +'<button type="button" class="att-act-btn add" data-act="att-add">'+icPlus+'<span>Рабочий</span></button>'
+   +'<button type="button" class="att-act-btn sec-b" data-act="att-copy">'+icRep+'<span>Отчёт</span></button>'
+   +'<button type="button" class="att-act-btn sec-b" data-act="att-csv">'+icTbl+'<span data-no-i18n="1">Excel</span></button>'
    +'</div>';
 
   if(S.ATT_ERR){

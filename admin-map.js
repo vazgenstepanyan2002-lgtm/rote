@@ -345,7 +345,8 @@ function destroyMap(){S._mapTok++;if(S._mapRO){try{S._mapRO.disconnect()}catch(e
     setTimeout(()=>{if(S._map)S._map.resize()},80);setTimeout(()=>{if(S._map)S._map.resize()},350);
    }catch(e){if(g('subMapRes'))g('subMapRes').innerHTML='<div class="box mut">Ошибка карты: '+esc((e&&e.message)||e)+'</div>';return}
   }
-  const sBtn=g('admSatBtn');if(sBtn){sBtn.classList.toggle('on',S.ADM_SAT);sBtn.textContent=S.ADM_SAT?'🛰️ Спутник':'🗺️ Схема'}
+  const icLayers='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>';
+  const sBtn=g('admSatBtn');if(sBtn){sBtn.classList.toggle('on',S.ADM_SAT);sBtn.innerHTML=icLayers+'<span>'+(S.ADM_SAT?'Спутник':'Схема')+'</span>'}
  }
 
  async function drawMap(){
@@ -403,11 +404,12 @@ function destroyMap(){S._mapTok++;if(S._mapRO){try{S._mapRO.disconnect()}catch(e
     setTimeout(()=>{if(S._map)S._map.resize()},80);setTimeout(()=>{if(S._map)S._map.resize()},350);
    }catch(e){if(g("mapCards"))g("mapCards").innerHTML='<div class="box mut">Ошибка карты: '+esc((e&&e.message)||e)+'</div>';return}
   }
-  const sBtn=g("admSatBtn");if(sBtn){sBtn.classList.toggle("on",S.ADM_SAT);sBtn.textContent=S.ADM_SAT?"🛰️ Спутник":"🗺️ Схема"}
-  const fBtn=g("mapFilterBtn");if(fBtn){fBtn.classList.toggle("on",S.MAP_ONLY_ONLINE);fBtn.textContent=S.MAP_ONLY_ONLINE?"🟢 Только онлайн":"⚪ Все водители"}
+  const icLayers='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>';
+  const sBtn=g("admSatBtn");if(sBtn){sBtn.classList.toggle("on",S.ADM_SAT);sBtn.innerHTML=icLayers+'<span>'+(S.ADM_SAT?"Спутник":"Схема")+'</span>'}
+  const fBtn=g("mapFilterBtn");if(fBtn){fBtn.classList.toggle("on",S.MAP_ONLY_ONLINE);fBtn.innerHTML='<i class="m-dot'+(S.MAP_ONLY_ONLINE?" on":"")+'"></i><span>'+(S.MAP_ONLY_ONLINE?"Только онлайн":"Все водители")+'</span>'}
   try{syncMapMarkers()}catch(e){}
   let ch='<div class="sec">'+(S.MAP_ONLY_ONLINE?'Сейчас на линии (':'На карте (')+withGeo.length+')</div>';
-  if(!withGeo.length)ch+='<div class="box mut">'+(S.MAP_ONLY_ONLINE?'Сейчас нет водителей в сети с активной геолокацией.':'Пока ни одно устройство не передало координаты.')+'</div>';
+  if(!withGeo.length)ch+='<div class="empty-box">'+(S.MAP_ONLY_ONLINE?'Сейчас нет водителей в сети с активной геолокацией.':'Пока ни одно устройство не передало координаты.')+'</div>';
   else ch+=withGeo.map(d=>{const live=now-(d.u.t||0)<TTL,spd=typeof d.u.spd==="number"&&d.u.spd>2?" · "+d.u.spd+" км/ч":"";return'<div class="row" data-act="focus" data-id="'+esc(d.id)+'"><span class="dot'+(live?" on":"")+'"></span><div class="rm"><div class="rt" data-no-i18n="1">'+esc(dispName(d))+'</div><div class="rs">'+(live?"сейчас на линии":"обновлено "+ago(d.u.gt||d.u.t))+esc(spd)+'</div></div></div>'}).join("");
   if(g("mapCards"))g("mapCards").innerHTML=ch;
  }

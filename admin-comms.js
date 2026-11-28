@@ -421,25 +421,22 @@
   const tdCnt=S.SUB_LOG.filter(x=>(+x.t||0)>=tdStart).length;
   const wkCnt=S.SUB_LOG.filter(x=>(+x.t||0)>=wkStart).length;
   if(statsEl){
-   statsEl.innerHTML='<div class="slog-st ok"><b data-no-i18n="1">'+tdCnt+'</b><small>Сегодня</small></div>'
-    +'<div class="slog-st hi"><b data-no-i18n="1">'+wkCnt+'</b><small>За 7 дней</small></div>'
-    +'<div class="slog-st"><b data-no-i18n="1">'+S.SUB_LOG.length+'</b><small>Всего записей</small></div>';
-  }
-  if(subEl){
-   subEl.innerHTML='<span>Отдел доставки</span>';
+   statsEl.innerHTML='<div class="tile"><b data-no-i18n="1">'+tdCnt+'</b><span>сегодня</span></div>'
+    +'<div class="tile"><b data-no-i18n="1">'+wkCnt+'</b><span>за 7 дней</span></div>'
+    +'<div class="tile"><b data-no-i18n="1">'+S.SUB_LOG.length+'</b><span>всего</span></div>';
   }
   const cats=[
-   {k:'all',ic:'✨',n:'Все'},
-   {k:'att',ic:'📅',n:'Табель'},
-   {k:'crew',ic:'🚚',n:'Экипажи'},
-   {k:'chat',ic:'💬',n:'Чаты'},
-   {k:'ocr',ic:'📖',n:'Словарь'},
-   {k:'sys',ic:'⚙️',n:'Система'}
+   {k:'all',n:'Все'},
+   {k:'att',n:'Табель'},
+   {k:'crew',n:'Экипажи'},
+   {k:'chat',n:'Чаты'},
+   {k:'ocr',n:'Словарь'},
+   {k:'sys',n:'Система'}
   ];
   if(chipsEl){
    chipsEl.innerHTML=cats.map(c=>{
     const cnt=c.k==='all'?S.SUB_LOG.length:S.SUB_LOG.filter(x=>x.cat===c.k).length;
-    return '<button type="button" class="slog-chip'+(S.SUB_LOG_CAT===c.k?' on':'')+'" data-cat="'+c.k+'"><span>'+c.ic+' '+c.n+'</span><span class="cnt" data-no-i18n="1">'+cnt+'</span></button>';
+    return '<button type="button" class="slog-chip'+(S.SUB_LOG_CAT===c.k?' on':'')+'" data-cat="'+c.k+'"><span>'+c.n+'</span><span class="cnt" data-no-i18n="1">'+cnt+'</span></button>';
    }).join('');
   }
   if(S.SUB_LOG_ERR){
@@ -542,20 +539,19 @@
    S.SUB_LOG_CAT='all';S.SUB_LOG_Q='';
    S.SUB_LOG_OPEN=true;
   }
-  g('view').innerHTML='<div class="in-panel purp slog-view">'
-   +'<div class="slog-hd">'
-   +'<div class="slog-hd-l"><div class="slog-hd-ic">📋</div><div class="slog-hd-t"><b>Лог субадмина</b><small id="slogSub"></small></div></div>'
-   +'<div class="slog-acts">'
-   +'<button type="button" id="slogCsv" class="slog-btn csv" title="Выгрузить в Excel" aria-label="Выгрузить в Excel">📥</button>'
-   +'<button type="button" id="slogClr" class="slog-btn clr" title="Очистить журнал" aria-label="Очистить журнал">🗑️</button>'
-   +'</div></div>'
-   +'<div id="slogStats" class="slog-stats"></div>'
+  const icSrch='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
+  const icDl='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+  const icDel='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+  g('view').innerHTML='<div id="slogStats" class="tiles"></div>'
    +'<div class="slog-ctrl">'
-   +'<div class="slog-srch"><span class="slog-srch-ic">🔍</span><input id="slogInp" type="search" placeholder="Поиск по имени, экипажу, тексту..." value="'+esc(S.SUB_LOG_Q)+'"><button type="button" id="slogClrQ" class="slog-srch-clr"'+(S.SUB_LOG_Q?'':' hidden')+'>✕</button></div>'
+   +'<div class="slog-top-bar">'
+   +'<div class="slog-srch"><span class="slog-srch-ic">'+icSrch+'</span><input id="slogInp" type="search" placeholder="Поиск..." value="'+esc(S.SUB_LOG_Q)+'"><button type="button" id="slogClrQ" class="slog-srch-clr"'+(S.SUB_LOG_Q?'':' hidden')+'>✕</button></div>'
+   +'<button type="button" id="slogCsv" class="slog-btn csv" title="Выгрузить в Excel" aria-label="Выгрузить в Excel">'+icDl+'</button>'
+   +'<button type="button" id="slogClr" class="slog-btn clr" title="Очистить журнал" aria-label="Очистить журнал">'+icDel+'</button>'
+   +'</div>'
    +'<div id="slogChips" class="slog-chips"></div>'
    +'</div>'
-   +'<div id="slogList" class="slog-list in-view"></div>'
-   +'</div>';
+   +'<div id="slogList" class="slog-list in-view"></div>';
   const inp=g('slogInp'),clrQ=g('slogClrQ');
   if(inp)inp.oninput=e=>{S.SUB_LOG_Q=e.target.value||'';if(clrQ)clrQ.hidden=!S.SUB_LOG_Q;renderSubLog()};
   if(clrQ)clrQ.onclick=()=>{if(inp)inp.value='';S.SUB_LOG_Q='';clrQ.hidden=true;renderSubLog();if(inp)inp.focus()};
@@ -660,11 +656,14 @@
     const view = document.getElementById('view');
     if (!view) return;
     const myTok = ++_dgRunTok;
-    view.innerHTML = '<div class="in-panel dg-panel">'
-      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="display:flex;align-items:center;gap:10px"><span style="width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,rgba(16,185,129,.22),rgba(14,165,233,.18));border:1px solid rgba(52,211,153,.38);color:#6ee7b7;display:flex;align-items:center;justify-content:center;font-size:17px">🩺</span><div><div style="font-size:15.5px;font-weight:800;color:#f8fafc;line-height:1.15">Диагностика и API</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">Статус сервисов и кэша</div></div></div></div>'
-      + '<div id="dgBody" style="display:flex;flex-direction:column;gap:8px"></div>'
-      + '<div class="dg-acts"><button type="button" id="dgRe" style="height:42px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(16,185,129,.16);border:1px solid rgba(52,211,153,.38);color:#6ee7b7">↻ Проверить</button><button type="button" id="dgClrCache" style="height:42px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.36);color:#fca5a5">✕ Сбросить кэш</button></div>'
-      + '</div>';
+    const icRef = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>';
+    const icDel = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+    view.innerHTML = '<div class="sum-dash">'
+      + '<div class="sum-lbl">Диагностика и API</div>'
+      + '<div class="sum-top"><div class="sum-val" id="dgSummary" style="font-size:21px">Проверка сервисов...</div><div class="sum-kpis"><div class="sum-kpi"><b id="dgErrKpi" style="color:#6ee7b7" data-no-i18n="1">' + ERR_LOG.length + '</b><span>ошибок</span></div></div></div>'
+      + '<div class="ab-row2"><button type="button" id="dgRe" class="ab-btn em">' + icRef + '<span>Проверить</span></button><button type="button" id="dgClrCache" class="ab-btn red">' + icDel + '<span>Сбросить кэш</span></button></div>'
+      + '</div>'
+      + '<div id="dgBody"></div>';
     const clrBtn = document.getElementById('dgClrCache');
     if (clrBtn) clrBtn.onclick = async () => {
       if ('caches' in window) { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); }
@@ -675,7 +674,9 @@
       const box = document.getElementById('dgBody');
       if (!box) return;
       const runTok = ++_dgRunTok;
-      box.innerHTML = '<div style="padding:22px;text-align:center;color:#94a3b8;font-size:12.5px">Проверка сервисов...</div>';
+      const sumEl = document.getElementById('dgSummary');
+      if (sumEl) sumEl.textContent = 'Проверка сервисов...';
+      box.innerHTML = '<div class="empty-box">Проверка сервисов...</div>';
       const yKey = typeof YKEY !== 'undefined' ? YKEY : '';
       const sKey = typeof SUG_KEY !== 'undefined' ? SUG_KEY : '';
       const fbOpts = (window.firebase && firebase.apps && firebase.apps.length) ? firebase.app().options : {};
@@ -724,12 +725,19 @@
       if (runTok !== _dgRunTok) return;
       const curBox = document.getElementById('dgBody');
       if (!curBox) return;
-      const grid = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">' + checks.map(c => {
-        const bg = c.ok ? 'rgba(16,185,129,.10)' : 'rgba(239,68,68,.14)', bd = c.ok ? 'rgba(52,211,153,.28)' : 'rgba(248,113,113,.36)', dot = c.ok ? '#10b981' : '#ef4444', stCol = c.ok ? '#6ee7b7' : '#fca5a5';
-        return '<div style="padding:9px 10px;border-radius:12px;background:' + bg + ';border:1px solid ' + bd + ';display:flex;flex-direction:column;gap:2px"><div style="display:flex;align-items:center;gap:5px"><i style="width:7px;height:7px;border-radius:50%;background:' + dot + ';box-shadow:0 0 7px ' + dot + ';flex-shrink:0"></i><span style="font-size:12px;font-weight:700;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escD(c.name) + '</span></div><div' + (c.keyInfo === 'не найден' ? '' : ' data-no-i18n="1"') + ' title="' + escD(c.keyInfo) + '" style="font-size:10.5px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escD(c.keyInfo) + '</div><div style="font-size:11px;font-weight:600;color:' + stCol + '">' + escD(c.detail) + '</div></div>';
+      const okAll = checks.filter(c => c.ok).length;
+      const sEl = document.getElementById('dgSummary');
+      if (sEl) sEl.innerHTML = '<span style="color:' + (okAll === checks.length ? '#34d399' : '#fbbf24') + ';font-size:23px" data-no-i18n="1">' + okAll + ' / ' + checks.length + '</span><span class="sum-unit">сервисов онлайн</span>';
+      const eKpi = document.getElementById('dgErrKpi');
+      if (eKpi) { eKpi.textContent = String(ERR_LOG.length); eKpi.style.color = ERR_LOG.length ? '#f87171' : '#6ee7b7'; }
+      const grid = '<div class="sec">Сервисы и API</div><div class="dg-grid">' + checks.map(c => {
+        const dot = c.ok ? '#10b981' : '#ef4444', stCol = c.ok ? '#6ee7b7' : '#fca5a5';
+        return '<div class="dg-card' + (c.ok ? '' : ' bad') + '"><div style="display:flex;align-items:center;gap:6px"><i style="width:7px;height:7px;border-radius:50%;background:' + dot + ';box-shadow:0 0 7px ' + dot + ';flex-shrink:0"></i><span style="font-size:12px;font-weight:700;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escD(c.name) + '</span></div><div' + (c.keyInfo === 'не найден' ? '' : ' data-no-i18n="1"') + ' title="' + escD(c.keyInfo) + '" style="font-size:10.5px;color:#8b9bb4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escD(c.keyInfo) + '</div><div style="font-size:11px;font-weight:600;color:' + stCol + '">' + escD(c.detail) + '</div></div>';
       }).join('') + '</div>';
-      const errBar = ERR_LOG.length ? '<div style="padding:8px 10px;border-radius:12px;background:rgba(239,68,68,.12);border:1px solid rgba(248,113,113,.3);font-size:11px;color:#fca5a5"><b>Ошибки (' + ERR_LOG.length + '):</b> <span data-no-i18n="1">' + escD(ERR_LOG[0] && ERR_LOG[0].msg) + '</span></div>' : '<div style="padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);display:flex;justify-content:space-between;font-size:11.5px;color:#94a3b8"><span>Журнал ошибок JS</span><span style="color:#6ee7b7;font-weight:600">0 ошибок</span></div>';
-      curBox.innerHTML = grid + '<div style="padding:9px 11px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);display:flex;flex-direction:column;gap:4px;font-size:11.5px"><div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">Версия на сервере</span><code data-no-i18n="1" style="color:#fde047;font-weight:700">' + escD(srvVer) + '</code></div><div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">Service Worker</span><span style="color:#e2e8f0;font-weight:600">' + escD(swInfo) + '</span></div><div style="display:flex;justify-content:space-between;gap:8px"><span style="color:#94a3b8;flex-shrink:0">Cache</span><code' + (cacheList === 'пусто' ? '' : ' data-no-i18n="1"') + ' style="color:#7dd3fc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escD(cacheList) + '</code></div></div>' + errBar;
+      const errRow = ERR_LOG.length
+        ? '<div class="dg-sys-r" style="padding-top:6px;border-top:1px solid rgba(255,255,255,.07)"><span style="color:#fca5a5">Ошибки (' + ERR_LOG.length + ')</span><span data-no-i18n="1" style="color:#fecaca;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escD(ERR_LOG[0] && ERR_LOG[0].msg) + '</span></div>'
+        : '<div class="dg-sys-r" style="padding-top:6px;border-top:1px solid rgba(255,255,255,.07)"><span>Журнал ошибок JS</span><span style="color:#6ee7b7;font-weight:700">0 ошибок</span></div>';
+      curBox.innerHTML = grid + '<div class="sec">Система и кэш</div><div class="dg-sys"><div class="dg-sys-r"><span>Версия на сервере</span><code data-no-i18n="1" style="color:#fde047;font-weight:700">' + escD(srvVer) + '</code></div><div class="dg-sys-r"><span>Service Worker</span><span style="color:#e2e8f0;font-weight:600">' + escD(swInfo) + '</span></div><div class="dg-sys-r"><span style="flex-shrink:0">Cache</span><code' + (cacheList === 'пусто' ? '' : ' data-no-i18n="1"') + ' style="color:#7dd3fc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escD(cacheList) + '</code></div>' + errRow + '</div>';
     };
     const reBtn = document.getElementById('dgRe');
     if (reBtn) reBtn.onclick = run;

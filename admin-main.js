@@ -189,7 +189,7 @@
   h += '<div class="onl-bar">'
      + '<button type="button" id="btnCrewFlt" class="onl-btn' + (S.ONL_CAR !== 'all' ? ' active' : '') + '" data-act="open-onl-flt">'
      + '<span>' + btnLabel + '</span>' + btnBadge + '<span style="opacity:.6;font-size:10px;margin-left:2px">▾</span></button>'
-     + '<input id="onlSrch" class="sum-srch" type="search" value="' + esc(S.ONL_Q) + '" placeholder="Поиск по имени или экипажу...">'
+     + '<input id="onlSrch" class="sum-srch" type="search" value="' + esc(S.ONL_Q) + '" placeholder="Поиск...">'
      + '</div><div id="onlRows">';
   const FL=S.ONL_CAR==='all'?L:S.ONL_CAR==='none'?L.filter(d=>!String(d.u.car||'').trim()):L.filter(d=>String(d.u.car||'').toUpperCase()===S.ONL_CAR);
   const qn=S.ONL_Q.trim().toLowerCase(),FL2=qn?FL.filter(d=>(dispName(d)+' '+(d.u.car||'')+' '+devName(d.u.ua)).toLowerCase().includes(qn)):FL;
@@ -219,20 +219,27 @@
 
    const blkBadge=blk?' <span style="display:inline-block;background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.45);color:#fca5a5;font-size:10px;font-weight:800;padding:1px 6px;border-radius:99px;vertical-align:middle;margin-left:4px">🚫 БЛОК</span>':'';
    const rowStyle=blk?' style="cursor:default;border-color:rgba(239,68,68,.45);background:linear-gradient(180deg,rgba(45,18,24,.88) 0%,rgba(22,12,16,.95) 100%)"':' style="cursor:default"';
+   const icMsg='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>';
+   const icEd='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+   const icKey='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>';
+   const icBlk='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m4.9 4.9 14.2 14.2"/></svg>';
+   const icOk='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+   const icX='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
    const un=Adm.dmUnread(d.id);
-   const dmBtn='<button class="dm-btn" data-act="dm" data-id="'+esc(d.id)+'" aria-label="Личный чат">✉️'+(un?'<span class="dm-bdg">'+(un>99?'99+':un)+'</span>':'')+'</button>';
-   const editNameBtn=sub?'':'<button class="xb" style="background:rgba(168,85,247,.16);border-color:rgba(192,132,252,.38);color:#d8b4fe" data-act="editname" data-id="'+esc(d.id)+'" aria-label="Изменить имя">✏️</button>';
-   const pinBtn=(!sub&&acc)?'<button class="xb" style="background:rgba(250,204,21,.14);border-color:rgba(250,204,21,.35);color:#fde047" data-act="pin" data-key="'+esc(acc.key)+'" aria-label="ПИН">🔑</button>':'';
+   const dmBtn='<button class="dm-btn" data-act="dm" data-id="'+esc(d.id)+'" aria-label="Личный чат">'+icMsg+(un?'<span class="dm-bdg">'+(un>99?'99+':un)+'</span>':'')+'</button>';
+   const editNameBtn=sub?'':'<button class="xb" style="background:rgba(168,85,247,.16);border-color:rgba(192,132,252,.38);color:#d8b4fe;display:inline-flex;align-items:center;justify-content:center" data-act="editname" data-id="'+esc(d.id)+'" aria-label="Изменить имя">'+icEd+'</button>';
+   const pinBtn=(!sub&&acc)?'<button class="xb" style="background:rgba(250,204,21,.14);border-color:rgba(250,204,21,.35);color:#fde047;display:inline-flex;align-items:center;justify-content:center" data-act="pin" data-key="'+esc(acc.key)+'" aria-label="ПИН">'+icKey+'</button>':'';
    const blkBtn=sub?'':(blk
-    ?'<button class="xb" style="background:rgba(16,185,129,.18);border-color:rgba(52,211,153,.4);color:#34d399" data-act="block" data-id="'+esc(d.id)+'" data-key="'+esc(acc?acc.key:'')+'" data-blk="1" aria-label="Разблокировать">✅</button>'
-    :'<button class="xb" style="background:rgba(249,115,22,.16);border-color:rgba(249,115,22,.38);color:#fb923c" data-act="block" data-id="'+esc(d.id)+'" data-key="'+esc(acc?acc.key:'')+'" data-blk="0" aria-label="Заблокировать">🚫</button>');
-   const delBtn=sub?'':'<button class="xb" data-act="del" data-id="'+esc(d.id)+'" aria-label="Удалить">✕</button>';
+    ?'<button class="xb" style="background:rgba(16,185,129,.18);border-color:rgba(52,211,153,.4);color:#34d399;display:inline-flex;align-items:center;justify-content:center" data-act="block" data-id="'+esc(d.id)+'" data-key="'+esc(acc?acc.key:'')+'" data-blk="1" aria-label="Разблокировать">'+icOk+'</button>'
+    :'<button class="xb" style="background:rgba(249,115,22,.16);border-color:rgba(249,115,22,.38);color:#fb923c;display:inline-flex;align-items:center;justify-content:center" data-act="block" data-id="'+esc(d.id)+'" data-key="'+esc(acc?acc.key:'')+'" data-blk="0" aria-label="Заблокировать">'+icBlk+'</button>');
+   const delBtn=sub?'':'<button class="xb" style="display:inline-flex;align-items:center;justify-content:center" data-act="del" data-id="'+esc(d.id)+'" aria-label="Удалить">'+icX+'</button>';
+   const sumVal=car==="ADMIN"?'<span style="font-size:12px;font-weight:700;color:#94a3b8">Админ</span>':money(car ? Adm.parseCar(car).sum : d.cur.sum);
 
    return '<div class="row"'+rowStyle+'><span class="dot'+(live&&!blk?' on':'')+'"></span>'
     +'<div class="rm"><div class="rt" style="margin-bottom:6px;display:flex;align-items:center;gap:8px"><div'+(sub?' style="min-width:0;flex:1"':' data-act="rename" data-id="'+esc(d.id)+'" style="min-width:0;flex:1;cursor:pointer"')+'>'+dispHtml(d)+blkBadge+'</div>'+(car==="ADMIN"?(sub?'<span style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:11px;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(124,58,237,.1));border:1px solid rgba(167,139,250,.45);color:#c4b5fd;font-size:12.5px;font-weight:800;letter-spacing:.3px;line-height:1"><span style="font-size:13px">🛡️</span><span data-no-i18n="1">Admin</span></span>':'<button type="button" data-act="setcar" data-id="'+esc(d.id)+'" style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:11px;background:linear-gradient(135deg,rgba(167,139,250,.24),rgba(124,58,237,.12));border:1px solid rgba(167,139,250,.5);box-shadow:0 2px 10px rgba(139,92,246,.16);color:#c4b5fd;font-size:12.5px;font-weight:800;letter-spacing:.3px;cursor:pointer;line-height:1"><span style="font-size:13px">🛡️</span><span data-no-i18n="1">Admin</span><span style="opacity:.65;font-size:10px">▾</span></button>'):car?'<button type="button" data-act="setcar" data-id="'+esc(d.id)+'" style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:11px;background:linear-gradient(135deg,rgba(16,185,129,.24),rgba(5,150,105,.12));border:1px solid rgba(52,211,153,.5);box-shadow:0 2px 10px rgba(16,185,129,.16);color:#6ee7b7;font-size:12.5px;font-weight:800;letter-spacing:.4px;cursor:pointer;line-height:1"><span style="font-size:14px">🚚</span><span data-no-i18n="1">'+esc(car)+'</span><span style="opacity:.65;font-size:10px">▾</span></button>':'<button type="button" data-act="setcar" data-id="'+esc(d.id)+'" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:11px;background:rgba(245,158,11,.13);border:1px dashed rgba(251,191,36,.45);color:#fbbf24;font-size:11.5px;font-weight:700;cursor:pointer;line-height:1"><span>🚚</span><span>Экипаж</span><span style="opacity:.7;font-size:10px">▾</span></button>')+'</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">'+row1.join('')+'</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:4px">'+row2.join('')+'</div></div>'
-    +'<div class="rv">'+money(car && car !== "ADMIN" ? Adm.parseCar(car).sum : (car === "ADMIN" ? 0 : d.cur.sum))+'</div>'
+    +'<div class="rv">'+sumVal+'</div>'
     +dmBtn+editNameBtn+pinBtn+blkBtn+delBtn+'</div>';
   }).join('');
   const tail='</div>'+(L.length&&!isSubAdm()?'<div class="mut hint">Нажмите на имя водителя, чтобы задать префикс. Кнопка ✏️ меняет имя профиля.</div>':'');
@@ -245,9 +252,10 @@
  function drawVer(){
   const L=devs(),by={};
   L.forEach(d=>{const v=d.u.v||'';by[v]=(by[v]||0)+1});
-  let h='<div class="hero"><span>Опубликованная версия</span><b>'+(S.PUB===undefined?'…':S.PUB===null?'нет связи':esc(verFmt(S.PUB)))+'</b><span><a href="#" data-act="pub">проверить снова</a></span></div>';
+  const icRef='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>';
+  let h='<div class="hero" style="padding:14px 16px"><span>Опубликованная версия</span><div class="hero-row"><b style="font-size:22px;margin:0">'+(S.PUB===undefined?'…':S.PUB===null?'нет связи':esc(verFmt(S.PUB)))+'</b><a href="#" class="hero-re" data-act="pub">'+icRef+'<span>Проверить</span></a></div></div>';
   h+='<div class="sec">Версии на устройствах</div>';
-  if(!L.length)h+='<div class="mut box">Данных пока нет.</div>';
+  if(!L.length)h+='<div class="empty-box">Данных пока нет.</div>';
   h+=Object.keys(by).sort().reverse().map(v=>{
    const old=S.PUB&&v!==S.PUB;
    return '<div class="mr"><div class="rm"><div class="rt">'+esc(verFmt(v))+'</div><div class="rs">'+(old?'не последняя версия':'актуальная')+'</div></div><div class="rv'+(old?' warn':'')+'">'+by[v]+' устр.</div></div>';
@@ -255,7 +263,7 @@
   h+='<div class="sec">Принудительное обновление</div>'
    +'<div class="box"><span>Отправляет всем устройствам команду перезагрузить приложение с сервера. Устройство обновится, когда приложение открыто и в нём не заполняется форма.</span><br><br>'
    +'<span>Последняя команда:</span> '+(S.FU?'<b data-no-i18n="1">'+esc(new Date(S.FU).toLocaleString(admLoc()))+'</b> (<b>'+esc(ago(S.FU))+'</b>)':'<b>ещё не отправлялась</b>')+'</div>'
-   +'<button class="btn" data-act="force">🔄 Обновить у всех</button>';
+   +'<button class="btn" style="display:flex;align-items:center;justify-content:center;gap:7px" data-act="force">'+icRef+'<span>Обновить у всех</span></button>';
   g('view').innerHTML=h;
  }
  function updTarTabBdg(){
@@ -432,15 +440,13 @@ function openSelectModal(){
  }
  function renderCrewsListInto(listEl, tEl){
   if(!listEl)return;
-  if(tEl)tEl.innerHTML='<span>🚚 Управление экипажами</span> <span style="font-size:12.5px;color:#94a3b8;font-weight:700" data-no-i18n="1">('+S.CARS_LIST.length+')</span>';
-  if(!S.CARS_LIST.length){
-   listEl.innerHTML='<div class="mut box" style="text-align:center;margin:8px 0">Экипажей пока нет. Нажмите «Добавить новый экипаж».</div>';
-   return;
-  }
   const offRank=wd=>(wd>=1&&wd<=6)?wd:(wd===0?7:8);
   const ordered=S.CARS_LIST.map((cd,idx)=>({cd,idx})).sort((a,b)=>(offRank(getCrewOff(a.cd))-offRank(getCrewOff(b.cd)))||(a.idx-b.idx));
   const wObj=(S.ATT&&S.ATT.workers)||{};
-  listEl.innerHTML=ordered.map(({cd})=>{
+  let busyCnt=0;
+  const icEd='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+  const icDel='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+  const cards=ordered.map(({cd})=>{
    const offLbl=getCrewOffLbl(cd);
    const note=(S.CREWS_META[cd]&&S.CREWS_META[cd].note)||'';
    const appDrvs=devs().filter(d=>{
@@ -450,23 +456,34 @@ function openSelectModal(){
    }).map(d=>S.LABELS[d.id]||profName(d)||devName(d.u.ua));
    const manDrvs=Object.keys(wObj).map(k=>wObj[k]).filter(w=>w&&w.name&&String(w.car||'').toUpperCase()===cd).map(w=>String(w.name).trim());
    const allMems=[...appDrvs,...manDrvs];
+   if(allMems.length)busyCnt++;
    const carInfo=Adm.parseCar(cd);
    const histCnt=Object.keys(carInfo.hist||{}).filter(k=>carInfo.hist[k]).length;
    const metaParts=[];
-   if(carInfo.sum>0||carInfo.qty>0)metaParts.push('<span>💰 '+money(carInfo.sum)+'</span> · <span>'+fm(carInfo.qty)+' шт</span>');
-   if(histCnt>0)metaParts.push('<span>📦 Архив: '+histCnt+'</span>');
+   if(carInfo.sum>0||carInfo.qty>0)metaParts.push('<span>'+money(carInfo.sum)+'</span> · <span style="color:#94a3b8">'+fm(carInfo.qty)+' шт</span>');
+   if(histCnt>0)metaParts.push('<span style="color:#94a3b8">Архив: '+histCnt+'</span>');
    return '<div class="cmg-card">'
     +'<div class="cmg-card-l"><span class="cmg-code" data-no-i18n="1">'+esc(cd)+'</span>'
     +'<div class="cmg-info"><div class="cmg-top"><span class="cmg-nm"><span>Экипаж</span> <span data-no-i18n="1">'+esc(cd)+'</span></span><span class="cmg-off">'+(offLbl?offLbl:'Без вых.')+'</span></div>'
-    +(note?'<div class="cmg-note" data-no-i18n="1">🚐 '+esc(note)+'</div>':'')
+    +(note?'<div class="cmg-note" data-no-i18n="1">'+esc(note)+'</div>':'')
     +'<div class="cmg-sub">'+(allMems.length?'<span data-no-i18n="1">'+esc(allMems.join(', '))+'</span>':'Свободен')+'</div>'
     +(metaParts.length?'<div class="cmg-meta">'+metaParts.join(' · ')+'</div>':'')
     +'</div></div>'
     +'<div class="cmg-acts">'
-    +'<button type="button" class="cmg-act ed" data-cmg="edit" data-code="'+esc(cd)+'" aria-label="Настроить">✏️</button>'
-    +'<button type="button" class="cmg-act dl" data-cmg="del" data-code="'+esc(cd)+'" aria-label="Удалить">🗑️</button>'
+    +'<button type="button" class="cmg-act ed" data-cmg="edit" data-code="'+esc(cd)+'" aria-label="Настроить">'+icEd+'</button>'
+    +'<button type="button" class="cmg-act dl" data-cmg="del" data-code="'+esc(cd)+'" aria-label="Удалить">'+icDel+'</button>'
     +'</div></div>';
-  }).join('');
+  });
+  const sAll=g('cmgStatAll'),sBusy=g('cmgStatBusy'),sFree=g('cmgStatFree');
+  if(sAll)sAll.textContent=String(S.CARS_LIST.length);
+  if(sBusy)sBusy.textContent=String(busyCnt);
+  if(sFree)sFree.textContent=String(Math.max(0,S.CARS_LIST.length-busyCnt));
+  if(tEl)tEl.textContent='Все экипажи ('+S.CARS_LIST.length+')';
+  if(!cards.length){
+   listEl.innerHTML='<div class="empty-box">Экипажей пока нет. Нажмите «Добавить новый экипаж».</div>';
+   return;
+  }
+  listEl.innerHTML=cards.join('');
  }
  function refreshCrewsMgr(){
   if(S.TAB==='crews'&&!isSubAdm()){
@@ -475,7 +492,15 @@ function openSelectModal(){
  }
  function drawCrews(){
   if(isSubAdm()){S.TAB='online';drawOnline();return}
-  g('view').innerHTML='<div class="in-panel" style="padding:14px"><div class="sel-hd" style="margin-bottom:12px"><b id="cmgTitle">🚚 Управление экипажами</b></div><button type="button" class="cmg-add-btn" id="cmgAddBtn">➕ Добавить новый экипаж</button><div class="cmg-list in-view" id="cmgList"></div></div>';
+  const icPlus='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+  g('view').innerHTML='<div class="tiles">'
+   +'<div class="tile"><b id="cmgStatAll" data-no-i18n="1">'+S.CARS_LIST.length+'</b><span>экипажей</span></div>'
+   +'<div class="tile"><b id="cmgStatBusy" data-no-i18n="1">0</b><span>с водителями</span></div>'
+   +'<div class="tile"><b id="cmgStatFree" data-no-i18n="1">0</b><span>свободных</span></div>'
+   +'</div>'
+   +'<button type="button" class="cmg-add-btn" id="cmgAddBtn">'+icPlus+'<span>Добавить новый экипаж</span></button>'
+   +'<div class="sec" id="cmgTitle">Все экипажи ('+S.CARS_LIST.length+')</div>'
+   +'<div class="cmg-list in-view" id="cmgList"></div>';
   renderCrewsListInto(g('cmgList'),g('cmgTitle'));
   const ab=g('cmgAddBtn');if(ab)ab.onclick=()=>openCrewEditModal(null);
   const lb=g('cmgList');
@@ -762,7 +787,7 @@ function openSelectModal(){
   else if(a==='del-car-hist'){e.stopPropagation();if(isSubAdm())return;const car=b.dataset.car,hk=b.dataset.hk,rec=S.CARS[car]&&S.CARS[car].hist&&S.CARS[car].hist[hk];if(!car||!hk)return;if(!await ask('Удалить сохранённый итог за «'+monthName(rec&&rec.m||hk)+'» у экипажа '+car+'?',{title:'Удаление итога',okText:'Удалить',danger:true}))return;try{await db.ref('cars/'+car+'/hist/'+hk).remove();toast('Итог удалён')}catch(err){toast('Ошибка удаления',true)}}
   else if(a==='csv-single-cur'){e.stopPropagation();const car=b.dataset.car||S.SEL,c=Adm.parseCar(car);exportCarDetailCsv(car,'Текущий_месяц',c.rows,c.qty,c.sum)}
   else if(a==='mapfilter'){S.MAP_ONLY_ONLINE=!S.MAP_ONLY_ONLINE;S._didFit=false;Adm.drawMap()}
-  else if(a==='mapsat'){S.ADM_SAT=!S.ADM_SAT;try{localStorage.setItem('ADM_MAP_SAT',S.ADM_SAT?'1':'0')}catch(e){}if(S._applyAdmSat)S._applyAdmSat(S.ADM_SAT);const sb=g('admSatBtn');if(sb){sb.classList.toggle('on',S.ADM_SAT);sb.textContent=S.ADM_SAT?'🛰️ Спутник':'🗺️ Схема'}}
+  else if(a==='mapsat'){S.ADM_SAT=!S.ADM_SAT;try{localStorage.setItem('ADM_MAP_SAT',S.ADM_SAT?'1':'0')}catch(e){}if(S._applyAdmSat)S._applyAdmSat(S.ADM_SAT);const sb=g('admSatBtn');if(sb){sb.classList.toggle('on',S.ADM_SAT);sb.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg><span>'+(S.ADM_SAT?'Спутник':'Схема')+'</span>'}}
   else if(a==='submap-north'){if(S._map)S._map.easeTo({bearing:0,pitch:0,duration:300})}
   else if(a==='submap-fit'){if(S._subFit)S._subFit();else if(S._map)S._map.easeTo({center:[44.515,40.181],zoom:12.2,duration:350})}
   else if(a==='submap-clear'){e.stopPropagation();if(typeof window._subClearPt==='function')window._subClearPt()}

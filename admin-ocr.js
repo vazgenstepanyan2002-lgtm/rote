@@ -68,8 +68,12 @@
   pruneStaleOcrPending();
   const pendList=getOcrPending();
   const allKeys=Object.keys(S.OCR_MAP).filter(k=>S.OCR_MAP[k]&&OCR_CAT_NAMES[S.OCR_MAP[k]]).sort();
-  const recalcBtn=!isSubAdm()?'<button type="button" data-act="ocr-recalc" style="height:40px;padding:0 12px;border-radius:12px;background:rgba(56,189,248,.16);border:1px solid rgba(56,189,248,.42);color:#7dd3fc;font-size:13px;font-weight:700;white-space:nowrap">🔄 Пересчитать</button>':'';
-  let h='<div class="sum-dash"><div class="sum-top" style="flex-wrap:wrap;gap:8px"><div><div class="sum-lbl">Общий словарь накладных</div><div class="sum-val">'+allKeys.length+' <span>правил</span></div></div><div style="display:flex;gap:6px;flex-wrap:wrap">'+recalcBtn+'<button type="button" data-act="ocr-add" style="height:40px;padding:0 14px;border-radius:12px;background:rgba(16,185,129,.22);border:1px solid rgba(52,211,153,.45);color:#6ee7b7;font-size:13.5px;font-weight:700;white-space:nowrap">➕ Добавить</button></div></div></div>';
+  const icRef='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>';
+  const icAdd='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+  const recalcBtn=!isSubAdm()?'<button type="button" class="ab-btn sky" data-act="ocr-recalc">'+icRef+'<span>Пересчитать</span></button>':'';
+  const addBtn='<button type="button" class="ab-btn em" data-act="ocr-add">'+icAdd+'<span>Добавить</span></button>';
+  const btnsGrid=recalcBtn?('<div class="ab-row2">'+recalcBtn+addBtn+'</div>'):('<div style="margin-top:11px;display:grid">'+addBtn+'</div>');
+  let h='<div class="sum-dash"><div class="sum-lbl">Общий словарь накладных</div><div class="sum-val">'+allKeys.length+'<span class="sum-unit">правил</span></div>'+btnsGrid+'</div>';
   if(pendList.length){
    h+='<div class="sec" style="color:#fde047">🧾 Ожидают подтверждения ('+pendList.length+')</div>';
    h+=pendList.map(({uid,k,p})=>{
@@ -87,7 +91,7 @@
    }).join('');
   }
   h+='<div class="sec">Все правила ('+allKeys.length+')</div>';
-  h+='<input id="ocrSrchInp" class="sum-srch" type="search" value="'+esc(S.OCR_Q)+'" placeholder="Поиск по названию или категории..." style="margin-bottom:10px!important"><div id="ocrRulesList"></div>';
+  h+=(allKeys.length?'<input id="ocrSrchInp" class="sum-srch" type="search" value="'+esc(S.OCR_Q)+'" placeholder="Поиск..." style="margin-bottom:10px!important">':'')+'<div id="ocrRulesList"></div>';
   const curInp=g('ocrSrchInp'),wasFocused=curInp&&document.activeElement===curInp;
   const renderList=()=>{
    const box=g('ocrRulesList');if(!box)return;
@@ -97,7 +101,7 @@
     const hay=ocrNorm(k+' '+k.replace(/_/g,'.')+' '+(OCR_CAT_NAMES[cd]||'')+' '+(OCR_HY_KW[grp]||''));
     return tokens.every(t=>hay.includes(t));
    }):allKeys;
-   if(!keys.length){box.innerHTML='<div class="mut box">'+(allKeys.length?'Ничего не найдено по запросу.':'Словарь пуст. Правила появятся после сканирования накладных или добавления вручную.')+'</div>';return;}
+   if(!keys.length){box.innerHTML='<div class="empty-box">'+(allKeys.length?'Ничего не найдено по запросу.':'Словарь пуст. Правила появятся после сканирования накладных или добавления вручную.')+'</div>';return;}
    box.innerHTML=keys.map(k=>{
     const cd=S.OCR_MAP[k];
     return '<div class="row" data-act="ocr-edit" data-k="'+esc(k)+'" style="padding:11px 12px">'

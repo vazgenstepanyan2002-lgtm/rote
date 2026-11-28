@@ -196,8 +196,9 @@ test('admin-*.js: субадмин изолирован от accounts и subadmi
   assert.ok(!envSub.listenedPaths.includes('subadminLog'), 'Субадмин не должен подписываться на subadminLog');
   assert.ok(envSub.listenedPaths.includes('attendance'), 'Субадмин должен видеть attendance');
   assert.ok(envSub.listenedPaths.includes('config/tariffs'), 'Субадмин должен получать актуальные тарифы для расчётов');
-  envSub.sandbox.window.Adm.drawTotals();
-  assert.ok(!envSub.els.view.innerHTML.includes('data-act="open-tariffs"'), 'У субадмина не должно быть кнопки редактора тарифов');
+  envSub.sandbox.window.Adm.drawTariffs();
+  assert.equal(envSub.sandbox.window.Adm.S.TAB, 'online', 'Субадмин не должен попадать на вкладку тарифов');
+  assert.ok(!envSub.els.view.innerHTML.includes('id="tarList"'), 'У субадмина не должен рендериться редактор тарифов');
 
   const envMain = createMockEnv();
   envMain.triggerAuth({ isAnonymous: false, email: 'vazgenstepanyan2002@gmail.com', uid: 'adm1' });
@@ -206,8 +207,8 @@ test('admin-*.js: субадмин изолирован от accounts и subadmi
   assert.ok(envMain.listenedPaths.includes('accounts'), 'Главный админ должен подписываться на accounts');
   assert.ok(envMain.listenedPaths.includes('subadminLog'), 'Главный админ должен подписываться на subadminLog');
   assert.ok(envMain.listenedPaths.includes('config/tariffs'), 'Главный админ должен подписываться на config/tariffs');
-  envMain.sandbox.window.Adm.drawTotals();
-  assert.ok(envMain.els.view.innerHTML.includes('data-act="open-tariffs"'), 'У главного админа должна быть кнопка редактора тарифов');
+  envMain.sandbox.window.Adm.drawTariffs();
+  assert.ok(envMain.els.view.innerHTML.includes('id="tarList"'), 'У главного админа должен рендериться редактор тарифов');
 });
 
 test('admin-*.js: серверная роль S.MY_ROLE управляет isSubAdm() приоритетно', () => {
