@@ -147,7 +147,8 @@ const getCarsList=()=>isSubAdm()?S.CARS_LIST:[...S.CARS_LIST,'ADMIN'];
  const subLogSeen=()=>{try{return +(localStorage.getItem(SUB_LOG_SEEN_KEY)||0)||0}catch(e){return 0}};
  const subLogUnread=()=>{if(isSubAdm()||!S.SUB_LOG.length)return 0;const s=subLogSeen();return S.SUB_LOG.filter(x=>(+x.t||0)>s).length};
  function updSubLogBdg(){
-  const b=g('admMenuBdg');if(!b)return;
+  const mb=g('admMenuBdg');if(mb)mb.hidden=true;
+  const b=g('subLogTabBdg');if(!b)return;
   if(isSubAdm()){b.hidden=true;return}
   const n=subLogUnread();
   b.hidden=!n;b.textContent=n>99?'99+':String(n);

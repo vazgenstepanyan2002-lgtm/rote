@@ -60,6 +60,7 @@
   listen('config/tariffs',v=>{
    S.TARIFFS=(v&&typeof v==='object')?v:{};
    if(window.EB_CATALOG&&typeof window.EB_CATALOG.applyTariffs==='function')window.EB_CATALOG.applyTariffs(S.TARIFFS);
+   updTarTabBdg();
    if(S.TAB==='online'||S.TAB==='totals')scheduleDraw(120);
    const sumOv=g('admSumOv');
    if(sumOv&&sumOv.classList.contains('show')&&typeof sumOv._refresh==='function')sumOv._refresh();
@@ -253,24 +254,43 @@
    +'<button class="btn" data-act="force">🔄 Обновить у всех</button>';
   g('view').innerHTML=h;
  }
+ function updTarTabBdg(){
+  const b=g('tarTabBdg');if(!b)return;
+  if(isSubAdm()){b.hidden=true;return}
+  const n=window.EB_CATALOG&&typeof window.EB_CATALOG.getCustomTariffsCount==='function'?window.EB_CATALOG.getCustomTariffsCount():0;
+  b.hidden=!n;b.textContent=n>99?'99+':String(n);
+ }
  function draw(){
   if(g('panel').hidden)return;
   Adm.updOcrTabBdg();
+  updSubLogBdg();
+  updTarTabBdg();
   const sub=isSubAdm();
   const tabsEl=document.querySelector('.tabs');
-  if(tabsEl)tabsEl.style.gridTemplateColumns='repeat(5,1fr)';
+  if(tabsEl){
+   tabsEl.classList.toggle('sub-tabs',sub);
+   tabsEl.style.gridTemplateColumns='';
+  }
   const mapTab=document.querySelector('.tabs button[data-tab="map"]');
   const attTab=document.querySelector('.tabs button[data-tab="att"]');
   const ocrTab=document.querySelector('.tabs button[data-tab="ocr"]');
   const verTab=document.querySelector('.tabs button[data-tab="ver"]');
+  const crewsOp=document.querySelector('.tabs button[data-op="crews"]');
+  const tariffsOp=document.querySelector('.tabs button[data-op="tariffs"]');
+  const sublogOp=document.querySelector('.tabs button[data-op="sublog"]');
+  const diagOp=document.querySelector('.tabs button[data-op="diag"]');
   const admAttBtn=g('admAttBtn');
   if(mapTab)mapTab.hidden=false;
-  if(attTab)attTab.hidden=!sub;
-  if(verTab)verTab.hidden=sub;
-  if(admAttBtn){admAttBtn.hidden=sub;admAttBtn.classList.toggle('adm-att-on',S.TAB==='att');}
+  if(attTab)attTab.hidden=false;
+  if(verTab)verTab.hidden=false;
   if(ocrTab)ocrTab.hidden=false;
+  if(crewsOp)crewsOp.hidden=sub;
+  if(tariffsOp)tariffsOp.hidden=sub;
+  if(sublogOp)sublogOp.hidden=sub;
+  if(diagOp)diagOp.hidden=false;
+  if(admAttBtn){admAttBtn.hidden=true;}
   if(sub&&S.SEL==='ADMIN')S.SEL='all';
-  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===S.TAB));
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',!!b.dataset.tab&&b.dataset.tab===S.TAB));
   const st=window.scrollY;
   const keepAttScroll=S.TAB==='att'&&!!g('attWrap');
   if(S.TAB!=='map'&&S._map)Adm.destroyMap();
@@ -755,7 +775,17 @@ function openSelectModal(){
   else if(a==='att-csv'){Adm.attExportCsv()}
   else if(a==='att-copy'){Adm.attCopyReport()}
  });
- document.querySelectorAll('.tabs button').forEach(b=>b.onclick=async ()=>{S.TAB=b.dataset.tab;draw()});
+ document.querySelectorAll('.tabs button').forEach(b=>b.onclick=async ()=>{
+  const op=b.dataset.op;
+  if(op){
+   if(op==='crews'&&!isSubAdm())Adm.openCrewsManagerModal();
+   else if(op==='tariffs'&&!isSubAdm())Adm.openTariffsModal();
+   else if(op==='sublog'&&!isSubAdm())Adm.openSubLogModal();
+   else if(op==='diag'&&typeof window._openAdmDiag==='function')window._openAdmDiag();
+   return;
+  }
+  if(b.dataset.tab){S.TAB=b.dataset.tab;draw()}
+ });
 
  // ===== Вход и выход =====
  const AUTH_ERR={

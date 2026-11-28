@@ -587,25 +587,11 @@
   requestAnimationFrame(()=>ov.classList.add('show'));
  }
  function openAdmMenu(){
-  const sub=isSubAdm(),u=auth.currentUser;
+  const u=auth.currentUser;
   const curL=window.getLang?window.getLang():'ru';
   const lName=curL==='hy'?'Հայերեն':(curL==='en'?'English':'Русский');
   const ov=document.createElement('div');ov.className='ov';
-  let items='';
-  if(!sub){
-   const slNew=subLogUnread();
-   const slSub=slNew?('Новых событий: '+slNew+' · всего '+S.SUB_LOG.length):(S.SUB_LOG.length?('Записей в журнале: '+S.SUB_LOG.length):'История действий отдела доставки');
-   const tarModCnt=typeof EB_CAT.getCustomTariffsCount==='function'?EB_CAT.getCustomTariffsCount():0;
-   const tarSub=tarModCnt?('Изменено позиций: '+tarModCnt+' · настройка цен Город / Район'):'Настройка расценок бонусов (Город / Район)';
-   items+='<div class="sel-it'+(S.TAB==='att'?' on':'')+'" data-op="att"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(168,85,247,.16);border-color:rgba(192,132,252,.4);color:#d8b4fe">📅</span><div><div class="sel-it-nm">Табель пропусков</div><div class="sel-it-sb">Учёт выходов и отсутствий по экипажам</div></div></div>'+(S.TAB==='att'?'<div class="sel-it-r"><span class="sel-chk">✓</span></div>':'')+'</div>';
-   items+='<div class="sel-it" data-op="crews"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(16,185,129,.18);border-color:rgba(52,211,153,.45);color:#6ee7b7">🚚</span><div><div class="sel-it-nm">Управление экипажами</div><div class="sel-it-sb">Экипажей: '+S.CARS_LIST.length+' · добавить, настроить, удалить</div></div></div></div>';
-   items+='<div class="sel-it" data-op="tariffs"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(250,204,21,.16);border-color:rgba(250,204,21,.42);color:#fde047">💰</span><div><div class="sel-it-nm">Тарифы бонусов</div><div class="sel-it-sb">'+tarSub+'</div></div></div>'+(tarModCnt?'<div class="sel-it-r"><span class="menu-bdg" style="background:rgba(250,204,21,.22);color:#fde047;border:1px solid rgba(250,204,21,.45)" data-no-i18n="1">'+tarModCnt+'</span></div>':'')+'</div>';
-   items+='<div class="sel-it" data-op="sublog" style="'+(slNew?'border-color:rgba(167,139,250,.48)':'')+'"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(139,92,246,.18);border-color:rgba(167,139,250,.45);color:#c4b5fd">📋</span><div><div class="sel-it-nm">Лог субадмина</div><div class="sel-it-sb">'+slSub+'</div></div></div>'+(slNew?'<div class="sel-it-r"><span class="menu-bdg" data-no-i18n="1">'+(slNew>99?'99+':slNew)+'</span></div>':'')+'</div>';
-  }else{
-   items+='<div class="sel-it'+(S.TAB==='ver'?' on':'')+'" data-op="ver"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(168,85,247,.16);border-color:rgba(192,132,252,.4);color:#d8b4fe">🔄</span><div><div class="sel-it-nm">Версия приложения</div><div class="sel-it-sb">Обновление и версии на устройствах</div></div></div>'+(S.TAB==='ver'?'<div class="sel-it-r"><span class="sel-chk">✓</span></div>':'')+'</div>';
-  }
-  items+='<div class="sel-it" data-op="lang"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(16,185,129,.16);border-color:rgba(52,211,153,.4);color:#6ee7b7">🌐</span><div><div class="sel-it-nm">Язык интерфейса</div><div class="sel-it-sb">'+lName+'</div></div></div></div>'
-   +'<div class="sel-it" data-op="diag"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(56,189,248,.14);border-color:rgba(56,189,248,.38);color:#7dd3fc">🩺</span><div><div class="sel-it-nm">Диагностика и API</div><div class="sel-it-sb">Статус сервисов, кэша и ошибок</div></div></div></div>'
+  const items='<div class="sel-it" data-op="lang"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(16,185,129,.16);border-color:rgba(52,211,153,.4);color:#6ee7b7">🌐</span><div><div class="sel-it-nm">Язык интерфейса</div><div class="sel-it-sb">'+lName+'</div></div></div></div>'
    +'<div class="sel-it" data-op="pw"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(250,204,21,.14);border-color:rgba(250,204,21,.38);color:#fde047">🔑</span><div><div class="sel-it-nm">Сменить пароль</div><div class="sel-it-sb">'+(u&&u.email?'<span data-no-i18n="1">'+esc(u.email)+'</span>':'Безопасность аккаунта')+'</div></div></div></div>'
    +'<div class="sel-it" data-op="out" style="border-color:rgba(239,68,68,.3)"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.38);color:#f87171">🚪</span><div><div class="sel-it-nm" style="color:#fca5a5">Выйти из админки</div><div class="sel-it-sb">Завершить текущую сессию</div></div></div></div>';
   ov.innerHTML='<div class="dlg sel-dlg"><div class="sel-hd"><b>⚙️ Меню управления</b><button type="button" class="sel-x">✕</button></div><div class="sel-list">'+items+'</div></div>';
@@ -616,13 +602,7 @@
    if(e.target===ov){close();return}
    const it=e.target.closest('.sel-it');if(!it)return;
    const op=it.dataset.op;close();
-   if(op==='att'){S.TAB='att';Adm.draw()}
-   else if(op==='crews'){Adm.openCrewsManagerModal()}
-   else if(op==='tariffs'){Adm.openTariffsModal()}
-   else if(op==='sublog'){openSubLogModal()}
-   else if(op==='ver'){S.TAB='ver';Adm.draw()}
-   else if(op==='lang'){openAdmLangModal()}
-   else if(op==='diag'){if(typeof window._openAdmDiag==='function')window._openAdmDiag()}
+   if(op==='lang'){openAdmLangModal()}
    else if(op==='pw'){openChangePw()}
    else if(op==='out'){
     if(await ask('Выйти из панели администратора?',{title:'Выход',okText:'Выйти',danger:true})){
