@@ -191,8 +191,10 @@
     const cref=db.ref('chat');
     await cref.push({uid:admTag(),name:admRawName(),role:admTag(),adm:true,txt:txt,t:firebase.database.ServerValue.TIMESTAMP});
     logSubAct('chat','chat_msg','Сообщение в общий чат',txt.slice(0,140));
-    const s=await cref.once('value'),av=s.val()||{},ks=Object.keys(av).sort((a,b)=>(+av[a].t||0)-(+av[b].t||0));
-    if(ks.length>50)ks.slice(0,ks.length-50).forEach(k=>cref.child(k).remove().catch(()=>{}));
+    if(!isSubAdm()){
+     const s=await cref.once('value'),av=s.val()||{},ks=Object.keys(av).sort((a,b)=>(+av[a].t||0)-(+av[b].t||0));
+     if(ks.length>50)ks.slice(0,ks.length-50).forEach(k=>cref.child(k).remove().catch(()=>{}));
+    }
    }catch(e){inp.value=txt;toast('Не удалось отправить',true)}
    snd.disabled=false;inp.blur();
   };
@@ -326,8 +328,10 @@
      t:firebase.database.ServerValue.TIMESTAMP
     });
     logSubAct('chat','dm_msg','Личное сообщение водителю',who+': '+txt.slice(0,140),{car:hdCar,target:who});
-    const s=await dref.once('value'),av=s.val()||{},ks=Object.keys(av).sort((a,b)=>(+av[a].t||0)-(+av[b].t||0));
-    if(ks.length>50)ks.slice(0,ks.length-50).forEach(k=>dref.child(k).remove().catch(()=>{}));
+    if(!isSubAdm()){
+     const s=await dref.once('value'),av=s.val()||{},ks=Object.keys(av).sort((a,b)=>(+av[a].t||0)-(+av[b].t||0));
+     if(ks.length>50)ks.slice(0,ks.length-50).forEach(k=>dref.child(k).remove().catch(()=>{}));
+    }
    }catch(e){inp.value=txt;toast('Не удалось отправить',true)}
    snd.disabled=false;inp.blur();
   };
@@ -422,7 +426,7 @@
     +'<div class="slog-st"><b data-no-i18n="1">'+S.SUB_LOG.length+'</b><small>Всего записей</small></div>';
   }
   if(subEl){
-   subEl.innerHTML='<span>Доставка</span> · <span data-no-i18n="1">'+esc(SUB_EMAIL)+'</span>';
+   subEl.innerHTML='<span>Отдел доставки</span>';
   }
   const cats=[
    {k:'all',ic:'✨',n:'Все'},
@@ -439,7 +443,7 @@
    }).join('');
   }
   if(S.SUB_LOG_ERR){
-   const ruleSnippet='"subadminLog": {\n  ".read": "auth != null && auth.token.email == \'vazgenstepanyan2002@gmail.com\'",\n  ".write": "auth != null && auth.token.email == \'vazgenstepanyan2002@gmail.com\'",\n  "$id": {\n    ".write": "auth != null && auth.token.email == \'diannakirakosyan@gmail.com\' && !data.exists() && newData.exists()",\n    ".validate": "newData.hasChildren([\'cat\', \'act\', \'t\']) && newData.child(\'t\').isNumber()"\n  }\n}';
+   const ruleSnippet='"subadminLog": {\n  ".read": "auth != null && root.child(\'roles\').child(auth.uid).val() == \'admin\'",\n  ".write": "auth != null && root.child(\'roles\').child(auth.uid).val() == \'admin\'",\n  "$id": {\n    ".write": "auth != null && root.child(\'roles\').child(auth.uid).val() == \'subadmin\' && !data.exists() && newData.exists()",\n    ".validate": "newData.hasChildren([\'cat\', \'act\', \'t\']) && newData.child(\'t\').isNumber()"\n  }\n}';
    box.innerHTML='<div class="slog-rule"><b>⚠️ Требуется правило в Firebase Realtime Database</b><div style="margin-top:4px"><span>Добавьте узел</span> <code data-no-i18n="1">subadminLog</code> <span>в консоли Firebase (Rules), чтобы сохранять и читать журнал действий субадмина:</span></div><pre data-no-i18n="1">'+esc(ruleSnippet)+'</pre><button type="button" id="slogCopyRule">📋 Скопировать правило</button></div>';
    const cp=g('slogCopyRule');
    if(cp)cp.onclick=()=>{
@@ -591,8 +595,11 @@
   if(!sub){
    const slNew=subLogUnread();
    const slSub=slNew?('Новых событий: '+slNew+' · всего '+S.SUB_LOG.length):(S.SUB_LOG.length?('Записей в журнале: '+S.SUB_LOG.length):'История действий отдела доставки');
+   const tarModCnt=typeof EB_CAT.getCustomTariffsCount==='function'?EB_CAT.getCustomTariffsCount():0;
+   const tarSub=tarModCnt?('Изменено позиций: '+tarModCnt+' · настройка цен Город / Район'):'Настройка расценок бонусов (Город / Район)';
    items+='<div class="sel-it'+(S.TAB==='att'?' on':'')+'" data-op="att"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(168,85,247,.16);border-color:rgba(192,132,252,.4);color:#d8b4fe">📅</span><div><div class="sel-it-nm">Табель пропусков</div><div class="sel-it-sb">Учёт выходов и отсутствий по экипажам</div></div></div>'+(S.TAB==='att'?'<div class="sel-it-r"><span class="sel-chk">✓</span></div>':'')+'</div>';
    items+='<div class="sel-it" data-op="crews"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(16,185,129,.18);border-color:rgba(52,211,153,.45);color:#6ee7b7">🚚</span><div><div class="sel-it-nm">Управление экипажами</div><div class="sel-it-sb">Экипажей: '+S.CARS_LIST.length+' · добавить, настроить, удалить</div></div></div></div>';
+   items+='<div class="sel-it" data-op="tariffs"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(250,204,21,.16);border-color:rgba(250,204,21,.42);color:#fde047">💰</span><div><div class="sel-it-nm">Тарифы бонусов</div><div class="sel-it-sb">'+tarSub+'</div></div></div>'+(tarModCnt?'<div class="sel-it-r"><span class="menu-bdg" style="background:rgba(250,204,21,.22);color:#fde047;border:1px solid rgba(250,204,21,.45)" data-no-i18n="1">'+tarModCnt+'</span></div>':'')+'</div>';
    items+='<div class="sel-it" data-op="sublog" style="'+(slNew?'border-color:rgba(167,139,250,.48)':'')+'"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(139,92,246,.18);border-color:rgba(167,139,250,.45);color:#c4b5fd">📋</span><div><div class="sel-it-nm">Лог субадмина</div><div class="sel-it-sb">'+slSub+'</div></div></div>'+(slNew?'<div class="sel-it-r"><span class="menu-bdg" data-no-i18n="1">'+(slNew>99?'99+':slNew)+'</span></div>':'')+'</div>';
   }else{
    items+='<div class="sel-it'+(S.TAB==='ver'?' on':'')+'" data-op="ver"><div class="sel-it-l"><span class="sel-ic" style="background:rgba(168,85,247,.16);border-color:rgba(192,132,252,.4);color:#d8b4fe">🔄</span><div><div class="sel-it-nm">Версия приложения</div><div class="sel-it-sb">Обновление и версии на устройствах</div></div></div>'+(S.TAB==='ver'?'<div class="sel-it-r"><span class="sel-chk">✓</span></div>':'')+'</div>';
@@ -611,6 +618,7 @@
    const op=it.dataset.op;close();
    if(op==='att'){S.TAB='att';Adm.draw()}
    else if(op==='crews'){Adm.openCrewsManagerModal()}
+   else if(op==='tariffs'){Adm.openTariffsModal()}
    else if(op==='sublog'){openSubLogModal()}
    else if(op==='ver'){S.TAB='ver';Adm.draw()}
    else if(op==='lang'){openAdmLangModal()}
@@ -700,7 +708,7 @@
       let srvVer = '—';
       const checks = await Promise.all([
         probe('Firebase Auth', maskKey(fbKey), async () => { const ok = Boolean(fbKey && fbKey.startsWith('AIza') && window.firebase && firebase.auth().currentUser); return { ok, detail: ok ? 'Сессия ОК' : 'Нет сессии' }; }),
-        probe('Realtime DB', 'europe-west1', async () => { const u = window.firebase && firebase.auth().currentUser, tk = u ? await u.getIdToken() : ''; const r = await fetch(fbDb + '/config.json' + (tk ? '?auth=' + tk : '')); return { ok: r.ok, detail: r.ok ? 'HTTP 200' : 'HTTP ' + r.status }; }),
+        probe('Realtime DB', 'europe-west1', async () => { const u = window.firebase && firebase.auth().currentUser, tk = u ? await u.getIdToken() : ''; const r = await fetch(fbDb + '/config/forceUpdate.json' + (tk ? '?auth=' + tk : '')); return { ok: r.ok, detail: r.ok ? 'HTTP 200' : 'HTTP ' + r.status }; }),
         probe('Яндекс Геокодер', maskKey(yKey), async () => { const r = await fetch(p2); return { ok: r.ok, detail: r.ok ? 'HTTP 200' : 'HTTP ' + r.status }; }),
         probe('Яндекс Подсказки', maskKey(sKey), async () => { const r = await fetch(p3); return { ok: r.ok, detail: r.ok ? 'HTTP 200' : 'HTTP ' + r.status }; }),
         probe('OSRM Основной', 'project-osrm', async () => { const r = await fetch(p4); const d = await r.json().catch(() => ({})); return { ok: r.ok && d.code === 'Ok', detail: (r.ok && d.code === 'Ok') ? 'Маршрут ОК' : 'HTTP ' + r.status }; }),

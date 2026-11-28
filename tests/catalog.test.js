@@ -78,3 +78,60 @@ test('catalog.js: переводы на 3 языка (ru, hy, en) и nm()', () =
   assert.equal(ruCat.OCR_CAT_NAMES.recep_a, 'Ресепшен · До 1,6 м');
   assert.equal(ruCat.BON_BY_CODE.recep_a.name, 'Прихожая / ресепшен до 1,6 м');
 });
+
+test('catalog.js: applyTariffs синхронно обновляет все проекции, валидирует и сбрасывает к базе', () => {
+  const cat = loadCatalog('ru');
+  const defBed = cat.DEFAULT_TARIFFS.bedroom_d;
+  const defDoor = cat.DEFAULT_TARIFFS.other_i;
+  assert.equal(defBed.p1, 2600);
+  assert.equal(defBed.p2, 3380);
+  assert.equal(defDoor.one, true);
+  assert.equal(defDoor.p1, 500);
+
+  let notified = 0;
+  cat.onTariffsChange(() => { notified++; });
+
+  // Применяем кастомные тарифы + мусорные/невалидные значения
+  const applied = cat.applyTariffs({
+    bedroom_d: { p1: 3000, p2: 3900 },
+    other_i: { p1: 750, p2: 9999 }, // one=1 -> p2 игнорируется
+    other_c: { p1: -100, p2: 'bad' }, // невалидные -> остаются базовыми
+    unknown_item: { p1: 999 } // несуществующий код -> отбрасывается
+  });
+
+  assert.equal(notified, 1);
+  assert.deepEqual(Object.keys(applied).sort(), ['bedroom_d', 'other_i']);
+  assert.equal(cat.getCustomTariffsCount(), 2);
+
+  // Все проекции синхронно обновились на месте
+  assert.equal(cat.BON_BY_CODE.bedroom_d.p1, 3000);
+  assert.equal(cat.BON_BY_CODE.bedroom_d.p2, 3900);
+  assert.equal(cat.BON_BY_CODE.other_i.p1, 750);
+  assert.equal(cat.BON_BY_CODE.other_i.p2, 750);
+
+  const preBed = cat.PRE.find(c => c.pk === 'bedroom').subs.find(s => s.sk === 'd');
+  const carBed = cat.CAR_CATALOG.find(c => c.pk === 'bedroom').subs.find(s => s.sk === 'd');
+  assert.equal(preBed.price, 3000);
+  assert.equal(preBed.price2, 3900);
+  assert.equal(carBed.p1, 3000);
+  assert.equal(carBed.p2, 3900);
+
+  const preDoor = cat.PRE.find(c => c.pk === 'other').subs.find(s => s.sk === 'i');
+  const carDoor = cat.CAR_CATALOG.find(c => c.pk === 'other').subs.find(s => s.sk === 'i');
+  assert.equal(preDoor.price, 750);
+  assert.equal(preDoor.price2, undefined);
+  assert.equal(carDoor.p1, 750);
+  assert.equal(carDoor.p2, undefined);
+
+  // Невалидные значения не сломали other_c
+  assert.equal(cat.BON_BY_CODE.other_c.p1, cat.DEFAULT_TARIFFS.other_c.p1);
+  assert.equal(cat.BON_BY_CODE.other_c.p2, cat.DEFAULT_TARIFFS.other_c.p2);
+
+  // Сброс к дефолту пустым объектом
+  cat.applyTariffs({});
+  assert.equal(cat.getCustomTariffsCount(), 0);
+  assert.equal(cat.BON_BY_CODE.bedroom_d.p1, 2600);
+  assert.equal(cat.BON_BY_CODE.bedroom_d.p2, 3380);
+  assert.equal(cat.BON_BY_CODE.other_i.p1, 500);
+  assert.equal(notified, 2);
+});

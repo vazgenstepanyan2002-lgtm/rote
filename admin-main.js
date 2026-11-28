@@ -57,6 +57,35 @@
   listen('dm',Adm.onDmSnap);
   listen('config/forceUpdate',v=>{S.FU=+v||0;if(S.TAB==='ver')scheduleDraw(120)});
   listen('config/ocrMap',v=>{S.OCR_MAP=v||{};Adm.updOcrTabBdg();if(S.TAB==='ocr')scheduleDraw(120)});
+  listen('config/tariffs',v=>{
+   S.TARIFFS=(v&&typeof v==='object')?v:{};
+   if(window.EB_CATALOG&&typeof window.EB_CATALOG.applyTariffs==='function')window.EB_CATALOG.applyTariffs(S.TARIFFS);
+   if(S.TAB==='online'||S.TAB==='totals')scheduleDraw(120);
+   const sumOv=g('admSumOv');
+   if(sumOv&&sumOv.classList.contains('show')&&typeof sumOv._refresh==='function')sumOv._refresh();
+  });
+  if(auth.currentUser&&auth.currentUser.uid){
+   const roleRef=db.ref('roles/'+auth.currentUser.uid);
+   const roleFn=roleRef.on('value',s=>{
+    const rv=s.val();
+    const nextRole=(rv==='admin'||rv==='subadmin')?rv:null;
+    if(nextRole!==S.MY_ROLE){
+     const wasSub=isSubAdm();
+     S.MY_ROLE=nextRole;
+     const nowSub=isSubAdm();
+     if(wasSub!==nowSub){
+      showErr('');
+      if(g('who')&&auth.currentUser)g('who').innerHTML=(nowSub?'<span>Доставка</span> · ':'')+'<span data-no-i18n="1">'+esc(auth.currentUser.email||'')+'</span>';
+      start();draw();
+      if(nowSub&&!S._subLoginLogged){
+       S._subLoginLogged=true;
+       logSubAct('sys','login','Вход в админ-панель',devInfo(navigator.userAgent));
+      }
+     }
+    }
+   },()=>{});
+   offs.push(()=>roleRef.off('value',roleFn));
+  }
   {
    const attRef=db.ref('attendance');
    const attFn=attRef.on('value',s=>{S.ATT=s.val()||{};S.ATT_ERR=false;if(S.TAB==='att')scheduleDraw(120);refreshCrewsMgr()},e=>{S.ATT_ERR=true;if(window._admPushErr)window._admPushErr('FB_DENIED','attendance: '+((e&&e.message)||e));if(S.TAB==='att')scheduleDraw(120)});
@@ -322,7 +351,7 @@ function openCarModal(uid){
     await db.ref('users/'+uid+'/car').set(nc||null);
     let moved = false, attMoved = false;
     if (nc && nc !== "ADMIN") {
-     const hasOld = (+d.cur.sum > 0) || (d.hist && Object.keys(d.hist).length > 0);
+     const hasOld = !isSubAdm() && ((+d.cur.sum > 0) || (d.hist && Object.keys(d.hist).length > 0));
      if (hasOld && await ask("У водителя есть личные бонусы (" + money(d.cur.sum) + "). Перенести их в общий котёл экипажа " + nc + "?", { title: "Перенос бонусов", okText: "Перенести" })) {
       moved = await Adm.migrateDevToCar(uid, nc);
      }
@@ -684,6 +713,7 @@ function openSelectModal(){
   else if(a==='open-car-sum'){e.stopPropagation();Adm.openAdmSumModal(b.dataset.id,b.dataset.sub||"cur")}
   else if(a==='open-car-month'){e.stopPropagation();const cv=Adm.parseCar(b.dataset.id);const hk=Object.keys(cv.hist).find(k=>cv.hist[k]&&cv.hist[k].m===b.dataset.m);if(hk)Adm.openAdmSumModal(b.dataset.id,hk);else{S.SEL=b.dataset.id;draw()}}
   else if(a==='opensel'){e.stopPropagation();openSelectModal()}
+  else if(a==='open-tariffs'){e.stopPropagation();if(!isSubAdm())Adm.openTariffsModal()}
   else if(a==='cpcur'){e.stopPropagation();const curList=Adm.allCars().filter(c=>c.qty>0||c.sum>0).map(c=>({name:'Экипаж '+c.code+(c.crew.length?' ('+c.crew.join(', ')+')':''),sum:c.sum,qty:c.qty})).sort((a,b)=>b.sum-a.sum);copyReport('Текущий месяц (по экипажам)',curList,curList.reduce((a,x)=>a+x.qty,0),curList.reduce((a,x)=>a+x.sum,0))}
   else if(a==='csvcur'){
    e.stopPropagation();
@@ -762,7 +792,7 @@ function openSelectModal(){
   }else{
    stop();
    if(S._map)Adm.destroyMap();
-   S.USERS={};S.LABELS={};syncCrewsFromLabels();S.ACCOUNTS={};S.ATT={};S.ATT_ERR=false;S.SUB_LOG=[];S.SUB_LOG_ERR=false;S.SUB_LOG_OPEN=false;S._subLoginLogged=false;updSubLogBdg();S.CARS={};S.OCR_MAP={};S.CHAT=[];S.DMS={};S.DM_UID=null;S.CHAT_OPEN=false;S._admChatInit=false;S._admDmInit=false;S.SEL='all';
+   S.USERS={};S.LABELS={};syncCrewsFromLabels();S.ACCOUNTS={};S.ATT={};S.ATT_ERR=false;S.SUB_LOG=[];S.SUB_LOG_ERR=false;S.SUB_LOG_OPEN=false;S._subLoginLogged=false;updSubLogBdg();S.CARS={};S.OCR_MAP={};S.TARIFFS={};S.MY_ROLE=null;S.CHAT=[];S.DMS={};S.DM_UID=null;S.CHAT_OPEN=false;S._admChatInit=false;S._admDmInit=false;S.SEL='all';
    document.querySelectorAll('.ov').forEach(o=>{if(o.id==='cOv'||o.id==='dlgOv'){o.classList.remove('show');o.hidden=true}else if(typeof o._close==='function')o._close();else o.remove()});
    g('panel').hidden=true;g('login').hidden=false;
   }

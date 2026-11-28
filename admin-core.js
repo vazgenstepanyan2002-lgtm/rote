@@ -57,7 +57,7 @@
  const S = {
   CARS_LIST: DEFAULT_CREWS.map(x => x.code),
   CREWS_META: DEFAULT_CREWS.reduce((m, x) => { m[x.code] = { off: x.off, note: x.note }; return m; }, {}),
-  USERS: {}, LABELS: {}, ACCOUNTS: {}, CARS: {}, OCR_MAP: {}, OCR_Q: '',
+  USERS: {}, LABELS: {}, ACCOUNTS: {}, CARS: {}, OCR_MAP: {}, OCR_Q: '', TARIFFS: {}, MY_ROLE: null,
   CHAT: [], CHAT_OPEN: false, DMS: {}, DM_UID: null, DM_TAB: 'adm',
   FU: 0, PUB: undefined, TAB: 'online', SEL: 'all', ONL_CAR: 'all', ONL_Q: '',
   ATT: {}, ATT_ERR: false, ATT_SCROLLED_YM: '',
@@ -178,7 +178,11 @@ const getCarsList=()=>isSubAdm()?S.CARS_LIST:[...S.CARS_LIST,'ADMIN'];
  }
  const OCR_CAT_NAMES=EB_CAT.OCR_CAT_NAMES||{};
  const SUB_EMAIL='diannakirakosyan@gmail.com';
- const isSubAdm=()=>((auth.currentUser&&auth.currentUser.email)||'').toLowerCase()===SUB_EMAIL;
+ const isSubAdm=()=>{
+  if(S.MY_ROLE==='subadmin')return true;
+  if(S.MY_ROLE==='admin')return false;
+  return ((auth.currentUser&&auth.currentUser.email)||'').toLowerCase()===SUB_EMAIL;
+ };
  const admRawName=()=>isSubAdm()?'Доставка':'Админ';
  const admTag=()=>isSubAdm()?'delivery':'admin';
  let _tt=null;

@@ -596,7 +596,9 @@ function openAdmSumModal(code,subKey,openDocs){
 function drawTotals(){
  const CL=allCars(),carList=getCarsList();if(S.SEL!=="all"&&!carList.includes(S.SEL))S.SEL="all";
  const curSelLabel=S.SEL==="all"?"Все экипажи":(S.SEL==="ADMIN"?"Админ":"Экипаж "+S.SEL);
- let h="<button type=\"button\" class=\"sel-btn\" data-act=\"opensel\"><span class=\"sel-btn-l\"><span class=\"sel-ic\">🚚</span><span class=\"sel-btn-t\">"+esc(curSelLabel)+"</span></span><svg class=\"sel-chev\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m6 9 6 6 6-6\"/></svg></button>";
+ const customTarCnt=typeof EB_CAT.getCustomTariffsCount==="function"?EB_CAT.getCustomTariffsCount():0;
+ const tarBtnHtml=!isSubAdm()?"<button type=\"button\" class=\"tar-open-btn\" data-act=\"open-tariffs\" title=\"Редактор тарифов бонусов\"><span>💰</span><span>Тарифы</span>"+(customTarCnt?"<span class=\"tar-cnt-bdg\" data-no-i18n=\"1\">"+customTarCnt+"</span>":"")+"</button>":"";
+ let h="<div class=\"tot-top-bar\"><button type=\"button\" class=\"sel-btn\" style=\"margin-bottom:0;flex:1;min-width:0\" data-act=\"opensel\"><span class=\"sel-btn-l\"><span class=\"sel-ic\">🚚</span><span class=\"sel-btn-t\">"+esc(curSelLabel)+"</span></span><svg class=\"sel-chev\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m6 9 6 6 6-6\"/></svg></button>"+tarBtnHtml+"</div>";
  const badge=cd=>cd==="ADMIN"?"<span style=\"min-width:36px;height:34px;padding:0 6px;border-radius:11px;background:linear-gradient(135deg,rgba(167,139,250,.24),rgba(124,58,237,.12));border:1px solid rgba(167,139,250,.5);color:#c4b5fd;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0\">🛡️</span>":"<span data-no-i18n=\"1\" style=\"min-width:36px;height:34px;padding:0 6px;border-radius:11px;background:rgba(16,185,129,.16);border:1px solid rgba(52,211,153,.35);color:#6ee7b7;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0\">"+esc(cd)+"</span>";
  if(S.SEL==="all"){
   const curList=CL.filter(c=>c.qty>0||c.sum>0||c.crew.length>0).sort((a,b)=>b.sum-a.sum);
@@ -618,7 +620,7 @@ function drawTotals(){
 }
  
  async function migrateDevToCar(uid, carCode){
-  if(!uid || !carCode || !S.USERS[uid]) return false;
+  if(isSubAdm() || !uid || !carCode || !S.USERS[uid]) return false;
   const u = S.USERS[uid];
   let raw = [];
   try { raw = JSON.parse(u.bonRaw || "[]"); } catch(e){}
@@ -655,10 +657,216 @@ function drawTotals(){
  }
 
 
+ function openTariffsModal(){
+  if(isSubAdm())return;
+  const old=g("admTariffsOv");if(old){if(typeof old._close==="function")old._close();else old.remove()}
+  const cats=EB_CAT.CATEGORIES||[];
+  const defs=EB_CAT.DEFAULT_TARIFFS||{};
+  const furnNm=EB_CAT.furnitureName||nm;
+  const icoMap=EB_CAT.ICO||{};
+  const draft={};
+  const savedSnap={};
+  cats.forEach(c=>{
+   c.subs.forEach(s=>{
+    const code=c.pk+"_"+s.sk;
+    const def=defs[code]||{p1:s.p1,p2:s.one?s.p1:s.p2,one:!!s.one};
+    const cur=typeof EB_CAT.getTariff==="function"?EB_CAT.getTariff(code):{p1:s.p1,p2:s.one?s.p1:s.p2,one:!!s.one};
+    draft[code]={p1:cur.p1,p2:def.one?cur.p1:cur.p2,one:def.one,defP1:def.p1,defP2:def.p2,raw1:String(cur.p1),raw2:String(def.one?cur.p1:cur.p2)};
+    savedSnap[code]={p1:cur.p1,p2:def.one?cur.p1:cur.p2};
+   });
+  });
+
+  const ov=document.createElement("div");ov.id="admTariffsOv";ov.className="ov";
+  ov.innerHTML="<div class=\"dlg ach-box tar-box\">"
+   +"<div class=\"ach-hd\"><div class=\"ach-hd-l\"><div class=\"ach-hd-ic\" style=\"background:rgba(250,204,21,.16);border-color:rgba(250,204,21,.4);color:#fde047\">💰</div><div><b>Тарифы бонусов</b><small id=\"tarSub\"></small></div></div><div class=\"ach-acts\"><button type=\"button\" id=\"tarX\" class=\"ach-x\">✕</button></div></div>"
+   +"<div class=\"tar-ctrl\">"
+   +"<div class=\"tar-srch\"><span class=\"tar-srch-ic\">🔍</span><input id=\"tarQ\" type=\"search\" placeholder=\"Поиск категории или товара...\"><button type=\"button\" id=\"tarQClr\" class=\"tar-srch-clr\" hidden>✕</button></div>"
+   +"<button type=\"button\" id=\"tarOnlyBtn\" class=\"tar-flt-btn\">Только изменённые</button>"
+   +"</div>"
+   +"<div id=\"tarList\" class=\"ach-list tar-list\"></div>"
+   +"<div class=\"tar-foot\">"
+   +"<div class=\"tar-note\">Применяется сразу для текущих расчётов и новых накладных. Сохранённые архивы не меняются.</div>"
+   +"<div class=\"tar-foot-acts\">"
+   +"<button type=\"button\" id=\"tarResetAll\" class=\"tar-rst-btn\">↺ Сбросить всё</button>"
+   +"<button type=\"button\" id=\"tarSaveBtn\" class=\"tar-save-btn\">Сохранить тарифы</button>"
+   +"</div></div></div>";
+  document.body.appendChild(ov);
+
+  let q="",onlyMod=false,closed=false;
+  const parsePrice=v=>{
+   const str=String(v==null?"":v).trim();
+   if(!/^\d+$/.test(str))return null;
+   const n=parseInt(str,10);
+   return Number.isFinite(n)&&n>=0&&n<=1000000?n:null;
+  };
+  const isDiffFromDef=d=>d.p1!==d.defP1||(!d.one&&d.p2!==d.defP2);
+  const getDirtyCodes=()=>Object.keys(draft).filter(cd=>{
+   const d=draft[cd],sv=savedSnap[cd];
+   const p1=parsePrice(d.raw1),p2=d.one?p1:parsePrice(d.raw2);
+   if(p1===null||p2===null)return true;
+   return p1!==sv.p1||(!d.one&&p2!==sv.p2);
+  });
+  const getInvalidCodes=()=>Object.keys(draft).filter(cd=>{
+   const d=draft[cd];
+   return parsePrice(d.raw1)===null||(!d.one&&parsePrice(d.raw2)===null);
+  });
+
+  const updHeader=()=>{
+   const customCnt=Object.keys(draft).filter(cd=>isDiffFromDef(draft[cd])).length;
+   const dirtyCnt=getDirtyCodes().length;
+   const invCnt=getInvalidCodes().length;
+   const sub=g("tarSub");
+   if(sub)sub.textContent=customCnt?("Изменено от базовых: "+customCnt+" из "+Object.keys(draft).length):"Все позиции по базовому тарифу";
+   const ob=g("tarOnlyBtn");
+   if(ob){
+    ob.classList.toggle("on",onlyMod);
+    ob.textContent=customCnt?("Изменённые ("+customCnt+")"):"Только изменённые";
+   }
+   const sb=g("tarSaveBtn");
+   if(sb){
+    sb.disabled=invCnt>0||dirtyCnt===0;
+    sb.textContent=invCnt>0?"Проверьте цены":(dirtyCnt>0?("Сохранить ("+dirtyCnt+")"):"Нет изменений");
+   }
+   const rb=g("tarResetAll");
+   if(rb)rb.disabled=customCnt===0;
+  };
+
+  const renderList=()=>{
+   const box=g("tarList");if(!box)return;
+   const ql=q.trim().toLowerCase();
+   let html="",shown=0;
+   cats.forEach(c=>{
+    const cLabel=furnNm(c.hy);
+    const cMatch=!ql||cLabel.toLowerCase().includes(ql)||c.ru.toLowerCase().includes(ql)||c.hy.toLowerCase().includes(ql)||c.en.toLowerCase().includes(ql);
+    const rowsHtml=[];
+    c.subs.forEach(s=>{
+     const code=c.pk+"_"+s.sk,d=draft[code];
+     const sLabel=furnNm(s.hy);
+     const mod=isDiffFromDef(d);
+     if(onlyMod&&!mod)return;
+     const sMatch=cMatch||sLabel.toLowerCase().includes(ql)||s.ru.toLowerCase().includes(ql)||s.hy.toLowerCase().includes(ql)||s.en.toLowerCase().includes(ql)||(s.ocrRu||"").toLowerCase().includes(ql);
+     if(!sMatch)return;
+     shown++;
+     const bad1=parsePrice(d.raw1)===null;
+     const bad2=!d.one&&parsePrice(d.raw2)===null;
+     const defHint=mod?("<div class=\"tar-def\">База: <span data-no-i18n=\"1\">"+fm(d.defP1)+(d.one?"":(" / "+fm(d.defP2)))+" "+CUR+"</span></div>"):"";
+     const rstBtn=mod?("<button type=\"button\" class=\"tar-row-rst\" data-rst=\""+esc(code)+"\" title=\"Вернуть базовый тариф\">↺</button>"):"";
+     const inp2=d.one
+      ?"<div class=\"tar-fix-tag\">Единый тариф</div>"
+      :("<label class=\"tar-fld\"><span>Район</span><input type=\"number\" inputmode=\"numeric\" min=\"0\" max=\"1000000\" step=\"10\" class=\"tar-inp"+(bad2?" bad":"")+"\" data-cd=\""+esc(code)+"\" data-z=\"2\" value=\""+esc(d.raw2)+"\"></label>");
+     rowsHtml.push("<div class=\"tar-row"+(mod?" mod":"")+"\" data-tar-row=\""+esc(code)+"\">"
+      +"<div class=\"tar-row-top\"><div class=\"tar-row-nm\"><b>"+esc(sLabel)+"</b>"+(mod?"<span class=\"tar-mod-dot\">изм.</span>":"")+defHint+"</div>"+rstBtn+"</div>"
+      +"<div class=\"tar-inputs\">"
+      +"<label class=\"tar-fld\"><span>"+(d.one?"Тариф":"Город")+"</span><input type=\"number\" inputmode=\"numeric\" min=\"0\" max=\"1000000\" step=\"10\" class=\"tar-inp"+(bad1?" bad":"")+"\" data-cd=\""+esc(code)+"\" data-z=\"1\" value=\""+esc(d.raw1)+"\"></label>"
+      +inp2+"</div></div>");
+    });
+    if(rowsHtml.length){
+     html+="<div class=\"tar-cat\"><div class=\"tar-cat-hd\"><span>"+(icoMap[c.pk]||"📦")+" "+esc(cLabel)+"</span><span class=\"tar-cat-cnt\" data-no-i18n=\"1\">"+rowsHtml.length+"</span></div>"+rowsHtml.join("")+"</div>";
+    }
+   });
+   if(!shown){
+    box.innerHTML="<div class=\"mut\" style=\"text-align:center;padding:28px 12px\">"+(onlyMod?"Изменённых тарифов нет":"Ничего не найдено")+"</div>";
+   }else{
+    box.innerHTML=html;
+   }
+   updHeader();
+  };
+
+  const forceClose=()=>{if(closed)return;closed=true;ov.classList.remove("show");document.removeEventListener("keydown",onK);setTimeout(()=>ov.remove(),180)};
+  const tryClose=async()=>{
+   if(closed)return;
+   if(getDirtyCodes().length){
+    const ok=await ask("Есть несохранённые изменения тарифов. Закрыть без сохранения?",{title:"Несохранённые правки",okText:"Закрыть",danger:true});
+    if(!ok)return;
+   }
+   forceClose();
+  };
+  ov._close=forceClose;
+  const onK=e=>{if(e.key==="Escape"&&(!g("cOv")||g("cOv").hidden)){e.preventDefault();tryClose()}};
+  g("tarX").onclick=tryClose;
+  ov.onclick=e=>{if(e.target===ov)tryClose()};
+
+  const qInp=g("tarQ"),qClr=g("tarQClr");
+  qInp.oninput=e=>{q=e.target.value||"";qClr.hidden=!q;renderList()};
+  qClr.onclick=()=>{q="";qInp.value="";qClr.hidden=true;renderList();qInp.focus()};
+  g("tarOnlyBtn").onclick=()=>{onlyMod=!onlyMod;renderList()};
+
+  g("tarList").addEventListener("input",e=>{
+   const inp=e.target.closest(".tar-inp");if(!inp)return;
+   const cd=inp.dataset.cd,z=inp.dataset.z,d=draft[cd];if(!d)return;
+   const val=inp.value;
+   if(z==="1")d.raw1=val;else d.raw2=val;
+   const p1=parsePrice(d.raw1),p2=d.one?p1:parsePrice(d.raw2);
+   if(p1!==null)d.p1=p1;
+   if(p2!==null)d.p2=p2;
+   inp.classList.toggle("bad",(z==="1"?p1:p2)===null);
+   const row=inp.closest(".tar-row");
+   if(row){
+    const mod=isDiffFromDef(d);
+    row.classList.toggle("mod",mod);
+   }
+   updHeader();
+  });
+
+  g("tarList").addEventListener("click",e=>{
+   const rb=e.target.closest("[data-rst]");if(!rb)return;
+   const cd=rb.dataset.rst,d=draft[cd];if(!d)return;
+   d.p1=d.defP1;d.p2=d.defP2;d.raw1=String(d.defP1);d.raw2=String(d.defP2);
+   renderList();
+  });
+
+  g("tarResetAll").onclick=async()=>{
+   const ok=await ask("Сбросить все тарифы в редакторе к заводским значениям? После этого нажмите «Сохранить», чтобы применить для всех.",{title:"Сброс тарифов",okText:"Сбросить",danger:true});
+   if(!ok)return;
+   Object.keys(draft).forEach(cd=>{const d=draft[cd];d.p1=d.defP1;d.p2=d.defP2;d.raw1=String(d.defP1);d.raw2=String(d.defP2)});
+   renderList();
+  };
+
+  g("tarSaveBtn").onclick=async()=>{
+   const inv=getInvalidCodes();
+   if(inv.length){toast("Введите корректные целые цены (от 0 до 1 000 000)",true);return}
+   const dirty=getDirtyCodes();
+   if(!dirty.length){toast("Изменений нет");return}
+   const rawOut={};
+   Object.keys(draft).forEach(cd=>{
+    const d=draft[cd];
+    const p1=parsePrice(d.raw1),p2=d.one?p1:parsePrice(d.raw2);
+    if(d.one){if(p1!==d.defP1)rawOut[cd]={p1:p1}}
+    else{if(p1!==d.defP1||p2!==d.defP2)rawOut[cd]={p1:p1,p2:p2}}
+   });
+   const cleanPayload=typeof EB_CAT.sanitizeTariffsMap==="function"?EB_CAT.sanitizeTariffsMap(rawOut):rawOut;
+   const previewLines=dirty.slice(0,5).map(cd=>{
+    const d=draft[cd],sv=savedSnap[cd];
+    const label=(EB_CAT.OCR_CAT_NAMES&&EB_CAT.OCR_CAT_NAMES[cd])||cd;
+    return "• "+label+": "+fm(sv.p1)+(d.one?"":("/"+fm(sv.p2)))+" → "+fm(d.p1)+(d.one?"":("/"+fm(d.p2)))+" "+CUR;
+   });
+   if(dirty.length>5)previewLines.push("... и ещё "+(dirty.length-5));
+   const ok=await ask("Сохранить новые тарифы ("+dirty.length+" поз.) для всех устройств?\n\n"+previewLines.join("\n"),{title:"Сохранение тарифов",okText:"Сохранить",danger:false});
+   if(!ok)return;
+   const sb=g("tarSaveBtn");if(sb){sb.disabled=true;sb.textContent="Сохранение..."}
+   try{
+    if(Object.keys(cleanPayload).length)await db.ref("config/tariffs").set(cleanPayload);
+    else await db.ref("config/tariffs").remove();
+    S.TARIFFS=cleanPayload;
+    if(typeof EB_CAT.applyTariffs==="function")EB_CAT.applyTariffs(cleanPayload);
+    toast("Тарифы обновлены для всех устройств");
+    forceClose();
+    if(S.TAB==="online"||S.TAB==="totals")Adm.scheduleDraw(60);
+   }catch(err){
+    toast("Ошибка сохранения тарифов (проверьте правила Firebase)",true);
+    updHeader();
+   }
+  };
+
+  document.addEventListener("keydown",onK);
+  renderList();
+  requestAnimationFrame(()=>ov.classList.add("show"));
+ }
+
  Object.assign(Adm, {
   CAR_CATALOG, parseCar, allCars, aggCarMonths, admFbKey,
   findAffectedDocsByRule, findAffectedDocsByAllRules,
-  openRecalcModal, openAdmSumModal, drawTotals, migrateDevToCar
+  openRecalcModal, openAdmSumModal, openTariffsModal, drawTotals, migrateDevToCar
  });
 })(window.Adm);
 

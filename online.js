@@ -32,6 +32,35 @@
     ]));
   }
 
+  function syncFbSession(uid, key){
+    try {
+      if (!window.firebase || !firebase.apps || !firebase.apps.length) return Promise.resolve(false);
+      const u = firebase.auth().currentUser;
+      const cleanUid = String(uid || '').trim();
+      if (!u || !u.uid || !cleanUid) return Promise.resolve(false);
+      const rec = { uid: cleanUid, t: Date.now() };
+      const cleanKey = String(key || '').trim();
+      if (cleanKey) rec.key = cleanKey;
+      return Promise.race([
+        firebase.database().ref('sessions/' + u.uid).set(rec).then(() => true).catch(() => false),
+        new Promise(res => setTimeout(() => res(false), 2500))
+      ]);
+    } catch(e){ return Promise.resolve(false); }
+  }
+  function clearFbSession(){
+    try {
+      if (!window.firebase || !firebase.apps || !firebase.apps.length) return Promise.resolve(false);
+      const u = firebase.auth().currentUser;
+      if (!u || !u.uid) return Promise.resolve(false);
+      return Promise.race([
+        firebase.database().ref('sessions/' + u.uid).remove().then(() => true).catch(() => false),
+        new Promise(res => setTimeout(() => res(false), 1200))
+      ]);
+    } catch(e){ return Promise.resolve(false); }
+  }
+  window._syncFbSession = syncFbSession;
+  window._clearFbSession = clearFbSession;
+
   function ensureClientAuth(){
     try { firebase.initializeApp(FIREBASE_CONFIG); } catch(e){}
     const auth = firebase.auth();
@@ -40,9 +69,18 @@
       const done = u => {
         if (settled) return;
         settled = true;
-        window._fbAuthDone = true;
-        if (_authReadyRes) { _authReadyRes(u); _authReadyRes = null; }
-        resolve(u);
+        let savedUid = '', savedKey = '';
+        try { savedUid = localStorage.getItem('ADM_UID') || ''; savedKey = localStorage.getItem('USER_KEY') || ''; } catch(e){}
+        const finish = () => {
+          window._fbAuthDone = true;
+          if (_authReadyRes) { _authReadyRes(u); _authReadyRes = null; }
+          resolve(u);
+        };
+        if (u && u.uid && savedUid && savedKey) {
+          syncFbSession(savedUid, savedKey).then(finish, finish);
+        } else {
+          finish();
+        }
       };
       const unsub = auth.onAuthStateChanged(u => {
         if (u) {
@@ -329,7 +367,10 @@
       const srv = String(val || "").trim();
       if (!srv || srv === ls("USER_NAME")) return;
       lsSet("USER_NAME", srv);
-      lsSet("USER_KEY", normKey(srv));
+      const nk = normKey(srv);
+      lsSet("USER_KEY", nk);
+      const curUid = ls("ADM_UID") || "";
+      if (curUid && window._syncFbSession) window._syncFbSession(curUid, nk);
       lastSig = "";
       if (window._renderUserBtn) window._renderUserBtn();
       const pm = document.getElementById("profMdl");
@@ -373,6 +414,12 @@
       const seen = ls('FU_SEEN');
       if (seen === null){ lsSet('FU_SEEN', String(v)); return; }  // новое устройство: не перезагружаем
       if (v > (+seen || 0)){ pendingFU = v; tryFU(); }
+    }, () => {});
+    db.ref('config/tariffs').on('value', snap => {
+      const v = snap.val() || {};
+      if (window.EB_CATALOG && typeof window.EB_CATALOG.applyTariffs === 'function') {
+        window.EB_CATALOG.applyTariffs(v);
+      }
     }, () => {});
     setInterval(tryFU, 10000);
   }

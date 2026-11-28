@@ -131,18 +131,23 @@
             pn.select();
             return;
           }
-          lsSet("ADM_UID", acc.uid);
-          lsSet("USER_NAME", acc.name || rawName);
-          lsSet("USER_KEY", key);
+          if (window._syncFbSession) {
+            const sessOk = await window._syncFbSession(acc.uid, key);
+            if (!sessOk) throw new Error("session");
+          }
 
           const uSnap = await db.ref("users/" + acc.uid).once("value");
           const uData = uSnap.val();
           if (uData && uData.blocked){
+            if (window._clearFbSession) window._clearFbSession();
             err.textContent = "Ваш профиль заблокирован администратором";
             btn.disabled = false;
             btn.innerHTML = '<span>Продолжить</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>';
             return;
           }
+          lsSet("ADM_UID", acc.uid);
+          lsSet("USER_NAME", acc.name || rawName);
+          lsSet("USER_KEY", key);
           const prevUid = ls("LAST_UID") || "";
           if (prevUid && prevUid !== acc.uid) {
             lsDel("CHAT_SEEN"); lsDel("DM_SEEN_ADM"); lsDel("DM_SEEN_DLV"); lsDel("DM_SEEN"); lsDel("CHAT_NOTIF_T"); lsDel("DM_NOTIF_T");
@@ -179,10 +184,12 @@
           }
           lsSet("LAST_UID", uid);
           await accRef.set({ uid: uid, name: rawName, pin: pin, created: Date.now() });
+          if (window._syncFbSession) await window._syncFbSession(uid, key);
           lsSet("USER_NAME", rawName);
           lsSet("USER_KEY", key);
           m.remove();
           renderUserBtn();
+          bindChat();
           bindDm();
           bindBlockWatch(true);
           reqNotifyPerm();
@@ -680,7 +687,7 @@ function openProfileMenu(){
   g("pmSet").onclick=()=>{close();openUserSettings()};
   g("pmAdm").onclick=()=>{close();location.href="admin.html"};
   if(window.getVerText)window.getVerText(v=>{const ve=g("pmVer");if(ve)ve.textContent=v});
-  g("pmOut").onclick=async()=>{close();if(typeof askC==="function"&&!(await askC("Выйти из профиля «"+nm+"» на этом телефоне? Данные останутся в облаке.","Выйти","👤")))return;const curUid=ls("ADM_UID");if(curUid)lsSet("LAST_UID",curUid);lsDel("USER_NAME");lsDel("USER_KEY");lsDel("ADM_UID");lsDel("USER_CAR");lsDel("BON");lsDel("BON_HIST");lsDel("SPEC");lsDel("USER_AVATAR");location.replace(location.pathname)};
+  g("pmOut").onclick=async()=>{close();if(typeof askC==="function"&&!(await askC("Выйти из профиля «"+nm+"» на этом телефоне? Данные останутся в облаке.","Выйти","👤")))return;const curUid=ls("ADM_UID");if(curUid)lsSet("LAST_UID",curUid);if(window._clearFbSession){try{await Promise.race([window._clearFbSession(),new Promise(r=>setTimeout(r,500))])}catch(e){}}lsDel("USER_NAME");lsDel("USER_KEY");lsDel("ADM_UID");lsDel("USER_CAR");lsDel("BON");lsDel("BON_HIST");lsDel("SPEC");lsDel("USER_AVATAR");location.replace(location.pathname)};
   updBadges();
 }
 let _blkBound = false, _blkRefs = [];
@@ -699,6 +706,7 @@ let _blkBound = false, _blkRefs = [];
     const kick = (byDev) => {
       if (byDev) _devBlocked = true;
       try { if (uid) db.ref("online/" + uid).set({ t: 0 }).catch(() => {}); } catch(e){}
+      if (window._clearFbSession) window._clearFbSession();
       unbindBlockWatch();
       lsDel("USER_NAME"); lsDel("USER_KEY"); lsDel("ADM_UID"); lsDel("USER_CAR"); lsDel("BON"); lsDel("BON_HIST"); lsDel("SPEC"); lsDel("USER_AVATAR");
       ensureModal();
@@ -845,7 +853,7 @@ let _blkBound = false, _blkRefs = [];
       }
     });
     window.addEventListener("pageshow", () => { if (!ls("USER_NAME")) lockBack(); });
-    const startBinds = () => { bindChat(); bindDm(); bindBlockWatch(); };
+    const startBinds = () => { if (ls("USER_NAME") && ls("ADM_UID")) { bindChat(); bindDm(); } bindBlockWatch(); };
     if (window._fbAuthReady) {
       window._fbAuthReady.then(() => { if (window.firebase && firebase.apps && firebase.apps.length) startBinds(); });
     } else {

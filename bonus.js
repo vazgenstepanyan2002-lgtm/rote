@@ -688,6 +688,31 @@
  window.addEventListener('popstate',()=>{if(Date.now()<(window._tvSkipPopUntil||0))return;if(skipPop>0){skipPop--;return}const repush=()=>{const m=g('bnMdl');if(m&&m.classList.contains('open'))try{history.pushState({bn:1},'')}catch(e){}};const tv=g('tvMdl');if(tv){window._tvSkipPopUntil=Date.now()+150;if(typeof tv._tvClose==='function')tv._tvClose('pop');else tv.remove();return}if(g('bnDocsMdl')){const c=g('bdX');if(c)c.click();else g('bnDocsMdl').remove();repush();return}if(g('noCrewMdl')){g('noCrewMdl').remove();repush();return}if(g('mPick')){g('mPick').remove();repush();return}if(g('ocrLiveCam')){const c=g('olcClose');if(c)c.click();repush();return}if(g('ocrCatMdl')){const c=g('obPkX');if(c)c.click();repush();return}if(g('ocrSrcMdl')){const c=g('ocrPickNo');if(c)c.click();repush();return}if(g('ocrBonMdl')){const c=g('obX');if(c)c.click();repush();return}const o=g('bnSm');if(o&&o.classList.contains('open')){o.classList.remove('open');repush();return}const m=g('bnMdl');if(m&&m.classList.contains('open'))closeBon('pop')});
  const restoreBon=()=>{try{if(sessionStorage.getItem('BON_WAS_OPEN')==='1'&&(!g('bnMdl')||!g('bnMdl').classList.contains('open')))openBon(true)}catch(e){}};setTimeout(restoreBon,120);document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(restoreBon,150)});
 
+ // Обновление цен в реальном времени при изменении тарифов из админки
+ if (typeof CAT.onTariffsChange === 'function') {
+  CAT.onTariffsChange(() => {
+   B.forEach((c, ci) => {
+    const pc = PRE[ci];
+    if (!pc) return;
+    c.subs.forEach((s, si) => {
+     const ps = pc.subs[si];
+     if (!ps) return;
+     s.price = ps.price;
+     s.price2 = ps.one ? 0 : ps.price2;
+    });
+   });
+   const m = g('bnMdl');
+   if (m && m.classList.contains('open')) {
+    render();
+    const sm = g('bnSm');
+    if (sm && sm.classList.contains('open')) {
+     if (sm.querySelector('.bn-back') && CUR_VIEW && CUR_VIEW.k === 'cur') showMonth('cur');
+     else if (!sm.querySelector('.bn-back')) histView();
+    }
+   }
+  });
+ }
+
  // Перерисовка названий мебели при смене языка приложения
  new MutationObserver(()=>{
   const m=g('bnMdl');

@@ -942,6 +942,11 @@ async function askGemini(b64){
       g('obTotSum').textContent = fm(tot) + ' ' + CUR;
       saveOcrDraft(rows, isCity, cleanDoc);
     };
+    window._ocrRefreshTariffs = () => { if (g('ocrBonMdl')) renderRows(); };
+    if (!window._ocrTariffSub && typeof EB_CAT.onTariffsChange === 'function') {
+      window._ocrTariffSub = true;
+      EB_CAT.onTariffsChange(() => { if (typeof window._ocrRefreshTariffs === 'function') window._ocrRefreshTariffs(); });
+    }
 
     g('obZoneSeg').onclick = e => { const b = e.target.closest('button[data-z]'); if (!b) return; isCity = b.dataset.z === 'city'; g('obZoneSeg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); syncSub(); renderRows(); };
     g('obList').onclick = e => {

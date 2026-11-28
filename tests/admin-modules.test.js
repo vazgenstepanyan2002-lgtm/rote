@@ -141,7 +141,7 @@ test('admin-*.js: все 7 модулей загружаются без ошиб
     // map
     'destroyMap', 'fitAllDrivers', 'syncMapMarkers', 'drawSubMap', 'drawMap',
     // bonuses
-    'parseCar', 'allCars', 'aggCarMonths', 'admFbKey', 'findAffectedDocsByRule', 'findAffectedDocsByAllRules', 'openRecalcModal', 'openAdmSumModal', 'drawTotals', 'migrateDevToCar',
+    'parseCar', 'allCars', 'aggCarMonths', 'admFbKey', 'findAffectedDocsByRule', 'findAffectedDocsByAllRules', 'openRecalcModal', 'openAdmSumModal', 'openTariffsModal', 'drawTotals', 'migrateDevToCar',
     // ocr
     'pruneStaleOcrPending', 'updOcrTabBdg', 'drawOcr', 'openOcrRuleModal', 'ocrNorm',
     // att
@@ -191,6 +191,9 @@ test('admin-*.js: субадмин изолирован от accounts и subadmi
   assert.ok(!envSub.listenedPaths.includes('accounts'), 'Субадмин не должен подписываться на accounts');
   assert.ok(!envSub.listenedPaths.includes('subadminLog'), 'Субадмин не должен подписываться на subadminLog');
   assert.ok(envSub.listenedPaths.includes('attendance'), 'Субадмин должен видеть attendance');
+  assert.ok(envSub.listenedPaths.includes('config/tariffs'), 'Субадмин должен получать актуальные тарифы для расчётов');
+  envSub.sandbox.window.Adm.drawTotals();
+  assert.ok(!envSub.els.view.innerHTML.includes('data-act="open-tariffs"'), 'У субадмина не должно быть кнопки редактора тарифов');
 
   const envMain = createMockEnv();
   envMain.triggerAuth({ isAnonymous: false, email: 'vazgenstepanyan2002@gmail.com', uid: 'adm1' });
@@ -198,6 +201,20 @@ test('admin-*.js: субадмин изолирован от accounts и subadmi
   assert.equal(envMain.sandbox.window.Adm.isSubAdm(), false);
   assert.ok(envMain.listenedPaths.includes('accounts'), 'Главный админ должен подписываться на accounts');
   assert.ok(envMain.listenedPaths.includes('subadminLog'), 'Главный админ должен подписываться на subadminLog');
+  assert.ok(envMain.listenedPaths.includes('config/tariffs'), 'Главный админ должен подписываться на config/tariffs');
+  envMain.sandbox.window.Adm.drawTotals();
+  assert.ok(envMain.els.view.innerHTML.includes('data-act="open-tariffs"'), 'У главного админа должна быть кнопка редактора тарифов');
+});
+
+test('admin-*.js: серверная роль S.MY_ROLE управляет isSubAdm() приоритетно', () => {
+  const env = createMockEnv();
+  const Adm = env.sandbox.window.Adm;
+  env.triggerAuth({ isAnonymous: false, email: 'other@example.com', uid: 'u99' });
+  assert.equal(Adm.isSubAdm(), false);
+  Adm.S.MY_ROLE = 'subadmin';
+  assert.equal(Adm.isSubAdm(), true);
+  Adm.S.MY_ROLE = 'admin';
+  assert.equal(Adm.isSubAdm(), false);
 });
 
 test('admin-*.js: нет системных alert/confirm/prompt', () => {

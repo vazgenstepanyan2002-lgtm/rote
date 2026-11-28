@@ -124,6 +124,106 @@
   });
 
   const BON_BY_CODE = Object.fromEntries(BON_ITEMS.map(x => [x.code, x]));
+  const DEFAULT_TARIFFS = {};
+  CATEGORIES.forEach(c => {
+    c.subs.forEach(s => {
+      const code = c.pk + '_' + s.sk;
+      DEFAULT_TARIFFS[code] = { p1: s.p1, p2: s.one ? s.p1 : s.p2, one: !!s.one };
+    });
+  });
+
+  const TARIFFS_LS_KEY = 'BON_TARIFFS_V1';
+  let _activeTariffs = {};
+  const _tariffListeners = [];
+
+  function sanitizeTariffsMap(raw) {
+    const out = {};
+    if (!raw || typeof raw !== 'object') return out;
+    Object.keys(DEFAULT_TARIFFS).forEach(code => {
+      const rec = raw[code];
+      if (!rec || typeof rec !== 'object') return;
+      const def = DEFAULT_TARIFFS[code];
+      const p1Raw = Number(rec.p1);
+      const p1 = Number.isFinite(p1Raw) && p1Raw >= 0 && p1Raw <= 1000000 ? Math.round(p1Raw) : def.p1;
+      if (def.one) {
+        if (p1 !== def.p1) out[code] = { p1: p1 };
+      } else {
+        const p2Raw = Number(rec.p2);
+        const p2 = Number.isFinite(p2Raw) && p2Raw >= 0 && p2Raw <= 1000000 ? Math.round(p2Raw) : def.p2;
+        if (p1 !== def.p1 || p2 !== def.p2) out[code] = { p1: p1, p2: p2 };
+      }
+    });
+    return out;
+  }
+
+  function applyTariffs(rawMap, opts) {
+    const clean = sanitizeTariffsMap(rawMap);
+    _activeTariffs = clean;
+    let itemIdx = 0;
+    CATEGORIES.forEach((c, ci) => {
+      c.subs.forEach((s, si) => {
+        const code = c.pk + '_' + s.sk;
+        const def = DEFAULT_TARIFFS[code];
+        const ov = clean[code];
+        const p1 = ov && typeof ov.p1 === 'number' ? ov.p1 : def.p1;
+        const p2 = def.one ? p1 : (ov && typeof ov.p2 === 'number' ? ov.p2 : def.p2);
+        s.p1 = p1;
+        if (!def.one) s.p2 = p2;
+        if (PRE[ci] && PRE[ci].subs[si]) {
+          PRE[ci].subs[si].price = p1;
+          if (!def.one) PRE[ci].subs[si].price2 = p2;
+        }
+        if (CAR_CATALOG[ci] && CAR_CATALOG[ci].subs[si]) {
+          CAR_CATALOG[ci].subs[si].p1 = p1;
+          if (!def.one) CAR_CATALOG[ci].subs[si].p2 = p2;
+        }
+        if (BON_ITEMS[itemIdx]) {
+          BON_ITEMS[itemIdx].p1 = p1;
+          BON_ITEMS[itemIdx].p2 = p2;
+        }
+        itemIdx++;
+      });
+    });
+    if (!(opts && opts.skipSave) && typeof localStorage !== 'undefined') {
+      try {
+        if (Object.keys(clean).length) localStorage.setItem(TARIFFS_LS_KEY, JSON.stringify(clean));
+        else localStorage.removeItem(TARIFFS_LS_KEY);
+      } catch (e) {}
+    }
+    if (!(opts && opts.silent)) {
+      _tariffListeners.forEach(fn => { try { fn(clean); } catch (e) {} });
+    }
+    return clean;
+  }
+
+  function getTariff(code) {
+    const def = DEFAULT_TARIFFS[code];
+    if (!def) return null;
+    const ov = _activeTariffs[code];
+    const p1 = ov && typeof ov.p1 === 'number' ? ov.p1 : def.p1;
+    const p2 = def.one ? p1 : (ov && typeof ov.p2 === 'number' ? ov.p2 : def.p2);
+    return { p1: p1, p2: p2, one: def.one, defP1: def.p1, defP2: def.p2, custom: !!ov };
+  }
+
+  function getActiveTariffs() {
+    return Object.assign({}, _activeTariffs);
+  }
+
+  function getCustomTariffsCount() {
+    return Object.keys(_activeTariffs).length;
+  }
+
+  function onTariffsChange(fn) {
+    if (typeof fn === 'function' && !_tariffListeners.includes(fn)) _tariffListeners.push(fn);
+  }
+
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const saved = localStorage.getItem(TARIFFS_LS_KEY);
+      if (saved) applyTariffs(JSON.parse(saved), { skipSave: true, silent: true });
+    } catch (e) {}
+  }
+
   const nm = v => RU[v] || v;
   const furnitureName = value => {
     const pair = FURNITURE_NAMES_I18N[value];
@@ -138,6 +238,7 @@
     CAR_CATALOG: CAR_CATALOG,
     BON_ITEMS: BON_ITEMS,
     BON_BY_CODE: BON_BY_CODE,
+    DEFAULT_TARIFFS: DEFAULT_TARIFFS,
     OCR_CAT_NAMES: OCR_CAT_NAMES,
     HY_PICK_KW: HY_PICK_KW,
     OCR_HY_KW: OCR_HY_KW,
@@ -146,6 +247,12 @@
     FURNITURE_NAMES_I18N: FURNITURE_NAMES_I18N,
     RU: RU,
     nm: nm,
-    furnitureName: furnitureName
+    furnitureName: furnitureName,
+    sanitizeTariffsMap: sanitizeTariffsMap,
+    applyTariffs: applyTariffs,
+    getTariff: getTariff,
+    getActiveTariffs: getActiveTariffs,
+    getCustomTariffsCount: getCustomTariffsCount,
+    onTariffsChange: onTariffsChange
   };
 })();
