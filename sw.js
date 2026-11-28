@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eurobaza-v20261128112537';
+const CACHE_NAME = 'eurobaza-v20261128113612';
 const SW_VER = CACHE_NAME.replace(/^eurobaza-v/, '');
 const ASSETS = [
   './',

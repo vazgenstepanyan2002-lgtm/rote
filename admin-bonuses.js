@@ -680,7 +680,7 @@ function drawTotals(){
   ov.innerHTML="<div class=\"dlg ach-box tar-box\">"
    +"<div class=\"ach-hd\"><div class=\"ach-hd-l\"><div class=\"ach-hd-ic\" style=\"background:rgba(250,204,21,.16);border-color:rgba(250,204,21,.4);color:#fde047\">💰</div><div><b>Тарифы бонусов</b><small id=\"tarSub\"></small></div></div><div class=\"ach-acts\"><button type=\"button\" id=\"tarX\" class=\"ach-x\">✕</button></div></div>"
    +"<div class=\"tar-ctrl\">"
-   +"<div class=\"tar-srch\"><span class=\"tar-srch-ic\">🔍</span><input id=\"tarQ\" type=\"search\" placeholder=\"Поиск категории или товара...\"><button type=\"button\" id=\"tarQClr\" class=\"tar-srch-clr\" hidden>✕</button></div>"
+   +"<div class=\"tar-srch\"><span class=\"tar-srch-ic\">🔍</span><input id=\"tarQ\" type=\"search\" placeholder=\"Поиск...\"><button type=\"button\" id=\"tarQClr\" class=\"tar-srch-clr\" hidden>✕</button></div>"
    +"<button type=\"button\" id=\"tarOnlyBtn\" class=\"tar-flt-btn\">Только изменённые</button>"
    +"</div>"
    +"<div id=\"tarList\" class=\"ach-list tar-list\"></div>"
@@ -693,6 +693,7 @@ function drawTotals(){
   document.body.appendChild(ov);
 
   let q="",onlyMod=false,closed=false;
+  const openCats={};
   const parsePrice=v=>{
    const str=String(v==null?"":v).trim();
    if(!/^\d+$/.test(str))return null;
@@ -733,12 +734,14 @@ function drawTotals(){
 
   const renderList=()=>{
    const box=g("tarList");if(!box)return;
+   const st=box.scrollTop;
    const ql=q.trim().toLowerCase();
    let html="",shown=0;
    cats.forEach(c=>{
     const cLabel=furnNm(c.hy);
     const cMatch=!ql||cLabel.toLowerCase().includes(ql)||c.ru.toLowerCase().includes(ql)||c.hy.toLowerCase().includes(ql)||c.en.toLowerCase().includes(ql);
-    const rowsHtml=[];
+    const matchedSubs=[];
+    let catModCnt=0;
     c.subs.forEach(s=>{
      const code=c.pk+"_"+s.sk,d=draft[code];
      const sLabel=furnNm(s.hy);
@@ -747,28 +750,41 @@ function drawTotals(){
      const sMatch=cMatch||sLabel.toLowerCase().includes(ql)||s.ru.toLowerCase().includes(ql)||s.hy.toLowerCase().includes(ql)||s.en.toLowerCase().includes(ql)||(s.ocrRu||"").toLowerCase().includes(ql);
      if(!sMatch)return;
      shown++;
-     const bad1=parsePrice(d.raw1)===null;
-     const bad2=!d.one&&parsePrice(d.raw2)===null;
-     const defHint=mod?("<div class=\"tar-def\">База: <span data-no-i18n=\"1\">"+fm(d.defP1)+(d.one?"":(" / "+fm(d.defP2)))+" "+CUR+"</span></div>"):"";
-     const rstBtn=mod?("<button type=\"button\" class=\"tar-row-rst\" data-rst=\""+esc(code)+"\" title=\"Вернуть базовый тариф\">↺</button>"):"";
-     const inp2=d.one
-      ?"<div class=\"tar-fix-tag\">Единый тариф</div>"
-      :("<label class=\"tar-fld\"><span>Район</span><input type=\"number\" inputmode=\"numeric\" min=\"0\" max=\"1000000\" step=\"10\" class=\"tar-inp"+(bad2?" bad":"")+"\" data-cd=\""+esc(code)+"\" data-z=\"2\" value=\""+esc(d.raw2)+"\"></label>");
-     rowsHtml.push("<div class=\"tar-row"+(mod?" mod":"")+"\" data-tar-row=\""+esc(code)+"\">"
-      +"<div class=\"tar-row-top\"><div class=\"tar-row-nm\"><b>"+esc(sLabel)+"</b>"+(mod?"<span class=\"tar-mod-dot\">изм.</span>":"")+defHint+"</div>"+rstBtn+"</div>"
-      +"<div class=\"tar-inputs\">"
-      +"<label class=\"tar-fld\"><span>"+(d.one?"Тариф":"Город")+"</span><input type=\"number\" inputmode=\"numeric\" min=\"0\" max=\"1000000\" step=\"10\" class=\"tar-inp"+(bad1?" bad":"")+"\" data-cd=\""+esc(code)+"\" data-z=\"1\" value=\""+esc(d.raw1)+"\"></label>"
-      +inp2+"</div></div>");
+     if(mod)catModCnt++;
+     matchedSubs.push({s,code,d,sLabel,mod});
     });
-    if(rowsHtml.length){
-     html+="<div class=\"tar-cat\"><div class=\"tar-cat-hd\"><span>"+(icoMap[c.pk]||"📦")+" "+esc(cLabel)+"</span><span class=\"tar-cat-cnt\" data-no-i18n=\"1\">"+rowsHtml.length+"</span></div>"+rowsHtml.join("")+"</div>";
+    if(!matchedSubs.length)return;
+    const isOpen=!!(ql||onlyMod||openCats[c.pk]);
+    let bodyHtml="";
+    if(isOpen){
+     bodyHtml="<div class=\"tar-cat-body\">"+matchedSubs.map(({code,d,sLabel,mod})=>{
+      const bad1=parsePrice(d.raw1)===null;
+      const bad2=!d.one&&parsePrice(d.raw2)===null;
+      const defHint=mod?("<div class=\"tar-def\">База: <span data-no-i18n=\"1\">"+fm(d.defP1)+(d.one?"":(" / "+fm(d.defP2)))+" "+CUR+"</span></div>"):"";
+      const rstBtn=mod?("<button type=\"button\" class=\"tar-row-rst\" data-rst=\""+esc(code)+"\" title=\"Вернуть базовый тариф\">↺</button>"):"";
+      const inp2=d.one
+       ?"<div class=\"tar-fix-tag\">Единый тариф</div>"
+       :("<label class=\"tar-fld\"><span>Район</span><input type=\"number\" inputmode=\"numeric\" min=\"0\" max=\"1000000\" step=\"10\" class=\"tar-inp"+(bad2?" bad":"")+"\" data-cd=\""+esc(code)+"\" data-z=\"2\" value=\""+esc(d.raw2)+"\"></label>");
+      return "<div class=\"tar-row"+(mod?" mod":"")+"\" data-tar-row=\""+esc(code)+"\">"
+       +"<div class=\"tar-row-top\"><div class=\"tar-row-nm\"><b>"+esc(sLabel)+"</b>"+(mod?"<span class=\"tar-mod-dot\">изм.</span>":"")+defHint+"</div>"+rstBtn+"</div>"
+       +"<div class=\"tar-inputs\">"
+       +"<label class=\"tar-fld\"><span>"+(d.one?"Тариф":"Город")+"</span><input type=\"number\" inputmode=\"numeric\" min=\"0\" max=\"1000000\" step=\"10\" class=\"tar-inp"+(bad1?" bad":"")+"\" data-cd=\""+esc(code)+"\" data-z=\"1\" value=\""+esc(d.raw1)+"\"></label>"
+       +inp2+"</div></div>";
+     }).join("")+"</div>";
     }
+    const modBdg=catModCnt?"<span class=\"tar-cat-mod\"><span>изм.</span> <span data-no-i18n=\"1\">"+catModCnt+"</span></span>":"";
+    html+="<div class=\"tar-cat"+(isOpen?" open":"")+(catModCnt?" has-mod":"")+"\" data-cat-box=\""+esc(c.pk)+"\">"
+     +"<button type=\"button\" class=\"tar-cat-hd\" data-tar-cat=\""+esc(c.pk)+"\">"
+     +"<span class=\"tar-cat-l\"><span class=\"tar-cat-ic\">"+(icoMap[c.pk]||"📦")+"</span><span class=\"tar-cat-nm\">"+esc(cLabel)+"</span></span>"
+     +"<span class=\"tar-cat-r\">"+modBdg+"<span class=\"tar-cat-cnt\" data-no-i18n=\"1\">"+matchedSubs.length+"</span><span class=\"tar-cat-ar\">"+(isOpen?"▾":"▸")+"</span></span>"
+     +"</button>"+bodyHtml+"</div>";
    });
    if(!shown){
     box.innerHTML="<div class=\"mut\" style=\"text-align:center;padding:28px 12px\">"+(onlyMod?"Изменённых тарифов нет":"Ничего не найдено")+"</div>";
    }else{
     box.innerHTML=html;
    }
+   box.scrollTop=st;
    updHeader();
   };
 
@@ -809,6 +825,12 @@ function drawTotals(){
   });
 
   g("tarList").addEventListener("click",e=>{
+   const catBtn=e.target.closest("[data-tar-cat]");
+   if(catBtn){
+    const pk=catBtn.dataset.tarCat;
+    if(pk&&!q.trim()&&!onlyMod){openCats[pk]=!openCats[pk];renderList()}
+    return;
+   }
    const rb=e.target.closest("[data-rst]");if(!rb)return;
    const cd=rb.dataset.rst,d=draft[cd];if(!d)return;
    d.p1=d.defP1;d.p2=d.defP2;d.raw1=String(d.defP1);d.raw2=String(d.defP2);
